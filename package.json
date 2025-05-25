@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "express-session": "^1.18.1",
+    "framer-motion": "^12.12.1",
+    "react-confetti": "^6.4.0",
+    "react-paginate": "^8.1.5",
+    "react-scrollbars-custom": "^4.1.1"
+  }
+}

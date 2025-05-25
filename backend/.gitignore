@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+logs/
+*.log
+coverage/
+build/
+dist/
+.DS_Store
+# Serverless files and folders
+serverless.yml
+.serverless/
+**/.serverless/
