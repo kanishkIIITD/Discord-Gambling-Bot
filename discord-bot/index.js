@@ -942,13 +942,11 @@ client.on('interactionCreate', async interaction => {
 			const limit = interaction.options.getInteger('limit') || 10;
 			const type = interaction.options.getString('type') || 'all';
 
-			// console.log(`Fetching transactions for user ${userId} with limit ${limit} and type ${type}`);
-
 			const response = await axios.get(`${backendApiUrl}/users/${userId}/transactions`, {
 				params: { limit, type }
 			});
 
-			const transactions = response.data;
+			const transactions = response.data.transactions;
 
 			if (transactions.length === 0) {
 				const embed = new EmbedBuilder()
