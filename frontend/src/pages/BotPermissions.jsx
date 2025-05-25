@@ -11,18 +11,14 @@ export const BotPermissions = () => {
           
           <div className="prose prose-invert max-w-none">
             <p className="text-text-secondary leading-relaxed tracking-wide mb-6">
-              To ensure Gambling Bot functions properly, it requires the following permissions when added to your Discord server.
+              To ensure Gambling Bot functions properly, it requires the following permissions when added to your Discord server. <strong>We do <span className='text-warning'>not</span> request Administrator or moderation permissions.</strong>
             </p>
 
             <h2 className="text-2xl font-bold text-text-primary mb-4 tracking-tight">Required Permissions</h2>
             <div className="grid md:grid-cols-2 gap-6 mb-8">
               <div className="bg-background p-6 rounded-lg">
-                <h3 className="text-lg font-semibold text-text-primary mb-4 tracking-wide">General Permissions</h3>
+                <h3 className="text-lg font-semibold text-text-primary mb-4 tracking-wide">Bot Permissions</h3>
                 <ul className="space-y-3 text-text-secondary leading-relaxed tracking-wide">
-                  <li className="flex items-center">
-                    <span className="text-success mr-2">✓</span>
-                    Read Messages/View Channels
-                  </li>
                   <li className="flex items-center">
                     <span className="text-success mr-2">✓</span>
                     Send Messages
@@ -33,39 +29,17 @@ export const BotPermissions = () => {
                   </li>
                   <li className="flex items-center">
                     <span className="text-success mr-2">✓</span>
-                    Attach Files
+                    Read Message History
                   </li>
                   <li className="flex items-center">
                     <span className="text-success mr-2">✓</span>
-                    Read Message History
+                    Use Application Commands (Slash Commands)
                   </li>
                 </ul>
               </div>
-
-              <div className="bg-background p-6 rounded-lg">
-                <h3 className="text-lg font-semibold text-text-primary mb-4 tracking-wide">Moderation Permissions</h3>
-                <ul className="space-y-3 text-text-secondary leading-relaxed tracking-wide">
-                  <li className="flex items-center">
-                    <span className="text-success mr-2">✓</span>
-                    Manage Messages
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-success mr-2">✓</span>
-                    Add Reactions
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-success mr-2">✓</span>
-                    Use External Emojis
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-success mr-2">✓</span>
-                    Create Public Threads
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-success mr-2">✓</span>
-                    Send Messages in Threads
-                  </li>
-                </ul>
+              <div className="bg-background p-6 rounded-lg flex flex-col justify-center items-center text-center">
+                <span className="text-4xl mb-2">🔒</span>
+                <span className="text-text-secondary">No admin or moderation permissions required.<br/>Safe for your server.</span>
               </div>
             </div>
 
@@ -81,7 +55,7 @@ export const BotPermissions = () => {
 
             <div className="text-center">
               <a
-                href={`https://discord.com/api/oauth2/authorize?client_id=${process.env.REACT_APP_DISCORD_CLIENT_ID}&permissions=8&scope=bot%20applications.commands`}
+                href={`https://discord.com/api/oauth2/authorize?client_id=${process.env.REACT_APP_DISCORD_CLIENT_ID}&permissions=2147503104&scope=bot%20applications.commands`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary tracking-wide"
