@@ -306,8 +306,7 @@ client.on('interactionCreate', async interaction => {
 			const response = await axios.get(
 				`${backendApiUrl}/users/${userId}/leaderboard`,
 				{
-					params: { limit },
-					data: { username }
+					params: { limit }
 				}
 			);
 			const leaderboard = response.data.data;
@@ -337,7 +336,7 @@ client.on('interactionCreate', async interaction => {
 
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
-			console.error('Error fetching leaderboard:', error.response?.data || error.message);
+			console.error('Error fetching leaderboard:', error.response?.status, error.response?.data, error.config);
 			await interaction.reply('An error occurred while fetching the leaderboard. Please try again later.');
 		}
 	} else if (commandName === 'stats') {
