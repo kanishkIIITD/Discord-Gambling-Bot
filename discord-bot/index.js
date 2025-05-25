@@ -35,15 +35,20 @@ client.on('interactionCreate', async interaction => {
 		try {
 			const response = await axios.get(`${backendApiUrl}/users/${userId}/wallet`);
 			const balance = response.data.balance;
-			await interaction.reply(`Your current balance is: ${balance} points.`);
+			const embed = new EmbedBuilder()
+				.setColor(0x0099ff)
+				.setTitle('💰 Your Balance')
+				.setDescription(`Your current balance is: **${balance.toLocaleString()} points**.`)
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error fetching balance:', error.response?.data || error.message);
-			// More user-friendly error message
-			if (error.response && error.response.status === 404) {
-				await interaction.reply('Could not find your wallet. Please try interacting with the bot again.');
-			} else {
-				await interaction.reply('An error occurred while fetching your balance. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Fetching Balance')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while fetching your balance.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'listbets') {
 		// console.log(`Listing open bets.`);
@@ -52,36 +57,38 @@ client.on('interactionCreate', async interaction => {
 			const openBets = response.data;
 
 			if (openBets.length === 0) {
-				await interaction.reply('There are no open bets at the moment.');
+				const embed = new EmbedBuilder()
+					.setColor(0xffbe76)
+					.setTitle('No Open Bets')
+					.setDescription('There are no open bets at the moment.')
+					.setTimestamp();
+				await interaction.reply({ embeds: [embed] });
 			} else {
-				const embeds = [];
-
-				openBets.forEach(bet => {
-					const embed = {
-						color: 0x0099ff, // A nice blue color
-						title: `Bet: ${bet.description}`,
-						fields: [
+				const embeds = openBets.slice(0, 10).map(bet => {
+					const embed = new EmbedBuilder()
+						.setColor(0x0984e3)
+						.setTitle(`🎲 Bet: ${bet.description}`)
+						.addFields(
 							{ name: 'ID', value: bet._id, inline: true },
-							{ name: 'Options', value: bet.options.join(', '), inline: true },
-						],
-						timestamp: new Date(bet.createdAt),
-					};
-
-					// Add creator field if available
+							{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
+						)
+						.setTimestamp(new Date(bet.createdAt));
 					if (bet.creator && bet.creator.discordId) {
-						embed.fields.push({ name: 'Created By', value: `<@${bet.creator.discordId}>`, inline: true });
+						embed.addFields({ name: 'Created By', value: `<@${bet.creator.discordId}>`, inline: true });
 					}
-
-					embeds.push(embed);
+					return embed;
 				});
-
 				await interaction.reply({ embeds });
 			}
 
 		} catch (error) {
 			console.error('Error listing open bets:', error.response?.data || error.message);
-			// More user-friendly error message
-			await interaction.reply('An error occurred while listing open bets. Please try again later.');
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Listing Bets')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while listing open bets.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'viewbet') {
 		const betId = interaction.options.getString('bet_id');
@@ -91,20 +98,18 @@ client.on('interactionCreate', async interaction => {
 			const response = await axios.get(`${backendApiUrl}/bets/${betId}`);
 			const bet = response.data;
 
-			const embed = {
-				color: 0x0099ff, // A nice blue color
-				title: `Bet: ${bet.description}`,
-				fields: [
+			const embed = new EmbedBuilder()
+				.setColor(0x00b894)
+				.setTitle(`🔍 Bet Details: ${bet.description}`)
+				.addFields(
 					{ name: 'ID', value: bet._id, inline: true },
 					{ name: 'Status', value: bet.status, inline: true },
-					{ name: 'Options', value: bet.options.join(', '), inline: false }, // Not inline to give more space
-				],
-				timestamp: new Date(bet.createdAt),
-			};
+					{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
+				)
+				.setTimestamp(new Date(bet.createdAt));
 
-			// Add winning option field if resolved
 			if (bet.status === 'resolved' && bet.winningOption) {
-				embed.fields.push({ name: 'Winning Option', value: bet.winningOption, inline: true });
+				embed.addFields({ name: 'Winning Option', value: bet.winningOption, inline: true });
 			}
 
 			// Fetch and display placed bets for this bet
@@ -121,36 +126,40 @@ client.on('interactionCreate', async interaction => {
 
 					let placedBetsSummary = '';
 					for (const [option, totalAmount] of Object.entries(betsByOption)) {
-						placedBetsSummary += `**${option}:** ${totalAmount} points\n`;
+						placedBetsSummary += `**${option}:** ${totalAmount.toLocaleString()} points\n`;
 					}
-					embed.fields.push({ name: 'Total Placed Per Option', value: placedBetsSummary, inline: false });
+					embed.addFields({ name: 'Total Placed Per Option', value: placedBetsSummary, inline: false });
 				} else {
-					embed.fields.push({ name: 'Placed Bets', value: 'No bets have been placed yet.', inline: false });
+					embed.addFields({ name: 'Placed Bets', value: 'No bets have been placed yet.', inline: false });
 				}
 			} catch (placedBetsError) {
 				console.error('Error fetching placed bets for viewbet:', placedBetsError.response?.data || placedBetsError.message);
-				embed.fields.push({ name: 'Placed Bets', value: '*Could not fetch placed bets.', inline: false });
+				embed.addFields({ name: 'Placed Bets', value: '*Could not fetch placed bets.', inline: false });
 			}
 
 			await interaction.reply({ embeds: [embed] });
 
 		} catch (error) {
 			console.error('Error viewing bet:', error.response?.data || error.message);
-			// More user-friendly error message for fetching bet details
-			if (error.response && error.response.status === 404) {
-				await interaction.reply(`Could not find a bet with ID ${betId}. Please check the ID and try again.`);
-			} else {
-				await interaction.reply(`An error occurred while viewing bet ${betId}. Please try again later.`);
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Viewing Bet')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while viewing the bet.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'createbet') {
 		const description = interaction.options.getString('description');
 		const optionsString = interaction.options.getString('options');
-		const options = optionsString.split(',').map(option => option.trim()); // Split by comma and trim whitespace
+		const options = optionsString.split(',').map(option => option.trim());
 
-		// Validate that there are at least two options
 		if (options.length < 2) {
-			await interaction.reply('Please provide at least two comma-separated options for the bet.');
+			const embed = new EmbedBuilder()
+				.setColor(0xffbe76)
+				.setTitle('⚠️ Invalid Options')
+				.setDescription('Please provide at least two comma-separated options for the bet.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 			return;
 		}
 
@@ -167,14 +176,26 @@ client.on('interactionCreate', async interaction => {
 			});
 
 			const newBet = response.data;
-			await interaction.reply(`Bet created successfully!
-Description: "${newBet.description}"
-ID: ${newBet._id}
-Options: ${newBet.options.join(', ')}`);
+			const embed = new EmbedBuilder()
+				.setColor(0x0099ff)
+				.setTitle('🎲 New Bet Created!')
+				.setDescription(`**${newBet.description}**`)
+				.addFields(
+					{ name: 'Bet ID', value: `${newBet._id}`, inline: true },
+					{ name: 'Options', value: newBet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
+				)
+				.setFooter({ text: `Created by <@${userId}>${durationMinutes ? ` | Closes in ${durationMinutes} min` : ''}` })
+				.setTimestamp();
+
+			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error creating bet:', error.response?.data || error.message);
-			// More user-friendly error message
-			await interaction.reply(`An error occurred while creating the bet. Please try again later.`);
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Creating Bet')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while creating the bet.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 
 	} else if (commandName === 'placebet') {
@@ -191,46 +212,66 @@ Options: ${newBet.options.join(', ')}`);
 				amount,
 			});
 
-			await interaction.reply(`Successfully placed a bet of ${amount} on option "${option}" for bet ID "${betId}".`);
-			
 			// Fetch and display updated wallet balance after placing bet
+			let updatedBalance = null;
 			try {
 				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`);
-				const updatedBalance = walletResponse.data.balance;
-				await interaction.followUp(`Your updated balance is: ${updatedBalance} points.`);
+				updatedBalance = walletResponse.data.balance;
 			} catch (walletError) {
 				console.error('Error fetching updated balance after placing bet:', walletError.response?.data || walletError.message);
-				// Optionally inform the user that fetching balance failed
 			}
 
+			const embed = new EmbedBuilder()
+				.setColor(0x00b894)
+				.setTitle('✅ Bet Placed!')
+				.setDescription(`You placed a bet on **${option}** for **${amount.toLocaleString()} points**.`)
+				.addFields(
+					{ name: 'Bet ID', value: betId, inline: true },
+					{ name: 'Option', value: option, inline: true },
+					{ name: 'Amount', value: `${amount.toLocaleString()} points`, inline: true },
+				)
+				.setFooter({ text: updatedBalance !== null ? `Your new balance: ${updatedBalance.toLocaleString()} points` : 'Bet placed successfully!' })
+				.setTimestamp();
+
+			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error placing bet:', error.response?.data || error.message);
-			// More user-friendly error message
-			if (error.response && error.response.data && error.response.data.message) {
-				await interaction.reply(`Failed to place bet: ${error.response.data.message}`);
-			} else {
-				await interaction.reply('An error occurred while placing your bet. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Placing Bet')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while placing your bet.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 
 	} else if (commandName === 'resolvebet') {
 		const betId = interaction.options.getString('bet_id');
 		const winningOption = interaction.options.getString('winning_option');
-
-		// console.log(`Attempting to resolve bet with ID: ${betId}, winning option: ${winningOption}`);
-
 		try {
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/resolve`, {
 				winningOption: winningOption,
 				resolverDiscordId: userId,
 			});
-
-			const resolvedBet = response.data.bet; // Backend returns { message, bet }
-			await interaction.reply(`Bet ID "${resolvedBet._id}" resolved successfully with winning option "${resolvedBet.winningOption}". Winnings distributed.`);
-
+			const resolvedBet = response.data.bet;
+			const embed = new EmbedBuilder()
+				.setColor(0x6c5ce7)
+				.setTitle('🏁 Bet Resolved!')
+				.setDescription(`Bet **${resolvedBet.description}** has been resolved.`)
+				.addFields(
+					{ name: 'Bet ID', value: resolvedBet._id, inline: true },
+					{ name: 'Winning Option', value: resolvedBet.winningOption, inline: true },
+				)
+				.setFooter({ text: `Resolved by <@${userId}>` })
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error resolving bet:', error.response?.data || error.message);
-			await interaction.reply(`Failed to resolve bet. Error: ${error.response?.data?.message || error.message}`);
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Resolving Bet')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while resolving the bet.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'closebet') {
 		const betId = interaction.options.getString('bet_id');
@@ -239,19 +280,21 @@ Options: ${newBet.options.join(', ')}`);
 		try {
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/close`);
 
-			await interaction.reply(`Bet ID "${betId}" closed successfully. No more bets can be placed.`);
+			const embed = new EmbedBuilder()
+				.setColor(0x636e72)
+				.setTitle('🔒 Bet Closed')
+				.setDescription(`Bet ID **${betId}** is now closed. No more bets can be placed.`)
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 
 		} catch (error) {
 			console.error('Error closing bet:', error.response?.data || error.message);
-			// More user-friendly error message
-			if (error.response && error.response.data && error.response.data.message) {
-				await interaction.reply(`Failed to close bet: ${error.response.data.message}`);
-			} else if (error.response && error.response.status === 404) {
-                await interaction.reply(`Failed to close bet: Bet with ID ${betId} not found.`);
-            }
-             else {
-				await interaction.reply('An error occurred while closing the bet. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Closing Bet')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while closing the bet.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'leaderboard') {
 		const limit = interaction.options.getInteger('limit') || 10;
@@ -267,23 +310,29 @@ Options: ${newBet.options.join(', ')}`);
 					data: { username }
 				}
 			);
-			const leaderboard = response.data;
+			const leaderboard = response.data.data;
 
 			if (leaderboard.length === 0) {
 				await interaction.reply('No users found in the leaderboard.');
 				return;
 			}
 
+			const trophyEmojis = ['🥇', '🥈', '🥉'];
+			const fields = leaderboard.map((user, index) => ({
+				name: `${trophyEmojis[index] || `#${index + 1}`} ${user.username}`,
+				value: `**Balance:** ${user.balance.toLocaleString()} points` + (user.discordId ? `\n<@${user.discordId}>` : ''),
+				inline: false
+			}));
+
 			const embed = {
-				color: 0x0099ff,
-				title: '🏆 Leaderboard',
-				description: 'Top users by balance',
-				fields: leaderboard.map((user, index) => ({
-					name: `${index + 1}. ${user.username}`,
-					value: `${user.balance} points`,
-					inline: false
-				})),
-				timestamp: new Date()
+				color: 0xFFD700,
+				title: '🏆 Top Players Leaderboard',
+				description: `Here are the top ${leaderboard.length} users by balance:`,
+				fields,
+				timestamp: new Date(),
+				footer: {
+					text: `Total users ranked: ${response.data.totalCount}`
+				}
 			};
 
 			await interaction.reply({ embeds: [embed] });
@@ -364,42 +413,50 @@ Options: ${newBet.options.join(', ')}`);
 		// console.log(`Attempting to cancel bet with ID: ${betId}`);
 
 		try {
-			const response = await axios.delete(`${backendApiUrl}/bets/${betId}`, {
+			await axios.delete(`${backendApiUrl}/bets/${betId}`, {
 				data: { creatorDiscordId: userId }
 			});
-
-			await interaction.reply(`Bet ID "${betId}" has been cancelled successfully.`);
+			const embed = new EmbedBuilder()
+				.setColor(0x636e72)
+				.setTitle('🚫 Bet Cancelled')
+				.setDescription(`Bet ID **${betId}** has been cancelled successfully.`)
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error cancelling bet:', error.response?.data || error.message);
-			if (error.response && error.response.data && error.response.data.message) {
-				await interaction.reply(`Failed to cancel bet: ${error.response.data.message}`);
-			} else {
-				await interaction.reply('An error occurred while cancelling the bet. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Cancelling Bet')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while cancelling the bet.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'editbet') {
 		const betId = interaction.options.getString('bet_id');
 		const description = interaction.options.getString('description');
 		const optionsString = interaction.options.getString('options');
 		const durationMinutes = interaction.options.getInteger('duration_minutes');
-
-		// Validate that at least one field is being updated
 		if (!description && !optionsString && !durationMinutes) {
-			await interaction.reply('Please provide at least one field to update (description, options, or duration).');
+			const embed = new EmbedBuilder()
+				.setColor(0xffbe76)
+				.setTitle('⚠️ Nothing to Update')
+				.setDescription('Please provide at least one field to update (description, options, or duration).')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 			return;
 		}
-
-		// Validate options if provided
 		if (optionsString) {
 			const options = optionsString.split(',').map(option => option.trim());
 			if (options.length < 2) {
-				await interaction.reply('Please provide at least two comma-separated options for the bet.');
+				const embed = new EmbedBuilder()
+					.setColor(0xffbe76)
+					.setTitle('⚠️ Invalid Options')
+					.setDescription('Please provide at least two comma-separated options for the bet.')
+					.setTimestamp();
+				await interaction.reply({ embeds: [embed] });
 				return;
 			}
 		}
-
-		// console.log(`Attempting to edit bet with ID: ${betId}`);
-
 		try {
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/edit`, {
 				creatorDiscordId: userId,
@@ -407,42 +464,53 @@ Options: ${newBet.options.join(', ')}`);
 				options: optionsString,
 				durationMinutes
 			});
-
 			const updatedBet = response.data.bet;
-			await interaction.reply(`Bet ID "${betId}" has been updated successfully.
-Description: "${updatedBet.description}"
-Options: ${updatedBet.options.join(', ')}
-Closing Time: ${updatedBet.closingTime ? new Date(updatedBet.closingTime).toLocaleString() : 'Not set'}`);
+			const embed = new EmbedBuilder()
+				.setColor(0x00b894)
+				.setTitle('✏️ Bet Updated')
+				.setDescription(`Bet ID **${betId}** has been updated.`)
+				.addFields(
+					{ name: 'Description', value: updatedBet.description, inline: false },
+					{ name: 'Options', value: updatedBet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
+					{ name: 'Closing Time', value: updatedBet.closingTime ? new Date(updatedBet.closingTime).toLocaleString() : 'Not set', inline: true },
+				)
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error editing bet:', error.response?.data || error.message);
-			if (error.response && error.response.data && error.response.data.message) {
-				await interaction.reply(`Failed to edit bet: ${error.response.data.message}`);
-			} else {
-				await interaction.reply('An error occurred while editing the bet. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Editing Bet')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while editing the bet.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'extendbet') {
 		const betId = interaction.options.getString('bet_id');
 		const additionalMinutes = interaction.options.getInteger('additional_minutes');
-
-		// console.log(`Attempting to extend bet with ID: ${betId} by ${additionalMinutes} minutes`);
-
 		try {
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/extend`, {
 				creatorDiscordId: userId,
 				additionalMinutes
 			});
-
 			const { bet, newClosingTime } = response.data;
-			await interaction.reply(`Bet ID "${betId}" has been extended successfully.
-New closing time: ${new Date(newClosingTime).toLocaleString()}`);
+			const embed = new EmbedBuilder()
+				.setColor(0x00b894)
+				.setTitle('⏳ Bet Extended')
+				.setDescription(`Bet ID **${betId}** has been extended.`)
+				.addFields(
+					{ name: 'New Closing Time', value: new Date(newClosingTime).toLocaleString(), inline: true },
+				)
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error extending bet:', error.response?.data || error.message);
-			if (error.response && error.response.data && error.response.data.message) {
-				await interaction.reply(`Failed to extend bet: ${error.response.data.message}`);
-			} else {
-				await interaction.reply('An error occurred while extending the bet. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Extending Bet')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while extending the bet.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'betinfo') {
 		const betId = interaction.options.getString('bet_id');
@@ -465,42 +533,42 @@ New closing time: ${new Date(newClosingTime).toLocaleString()}`);
 			}, {});
 
 			// Create detailed embed
-			const embed = {
-				color: 0x0099ff,
-				title: `📊 Bet Information: ${bet.description}`,
-				fields: [
+			const embed = new EmbedBuilder()
+				.setColor(0x6c5ce7)
+				.setTitle(`📊 Bet Information: ${bet.description}`)
+				.addFields(
 					{ name: 'ID', value: bet._id, inline: true },
 					{ name: 'Status', value: bet.status, inline: true },
 					{ name: 'Created By', value: `<@${bet.creator.discordId}>`, inline: true },
 					{ name: 'Created At', value: new Date(bet.createdAt).toLocaleString(), inline: true },
 					{ name: 'Closing Time', value: bet.closingTime ? new Date(bet.closingTime).toLocaleString() : 'Not set', inline: true },
-					{ name: 'Total Pot', value: `${totalPot} points`, inline: true },
-					{ name: 'Options', value: bet.options.join(', '), inline: false }
-				],
-				timestamp: new Date()
-			};
+					{ name: 'Total Pot', value: `${totalPot.toLocaleString()} points`, inline: true },
+					{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false }
+				)
+				.setTimestamp();
 
 			// Add bets per option
 			let betsPerOptionText = '';
 			for (const [option, amount] of Object.entries(betsByOption)) {
 				const percentage = totalPot > 0 ? ((amount / totalPot) * 100).toFixed(1) : 0;
-				betsPerOptionText += `**${option}:** ${amount} points (${percentage}%)\n`;
+				betsPerOptionText += `**${option}:** ${amount.toLocaleString()} points (${percentage}%)\n`;
 			}
-			embed.fields.push({ name: 'Bets Per Option', value: betsPerOptionText || 'No bets placed yet', inline: false });
+			embed.addFields({ name: 'Bets Per Option', value: betsPerOptionText || 'No bets placed yet', inline: false });
 
 			// Add winning option if resolved
 			if (bet.status === 'resolved' && bet.winningOption) {
-				embed.fields.push({ name: 'Winning Option', value: bet.winningOption, inline: true });
+				embed.addFields({ name: 'Winning Option', value: bet.winningOption, inline: true });
 			}
 
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error fetching bet info:', error.response?.data || error.message);
-			if (error.response && error.response.status === 404) {
-				await interaction.reply(`Could not find a bet with ID ${betId}. Please check the ID and try again.`);
-			} else {
-				await interaction.reply('An error occurred while fetching bet information. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Fetching Bet Info')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while fetching bet information.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'daily') {
 		// console.log(`Attempting to claim daily bonus for user: ${userId}`);
@@ -509,37 +577,45 @@ New closing time: ${new Date(newClosingTime).toLocaleString()}`);
 			const response = await axios.post(`${backendApiUrl}/users/${userId}/daily`);
 			const { amount, streak, nextClaimTime } = response.data;
 
-			const embed = {
-				color: 0x00ff00,
-				title: '🎁 Daily Bonus Claimed!',
-				description: `You received ${amount} points!`,
-				fields: [
+			const embed = new EmbedBuilder()
+				.setColor(0x00ff00)
+				.setTitle('🎁 Daily Bonus Claimed!')
+				.setDescription(`You received **${amount.toLocaleString()} points**!`)
+				.addFields(
 					{ name: 'Current Streak', value: `${streak} days`, inline: true },
 					{ name: 'Next Claim', value: `<t:${Math.floor(nextClaimTime / 1000)}:R>`, inline: true }
-				],
-				timestamp: new Date()
-			};
+				)
+				.setTimestamp();
 
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error claiming daily bonus:', error.response?.data || error.message);
 			if (error.response && error.response.data && error.response.data.message) {
 				if (error.response.data.nextClaimTime) {
-					const embed = {
-						color: 0xff9900,
-						title: '⏰ Already Claimed',
-						description: error.response.data.message,
-						fields: [
+					const embed = new EmbedBuilder()
+						.setColor(0xff9900)
+						.setTitle('⏰ Already Claimed')
+						.setDescription(error.response.data.message)
+						.addFields(
 							{ name: 'Next Claim', value: `<t:${Math.floor(error.response.data.nextClaimTime / 1000)}:R>`, inline: true }
-						],
-						timestamp: new Date()
-					};
+						)
+						.setTimestamp();
 					await interaction.reply({ embeds: [embed] });
 				} else {
-					await interaction.reply(`Failed to claim daily bonus: ${error.response.data.message}`);
+					const embed = new EmbedBuilder()
+						.setColor(0xff7675)
+						.setTitle('❌ Error Claiming Daily Bonus')
+						.setDescription(error.response.data.message)
+						.setTimestamp();
+					await interaction.reply({ embeds: [embed] });
 				}
 			} else {
-				await interaction.reply('An error occurred while claiming your daily bonus. Please try again later.');
+				const embed = new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Claiming Daily Bonus')
+					.setDescription(error.message || 'An error occurred while claiming your daily bonus.')
+					.setTimestamp();
+				await interaction.reply({ embeds: [embed] });
 			}
 		}
 	} else if (commandName === 'gift') {
@@ -554,24 +630,24 @@ New closing time: ${new Date(newClosingTime).toLocaleString()}`);
 				amount
 			});
 
-			const embed = {
-				color: 0x00ff00,
-				title: '🎁 Gift Sent!',
-				description: `You gifted ${amount} points to ${recipient}!`,
-				fields: [
-					{ name: 'Your New Balance', value: `${response.data.newBalance} points`, inline: true }
-				],
-				timestamp: new Date()
-			};
+			const embed = new EmbedBuilder()
+				.setColor(0x00ff00)
+				.setTitle('🎁 Gift Sent!')
+				.setDescription(`You gifted **${amount.toLocaleString()} points** to ${recipient}!`)
+				.addFields(
+					{ name: 'Your New Balance', value: `${response.data.newBalance.toLocaleString()} points`, inline: true }
+				)
+				.setTimestamp();
 
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error gifting points:', error.response?.data || error.message);
-			if (error.response && error.response.data && error.response.data.message) {
-				await interaction.reply(`Failed to gift points: ${error.response.data.message}`);
-			} else {
-				await interaction.reply('An error occurred while gifting points. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Gifting Points')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while gifting points.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'profile') {
 		const targetUser = interaction.options.getUser('user') || interaction.user;
@@ -617,137 +693,111 @@ New closing time: ${new Date(newClosingTime).toLocaleString()}`);
 	} else if (commandName === 'coinflip') {
 		const choice = interaction.options.getString('choice');
 		const amount = interaction.options.getInteger('amount');
-
-		// console.log(`Attempting coinflip for user: ${userId}, choice: ${choice}, amount: ${amount}`);
-
 		try {
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/coinflip`, {
 				choice,
 				amount
 			});
-
 			const { result, won, winnings, newBalance } = response.data;
-
-			const embed = {
-				color: won ? 0x00ff00 : 0xff0000,
-				title: '🪙 Coin Flip',
-				description: `The coin landed on **${result}**!`,
-				fields: [
+			const embed = new EmbedBuilder()
+				.setColor(won ? 0x00ff00 : 0xff0000)
+				.setTitle('🪙 Coin Flip')
+				.setDescription(`The coin landed on **${result}**!`)
+				.addFields(
 					{ name: 'Your Choice', value: choice, inline: true },
 					{ name: 'Result', value: result, inline: true },
 					{ name: 'Outcome', value: won ? '🎉 You won!' : '😢 You lost!', inline: true },
-					{ name: 'Winnings', value: `${winnings} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance} points`, inline: true }
-				],
-				timestamp: new Date()
-			};
-
+					{ name: 'Winnings', value: `${winnings.toLocaleString()} points`, inline: true },
+					{ name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true }
+				)
+				.setTimestamp();
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error in coinflip:', error.response?.data || error.message);
-			if (error.response && error.response.data && error.response.data.message) {
-				await interaction.reply(`Failed to play coinflip: ${error.response.data.message}`);
-			} else {
-				await interaction.reply('An error occurred while playing coinflip. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Playing Coinflip')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing coinflip.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'dice') {
 		const betType = interaction.options.getString('bet_type');
 		const number = interaction.options.getInteger('number');
 		const amount = interaction.options.getInteger('amount');
-
-		// console.log(`Attempting dice roll for user: ${userId}, bet type: ${betType}, number: ${number}, amount: ${amount}`);
-
 		try {
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/dice`, {
 				bet_type: betType,
 				number,
 				amount
 			});
-
 			const { roll, won, winnings, newBalance } = response.data;
-
-			const embed = {
-				color: won ? 0x00ff00 : 0xff0000,
-				title: '🎲 Dice Roll',
-				description: `You rolled a **${roll}**!`,
-				fields: [
+			const embed = new EmbedBuilder()
+				.setColor(won ? 0x00ff00 : 0xff0000)
+				.setTitle('🎲 Dice Roll')
+				.setDescription(`You rolled a **${roll}**!`)
+				.addFields(
 					{ name: 'Bet Type', value: betType, inline: true },
-					{ name: 'Your Bet', value: betType === 'specific' ? number : betType, inline: true },
+					{ name: 'Your Bet', value: betType === 'specific' ? number.toString() : betType, inline: true },
 					{ name: 'Outcome', value: won ? '🎉 You won!' : '😢 You lost!', inline: true },
-					{ name: 'Winnings', value: `${winnings} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance} points`, inline: true }
-				],
-				timestamp: new Date()
-			};
-
+					{ name: 'Winnings', value: `${winnings.toLocaleString()} points`, inline: true },
+					{ name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true }
+				)
+				.setTimestamp();
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error in dice:', error.response?.data || error.message);
-			if (error.response && error.response.data && error.response.data.message) {
-				await interaction.reply(`Failed to play dice: ${error.response.data.message}`);
-			} else {
-				await interaction.reply('An error occurred while playing dice. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Playing Dice')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing dice.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'slots') {
 		const amount = interaction.options.getInteger('amount');
-
-		// console.log(`Attempting slots for user: ${userId}, amount: ${amount}`);
-
 		try {
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/slots`, {
 				amount
 			});
-
 			const { reels, won, winnings, newBalance, isJackpot } = response.data;
-
-			const embed = {
-				color: isJackpot ? 0xffd700 : (won ? 0x00ff00 : 0xff0000),
-				title: isJackpot ? '🎉 JACKPOT WIN! 🎉' : '🎰 Slot Machine',
-				description: isJackpot ? 
-					`**JACKPOT!** You won the entire jackpot of ${winnings} points!` :
-					`[ ${reels.join(' | ')} ]`,
-				fields: [
+			const embed = new EmbedBuilder()
+				.setColor(isJackpot ? 0xffd700 : (won ? 0x00ff00 : 0xff0000))
+				.setTitle(isJackpot ? '🎉 JACKPOT WIN! 🎉' : '🎰 Slot Machine')
+				.setDescription(isJackpot ? 
+					`**JACKPOT!** You won the entire jackpot of ${winnings.toLocaleString()} points!` :
+					`[ ${reels.join(' | ')} ]`)
+				.addFields(
 					{ name: 'Outcome', value: isJackpot ? '🎉 JACKPOT!' : (won ? '🎉 You won!' : '😢 You lost!'), inline: true },
-					{ name: 'Winnings', value: `${winnings} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance} points`, inline: true }
-				],
-				timestamp: new Date()
-			};
-
+					{ name: 'Winnings', value: `${winnings.toLocaleString()} points`, inline: true },
+					{ name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true }
+				)
+				.setTimestamp();
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error in slots:', error.response?.data || error.message);
-			if (error.response && error.response.data && error.response.data.message) {
-				await interaction.reply(`Failed to play slots: ${error.response.data.message}`);
-			} else {
-				await interaction.reply('An error occurred while playing slots. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Playing Slots')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing slots.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'blackjack') {
 		try {
 			const amount = interaction.options.getInteger('amount');
 			const action = interaction.options.getString('action')?.toLowerCase();
-
-			// console.log(`Attempting blackjack for user: ${interaction.user.id}, amount: ${amount}, action: ${action}`);
-
-			// Construct request body based on whether we're starting a new game or continuing
 			const requestBody = {};
 			if (amount !== null) requestBody.amount = amount;
 			if (action) requestBody.action = action;
-
 			const response = await axios.post(`${backendApiUrl}/gambling/${interaction.user.id}/blackjack`, requestBody);
-
 			const data = response.data;
-
 			const embed = new EmbedBuilder()
-				.setColor(data.gameOver ? (data.results.some(r => r.result === 'win' || r.result === 'blackjack') ? '#00ff00' : '#ff0000') : '#0099ff')
+				.setColor(data.gameOver ? (data.results.some(r => r.result === 'win' || r.result === 'blackjack') ? 0x00ff00 : 0xff0000) : 0x0099ff)
 				.setTitle(data.gameOver ? 'Blackjack Game Over' : 'Blackjack')
 				.setDescription(data.gameOver ? 
-					data.results.map((r, i) => `Hand ${i + 1}: ${r.result.toUpperCase()} (${r.winnings} points)`).join('\n') :
+					data.results.map((r, i) => `Hand ${i + 1}: ${r.result.toUpperCase()} (${r.winnings.toLocaleString()} points)`).join('\n') :
 					'Your turn! Choose an action below.');
-
 			// Add player hands
 			data.playerHands.forEach((hand, i) => {
 				const handValue = hand.reduce((sum, card) => {
@@ -760,7 +810,6 @@ New closing time: ${new Date(newClosingTime).toLocaleString()}`);
 					value: hand.map(card => `${card.value}${card.suit}`).join(' ')
 				});
 			});
-
 			// Add dealer hand
 			const dealerValue = data.dealerHand.reduce((sum, card) => {
 				if (card.value === 'A') return sum + 11;
@@ -771,40 +820,35 @@ New closing time: ${new Date(newClosingTime).toLocaleString()}`);
 				name: `Dealer's Hand (${data.gameOver ? dealerValue : '?'})`,
 				value: data.dealerHand.map(card => `${card.value}${card.suit}`).join(' ')
 			});
-
-			// Add available actions if game is not over
 			if (!data.gameOver) {
 				const actions = ['hit', 'stand'];
 				if (data.canDouble) actions.push('double');
 				if (data.canSplit) actions.push('split');
-				
 				embed.addFields({
 					name: 'Available Actions',
 					value: actions.map(a => `\`/blackjack action:${a}\``).join('\n')
 				});
 			}
-
 			embed.addFields({
 				name: 'Your Balance',
-				value: `${data.newBalance} points`
+				value: `${data.newBalance.toLocaleString()} points`
 			});
-
+			embed.setTimestamp();
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error in blackjack:', error.response?.data || error);
 			const errorMessage = error.response?.data?.message || error.message || 'An unknown error occurred';
-			await interaction.reply({ 
-				content: `Error: ${errorMessage}`, 
-				ephemeral: true 
-			});
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Playing Blackjack')
+				.setDescription(errorMessage)
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'roulette') {
 		const betType = interaction.options.getString('bet_type');
 		const number = interaction.options.getInteger('number');
 		const amount = interaction.options.getInteger('amount');
-
-		// console.log(`Attempting roulette for user: ${userId}, bet type: ${betType}${number !== null ? `, number: ${number}` : ''}, amount: ${amount}`);
-
 		try {
 			const requestBody = {
 				bets: [
@@ -814,98 +858,82 @@ New closing time: ${new Date(newClosingTime).toLocaleString()}`);
 					}
 				]
 			};
-
-			// Only include number for single bets if provided
 			if (betType === 'single' && number !== null) {
 				requestBody.bets[0].number = number;
 			}
-
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/roulette`, requestBody);
-
 			const { result, color, bets, totalWinnings, newBalance } = response.data;
-
-			const embed = {
-				color: totalWinnings > 0 ? 0x00ff00 : 0xff0000,
-				title: '🎲 Roulette Result',
-				description: `The ball landed on **${result}** (${color})!\n\n__Your Bets:__`,
-				fields: [
+			const embed = new EmbedBuilder()
+				.setColor(totalWinnings > 0 ? 0x00ff00 : 0xff0000)
+				.setTitle('🎲 Roulette Result')
+				.setDescription(`The ball landed on **${result}** (${color})!\n\n__Your Bets:__`)
+				.addFields(
 					...bets.map(bet => ({
-						name: `${bet.type}${bet.number !== undefined ? ` (${bet.number})` : ''} Bet: ${bet.amount}`,
-						value: bet.won ? `🎉 Won ${bet.winnings} points!` : '😢 Lost', // Or just display amount lost if we track that explicitly
+						name: `${bet.type}${bet.number !== undefined ? ` (${bet.number})` : ''} Bet: ${bet.amount.toLocaleString()}`,
+						value: bet.won ? `🎉 Won ${bet.winnings.toLocaleString()} points!` : '😢 Lost',
 						inline: true
 					})),
-					{ name: '\u200B', value: '\u200B' }, // Add a blank field for spacing
-					{ name: 'Total Winnings', value: `${totalWinnings} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance} points`, inline: true }
-				],
-				timestamp: new Date()
-			};
-
+					{ name: '\u200B', value: '\u200B' },
+					{ name: 'Total Winnings', value: `${totalWinnings.toLocaleString()} points`, inline: true },
+					{ name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true }
+				)
+				.setTimestamp();
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error in roulette:', error.response?.data || error.message);
-			if (error.response && error.response.data && error.response.data.message) {
-				await interaction.reply(`Failed to play roulette: ${error.response.data.message}`);
-			} else {
-				await interaction.reply('An error occurred while playing roulette. Please try again later.');
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Playing Roulette')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing roulette.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'jackpot') {
 		const action = interaction.options.getString('action');
 		const amount = interaction.options.getInteger('amount');
-
-		// console.log(`Attempting jackpot ${action} for user: ${userId}, amount: ${amount}`);
-
 		try {
 			if (action === 'view') {
 				const response = await axios.get(`${backendApiUrl}/gambling/${userId}/jackpot`);
 				const { currentAmount, lastWinner, lastWinAmount, lastWinTime } = response.data;
-
-				const embed = {
-					color: 0xffd700,
-					title: '💰 Progressive Jackpot',
-					fields: [
-						{ name: 'Current Amount', value: `${currentAmount} points`, inline: true }
-					],
-					timestamp: new Date()
-				};
-
+				const embed = new EmbedBuilder()
+					.setColor(0xffd700)
+					.setTitle('💰 Progressive Jackpot')
+					.addFields(
+						{ name: 'Current Amount', value: `${currentAmount.toLocaleString()} points`, inline: true }
+					)
+					.setTimestamp();
 				if (lastWinner) {
-					embed.fields.push(
+					embed.addFields(
 						{ name: 'Last Winner', value: `<@${lastWinner.discordId}>`, inline: true },
-						{ name: 'Last Win Amount', value: `${lastWinAmount} points`, inline: true },
+						{ name: 'Last Win Amount', value: `${lastWinAmount.toLocaleString()} points`, inline: true },
 						{ name: 'Last Win Time', value: new Date(lastWinTime).toLocaleString(), inline: true }
 					);
 				}
-
 				await interaction.reply({ embeds: [embed] });
 			} else if (action === 'contribute') {
 				const response = await axios.post(`${backendApiUrl}/gambling/${userId}/jackpot/contribute`, {
 					amount
 				});
-
 				const { contribution, newJackpotAmount, newBalance } = response.data;
-
-				const embed = {
-					color: 0x00ff00,
-					title: '💰 Jackpot Contribution',
-					description: `You contributed ${contribution} points to the jackpot!`,
-					fields: [
-						{ name: 'New Jackpot Amount', value: `${newJackpotAmount} points`, inline: true },
-						{ name: 'Your New Balance', value: `${newBalance} points`, inline: true }
-					],
-					timestamp: new Date()
-				};
-
+				const embed = new EmbedBuilder()
+					.setColor(0x00ff00)
+					.setTitle('💰 Jackpot Contribution')
+					.setDescription(`You contributed ${contribution.toLocaleString()} points to the jackpot!`)
+					.addFields(
+						{ name: 'New Jackpot Amount', value: `${newJackpotAmount.toLocaleString()} points`, inline: true },
+						{ name: 'Your New Balance', value: `${newBalance.toLocaleString()} points`, inline: true }
+					)
+					.setTimestamp();
 				await interaction.reply({ embeds: [embed] });
 			}
 		} catch (error) {
 			console.error('Error in jackpot:', error.response?.data || error.message);
-			if (error.response && error.response.data && error.response.data.message) {
-				await interaction.reply(`Failed to ${action} jackpot: ${error.response.data.message}`);
-			} else {
-				await interaction.reply(`An error occurred while ${action}ing the jackpot. Please try again later.`);
-			}
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error in Jackpot')
+				.setDescription(error.response?.data?.message || error.message || `An error occurred while ${action}ing the jackpot.`)
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'transactions') {
 		try {
@@ -923,32 +951,40 @@ New closing time: ${new Date(newClosingTime).toLocaleString()}`);
 			const transactions = response.data;
 
 			if (transactions.length === 0) {
-				await interaction.editReply('No transactions found.');
+				const embed = new EmbedBuilder()
+					.setColor(0xffbe76)
+					.setTitle('No Transactions Found')
+					.setDescription('No transactions found.')
+					.setTimestamp();
+				await interaction.editReply({ embeds: [embed] });
 				return;
 			}
 
-			const embed = {
-				color: 0x0099FF,
-				title: 'Transaction History',
-				description: `Showing last ${transactions.length} transactions`,
-				fields: transactions.map(tx => ({
-					name: `${tx.type.toUpperCase()} - ${new Date(tx.timestamp).toLocaleString()}`,
-					value: `Amount: ${tx.amount} points\nDescription: ${tx.description || 'No description'}`,
-					inline: false
-				})),
-				timestamp: new Date(),
-				footer: {
-					text: `Requested by ${interaction.user.tag}`
-				}
-			};
-
+			const embed = new EmbedBuilder()
+				.setColor(0x0099FF)
+				.setTitle('Transaction History')
+				.setDescription(`Showing last ${transactions.length} transactions`)
+				.addFields(
+					...transactions.map(tx => ({
+						name: `${tx.type.toUpperCase()} - ${new Date(tx.timestamp).toLocaleString()}`,
+						value: `Amount: ${tx.amount.toLocaleString()} points\nDescription: ${tx.description || 'No description'}`,
+						inline: false
+					}))
+				)
+				.setTimestamp()
+				.setFooter({ text: `Requested by ${interaction.user.tag}` });
 			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error in transaction history command:', error);
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Fetching Transactions')
+				.setDescription(error.message || 'An error occurred while fetching your transaction history.')
+				.setTimestamp();
 			if (interaction.deferred) {
-				await interaction.editReply('An error occurred while fetching your transaction history. Please try again later.');
+				await interaction.editReply({ embeds: [embed] });
 			} else {
-				await interaction.reply('An error occurred while fetching your transaction history. Please try again later.');
+				await interaction.reply({ embeds: [embed] });
 			}
 		}
 	}

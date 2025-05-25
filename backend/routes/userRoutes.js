@@ -263,7 +263,7 @@ router.post('/:userId/daily', async (req, res) => {
         lastClaim.getFullYear() === now.getFullYear()) {
       return res.status(400).json({ 
         message: 'You have already claimed your daily bonus today.',
-        nextClaimTime: new Date(now.setDate(now.getDate() + 1)).setHours(0, 0, 0, 0) ()
+        nextClaimTime: lastClaim.getTime() + 24 * 60 * 60 * 1000
       });
     }
 
@@ -296,7 +296,7 @@ router.post('/:userId/daily', async (req, res) => {
       message: 'Daily bonus claimed successfully!',
       amount: bonusAmount,
       streak: wallet.dailyStreak,
-      nextClaimTime: new Date(now.setDate(now.getDate() + 1)).setHours(0, 0, 0, 0) ()
+      nextClaimTime: now.getTime() + 24 * 60 * 60 * 1000
     });
   } catch (error) {
     console.error('Error claiming daily bonus:', error); // Keep this error log
