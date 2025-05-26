@@ -123,10 +123,10 @@ export const BiggestWinsLeaderboard = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8 w-full">
       <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Biggest Wins Leaderboard</h1>
-      <div className="flex justify-end mb-6">
-        <div className="relative w-44 flex-shrink-0" ref={sortMenuRef}>
+      <div className="flex flex-col sm:flex-row sm:justify-end gap-4 mb-6 w-full">
+        <div className="relative w-full sm:w-44 flex-shrink-0" ref={sortMenuRef}>
           <button
             type="button"
             className="flex items-center justify-between w-full px-3 py-1 rounded-lg bg-surface border border-border text-text-primary hover:bg-primary/10 transition-colors text-sm font-medium shadow-sm"
@@ -161,16 +161,16 @@ export const BiggestWinsLeaderboard = () => {
           )}
         </div>
       </div>
-      <div className="bg-card rounded-lg shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
+      <div className="bg-card rounded-lg shadow-lg overflow-x-auto w-full">
+        <div className="min-w-[500px] sm:min-w-full">
+          <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
             <thead className="bg-card">
               <tr>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">#</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Player</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Description</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Date</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">#</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Player</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Amount</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Description</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -210,7 +210,7 @@ export const BiggestWinsLeaderboard = () => {
           </table>
         </div>
       </div>
-      <div className="flex justify-center mt-6">
+      <div className="flex flex-wrap justify-center mt-6 w-full">
         <ReactPaginate
           previousLabel={"Prev"}
           nextLabel={"Next"}
@@ -221,7 +221,7 @@ export const BiggestWinsLeaderboard = () => {
           pageRangeDisplayed={3}
           onPageChange={handlePageChange}
           forcePage={page - 1}
-          containerClassName={"flex gap-1 items-center"}
+          containerClassName={"flex flex-wrap gap-1 items-center"}
           pageClassName={""}
           pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10"}
           activeClassName={""}

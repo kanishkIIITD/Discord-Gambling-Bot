@@ -164,18 +164,18 @@ const BetHistoryPage = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8 w-full">
       <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Bet History</h1>
       {/* Filters and Sort */}
-      <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-between items-center mb-6 w-full">
         {/* Segmented Button Group for Game Type */}
-        <div className="flex gap-1 bg-surface border border-border rounded-lg p-1 flex-shrink-0">
+        <div className="flex flex-wrap gap-1 bg-surface border border-border rounded-lg p-1 flex-shrink-0 overflow-x-auto max-w-full">
           {GAME_TYPE_FILTERS.map(opt => (
             <button
               key={opt.value}
               type="button"
               onClick={() => setGameTypeFilter(opt)}
-              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:z-10
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:z-10 whitespace-nowrap flex-shrink-0
                 ${gameTypeFilter.value === opt.value
                   ? 'bg-primary text-white shadow'
                   : 'bg-transparent text-text-primary hover:bg-primary/10'}
@@ -187,13 +187,13 @@ const BetHistoryPage = () => {
           ))}
         </div>
         {/* Segmented Button Group for Result Filter */}
-        <div className="flex gap-1 bg-surface border border-border rounded-lg p-1 flex-shrink-0">
+        <div className="flex flex-wrap gap-1 bg-surface border border-border rounded-lg p-1 flex-shrink-0 overflow-x-auto max-w-full">
           {RESULT_FILTERS.map(opt => (
             <button
               key={opt.value}
               type="button"
               onClick={() => setResultFilter(opt)}
-              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:z-10
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:z-10 whitespace-nowrap flex-shrink-0
                 ${resultFilter.value === opt.value
                   ? 'bg-primary text-white shadow'
                   : 'bg-transparent text-text-primary hover:bg-primary/10'}
@@ -205,7 +205,7 @@ const BetHistoryPage = () => {
           ))}
         </div>
         {/* Sort Dropdown */}
-        <div className="relative w-44 flex-shrink-0" ref={sortMenuRef}>
+        <div className="relative w-full sm:w-44 flex-shrink-0" ref={sortMenuRef}>
           <button
             type="button"
             className="flex items-center justify-between w-full px-3 py-1 rounded-lg bg-surface border border-border text-text-primary hover:bg-primary/10 transition-colors text-sm font-medium shadow-sm"
@@ -240,16 +240,15 @@ const BetHistoryPage = () => {
           )}
         </div>
       </div>
-      <div className="bg-card rounded-lg shadow-lg overflow-hidden mb-4">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
+      <div className="bg-card rounded-lg shadow-lg overflow-x-auto w-full">
+        <div className="min-w-[500px] sm:min-w-full">
+          <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
             <thead className="bg-card">
               <tr>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Game</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Description</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Result</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Amount</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Date</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Type</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Description</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -267,11 +266,10 @@ const BetHistoryPage = () => {
                   const amountColorClass = tx.amount >= 0 ? 'text-success' : 'text-error';
                   return (
                     <tr key={tx._id || idx} className="hover:bg-primary/5">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{formattedDate}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary tracking-wide text-center capitalize">{gameType.charAt(0).toUpperCase() + gameType.slice(1)}</td>
-                      <td className="px-6 py-4 text-sm text-text-primary tracking-wide text-center">{tx.description || '---'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm tracking-wide text-center">{resultLabel}</td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${amountColorClass} tracking-wide text-right`}>{tx.amount.toLocaleString()} pts</td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{formattedDate}</td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center capitalize">{gameType.charAt(0).toUpperCase() + gameType.slice(1)}</td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 text-sm text-text-primary tracking-wide text-center">{tx.description || '---'}</td>
+                      <td className={`px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm font-medium ${amountColorClass} tracking-wide text-right`}>{tx.amount.toLocaleString()} pts</td>
                     </tr>
                   );
                 })
@@ -284,31 +282,29 @@ const BetHistoryPage = () => {
           </table>
         </div>
       </div>
-      {totalPagesCalc > 1 && (
-        <div className="flex justify-center mt-6">
-          <ReactPaginate
-            previousLabel={"Prev"}
-            nextLabel={"Next"}
-            breakLabel={"..."}
-            breakClassName={"px-2 py-1"}
-            pageCount={totalPagesCalc}
-            marginPagesDisplayed={1}
-            pageRangeDisplayed={3}
-            onPageChange={handlePageChange}
-            forcePage={currentPage - 1}
-            containerClassName={"flex gap-1 items-center"}
-            pageClassName={""}
-            pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10"}
-            activeClassName={""}
-            activeLinkClassName={"bg-primary text-white"}
-            previousClassName={""}
-            previousLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
-            nextClassName={""}
-            nextLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
-            disabledClassName={"opacity-50 cursor-not-allowed"}
-          />
-        </div>
-      )}
+      <div className="flex flex-wrap justify-center mt-6 w-full">
+        <ReactPaginate
+          previousLabel={"Prev"}
+          nextLabel={"Next"}
+          breakLabel={"..."}
+          breakClassName={"px-2 py-1"}
+          pageCount={totalPagesCalc}
+          marginPagesDisplayed={1}
+          pageRangeDisplayed={3}
+          onPageChange={handlePageChange}
+          forcePage={currentPage - 1}
+          containerClassName={"flex flex-wrap gap-1 items-center"}
+          pageClassName={""}
+          pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10"}
+          activeClassName={""}
+          activeLinkClassName={"bg-primary text-white"}
+          previousClassName={""}
+          previousLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
+          nextClassName={""}
+          nextLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
+          disabledClassName={"opacity-50 cursor-not-allowed"}
+        />
+      </div>
     </div>
   );
 };

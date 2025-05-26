@@ -7,6 +7,7 @@ export const Sidebar = () => {
   const [expandedSections, setExpandedSections] = useState({});
   const [collapsed, setCollapsed] = useState(false); // Sidebar collapse state
   const { user } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false); // For mobile sidebar
 
   // Expand section if any child link is active on load
   useEffect(() => {
@@ -121,141 +122,168 @@ export const Sidebar = () => {
   };
 
   return (
-    <div
-      className={`transition-all duration-200 h-screen fixed left-0 top-16 overflow-y-auto max-h-[calc(100vh-4rem)] border-r border-border bg-card ${
-        collapsed ? 'w-16' : 'w-64'
-      }`}
-    >
-      {/* Collapse/Expand Button */}
-      <div className="flex items-center justify-end p-2">
-        <button
-          onClick={() => setCollapsed((prev) => !prev)}
-          className="p-2 rounded hover:bg-primary/10 focus:outline-none"
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {/* Chevron icon rotates depending on state */}
-          <svg
-            className={`w-5 h-5 text-text-secondary transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+    <>
+      {/* Mobile sidebar toggle button */}
+      <button
+        className="fixed z-40 bottom-6 left-6 md:hidden bg-primary text-white p-3 rounded-full shadow-lg focus:outline-none"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open sidebar"
+      >
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+      </button>
+      {/* Sidebar overlay for mobile */}
+      <div
+        className={`fixed inset-0 z-50 bg-black bg-opacity-40 transition-opacity duration-200 md:hidden ${mobileOpen ? 'block' : 'hidden'}`}
+        onClick={() => setMobileOpen(false)}
+        aria-hidden="true"
+      />
+      {/* Sidebar itself */}
+      <div
+        className={`transition-all duration-200 h-screen fixed left-0 top-16 overflow-y-auto max-h-[calc(100vh-4rem)] border-r border-border bg-card z-50
+          ${collapsed ? 'w-16' : 'w-64'}
+          ${mobileOpen ? 'block' : 'hidden'} md:block
+        `}
+      >
+        {/* Collapse/Expand Button (desktop only) */}
+        <div className="hidden md:flex items-center justify-end p-2">
+          <button
+            onClick={() => setCollapsed((prev) => !prev)}
+            className="p-2 rounded hover:bg-primary/10 focus:outline-none"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4l-8 8 8 8" />
-          </svg>
-        </button>
-      </div>
-      <div className="p-2">
-        {menuItems.map((section, index) => (
-          section.isDirect ? (
-            <Link
-              key={index}
-              to={section.path}
-              className={`flex items-center px-2 py-2 mb-2 rounded-lg transition-colors text-sm font-semibold uppercase tracking-wider ${
-                location.pathname === section.path
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
-              } ${collapsed ? 'justify-center' : ''}`}
-              title={collapsed ? section.title : undefined}
+            <svg
+              className={`w-5 h-5 text-text-secondary transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              {section.icon}
-              {!collapsed && section.title}
-            </Link>
-          ) : (
-            <div key={index} className="mb-2 last:mb-0">
-              <button
-                onClick={() => toggleSection(section.title)}
-                className={`w-full flex items-center px-2 py-2 rounded-lg transition-colors justify-between ${
-                  isSectionActive(section)
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4l-8 8 8 8" />
+            </svg>
+          </button>
+        </div>
+        {/* Mobile close button */}
+        <div className="md:hidden flex items-center justify-end p-2">
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="p-2 rounded hover:bg-primary/10 focus:outline-none"
+            aria-label="Close sidebar"
+          >
+            <svg className="w-6 h-6 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="p-2">
+          {menuItems.map((section, index) => (
+            section.isDirect ? (
+              <Link
+                key={index}
+                to={section.path}
+                className={`flex items-center px-2 py-2 mb-2 rounded-lg transition-colors text-sm font-semibold uppercase tracking-wider ${
+                  location.pathname === section.path
                     ? 'bg-primary/10 text-primary'
-                    : expandedSections[section.title]
-                      ? 'bg-card hover:bg-primary/5 text-text-primary'
-                      : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                    : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
                 } ${collapsed ? 'justify-center' : ''}`}
                 title={collapsed ? section.title : undefined}
               >
-                <div className={`flex items-center ${collapsed ? 'justify-center w-full' : ''}`}>
-                  {section.icon}
+                {section.icon}
+                {!collapsed && section.title}
+              </Link>
+            ) : (
+              <div key={index} className="mb-2 last:mb-0">
+                <button
+                  onClick={() => toggleSection(section.title)}
+                  className={`w-full flex items-center px-2 py-2 rounded-lg transition-colors justify-between ${
+                    isSectionActive(section)
+                      ? 'bg-primary/10 text-primary'
+                      : expandedSections[section.title]
+                        ? 'bg-card hover:bg-primary/5 text-text-primary'
+                        : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                  } ${collapsed ? 'justify-center' : ''}`}
+                  title={collapsed ? section.title : undefined}
+                >
+                  <div className={`flex items-center ${collapsed ? 'justify-center w-full' : ''}`}>
+                    {section.icon}
+                    {!collapsed && (
+                      <h3 className={`text-sm font-semibold uppercase tracking-wider ${
+                        isSectionActive(section) ? 'text-primary' : ''
+                      }`}>
+                        {section.title}
+                      </h3>
+                    )}
+                  </div>
                   {!collapsed && (
-                    <h3 className={`text-sm font-semibold uppercase tracking-wider ${
-                      isSectionActive(section) ? 'text-primary' : ''
-                    }`}>
-                      {section.title}
-                    </h3>
-                  )}
-                </div>
-                {!collapsed && (
-                  <svg
-                    className={`w-4 h-4 transition-transform duration-200 text-text-secondary ${
-                      expandedSections[section.title] ? 'rotate-180' : ''
-                    }`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                )}
-              </button>
-              <div
-                className={`overflow-hidden transition-all duration-200 ease-in-out ${
-                  expandedSections[section.title] && !collapsed ? 'max-h-96' : 'max-h-0'
-                }`}
-              >
-                <div className={`space-y-1 mt-1 pl-6 ${collapsed ? 'hidden' : ''}`}>
-                  {section.items.map((item, itemIndex) => (
-                    <Link
-                      key={itemIndex}
-                      to={item.path}
-                      className={`flex items-center px-2 py-2 text-sm rounded-lg transition-colors ${
-                        isActive(item.path)
-                          ? 'bg-primary/20 text-primary font-medium'
-                          : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                    <svg
+                      className={`w-4 h-4 transition-transform duration-200 text-text-secondary ${
+                        expandedSections[section.title] ? 'rotate-180' : ''
                       }`}
-                      title={collapsed ? item.name : undefined}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      {item.name}
-                    </Link>
-                  ))}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  )}
+                </button>
+                <div
+                  className={`overflow-hidden transition-all duration-200 ease-in-out ${
+                    expandedSections[section.title] && !collapsed ? 'max-h-96' : 'max-h-0'
+                  }`}
+                >
+                  <div className={`space-y-1 mt-1 pl-6 ${collapsed ? 'hidden' : ''}`}>
+                    {section.items.map((item, itemIndex) => (
+                      <Link
+                        key={itemIndex}
+                        to={item.path}
+                        className={`flex items-center px-2 py-2 text-sm rounded-lg transition-colors ${
+                          isActive(item.path)
+                            ? 'bg-primary/20 text-primary font-medium'
+                            : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                        }`}
+                        title={collapsed ? item.name : undefined}
+                      >
+                        {item.name}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
+                {/* When collapsed, show section items as tooltips only on icon hover (optional, for accessibility) */}
+                {collapsed && (
+                  <div className="absolute left-16 z-50">
+                    {/* Optionally, you could render a tooltip here if desired */}
+                  </div>
+                )}
               </div>
-              {/* When collapsed, show section items as tooltips only on icon hover (optional, for accessibility) */}
-              {collapsed && (
-                <div className="absolute left-16 z-50">
-                  {/* Optionally, you could render a tooltip here if desired */}
-                </div>
-              )}
+            )
+          ))}
+          {/* Super Admin Section - only for superadmins */}
+          {user?.role === 'superadmin' && (
+            <div className="mb-2 last:mb-0">
+              <Link
+                to="/dashboard/superadmin"
+                className={`w-full flex items-center px-2 py-2 rounded-lg transition-colors ${
+                  location.pathname === '/dashboard/superadmin'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                } ${collapsed ? 'justify-center' : ''}`}
+                title={collapsed ? 'Super Admin' : undefined}
+              >
+                <span className={`flex items-center ${collapsed ? 'justify-center w-full' : ''}`}>
+                  {/* Shield/Star icon for super admin */}
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2l3 7h7l-5.5 4.5L17 21l-5-3-5 3 1.5-7.5L2 9h7z" />
+                  </svg>
+                  {!collapsed && <span className="text-sm font-semibold uppercase tracking-wider">Super Admin</span>}
+                </span>
+              </Link>
             </div>
-          )
-        ))}
-        {/* Super Admin Section - only for superadmins */}
-        {user?.role === 'superadmin' && (
-          <div className="mb-2 last:mb-0">
-            <Link
-              to="/dashboard/superadmin"
-              className={`w-full flex items-center px-2 py-2 rounded-lg transition-colors ${
-                location.pathname === '/dashboard/superadmin'
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
-              } ${collapsed ? 'justify-center' : ''}`}
-              title={collapsed ? 'Super Admin' : undefined}
-            >
-              <span className={`flex items-center ${collapsed ? 'justify-center w-full' : ''}`}>
-                {/* Shield/Star icon for super admin */}
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2l3 7h7l-5.5 4.5L17 21l-5-3-5 3 1.5-7.5L2 9h7z" />
-                </svg>
-                {!collapsed && <span className="text-sm font-semibold uppercase tracking-wider">Super Admin</span>}
-              </span>
-            </Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }; 

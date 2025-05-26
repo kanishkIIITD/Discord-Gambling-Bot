@@ -119,15 +119,15 @@ const ActiveBetsPage = () => {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Active Bets</h1>
       {/* Filters and Sort */}
-      <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-between items-center mb-6">
         {/* Segmented Button Group for Status Filter */}
-        <div className="flex gap-1 bg-surface border border-border rounded-lg p-1 flex-shrink-0">
+        <div className="flex flex-wrap gap-1 bg-surface border border-border rounded-lg p-1 flex-shrink-0 overflow-x-auto max-w-full whitespace-nowrap">
           {STATUS_FILTERS.map(opt => (
             <button
               key={opt.value}
               type="button"
               onClick={() => setStatusFilter(opt)}
-              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:z-10
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:z-10 whitespace-nowrap flex-shrink-0
                 ${statusFilter.value === opt.value
                   ? 'bg-primary text-white shadow'
                   : 'bg-transparent text-text-primary hover:bg-primary/10'}
@@ -183,7 +183,7 @@ const ActiveBetsPage = () => {
           <div className="p-8 text-text-secondary text-center">No active bets found.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border">
+            <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
               <thead className="bg-card">
                 <tr>
                   <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">#</th>

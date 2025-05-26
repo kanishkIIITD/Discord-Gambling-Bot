@@ -141,43 +141,45 @@ export const SuperAdmin = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-3xl mx-auto px-2 sm:px-6 lg:px-8 py-8 w-full">
       <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">User Role Management</h1>
-      <div className="flex justify-end mb-2">
-        <Listbox value={roleFilter} onChange={setRoleFilter}>
-          {({ open }) => (
-            <div className="relative w-48">
-              <Listbox.Button className="flex items-center justify-between w-full px-3 py-1 rounded bg-surface border border-border text-text-primary hover:bg-primary/10 transition-colors text-sm">
-                <span>{ROLE_OPTIONS.find(opt => opt.value === roleFilter)?.label}</span>
-                <ChevronUpDownIcon className="h-5 w-5 text-text-secondary ml-2" aria-hidden="true" />
-              </Listbox.Button>
-              <Transition
-                as="div"
-                leave="transition ease-in duration-100"
-                leaveFrom="opacity-100"
-                leaveTo="opacity-0"
-              >
-                {open && (
-                  <Listbox.Options className="absolute z-50 mt-1 w-full rounded bg-card border border-border py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none text-left">
-                    {ROLE_OPTIONS.map((opt) => (
-                      <Listbox.Option
-                        key={opt.value}
-                        value={opt.value}
-                        className={({ active, selected }) =>
-                          `cursor-pointer select-none py-2 pl-4 pr-4 text-text-primary text-left ${
-                            active ? 'bg-primary/10' : ''
-                          } ${selected ? 'font-semibold text-primary' : 'font-normal'}`
-                        }
-                      >
-                        {opt.label}
-                      </Listbox.Option>
-                    ))}
-                  </Listbox.Options>
-                )}
-              </Transition>
-            </div>
-          )}
-        </Listbox>
+      <div className="flex flex-col sm:flex-row sm:justify-end gap-4 mb-2 w-full">
+        <div className="relative w-full sm:w-48" >
+          <Listbox value={roleFilter} onChange={setRoleFilter}>
+            {({ open }) => (
+              <div className="relative w-full">
+                <Listbox.Button className="flex items-center justify-between w-full px-3 py-1 rounded bg-surface border border-border text-text-primary hover:bg-primary/10 transition-colors text-sm">
+                  <span>{ROLE_OPTIONS.find(opt => opt.value === roleFilter)?.label}</span>
+                  <ChevronUpDownIcon className="h-5 w-5 text-text-secondary ml-2" aria-hidden="true" />
+                </Listbox.Button>
+                <Transition
+                  as="div"
+                  leave="transition ease-in duration-100"
+                  leaveFrom="opacity-100"
+                  leaveTo="opacity-0"
+                >
+                  {open && (
+                    <Listbox.Options className="absolute z-50 mt-1 w-full rounded bg-card border border-border py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none text-left">
+                      {ROLE_OPTIONS.map((opt) => (
+                        <Listbox.Option
+                          key={opt.value}
+                          value={opt.value}
+                          className={({ active, selected }) =>
+                            `cursor-pointer select-none py-2 pl-4 pr-4 text-text-primary text-left ${
+                              active ? 'bg-primary/10' : ''
+                            } ${selected ? 'font-semibold text-primary' : 'font-normal'}`
+                          }
+                        >
+                          {opt.label}
+                        </Listbox.Option>
+                      ))}
+                    </Listbox.Options>
+                  )}
+                </Transition>
+              </div>
+            )}
+          </Listbox>
+        </div>
       </div>
       {loading ? (
         <div className="flex justify-center items-center py-8">
@@ -187,15 +189,15 @@ export const SuperAdmin = () => {
         null
       ) : (
         <>
-          <div className="bg-card rounded-lg shadow-lg overflow-x-auto">
-            <div className="w-full overflow-x-auto">
-              <table className="min-w-full divide-y divide-border table-auto">
+          <div className="bg-card rounded-lg shadow-lg overflow-x-auto w-full">
+            <div className="min-w-[500px] sm:min-w-full">
+              <table className="min-w-full divide-y divide-border text-xs sm:text-sm table-auto">
                 <thead className="bg-card">
                   <tr>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Username</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Discord ID</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Role</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Actions</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Username</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Discord ID</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Role</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -218,10 +220,10 @@ export const SuperAdmin = () => {
                           key={u._id}
                           className={isCurrentUser ? 'bg-primary/10 font-semibold' : ''}
                         >
-                          <td className="px-4 py-4 text-center text-sm text-text-primary whitespace-nowrap">{u.username}</td>
-                          <td className="px-4 py-4 text-center text-sm text-text-secondary whitespace-nowrap">{u.discordId}</td>
-                          <td className="px-4 py-4 text-center text-sm text-text-secondary whitespace-nowrap">{u.role}</td>
-                          <td className="px-4 py-4 text-center text-sm whitespace-nowrap">
+                          <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-sm text-text-primary whitespace-nowrap">{u.username}</td>
+                          <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-sm text-text-secondary whitespace-nowrap">{u.discordId}</td>
+                          <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-sm text-text-secondary whitespace-nowrap">{u.role}</td>
+                          <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-sm whitespace-nowrap">
                             <div className="flex items-center justify-center gap-2 min-w-[140px]">
                               <Listbox
                                 value={u.role}
@@ -311,7 +313,7 @@ export const SuperAdmin = () => {
               </table>
             </div>
           </div>
-          <div className="flex justify-center mt-6">
+          <div className="flex flex-wrap justify-center mt-6 w-full">
             <ReactPaginate
               previousLabel={"Prev"}
               nextLabel={"Next"}
@@ -322,7 +324,7 @@ export const SuperAdmin = () => {
               pageRangeDisplayed={3}
               onPageChange={handlePageChange}
               forcePage={page - 1}
-              containerClassName={"flex gap-1 items-center"}
+              containerClassName={"flex flex-wrap gap-1 items-center"}
               pageClassName={""}
               pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10"}
               activeClassName={""}

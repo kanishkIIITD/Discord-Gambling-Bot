@@ -136,9 +136,9 @@ export const Blackjack = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] bg-[length:100%_100%] p-0 m-0 relative font-sans" style={{ fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', lineHeight: 1.5 }}>
-      {/* Top Bar: Header and Balance */}
-      <div className="w-full flex flex-row items-center justify-between px-8 pt-6 pb-2 max-w-5xl">
+    <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] p-0 m-0 relative font-sans">
+      {/* Top Bar */}
+      <div className="w-full flex flex-col md:flex-row items-center justify-between px-4 md:px-8 pt-6 pb-2 max-w-5xl mx-auto">
         <div className="flex-1 flex justify-center">
           <h1 className="text-[2.25rem] font-extrabold text-white drop-shadow-lg tracking-wide text-center" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif' }}>
             {gameState ? 'Hit or Stand?' : 'Place a Bet!'}
@@ -156,9 +156,9 @@ export const Blackjack = () => {
         </div>
       </div>
 
-      {/* Bet Area: Only show when no game is active */}
+      {/* Bet Area */}
       {!gameState && (
-        <div className="flex flex-col items-center mt-8 w-full max-w-2xl">
+        <div className="flex flex-col items-center mt-8 w-full max-w-2xl px-2 sm:px-0">
           <div className="text-2xl font-bold text-white mb-2">Total Bet: <span className="text-yellow-300">${totalBet}</span></div>
           <ChipList
             chips={chips}
@@ -193,9 +193,9 @@ export const Blackjack = () => {
         </div>
       )}
 
-      {/* Game Area: Dealer and Player Hands */}
+      {/* Game Area */}
       {gameState && (
-        <div className="flex flex-col items-center w-full max-w-3xl mt-8">
+        <div className="flex flex-col items-center w-full max-w-3xl mt-8 px-2 sm:px-0">
           {/* Action Buttons or Play Again */}
           {(!gameState.gameOver) && (
             <div className="flex flex-row justify-center items-center w-full space-x-8 mb-8">

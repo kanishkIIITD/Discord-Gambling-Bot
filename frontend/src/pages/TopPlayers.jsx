@@ -110,10 +110,10 @@ export const TopPlayers = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-3xl mx-auto px-2 sm:px-6 lg:px-8 py-8 w-full">
       <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Top Players</h1>
-      <div className="flex justify-end mb-6">
-        <div className="relative w-44 flex-shrink-0" ref={sortMenuRef}>
+      <div className="flex flex-col sm:flex-row sm:justify-end gap-4 mb-6 w-full">
+        <div className="relative w-full sm:w-44 flex-shrink-0" ref={sortMenuRef}>
           <button
             type="button"
             className="flex items-center justify-between w-full px-3 py-1 rounded-lg bg-surface border border-border text-text-primary hover:bg-primary/10 transition-colors text-sm font-medium shadow-sm"
@@ -148,35 +148,35 @@ export const TopPlayers = () => {
           )}
         </div>
       </div>
-      <div className="bg-card rounded-lg shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
+      <div className="bg-card rounded-lg shadow-lg overflow-x-auto w-full">
+        <div className="min-w-[400px] sm:min-w-full">
+          <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
             <thead className="bg-card">
               <tr>
-                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">#</th>
-                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Player</th>
-                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Balance</th>
+                <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">#</th>
+                <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Player</th>
+                <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Balance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {sortedLeaderboard.length > 0 ? (
                 sortedLeaderboard.map((player, index) => (
                   <tr key={player.discordId} className={`hover:bg-primary/5 ${player.discordId === user?.discordId ? 'bg-primary/20' : ''}`}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{(page - 1) * (userPreferences?.itemsPerPage || 10) + index + 1}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{player.username}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary tracking-wide text-center">{player.balance.toLocaleString()} points</td>
+                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{(page - 1) * (userPreferences?.itemsPerPage || 10) + index + 1}</td>
+                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{player.username}</td>
+                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm font-medium text-primary tracking-wide text-center">{player.balance.toLocaleString()} points</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="3" className="px-6 py-4 text-center text-sm text-text-secondary">No players found on the leaderboard.</td>
+                  <td colSpan="3" className="px-2 sm:px-6 py-2 sm:py-3 text-center text-sm text-text-secondary">No players found on the leaderboard.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
-      <div className="flex justify-center mt-6">
+      <div className="flex flex-wrap justify-center mt-6 w-full">
         <ReactPaginate
           previousLabel={"Prev"}
           nextLabel={"Next"}
@@ -187,7 +187,7 @@ export const TopPlayers = () => {
           pageRangeDisplayed={3}
           onPageChange={handlePageChange}
           forcePage={page - 1}
-          containerClassName={"flex gap-1 items-center"}
+          containerClassName={"flex flex-wrap gap-1 items-center"}
           pageClassName={""}
           pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10"}
           activeClassName={""}

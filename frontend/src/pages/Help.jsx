@@ -36,10 +36,10 @@ export const Help = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Discord Commands</h1>
 
-      <div className="bg-card rounded-lg shadow-lg p-6">
+      <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6">
         {commands.length > 0 ? (
           <div className="space-y-6">
             {commands.map((command, index) => (

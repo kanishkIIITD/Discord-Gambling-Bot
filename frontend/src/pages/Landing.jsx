@@ -65,7 +65,7 @@ export const Landing = () => {
           <p className="text-lg text-text-secondary mb-8 max-w-2xl mx-auto leading-relaxed tracking-wide">
             Join thousands of GTA RP players who are already using Gambling Bot to enhance their server experience.
           </p>
-          <div className="space-x-4">
+          <div className="space-x-4 flex flex-col sm:flex-row gap-4 items-center justify-center">
             <Link
               to="/login"
               className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary tracking-wide"
@@ -98,9 +98,9 @@ export const Landing = () => {
       {/* Footer */}
       <footer className="bg-card border-t border-border mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex justify-evenly ">
+          <div className="flex flex-col md:flex-row items-center md:items-start justify-evenly gap-y-8 md:gap-x-12">
             {/* Brand Section */}
-            <div className="col-span-1 md:col-span-2">
+            <div className="w-full md:w-auto col-span-1 md:col-span-2 flex-shrink-0">
               <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent tracking-tight mb-4">
                 Gambling Bot
               </h2>
@@ -127,7 +127,7 @@ export const Landing = () => {
             </div>
 
             {/* Quick Links */}
-            <div>
+            <div className="w-full md:w-auto">
               <h3 className="text-lg font-semibold text-text-primary mb-4 tracking-wide">Quick Links</h3>
               <ul className="space-y-3">
                 <li>

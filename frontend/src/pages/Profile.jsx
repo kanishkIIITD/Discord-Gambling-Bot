@@ -45,10 +45,10 @@ export const Profile = () => {
   const { user: userData, wallet, stats } = profileData;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Your Profile</h1>
 
-      <div className="bg-card rounded-lg shadow-lg p-6 mb-8 space-y-4">
+      <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 mb-8 space-y-4">
         <h2 className="text-2xl font-semibold text-text-primary tracking-wide">User Information</h2>
         <div className="text-text-secondary leading-relaxed tracking-wide grid grid-cols-1 md:grid-cols-2 gap-4">
           <p><strong>Username:</strong> {userData.username}</p>
@@ -57,14 +57,14 @@ export const Profile = () => {
         </div>
       </div>
 
-      <div className="bg-card rounded-lg shadow-lg p-6 mb-8 space-y-4">
+      <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 mb-8 space-y-4">
         <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Wallet</h2>
         <div className="text-text-secondary leading-relaxed tracking-wide">
           <p><strong>Current Balance:</strong> <span className="font-semibold text-primary">{wallet.balance.toLocaleString()} points</span></p>
         </div>
       </div>
 
-      <div className="bg-card rounded-lg shadow-lg p-6 space-y-4">
+      <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-4">
         <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Betting Statistics</h2>
         <div className="text-text-secondary leading-relaxed tracking-wide grid grid-cols-1 md:grid-cols-2 gap-4">
           <p><strong>Total Bets Placed:</strong> {stats.totalBets}</p>

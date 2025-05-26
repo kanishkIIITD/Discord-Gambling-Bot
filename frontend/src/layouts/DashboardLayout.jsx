@@ -16,6 +16,9 @@ export const DashboardLayout = () => {
   const [suppressWalletBalance, setSuppressWalletBalance] = useState(false);
   const [prevWalletBalance, setPrevWalletBalance] = useState(0);
   const [pendingWalletBalance, setPendingWalletBalance] = useState(null);
+  const navRef = useRef(null);
+  const [navHeight, setNavHeight] = useState(0);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false); // Track dropdown state
 
   // When suppression is enabled, store the previous balance
   useEffect(() => {
@@ -100,6 +103,25 @@ export const DashboardLayout = () => {
     };
   }, [user, setWalletBalance, setActiveBets, suppressWalletBalance]); // Depend on user, and setters
 
+  // Listen for nav height changes on resize and dropdown toggle
+  useEffect(() => {
+    if (!navRef.current) return;
+    // Use ResizeObserver for robust nav height updates
+    const observer = new window.ResizeObserver(entries => {
+      for (let entry of entries) {
+        if (entry.target === navRef.current) {
+          setNavHeight(entry.contentRect.height);
+        }
+      }
+    });
+    observer.observe(navRef.current);
+    // Initial set
+    setNavHeight(navRef.current.offsetHeight);
+    return () => {
+      observer.disconnect();
+    };
+  }, [profileMenuOpen]);
+
   // Add loading screen for the layout
   if (loading) {
     return (
@@ -110,25 +132,35 @@ export const DashboardLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={{ '--nav-height': navHeight + 'px' }}>
       {/* Dashboard Navigation (receives balance state) */}
-      <DashboardNavigation 
-        walletBalance={walletBalance} 
-        setWalletBalance={setWalletBalance} 
-      />
-
-      <div className="flex">
+      <div ref={navRef}>
+        <DashboardNavigation 
+          walletBalance={walletBalance} 
+          setWalletBalance={setWalletBalance} 
+          onProfileMenuToggle={setProfileMenuOpen} // Pass callback to nav
+        />
+      </div>
+      <div className="flex flex-col md:flex-row">
         {/* Sidebar */}
-        <Sidebar />
-
+        <div className="w-full md:w-64 flex-shrink-0">
+          <Sidebar />
+        </div>
         {/* Main Content Area - Renders nested routes */}
-        <main className="flex-1 pl-64 pt-16">
+        <main className="dashboard-main-content flex-1 px-2 sm:px-6 lg:px-8" style={{ paddingTop: 'max(var(--nav-height), 56px)' }}>
           {/* Outlet renders the matched child route element */}
           <DashboardContext.Provider value={{ walletBalance, activeBets, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance }}>
             <Outlet />
           </DashboardContext.Provider>
         </main>
       </div>
+      <style>{`
+        @media (min-width: 768px) {
+          .dashboard-main-content {
+            padding-top: 4rem !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }; 

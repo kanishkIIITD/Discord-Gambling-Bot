@@ -76,10 +76,10 @@ export const Preferences = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       <h1 className="text-3xl font-bold text-text-primary mb-8 tracking-tight text-center">Preferences</h1>
 
-      <div className="bg-card rounded-lg shadow-lg p-6 space-y-6">
+      <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-6">
         <form onSubmit={handleSavePreferences} className="space-y-6">
           <div>
             <h2 className="text-2xl font-semibold text-text-primary mb-4 tracking-wide">Display Settings</h2>

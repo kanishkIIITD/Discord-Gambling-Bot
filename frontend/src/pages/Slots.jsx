@@ -233,23 +233,23 @@ export const Slots = () => {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] bg-[length:100%_100%] p-0 m-0 relative font-sans" style={{ fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', lineHeight: 1.5 }}>
-      <div className="max-w-fit mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col items-center">
+      <div className="w-full max-w-2xl mx-auto px-2 sm:px-6 lg:px-8 py-8 flex flex-col items-center">
         <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Slots</h1>
         {/* Jackpot Pool Display */}
-        <div className="flex flex-col items-center my-6">
-            <div className="bg-gradient-to-r from-yellow-300 to-yellow-500 rounded-xl shadow-lg px-6 py-4 flex items-center space-x-3 border-2 border-yellow-400">
-              <span className="text-3xl">💰</span>
-              <span className="text-2xl font-bold text-yellow-900 tracking-wide">Jackpot Pool:</span>
-              <span className="text-2xl font-mono text-yellow-900">{jackpotPool.toLocaleString()} points</span>
-            </div>
+        <div className="flex flex-col items-center my-6 w-full">
+          <div className="bg-gradient-to-r from-yellow-300 to-yellow-500 rounded-xl shadow-lg px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 border-2 border-yellow-400 w-full max-w-lg">
+            <span className="text-3xl">💰</span>
+            <span className="text-xl sm:text-2xl font-bold text-yellow-900 tracking-wide">Jackpot Pool:</span>
+            <span className="text-xl sm:text-2xl font-mono text-yellow-900">{jackpotPool.toLocaleString()} points</span>
           </div>
-        <div className="max-w-fit bg-card rounded-lg shadow-lg p-6 space-y-6 text-center">
+        </div>
+        <div className="w-full bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-6 text-center">
           {/* Confetti for Jackpot */}
           {isJackpot && !isSpinning && windowSize.width && windowSize.height && (
             <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={180} recycle={false} />
           )}
           {/* Slot Machine Reels Area */}
-          <div className="flex justify-center items-center mb-4 space-x-4">
+          <div className="flex flex-col sm:flex-row justify-center items-center mb-4 gap-2 sm:gap-4 overflow-x-auto w-full">
             {[...Array(REEL_COUNT)].map((_, index) => (
               <Reel
                 key={index}
@@ -260,7 +260,6 @@ export const Slots = () => {
               />
             ))}
           </div>
-          
           {/* Free Spin Modal */}
           <Modal
             isOpen={showFreeSpinModal}
@@ -278,7 +277,7 @@ export const Slots = () => {
               OK
             </button>
           </Modal>
-          <form onSubmit={handleSpin} className="space-y-4">
+          <form onSubmit={handleSpin} className="space-y-4 w-full max-w-xs mx-auto">
             <div>
               <label htmlFor="betAmount" className="block text-sm font-medium text-text-secondary">Bet Amount</label>
               <input
@@ -304,6 +303,10 @@ export const Slots = () => {
               </button>
             </div>
           </form>
+          {/* Result Message */}
+          {resultMessage && (
+            <div className="mt-4 text-lg font-semibold text-text-primary text-center">{resultMessage}</div>
+          )}
         </div>
       </div>
     </div>

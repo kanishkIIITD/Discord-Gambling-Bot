@@ -65,26 +65,17 @@ export const Transactions = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8 w-full">
       <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Transaction History</h1>
-
-      <div className="bg-card rounded-lg shadow-lg overflow-hidden mb-4">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
+      <div className="bg-card rounded-lg shadow-lg overflow-x-auto mb-4 w-full">
+        <div className="min-w-[500px] sm:min-w-full">
+          <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
             <thead className="bg-card">
               <tr>
-                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">
-                  Date
-                </th>
-                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">
-                  Type
-                </th>
-                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">
-                  Description
-                </th>
-                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">
-                  Amount
-                </th>
+                <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Date</th>
+                <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Type</th>
+                <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Description</th>
+                <th scope="col" className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -141,9 +132,8 @@ export const Transactions = () => {
           </table>
         </div>
       </div>
-
       {totalPages > 1 && (
-        <div className="flex justify-center mt-6">
+        <div className="flex flex-wrap justify-center mt-6 w-full">
           <ReactPaginate
             previousLabel={"Prev"}
             nextLabel={"Next"}
@@ -154,7 +144,7 @@ export const Transactions = () => {
             pageRangeDisplayed={3}
             onPageChange={handlePageChange}
             forcePage={currentPage - 1}
-            containerClassName={"flex gap-1 items-center"}
+            containerClassName={"flex flex-wrap gap-1 items-center"}
             pageClassName={""}
             pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10"}
             activeClassName={""}

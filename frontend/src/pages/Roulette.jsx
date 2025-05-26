@@ -260,11 +260,9 @@ export const Roulette = () => {
     windowSize.height;
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] bg-[length:100%_100%] p-0 m-0 relative font-sans" style={{ fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', lineHeight: 1.5 }}>
-      {showConfetti && (
-        <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={120} recycle={false} />
-      )}
-      <div className="w-full flex flex-col items-center mt-12 mb-4">
+    <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] p-0 m-0 relative font-sans">
+      {/* Top Bar */}
+      <div className="w-full flex flex-col md:flex-row items-center justify-between px-4 md:px-8 pt-6 pb-2 max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row gap-4 w-full max-w-fit">
           <div className="flex-1 bg-[rgba(36,41,47,0.85)] rounded-2xl shadow-xl border border-[rgba(88,101,242,0.18)] p-6 flex flex-col md:flex-row items-center justify-between backdrop-blur-md" style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.25)', borderRadius: 18 }}>
             <div className="flex items-center gap-3 mb-4 md:mb-0">
@@ -297,7 +295,8 @@ export const Roulette = () => {
         cancelText="Cancel"
       />
       <h2 className="text-3xl font-bold mb-6 text-center" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-primary)' }}>Roulette</h2>
-      <div className="flex flex-col md:flex-row gap-8 items-start justify-center md:items-stretch">
+      {/* Bet Area */}
+      <div className="flex flex-col md:flex-row items-center md:items-start gap-6 w-full max-w-5xl mx-auto mt-8 px-2 sm:px-0">
         <div className="flex flex-col items-center gap-4">
           <RouletteWheel start={start} winningBet={winningBet} onSpinningEnd={() => setStart(false)} />
           <ChipList

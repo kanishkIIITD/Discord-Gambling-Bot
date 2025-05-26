@@ -80,7 +80,7 @@ export const Dashboard = () => {
         {activeBets.length > 0 ? (
           <div className="bg-card rounded-lg shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-border">
+              <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
                 <thead className="bg-card">
                   <tr>
                     <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">#</th>
@@ -140,7 +140,7 @@ export const Dashboard = () => {
         <h2 className="text-2xl font-bold text-text-primary mb-4 tracking-tight">Recent Activity</h2>
         <div className="bg-card rounded-lg shadow-lg overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border">
+            <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
               <thead className="bg-card">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">

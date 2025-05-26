@@ -36,10 +36,10 @@ const ViewBetPage = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-16">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
       <h1 className="text-3xl font-bold text-text-primary mb-8 tracking-tight text-center">Find Bet by ID</h1>
       <form
-        className="flex flex-col sm:flex-row gap-4 items-center justify-center mb-10"
+        className="flex flex-col sm:flex-row gap-4 items-center justify-center mb-10 w-full"
         onSubmit={handleSearch}
       >
         <input
@@ -67,7 +67,7 @@ const ViewBetPage = () => {
       </form>
       {/* Render BetDetails below if betId is present */}
       {betIdParam && (
-        <div className="mt-10">
+        <div className="mt-10 w-full">
           <div className="w-full">
             <BetDetails betId={betIdParam} onBetCanceled={() => setBetCanceled(true)} />
           </div>
