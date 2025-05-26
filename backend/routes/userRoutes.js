@@ -25,7 +25,7 @@ router.use('/:discordId', async (req, res, next) => {
 
       // Create wallet for the new user
       const wallet = new Wallet({ user: user._id });
-      wallet.balance = 1000; // Set starting balance
+      wallet.balance = 100000; // Set starting balance
       await wallet.save();
       // // console.log(`Wallet for user ${user.discordId} created with initial balance.`);
 
@@ -33,7 +33,7 @@ router.use('/:discordId', async (req, res, next) => {
       const transaction = new Transaction({
         user: user._id,
         type: 'initial_balance', // Changed type for clarity
-        amount: 1000,
+        amount: 100000,
         description: 'Initial balance'
       });
       await transaction.save();
@@ -48,7 +48,7 @@ router.use('/:discordId', async (req, res, next) => {
            console.warn(`Wallet not found for existing user ${user.discordId} after middleware. Creating one now.`); // Keep this warn for unexpected cases
            // Create a wallet for the existing user
            const wallet = new Wallet({ user: user._id });
-           wallet.balance = 1000; // Set initial balance (can be adjusted if needed for existing users)
+           wallet.balance = 100000; // Set initial balance (can be adjusted if needed for existing users)
            await wallet.save();
            // // console.log(`New wallet created for existing user ${user.discordId}.`); // Removed this log
            req.wallet = wallet; // Attach the newly created wallet
@@ -269,14 +269,14 @@ router.post('/:userId/daily', async (req, res) => {
 
     // Calculate streak bonus
     const streak = wallet.dailyStreak || 0;
-    const baseAmount = 100; // Base daily bonus
+    const baseAmount = 10000; // Base daily bonus (10% of starting balance)
     const streakMultiplier = Math.min(1 + (streak * 0.1), 2); // Max 2x multiplier
     const bonusAmount = Math.floor(baseAmount * streakMultiplier);
 
     // Update wallet
     wallet.balance += bonusAmount;
     wallet.lastDailyClaim = new Date(); // Store the exact claim time
-    wallet.dailyStreak = streak + 1;
+    wallet.dailyStreak = (wallet.dailyStreak || 0) + 1;
     await wallet.save();
 
     // Record transaction
