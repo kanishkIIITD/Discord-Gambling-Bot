@@ -20,7 +20,23 @@ export const AuthCallback = () => {
           // Remove token from URL
           window.history.replaceState({}, document.title, '/auth/callback');
           // Check auth status
-          await checkAuth();
+          const user = await checkAuth();
+          // Update username in backend if available
+          if (user && user.discordId && user.username) {
+            try {
+              await fetch(`${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/update-username`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ username: user.username })
+              });
+            } catch (err) {
+              // Not fatal, just log
+              console.warn('Failed to update username in backend:', err);
+            }
+          }
           navigate('/dashboard');
         } else {
           // If no token, just check auth status

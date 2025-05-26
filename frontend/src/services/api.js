@@ -173,4 +173,10 @@ export const getMyPlacedBets = async (discordId, page = 1, limit = 20) => {
     params: { page, limit }
   });
   return response.data;
+};
+
+// Update username for a user
+export const updateUsername = async (discordId, username) => {
+  const response = await axios.post(`${API_URL}/api/users/${discordId}/update-username`, { username });
+  return response.data;
 }; 

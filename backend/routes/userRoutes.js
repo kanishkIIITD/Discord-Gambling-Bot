@@ -584,4 +584,26 @@ router.get('/:discordId/bets', async (req, res) => {
   }
 });
 
+// Update username for a user
+router.post('/:discordId/update-username', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username || typeof username !== 'string' || username.length < 2) {
+      return res.status(400).json({ message: 'Invalid username.' });
+    }
+    const user = await User.findOneAndUpdate(
+      { discordId: req.params.discordId },
+      { username },
+      { new: true }
+    );
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    res.json({ message: 'Username updated.', user });
+  } catch (error) {
+    console.error('Error updating username:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 module.exports = router; 

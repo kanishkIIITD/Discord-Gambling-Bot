@@ -27,6 +27,8 @@ export const AuthProvider = ({ children }) => {
           Authorization: `Bearer ${token}`
         }
       });
+      // The returned user object contains the Discord username (from OAuth),
+      // which is used to update the backend username after login.
       setUser(response.data);
       return response.data;
     } catch (error) {

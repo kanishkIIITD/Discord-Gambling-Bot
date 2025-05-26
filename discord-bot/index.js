@@ -24,6 +24,14 @@ client.on('interactionCreate', async interaction => {
 	// Ensure user exists in backend before proceeding with most commands
 	try {
 		await axios.get(`${backendApiUrl}/users/${userId}/wallet`); // This endpoint's middleware creates user/wallet if they don't exist
+		// Update username in backend to ensure it's always correct
+		try {
+			await axios.post(`${backendApiUrl}/users/${userId}/update-username`, {
+				username: interaction.user.username
+			});
+		} catch (err) {
+			console.warn('Failed to update username in backend:', err.response?.data || err.message);
+		}
 	} catch (error) {
 		console.error('Error ensuring user/wallet existence in backend:', error);
 		// Depending on the command, you might want to inform the user about the error
