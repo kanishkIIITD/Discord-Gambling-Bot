@@ -4,11 +4,12 @@ import { useParams } from 'react-router-dom';
 // import { Sidebar } from '../components/Sidebar'; // Removed
 // import { DashboardNavigation } from '../components/DashboardNavigation'; // Removed
 // import { getWalletBalance } from '../services/api'; // Removed getWalletBalance
-import { getBetDetails, getPlacedBetsForBet, placeBet, closeBet, resolveBet, cancelBet, editBet, extendBet } from '../services/api';
+import { getBetDetails, getPlacedBetsForBet, placeBet, closeBet, resolveBet, cancelBet, editBet, extendBet, getUserPreferences } from '../services/api';
 import { useDashboard } from '../contexts/DashboardContext';
 import { toast } from 'react-hot-toast'; // Import toast for notifications
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth to get user discordId
 import { ConfirmModal } from '../components/ConfirmModal';
+import ReactPaginate from 'react-paginate';
 
 export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const { betId: routeBetId } = useParams();
@@ -16,6 +17,11 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const { user } = useAuth(); // Get user for discordId
   const [bet, setBet] = useState(null);
   const [placedBets, setPlacedBets] = useState([]);
+  const [userPreferences, setUserPreferences] = useState(null);
+  const [placedBetsPage, setPlacedBetsPage] = useState(1);
+  const [placedBetsTotal, setPlacedBetsTotal] = useState(0);
+  const [placedBetsPageSize, setPlacedBetsPageSize] = useState(10);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   // const [walletBalance, setWalletBalance] = useState(0); // Removed
@@ -39,22 +45,43 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const [extendMinutes, setExtendMinutes] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
 
+  // Fetch user preferences for pagination
   useEffect(() => {
-    if (!betId) return;
+    const fetchPreferences = async () => {
+      if (user?.discordId) {
+        try {
+          const prefs = await getUserPreferences(user.discordId);
+          setUserPreferences(prefs);
+        } catch (e) {
+          setUserPreferences({ itemsPerPage: 10 });
+        }
+      } else {
+        setUserPreferences({ itemsPerPage: 10 });
+      }
+    };
+    fetchPreferences();
+    // eslint-disable-next-line
+  }, [user?.discordId]);
+
+  // Reset to first page if itemsPerPage changes
+  useEffect(() => {
+    setPlacedBetsPage(1);
+  }, [userPreferences?.itemsPerPage]);
+
+  useEffect(() => {
+    if (!betId || !userPreferences) return;
     const fetchData = async () => {
       try {
         setLoading(true);
         const betData = await getBetDetails(betId);
         setBet(betData);
-
-        // Set the default selected option to the first option if the bet is open
         if (betData && betData.status === 'open' && betData.options.length > 0) {
             setSelectedOption(betData.options[0]);
         }
-
-        const placedBetsData = await getPlacedBetsForBet(betId);
-        setPlacedBets(placedBetsData);
-
+        // Fetch paginated placed bets
+        const placedBetsRes = await getPlacedBetsForBet(betId, placedBetsPage, userPreferences.itemsPerPage || 10);
+        setPlacedBets(placedBetsRes.data || placedBetsRes);
+        setPlacedBetsTotal(placedBetsRes.totalCount || (placedBetsRes.data ? placedBetsRes.data.length : placedBetsRes.length));
       } catch (err) {
         console.error('Error fetching bet details:', err);
         setError('Failed to load bet details.');
@@ -62,9 +89,8 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
         setLoading(false);
       }
     };
-
     fetchData();
-  }, [betId]);
+  }, [betId, placedBetsPage, userPreferences]);
 
   // Removed wallet balance fetch as it's handled in DashboardLayout
   // useEffect(() => {
@@ -115,8 +141,9 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
             setBetAmount(''); // Clear input after placing bet
 
             // Refetch placed bets for this specific bet to update the list
-            const updatedPlacedBets = await getPlacedBetsForBet(betId);
-            setPlacedBets(updatedPlacedBets);
+            const placedBetsRes = await getPlacedBetsForBet(betId, placedBetsPage, userPreferences.itemsPerPage || 10);
+            setPlacedBets(placedBetsRes.data || placedBetsRes);
+            setPlacedBetsTotal(placedBetsRes.totalCount || (placedBetsRes.data ? placedBetsRes.data.length : placedBetsRes.length));
 
             // Balance update is handled by WebSocket in DashboardLayout
 
@@ -352,10 +379,11 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
          )}
 
          <div className="bg-card rounded-lg shadow-lg p-6">
-             <h3 className="text-xl font-semibold text-text-primary mb-4 tracking-wide">Placed Bets ({placedBets.length})</h3>
+             <h3 className="text-xl font-semibold text-text-primary mb-4 tracking-wide">Placed Bets ({placedBetsTotal})</h3>
               {placedBets.length > 0 ? (
-                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-border">
+                 <>
+                   <div className="overflow-x-auto">
+                     <table className="min-w-full divide-y divide-border">
                        <thead className="bg-surface">
                            <tr>
                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Bettor</th>
@@ -374,8 +402,32 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
                                </tr>
                            ))}
                        </tbody>
-                    </table>
-                 </div>
+                     </table>
+                   </div>
+                   <div className="flex justify-center mt-4">
+                     <ReactPaginate
+                       previousLabel={"Prev"}
+                       nextLabel={"Next"}
+                       breakLabel={"..."}
+                       breakClassName={"px-2 py-1"}
+                       pageCount={Math.ceil(placedBetsTotal / (userPreferences?.itemsPerPage || 10)) || 1}
+                       marginPagesDisplayed={1}
+                       pageRangeDisplayed={3}
+                       onPageChange={selected => setPlacedBetsPage(selected.selected + 1)}
+                       forcePage={placedBetsPage - 1}
+                       containerClassName={"flex gap-1 items-center"}
+                       pageClassName={""}
+                       pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10"}
+                       activeClassName={""}
+                       activeLinkClassName={"bg-primary text-white"}
+                       previousClassName={""}
+                       previousLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
+                       nextClassName={""}
+                       nextLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
+                       disabledClassName={"opacity-50 cursor-not-allowed"}
+                     />
+                   </div>
+                 </>
               ) : (
                  <p className="text-text-secondary leading-relaxed tracking-wide">No bets have been placed yet.</p>
               )}

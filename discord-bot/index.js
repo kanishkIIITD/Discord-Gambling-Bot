@@ -759,19 +759,30 @@ client.on('interactionCreate', async interaction => {
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/slots`, {
 				amount
 			});
-			const { reels, won, winnings, newBalance, isJackpot } = response.data;
+			const { reels, won, winnings, newBalance, isJackpot, jackpotPool, freeSpins, usedFreeSpin, winType } = response.data;
+			let description = isJackpot ?
+				`**JACKPOT!** You won the entire jackpot of ${winnings.toLocaleString()} points!` :
+				`[ ${reels.join(' | ')} ]`;
+			let outcome = isJackpot ? '🎉 JACKPOT!' : (won ? '🎉 You won!' : '😢 You lost!');
+			if (winType === 'two-sevens') outcome = '✨ Two 7️⃣! 5x win!';
+			if (winType === 'two-matching') outcome = '✨ Two matching symbols! 2x win!';
+			if (winType === 'three-of-a-kind') outcome = '✨ Three of a kind!';
+			if (usedFreeSpin && !won && !isJackpot) outcome = '🆓 Used a free spin!';
 			const embed = new EmbedBuilder()
 				.setColor(isJackpot ? 0xffd700 : (won ? 0x00ff00 : 0xff0000))
 				.setTitle(isJackpot ? '🎉 JACKPOT WIN! 🎉' : '🎰 Slot Machine')
-				.setDescription(isJackpot ? 
-					`**JACKPOT!** You won the entire jackpot of ${winnings.toLocaleString()} points!` :
-					`[ ${reels.join(' | ')} ]`)
+				.setDescription(description)
 				.addFields(
-					{ name: 'Outcome', value: isJackpot ? '🎉 JACKPOT!' : (won ? '🎉 You won!' : '😢 You lost!'), inline: true },
+					{ name: 'Outcome', value: outcome, inline: true },
 					{ name: 'Winnings', value: `${winnings.toLocaleString()} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true }
-				)
-				.setTimestamp();
+					{ name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true },
+					{ name: 'Jackpot Pool', value: `${(jackpotPool || 0).toLocaleString()} points`, inline: true },
+					{ name: 'Free Spins', value: `${freeSpins || 0}`, inline: true },
+				);
+			if (usedFreeSpin && !won && !isJackpot) {
+				embed.addFields({ name: 'Note', value: 'You used a free spin!', inline: false });
+			}
+			embed.setTimestamp();
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error in slots:', error.response?.data || error.message);

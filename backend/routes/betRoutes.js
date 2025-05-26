@@ -213,14 +213,29 @@ router.post('/:betId/place', async (req, res) => {
   }
 });
 
-// Get placed bets for a specific bet by ID
+// Get placed bets for a specific bet by ID (with pagination)
 router.get('/:betId/placed', async (req, res) => {
   try {
     const betId = req.params.betId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    const placedBets = await PlacedBet.find({ bet: betId }).populate('bettor', 'username');
+    const [placedBets, totalCount] = await Promise.all([
+      PlacedBet.find({ bet: betId })
+        .populate('bettor', 'username')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      PlacedBet.countDocuments({ bet: betId })
+    ]);
 
-    res.json(placedBets);
+    res.json({
+      data: placedBets,
+      totalCount,
+      page,
+      limit
+    });
   } catch (error) {
     console.error('Error fetching placed bets:', error);
     res.status(500).json({ message: 'Server error.' });

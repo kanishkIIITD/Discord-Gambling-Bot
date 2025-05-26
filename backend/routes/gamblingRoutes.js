@@ -145,6 +145,13 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
     const wallet = req.wallet;
     const user = req.user;
 
+    // Check for free spin
+    let usedFreeSpin = false;
+    if (wallet.freeSpins > 0) {
+      usedFreeSpin = true;
+      wallet.freeSpins -= 1;
+    }
+
     // Slot symbols and their weights
     const symbols = ['🍒', '🍊', '🍋', '🍇', '💎', '7️⃣'];
     const weights = [30, 25, 20, 15, 8, 2]; // Percentages
@@ -168,24 +175,20 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
 
     // Check for jackpot win (three 7️⃣ symbols)
     const isJackpot = reels[0] === '7️⃣' && reels[1] === '7️⃣' && reels[2] === '7️⃣';
-    
-    // Calculate winnings
     let multiplier = 0;
     let jackpotAmount = 0;
+    let winType = null;
     if (isJackpot) {
       // Win the entire jackpot
       const jackpot = await Jackpot.findOne() || new Jackpot();
       jackpotAmount = jackpot.currentAmount; // Store jackpot amount before resetting
-      multiplier = jackpotAmount / amount;
-      
-      // Update jackpot with winner
+      multiplier = 554.83; // Recommended jackpot payout multiplier
+      winType = 'jackpot';
       jackpot.lastWinner = user._id;
       jackpot.lastWinAmount = jackpotAmount;
       jackpot.lastWinTime = new Date();
       jackpot.currentAmount = 0; // Reset jackpot
       await jackpot.save();
-
-      // Record jackpot win transaction
       const jackpotTransaction = new Transaction({
         user: user._id,
         type: 'jackpot',
@@ -193,50 +196,69 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
         description: 'JACKPOT WIN! 🎉'
       });
       await jackpotTransaction.save();
-
-      // Send WebSocket update for jackpot transaction
       if (isJackpot && jackpotTransaction) {
         broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: jackpotTransaction });
       }
-
     } else if (reels[0] === reels[1] && reels[1] === reels[2]) {
       // Three of a kind
+      winType = 'three-of-a-kind';
       switch (reels[0]) {
         case '7️⃣': multiplier = 50; break;
-        case '💎': multiplier = 25; break;
-        case '🍇': multiplier = 15; break;
-        case '🍋': multiplier = 10; break;
-        case '🍊': multiplier = 8; break;
-        case '🍒': multiplier = 5; break;
+        case '💎': multiplier = 20.56; break;
+        case '🍇': multiplier = 12.11; break;
+        case '🍋': multiplier = 8.22; break;
+        case '🍊': multiplier = 6.65; break;
+        case '🍒': multiplier = 4.31; break;
       }
-    } else if (reels[0] === '🍒' && reels[1] === '🍒') {
-      // Only pay for two cherries on the first two reels
-      multiplier = 2;
+    } else if (
+      (reels.filter(s => s === '7️⃣').length === 2)
+    ) {
+      // Two 7️⃣ (but not three)
+      multiplier = 4.11;
+      winType = 'two-sevens';
+    } else if (
+      (reels[0] === reels[1] && reels[0] !== '7️⃣') ||
+      (reels[0] === reels[2] && reels[0] !== '7️⃣') ||
+      (reels[1] === reels[2] && reels[1] !== '7️⃣')
+    ) {
+      // Any two matching symbols (except 7️⃣)
+      multiplier = 1.15;
+      winType = 'two-matching';
     }
 
-    const winnings = amount * multiplier;
+    const winnings = isJackpot ? Math.floor(amount * 554.83) : amount * multiplier;
     const won = multiplier > 0;
+
+    // Free spin logic: track loss streak and award free spin after 5 losses
+    if (!won && !usedFreeSpin) {
+      wallet.slotLossStreak = (wallet.slotLossStreak || 0) + 1;
+      if (wallet.slotLossStreak >= 5) {
+        wallet.freeSpins = (wallet.freeSpins || 0) + 1;
+        wallet.slotLossStreak = 0;
+      }
+    } else if (won) {
+      wallet.slotLossStreak = 0;
+    }
 
     // Update wallet and record bet/win/loss transactions
     await updateWalletBalance(
       wallet,
-      amount,
+      usedFreeSpin ? 0 : amount,
       winnings,
       'slots',
       won ? (isJackpot ? 'JACKPOT!' : `[${reels.join('|')}]`) : ''
     );
+    await wallet.save();
 
-    // After updateWalletBalance, wallet and transactions are saved.
-    // Fetch the most recent transaction(s) to send via WebSocket.
-    if (!isJackpot) { // Jackpot transaction is sent separately above
-       const latestTransaction = await Transaction.findOne({ user: user._id }).sort({ timestamp: -1 });
-       if (latestTransaction) {
-         broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
-       }
+    if (!isJackpot) {
+      const latestTransaction = await Transaction.findOne({ user: user._id }).sort({ timestamp: -1 });
+      if (latestTransaction) {
+        broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
+      }
     }
 
-    // Add to jackpot if lost
-    if (!won) {
+    // Add to jackpot if lost and not a free spin
+    if (!won && !usedFreeSpin) {
       const jackpot = await Jackpot.findOne() || new Jackpot();
       jackpot.currentAmount += Math.floor(amount * 0.1); // 10% goes to jackpot
       jackpot.contributions.push({
@@ -244,20 +266,18 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
         amount: Math.floor(amount * 0.1)
       });
       await jackpot.save();
-      // Optionally, send a jackpot update message to all users or relevant ones
     }
 
     // Fetch the updated balance *after* all transactions and saves
     const updatedWallet = await Wallet.findById(wallet._id);
     const newBalance = updatedWallet.balance;
+    const jackpot = await Jackpot.findOne() || { currentAmount: 0 };
 
     // Send WebSocket update for balance
     broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: newBalance });
-
-    // Update win streak
     await updateUserWinStreak(user.discordId, winnings > 0);
 
-    res.json(createGamblingResponse({ reels, isJackpot, jackpotAmount }, won, winnings, newBalance));
+    res.json(createGamblingResponse({ reels, isJackpot, jackpotAmount, jackpotPool: jackpot.currentAmount, usedFreeSpin, freeSpins: wallet.freeSpins }, won, winnings, newBalance));
   } catch (error) {
     handleGamblingError(error, req, res);
   }

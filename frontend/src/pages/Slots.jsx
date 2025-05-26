@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import Confetti from 'react-confetti';
+import Modal from 'react-modal';
 
 export const Slots = () => {
   const { user } = useAuth();
@@ -36,6 +37,12 @@ export const Slots = () => {
   const [spinKey, setSpinKey] = useState(0); // To force rerender of reels
   const [isJackpot, setIsJackpot] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: undefined, height: undefined });
+  const [jackpotPool, setJackpotPool] = useState(0);
+  const [freeSpins, setFreeSpins] = useState(0);
+  const [showFreeSpinModal, setShowFreeSpinModal] = useState(false);
+  const [prevFreeSpins, setPrevFreeSpins] = useState(0);
+  const [usedFreeSpin, setUsedFreeSpin] = useState(false);
+  const [winType, setWinType] = useState(null);
 
   useEffect(() => {
     function handleResize() {
@@ -45,6 +52,19 @@ export const Slots = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Fetch jackpot pool on mount
+  useEffect(() => {
+    async function fetchJackpot() {
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/gambling/${user?.discordId || ''}/jackpot`);
+        setJackpotPool(response.data.currentAmount || 0);
+      } catch (e) {
+        setJackpotPool(0);
+      }
+    }
+    fetchJackpot();
+  }, [user?.discordId]);
 
   // Build a long reel for animation (repeat symbols)
   const buildReel = (finalSymbol) => {
@@ -93,19 +113,35 @@ export const Slots = () => {
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/slots`, {
         amount: amount,
       });
-      const { reels: finalReels, won, winnings, isJackpot } = response.data;
+      const { reels: finalReels, won, winnings, isJackpot, jackpotPool, freeSpins, usedFreeSpin, winType } = response.data;
       setFinalReelSymbols(finalReels);
       setReelResults(finalReels);
       setIsJackpot(isJackpot);
+      setJackpotPool(jackpotPool || 0);
+      setPrevFreeSpins(freeSpins || 0);
+      // Show modal if a new free spin is earned
+      if ((freeSpins || 0) > prevFreeSpins) {
+        setShowFreeSpinModal(true);
+      }
+      setFreeSpins(freeSpins || 0);
+      setUsedFreeSpin(!!usedFreeSpin);
+      setWinType(winType || null);
       let messageText = '';
       if (isJackpot) {
-        messageText = `JACKPOT! 🎉 You won ${winnings} points!`;
+        messageText = `JACKPOT! 🎉 You won ${Math.round(winnings)} points!`;
+      } else if (winType === 'two-sevens') {
+        messageText = `Two 7️⃣! You win 5x your bet: ${Math.round(winnings)} points!`;
+      } else if (winType === 'two-matching') {
+        messageText = `Two matching symbols! You win 2x your bet: ${Math.round(winnings)} points!`;
+      } else if (winType === 'three-of-a-kind') {
+        messageText = `Three of a kind! You win ${Math.round(winnings)} points!`;
       } else if (won) {
-        messageText = `You won ${winnings} points!`;
+        messageText = `You won ${Math.round(winnings)} points!`;
+      } else if (usedFreeSpin) {
+        messageText = `You used a free spin!`;
       } else {
-        messageText = `You lost ${amount} points.`;
+        messageText = `You lost ${Math.round(amount)} points.`;
       }
-      // Show result after all reels stop
       setTimeout(() => {
         setResultMessage(messageText);
         toast[won || isJackpot ? 'success' : 'error'](messageText);
@@ -197,9 +233,17 @@ export const Slots = () => {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] bg-[length:100%_100%] p-0 m-0 relative font-sans" style={{ fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', lineHeight: 1.5 }}>
-      <div className="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-fit mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col items-center">
         <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Slots</h1>
-        <div className="bg-card rounded-lg shadow-lg p-6 space-y-6 text-center">
+        {/* Jackpot Pool Display */}
+        <div className="flex flex-col items-center my-6">
+            <div className="bg-gradient-to-r from-yellow-300 to-yellow-500 rounded-xl shadow-lg px-6 py-4 flex items-center space-x-3 border-2 border-yellow-400">
+              <span className="text-3xl">💰</span>
+              <span className="text-2xl font-bold text-yellow-900 tracking-wide">Jackpot Pool:</span>
+              <span className="text-2xl font-mono text-yellow-900">{jackpotPool.toLocaleString()} points</span>
+            </div>
+          </div>
+        <div className="max-w-fit bg-card rounded-lg shadow-lg p-6 space-y-6 text-center">
           {/* Confetti for Jackpot */}
           {isJackpot && !isSpinning && windowSize.width && windowSize.height && (
             <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={180} recycle={false} />
@@ -216,6 +260,24 @@ export const Slots = () => {
               />
             ))}
           </div>
+          
+          {/* Free Spin Modal */}
+          <Modal
+            isOpen={showFreeSpinModal}
+            onRequestClose={() => setShowFreeSpinModal(false)}
+            className="bg-white rounded-lg shadow-xl p-8 max-w-sm mx-auto mt-32 text-center outline-none"
+            overlayClassName="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center"
+            ariaHideApp={false}
+          >
+            <div className="text-3xl mb-4">🆓 Free Spin!</div>
+            <div className="text-lg mb-6">Congratulations! Your next spin is <span className="font-bold text-green-600">FREE</span>!</div>
+            <button
+              onClick={() => setShowFreeSpinModal(false)}
+              className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary/90 focus:outline-none"
+            >
+              OK
+            </button>
+          </Modal>
           <form onSubmit={handleSpin} className="space-y-4">
             <div>
               <label htmlFor="betAmount" className="block text-sm font-medium text-text-secondary">Bet Amount</label>

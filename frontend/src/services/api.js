@@ -48,8 +48,10 @@ export const placeBet = async (betId, amount, option, discordId) => {
 };
 
 // Add this new function to fetch placed bets for a specific bet
-export const getPlacedBetsForBet = async (betId) => {
-  const response = await axios.get(`${API_URL}/api/bets/${betId}/placed`);
+export const getPlacedBetsForBet = async (betId, page = 1, limit = 20) => {
+  const response = await axios.get(`${API_URL}/api/bets/${betId}/placed`, {
+    params: { page, limit }
+  });
   return response.data;
 };
 

@@ -17,7 +17,8 @@ const ROLE_OPTIONS = [
 
 export const SuperAdmin = () => {
   const { user } = useAuth();
-  const [users, setUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]); // Store all users for filtering
+  const [users, setUsers] = useState([]); // Users to display on current page
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -32,8 +33,9 @@ export const SuperAdmin = () => {
   const [listboxOpen, setListboxOpen] = useState({}); // { [userId]: boolean }
   const [userPreferences, setUserPreferences] = useState(null);
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Fetch all users once (for filtering)
   useEffect(() => {
     const fetchUserPreferencesAndUsers = async () => {
       setLoading(true);
@@ -45,9 +47,10 @@ export const SuperAdmin = () => {
           setUserPreferences(prefs);
         }
         if (prefs) {
-          const { data, totalCount } = await getAllUsers(page, prefs.itemsPerPage);
-          setUsers(data);
-          setTotalCount(totalCount);
+          setItemsPerPage(prefs.itemsPerPage || 10);
+          // Fetch all users (no pagination)
+          const { data } = await getAllUsers(1, 10000); // Large limit to get all
+          setAllUsers(data);
         }
       } catch (err) {
         setError(null);
@@ -58,15 +61,26 @@ export const SuperAdmin = () => {
     };
     fetchUserPreferencesAndUsers();
     // eslint-disable-next-line
-  }, [user, page, userPreferences?.itemsPerPage]);
+  }, [user, userPreferences?.itemsPerPage]);
 
-  // Sync openDropdown with Listbox open state
+  // Filter and paginate users on the frontend
+  useEffect(() => {
+    let filtered = roleFilter === 'all' ? allUsers : allUsers.filter(u => u.role === roleFilter);
+    filtered = [...filtered].sort((a, b) => a.role.localeCompare(b.role));
+    const startIdx = (page - 1) * itemsPerPage;
+    const endIdx = startIdx + itemsPerPage;
+    setUsers(filtered.slice(startIdx, endIdx));
+  }, [allUsers, roleFilter, page, itemsPerPage]);
+
+  useEffect(() => {
+    setPage(1); // Reset to first page when filter changes
+  }, [roleFilter]);
+
   useEffect(() => {
     const openId = Object.keys(listboxOpen).find(id => listboxOpen[id]);
     setOpenDropdown(openId || null);
   }, [listboxOpen]);
 
-  // Update dropdown position when openDropdown changes
   useLayoutEffect(() => {
     if (openDropdown) {
       handleDropdownOpen(openDropdown);
@@ -82,7 +96,7 @@ export const SuperAdmin = () => {
         `${process.env.REACT_APP_API_URL}/api/admin/users/${userId}/role`,
         { role: newRole }
       );
-      setUsers((prev) => prev.map(u => u._id === userId ? { ...u, role: newRole } : u));
+      setAllUsers((prev) => prev.map(u => u._id === userId ? { ...u, role: newRole } : u));
       setSuccess(null);
       toast.success('Role updated successfully.');
     } catch (err) {
@@ -92,11 +106,6 @@ export const SuperAdmin = () => {
       setUpdating((prev) => ({ ...prev, [userId]: false }));
     }
   };
-
-  // Filter users by role
-  const filteredUsers = roleFilter === 'all' ? users : users.filter(u => u.role === roleFilter);
-  // Sort by role for consistency
-  const sortedUsers = [...filteredUsers].sort((a, b) => a.role.localeCompare(b.role));
 
   // Only allow superadmin
   if (!user || user.role !== 'superadmin') {
@@ -124,7 +133,9 @@ export const SuperAdmin = () => {
     }
   };
 
-  const totalPages = userPreferences ? Math.ceil(totalCount / userPreferences.itemsPerPage) : 1;
+  // Calculate total pages for filtered users
+  const filtered = roleFilter === 'all' ? allUsers : allUsers.filter(u => u.role === roleFilter);
+  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const handlePageChange = (selectedItem) => {
     setPage(selectedItem.selected + 1);
   };
@@ -177,126 +188,128 @@ export const SuperAdmin = () => {
       ) : (
         <>
           <div className="bg-card rounded-lg shadow-lg overflow-x-auto">
-            <table className="min-w-full divide-y divide-border">
-              <thead className="bg-card">
-                <tr>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Username</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Discord ID</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {sortedUsers.length === 0 ? (
+            <div className="w-full overflow-x-auto">
+              <table className="min-w-full divide-y divide-border table-auto">
+                <thead className="bg-card">
                   <tr>
-                    <td colSpan={4} className="py-12 text-center">
-                      <div className="flex flex-col items-center justify-center gap-2 bg-surface/70 border border-border rounded-lg p-8 mx-auto max-w-md">
-                        <UserGroupIcon className="h-10 w-10 text-primary mb-2" aria-hidden="true" />
-                        <span className="text-text-secondary text-base font-medium">No users with this role found.</span>
-                        <span className="text-text-tertiary text-sm">Try selecting a different role or check back later.</span>
-                      </div>
-                    </td>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Username</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Discord ID</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Role</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider whitespace-nowrap">Actions</th>
                   </tr>
-                ) : (
-                  sortedUsers.map((u, index) => {
-                    const isOpen = openDropdown === u._id;
-                    const isCurrentUser = user && u._id === user._id;
-                    return (
-                      <tr
-                        key={u._id}
-                        className={isCurrentUser ? 'bg-primary/10 font-semibold' : ''}
-                      >
-                        <td className="px-6 py-4 text-center text-sm text-text-primary">{u.username}</td>
-                        <td className="px-6 py-4 text-center text-sm text-text-secondary">{u.discordId}</td>
-                        <td className="px-6 py-4 text-center text-sm text-text-secondary">{u.role}</td>
-                        <td className="px-6 py-4 text-center text-sm">
-                          <div className="flex items-center justify-center gap-2 min-w-[140px]">
-                            <Listbox
-                              value={u.role}
-                              onChange={role => {
-                                handleRoleChange(u._id, role);
-                                setOpenDropdown(null);
-                              }}
-                              disabled={isCurrentUser || updating[u._id]}
-                            >
-                              {({ open }) => (
-                                <div className="relative w-full">
-                                  <Listbox.Button
-                                    ref={el => (buttonRefs.current[u._id] = el)}
-                                    className={`relative w-full cursor-pointer rounded bg-surface border border-border py-1 pl-3 pr-8 text-left text-text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-150 min-w-[110px] ${isCurrentUser || updating[u._id] ? 'opacity-60 cursor-not-allowed' : 'hover:border-primary'}`}
-                                    title={isCurrentUser ? 'You cannot change your own role' : undefined}
-                                    onClick={() => setOpenDropdown(isOpen ? null : u._id)}
-                                  >
-                                    <span className="block truncate capitalize">{ROLE_OPTIONS.find(opt => opt.value === u.role)?.label}</span>
-                                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                                      <ChevronUpDownIcon className="h-5 w-5 text-text-secondary" aria-hidden="true" />
-                                    </span>
-                                    {updating[u._id] && (
-                                      <span className="absolute right-8 top-1/2 -translate-y-1/2">
-                                        <svg className="animate-spin h-4 w-4 text-primary" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-12 text-center">
+                        <div className="flex flex-col items-center justify-center gap-2 bg-surface/70 border border-border rounded-lg p-8 mx-auto max-w-md">
+                          <UserGroupIcon className="h-10 w-10 text-primary mb-2" aria-hidden="true" />
+                          <span className="text-text-secondary text-base font-medium">No users with this role found.</span>
+                          <span className="text-text-tertiary text-sm">Try selecting a different role or check back later.</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    users.map((u, index) => {
+                      const isOpen = openDropdown === u._id;
+                      const isCurrentUser = user && u._id === user._id;
+                      return (
+                        <tr
+                          key={u._id}
+                          className={isCurrentUser ? 'bg-primary/10 font-semibold' : ''}
+                        >
+                          <td className="px-4 py-4 text-center text-sm text-text-primary whitespace-nowrap">{u.username}</td>
+                          <td className="px-4 py-4 text-center text-sm text-text-secondary whitespace-nowrap">{u.discordId}</td>
+                          <td className="px-4 py-4 text-center text-sm text-text-secondary whitespace-nowrap">{u.role}</td>
+                          <td className="px-4 py-4 text-center text-sm whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-2 min-w-[140px]">
+                              <Listbox
+                                value={u.role}
+                                onChange={role => {
+                                  handleRoleChange(u._id, role);
+                                  setOpenDropdown(null);
+                                }}
+                                disabled={isCurrentUser || updating[u._id]}
+                              >
+                                {({ open }) => (
+                                  <div className="relative w-full">
+                                    <Listbox.Button
+                                      ref={el => (buttonRefs.current[u._id] = el)}
+                                      className={`relative w-full cursor-pointer rounded bg-surface border border-border py-1 pl-3 pr-8 text-left text-text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-150 min-w-[110px] ${isCurrentUser || updating[u._id] ? 'opacity-60 cursor-not-allowed' : 'hover:border-primary'}`}
+                                      title={isCurrentUser ? 'You cannot change your own role' : undefined}
+                                      onClick={() => setOpenDropdown(isOpen ? null : u._id)}
+                                    >
+                                      <span className="block truncate capitalize">{ROLE_OPTIONS.find(opt => opt.value === u.role)?.label}</span>
+                                      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <ChevronUpDownIcon className="h-5 w-5 text-text-secondary" aria-hidden="true" />
                                       </span>
-                                    )}
-                                  </Listbox.Button>
-                                  <Transition
-                                    as="div"
-                                    leave="transition ease-in duration-100"
-                                    leaveFrom="opacity-100"
-                                    leaveTo="opacity-0"
-                                  >
-                                    {isOpen && dropdownPos[u._id] && (
-                                      <Listbox.Options
-                                        className="z-50 rounded bg-card border border-border py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none text-left"
-                                        style={{
-                                          position: 'fixed',
-                                          top: dropdownPos[u._id].top,
-                                          left: dropdownPos[u._id].left,
-                                          width: dropdownPos[u._id].width,
-                                          maxHeight: 'calc(100vh - 32px)',
-                                          overflowY: 'auto',
-                                          backgroundColor: 'var(--color-card, #18181b)',
-                                        }}
-                                      >
-                                        {/* Arrow indicator with solid background */}
-                                        <div
-                                          className={`absolute left-6 w-3 h-3 z-50 ${dropdownPos[u._id].openUp ? 'bottom-0 translate-y-full' : 'top-0 -translate-y-full'}`}
+                                      {updating[u._id] && (
+                                        <span className="absolute right-8 top-1/2 -translate-y-1/2">
+                                          <svg className="animate-spin h-4 w-4 text-primary" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>
+                                        </span>
+                                      )}
+                                    </Listbox.Button>
+                                    <Transition
+                                      as="div"
+                                      leave="transition ease-in duration-100"
+                                      leaveFrom="opacity-100"
+                                      leaveTo="opacity-0"
+                                    >
+                                      {isOpen && dropdownPos[u._id] && (
+                                        <Listbox.Options
+                                          className="z-50 rounded bg-card border border-border py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none text-left"
+                                          style={{
+                                            position: 'fixed',
+                                            top: dropdownPos[u._id].top,
+                                            left: dropdownPos[u._id].left,
+                                            width: dropdownPos[u._id].width,
+                                            maxHeight: 'calc(100vh - 32px)',
+                                            overflowY: 'auto',
+                                            backgroundColor: 'var(--color-card, #18181b)',
+                                          }}
                                         >
-                                          <svg width="12" height="12" viewBox="0 0 12 12">
-                                            <polygon
-                                              points="6,0 12,12 0,12"
-                                              className="fill-card stroke-border"
-                                              style={{ strokeWidth: 1, fill: 'var(--color-card, #18181b)' }}
-                                            />
-                                          </svg>
-                                        </div>
-                                        {ROLE_OPTIONS.filter(opt => opt.value !== 'all').map((opt) => (
-                                          <Listbox.Option
-                                            key={opt.value}
-                                            value={opt.value}
-                                            className={({ active, selected }) =>
-                                              `relative cursor-pointer select-none py-2 pl-4 pr-4 text-text-primary text-left ${
-                                                active ? 'bg-primary/10' : ''
-                                              } ${selected ? 'font-semibold text-primary' : 'font-normal'}`
-                                            }
+                                          {/* Arrow indicator with solid background */}
+                                          <div
+                                            className={`absolute left-6 w-3 h-3 z-50 ${dropdownPos[u._id].openUp ? 'bottom-0 translate-y-full' : 'top-0 -translate-y-full'}`}
                                           >
-                                            {({ selected }) => (
-                                              <span className={`block truncate capitalize ${selected ? 'text-primary' : ''}`}>{opt.label}</span>
-                                            )}
-                                          </Listbox.Option>
-                                        ))}
-                                      </Listbox.Options>
-                                    )}
-                                  </Transition>
-                                </div>
-                              )}
-                            </Listbox>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                                            <svg width="12" height="12" viewBox="0 0 12 12">
+                                              <polygon
+                                                points="6,0 12,12 0,12"
+                                                className="fill-card stroke-border"
+                                                style={{ strokeWidth: 1, fill: 'var(--color-card, #18181b)' }}
+                                              />
+                                            </svg>
+                                          </div>
+                                          {ROLE_OPTIONS.filter(opt => opt.value !== 'all').map((opt) => (
+                                            <Listbox.Option
+                                              key={opt.value}
+                                              value={opt.value}
+                                              className={({ active, selected }) =>
+                                                `relative cursor-pointer select-none py-2 pl-4 pr-4 text-text-primary text-left ${
+                                                  active ? 'bg-primary/10' : ''
+                                                } ${selected ? 'font-semibold text-primary' : 'font-normal'}`
+                                              }
+                                            >
+                                              {({ selected }) => (
+                                                <span className={`block truncate capitalize ${selected ? 'text-primary' : ''}`}>{opt.label}</span>
+                                              )}
+                                            </Listbox.Option>
+                                          ))}
+                                        </Listbox.Options>
+                                      )}
+                                    </Transition>
+                                  </div>
+                                )}
+                              </Listbox>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
           <div className="flex justify-center mt-6">
             <ReactPaginate
