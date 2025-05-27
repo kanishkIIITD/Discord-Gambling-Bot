@@ -39,15 +39,17 @@ const commands = [
 		options: [
 			{
 				name: 'bet_id',
-				description: 'The ID of the bet you want to place a bet on.',
+				description: 'The bet you want to place a bet on.',
 				type: ApplicationCommandOptionType.String,
 				required: true,
+				autocomplete: true
 			},
 			{
 				name: 'option',
 				description: 'The option you are betting on.',
 				type: ApplicationCommandOptionType.String,
 				required: true,
+				autocomplete: true
 			},
 			{
 				name: 'amount',
@@ -66,13 +68,15 @@ const commands = [
 				description: 'The ID of the bet to resolve.',
 				type: ApplicationCommandOptionType.String,
 				required: true,
+				autocomplete: true
 			},
 			{
 				name: 'winning_option',
 				description: 'The winning option of the bet.',
 				type: ApplicationCommandOptionType.String,
 				required: true,
-			},
+				autocomplete: true
+			}
 		],
 		defaultMemberPermissions: '0',
 	},
@@ -101,7 +105,8 @@ const commands = [
 				description: 'The ID of the bet to close.',
 				type: ApplicationCommandOptionType.String,
 				required: true,
-			},
+				autocomplete: true
+			}
 		],
 		defaultMemberPermissions: '0',
 	},
@@ -384,7 +389,7 @@ const commands = [
 		options: [
 			{
 				name: 'limit',
-				description: 'Number of users to show (default: 10).',
+				description: 'Number of users to show (default: 5).',
 				type: ApplicationCommandOptionType.Integer,
 				required: false,
 			},
@@ -404,7 +409,7 @@ const commands = [
 		options: [
 			{
 				name: 'limit',
-				description: 'Number of transactions to show (default: 10)',
+				description: 'Number of transactions to show (default: 5)',
 				type: ApplicationCommandOptionType.Integer,
 				required: false
 			},
@@ -445,19 +450,15 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
 	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands.`);
+		console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
 
-		const route = Routes.applicationCommands(clientId);
-
-		// The put method is used to fully refresh all commands globally
 		const data = await rest.put(
-			route,
+			Routes.applicationCommands(clientId),
 			{ body: commands },
 		);
 
-		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+		console.log(`Successfully reloaded ${data.length} global application (/) commands.`);
 	} catch (error) {
-		// And of course, make sure you catch and log any errors!
 		console.error(error);
 	}
 })(); 

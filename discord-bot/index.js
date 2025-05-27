@@ -8,7 +8,8 @@ const backendApiUrl = process.env.BACKEND_API_URL;
 const client = new Client({ intents: [
 	GatewayIntentBits.Guilds,
 	GatewayIntentBits.GuildMessages,
-	GatewayIntentBits.MessageContent
+	GatewayIntentBits.MessageContent,
+	GatewayIntentBits.GuildMembers
 ] });
 
 client.once('ready', () => {
@@ -17,6 +18,75 @@ client.once('ready', () => {
 
 // Add an interaction listener
 client.on('interactionCreate', async interaction => {
+	if (interaction.isAutocomplete()) {
+		const focusedOption = interaction.options.getFocused(true);
+		if (interaction.commandName === 'placebet') {
+			if (focusedOption.name === 'bet_id') {
+				// Fetch open bets from backend
+				const response = await axios.get(`${backendApiUrl}/bets/open`);
+				const bets = response.data;
+				await interaction.respond(
+					bets.slice(0, 25).map(bet => ({
+						name: `${bet.description} (${bet._id})`,
+						value: bet._id
+					}))
+				);
+			} else if (focusedOption.name === 'option') {
+				// Get bet_id from options
+				const betId = interaction.options.getString('bet_id');
+				if (!betId) return interaction.respond([]);
+				// Fetch bet details
+				const response = await axios.get(`${backendApiUrl}/bets/${betId}`);
+				const bet = response.data;
+				await interaction.respond(
+					bet.options.map(opt => ({
+						name: opt,
+						value: opt
+					}))
+				);
+			}
+			return;
+		}
+		// Autocomplete for /closebet (bet_id)
+		if (interaction.commandName === 'closebet' && focusedOption.name === 'bet_id') {
+			const response = await axios.get(`${backendApiUrl}/bets/open`);
+			const bets = response.data;
+			await interaction.respond(
+				bets.slice(0, 25).map(bet => ({
+					name: `${bet.description} (${bet._id})`,
+					value: bet._id
+				}))
+			);
+			return;
+		}
+		// Autocomplete for /resolvebet (bet_id and winning_option)
+		if (interaction.commandName === 'resolvebet') {
+			if (focusedOption.name === 'bet_id') {
+				// Show bets with status 'open' or 'closed' (unresolved)
+				const response = await axios.get(`${backendApiUrl}/bets/unresolved`);
+				const bets = response.data;
+				await interaction.respond(
+					bets.slice(0, 25).map(bet => ({
+						name: `${bet.description} (${bet._id})`,
+						value: bet._id
+					}))
+				);
+			} else if (focusedOption.name === 'winning_option') {
+				const betId = interaction.options.getString('bet_id');
+				if (!betId) return interaction.respond([]);
+				const response = await axios.get(`${backendApiUrl}/bets/${betId}`);
+				const bet = response.data;
+				await interaction.respond(
+					bet.options.map(opt => ({
+						name: opt,
+						value: opt
+					}))
+				);
+			}
+			return;
+		}
+		return;
+	}
 	// TODO: Implement WebSocket connection to backend for real-time balance updates
 	// This will replace fetching balance via HTTP after certain commands (like placebet)
 	// and allow real-time updates for commands like resolvebet.
@@ -180,12 +250,14 @@ client.on('interactionCreate', async interaction => {
 		// console.log(`Attempting to create bet with description: ${description} with options: ${options}`);
 
 		try {
+			// console.log('About to reply with bet creation embed');
 			const response = await axios.post(`${backendApiUrl}/bets`, {
 				description,
 				options,
 				creatorDiscordId: userId,
 				durationMinutes: durationMinutes,
 			});
+			// console.log('Replied successfully');
 
 			const newBet = response.data;
 			const embed = new EmbedBuilder()
@@ -195,13 +267,30 @@ client.on('interactionCreate', async interaction => {
 				.addFields(
 					{ name: 'Bet ID', value: `${newBet._id}`, inline: true },
 					{ name: 'Options', value: newBet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
-				)
-				.setFooter({ text: `Created by <@${userId}>${durationMinutes ? ` | Closes in ${durationMinutes} min` : ''}` })
-				.setTimestamp();
+					{ name: 'Created by', value: `${interaction.user.username} (<@${userId}>)`, inline: true }
+				);
 
-			await interaction.reply({ embeds: [embed] });
+			if (durationMinutes) {
+				embed.setFooter({ text: `Closes in ${durationMinutes} min` });
+			}
+
+			// Mention the Gamblers role if it exists
+			const guild = interaction.guild;
+			let gamblersRole;
+			let content = '';
+			if (guild && guild.roles && guild.roles.cache) {
+				gamblersRole = guild.roles.cache.find(role => role.name === 'Gamblers');
+				if (gamblersRole) {
+					content = `<@&${gamblersRole.id}>`;
+				}
+			}
+			await interaction.reply({
+				content,
+				embeds: [embed],
+				...(gamblersRole ? { allowedMentions: { roles: [gamblersRole.id] } } : {})
+			});
 		} catch (error) {
-			console.error('Error creating bet:', error.response?.data || error.message);
+			console.error('Error creating bet:', error, error?.response?.data);
 			const embed = new EmbedBuilder()
 				.setColor(0xff7675)
 				.setTitle('❌ Error Creating Bet')
@@ -272,10 +361,20 @@ client.on('interactionCreate', async interaction => {
 				.addFields(
 					{ name: 'Bet ID', value: resolvedBet._id, inline: true },
 					{ name: 'Winning Option', value: resolvedBet.winningOption, inline: true },
+					{ name: 'Resolved by', value: `${interaction.user.username} (<@${userId}>)`, inline: true }
 				)
-				.setFooter({ text: `Resolved by <@${userId}>` })
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+
+			// Mention the Gamblers role if it exists
+			const guild = interaction.guild;
+			let gamblersRole = guild?.roles?.cache?.find(role => role.name === 'Gamblers');
+			let content = gamblersRole ? `<@&${gamblersRole.id}>` : '';
+
+			await interaction.reply({ 
+				content, 
+				embeds: [embed],
+				allowedMentions: { roles: [gamblersRole?.id] }
+			});
 		} catch (error) {
 			console.error('Error resolving bet:', error.response?.data || error.message);
 			const embed = new EmbedBuilder()
@@ -309,7 +408,7 @@ client.on('interactionCreate', async interaction => {
 			await interaction.reply({ embeds: [embed] });
 		}
 	} else if (commandName === 'leaderboard') {
-		const limit = interaction.options.getInteger('limit') || 10;
+		const limit = interaction.options.getInteger('limit') || 5;
 		const userId = interaction.user.id;
 		const username = interaction.user.username;
 		// console.log(`Fetching leaderboard for user ${userId} with limit: ${limit}`);
@@ -983,7 +1082,7 @@ client.on('interactionCreate', async interaction => {
 		try {
 			await interaction.deferReply();
 			const userId = interaction.user.id;
-			const limit = interaction.options.getInteger('limit') || 10;
+			const limit = interaction.options.getInteger('limit') || 5;
 			const type = interaction.options.getString('type') || 'all';
 
 			const response = await axios.get(`${backendApiUrl}/users/${userId}/transactions`, {
@@ -1081,7 +1180,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('⏳ Cooldown')
 				.setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again.`)
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed], ephemeral: true });
+			await interaction.reply({ embeds: [embed] });
 			return;
 		}
 		if (amount < 1 || amount > 100000) {
@@ -1090,7 +1189,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Invalid Amount')
 				.setDescription('Amount must be between 1 and 100,000.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed], ephemeral: true });
+			await interaction.reply({ embeds: [embed] });
 			return;
 		}
 		const promptEmbed = new EmbedBuilder()
@@ -1098,8 +1197,8 @@ client.on('interactionCreate', async interaction => {
 			.setTitle('🐾 Meow or Bark Challenge!')
 			.setDescription(`To earn **${amount} points**, reply with either 🐱**meow**🐱 or 🐶**bark**🐶 in the next 30 seconds!`)
 			.setTimestamp();
-		await interaction.reply({ embeds: [promptEmbed], ephemeral: true });
-		const filter = m => m.author.id === userId && ['meow', 'bark'].includes(m.content.toLowerCase());
+		await interaction.reply({ embeds: [promptEmbed] });
+		const filter = m => m.author.id === userId && ['meow', 'bark', 'woof', 'woof woof'].includes(m.content.toLowerCase());
 		meowbarkCooldowns.set(userId, Date.now());
 		try {
 			const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
@@ -1110,7 +1209,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('🎉 Success!')
 				.setDescription(`You did it! **${amount} points** have been added to your account.`)
 				.setTimestamp();
-			await interaction.followUp({ embeds: [successEmbed], ephemeral: true });
+			await interaction.followUp({ embeds: [successEmbed] });
 		} catch (err) {
 			if (err instanceof Collection || (err && err.code === 'COLLECTION_MAX_TIME') || (err instanceof Error && err.message === 'time')) {
 				const timeoutEmbed = new EmbedBuilder()
@@ -1118,14 +1217,14 @@ client.on('interactionCreate', async interaction => {
 					.setTitle('⏰ Time\'s Up!')
 					.setDescription('You did not meow or bark in time. Try again later.')
 					.setTimestamp();
-				await interaction.followUp({ embeds: [timeoutEmbed], ephemeral: true });
+				await interaction.followUp({ embeds: [timeoutEmbed] });
 			} else {
 				const errorEmbed = new EmbedBuilder()
 					.setColor(0xff7675)
 					.setTitle('❌ Error')
 					.setDescription('Something went wrong. Please try again later.')
 					.setTimestamp();
-				await interaction.followUp({ embeds: [errorEmbed], ephemeral: true });
+				await interaction.followUp({ embeds: [errorEmbed] });
 			}
 		}
 	}
