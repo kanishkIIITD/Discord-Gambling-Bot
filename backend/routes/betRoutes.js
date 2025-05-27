@@ -94,10 +94,21 @@ router.get('/upcoming', async (req, res) => {
   }
 });
 
+// Get all unresolved bets (open or closed)
+router.get('/unresolved', async (req, res) => {
+  try {
+    const unresolvedBets = await Bet.find({ status: { $in: ['open', 'closed'] } }).populate('creator', 'discordId');
+    res.json(unresolvedBets);
+  } catch (error) {
+    console.error('Error fetching unresolved bets:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 // Get a specific bet by ID
 router.get('/:betId', async (req, res) => {
   try {
-    const bet = await Bet.findById(req.params.betId).populate('creator', 'username');
+    const bet = await Bet.findById(req.params.betId).populate('creator', 'username discordId');
     if (!bet) {
       return res.status(404).json({ message: 'Bet not found.' });
     }

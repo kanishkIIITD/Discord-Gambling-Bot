@@ -204,7 +204,7 @@ const commands = [
 	},
 	{
 		name: 'profile',
-		description: 'View your detailed profile',
+		description: 'View your detailed profile, including balance, betting, and gambling stats.',
 		options: [
 			{
 				name: 'user',
@@ -392,7 +392,7 @@ const commands = [
 	},
 	{
 		name: 'stats',
-		description: 'Shows your betting statistics.',
+		description: 'Shows your full betting and gambling statistics, including win streaks, jackpots, gifts, and more.',
 	},
 	{
 		name: 'help',
@@ -422,21 +422,40 @@ const commands = [
 			}
 		]
 	},
+	{
+		name: 'unresolvedbets',
+		description: 'Shows all bets that are unresolved (status: open or closed).',
+	},
+	{
+		name: 'meowbark',
+		description: 'Perform a meow or bark to earn points (5 min cooldown, max 100,000 points).',
+		options: [
+			{
+				name: 'amount',
+				description: 'Amount of points to earn (max 100,000)',
+				type: ApplicationCommandOptionType.Integer,
+				required: true,
+				max_value: 100000
+			}
+		]
+	},
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
 	try {
-		// console.log(`Started refreshing ${commands.length} application (/) commands.`);
+		console.log(`Started refreshing ${commands.length} application (/) commands.`);
+
+		const route = Routes.applicationCommands(clientId);
 
 		// The put method is used to fully refresh all commands globally
 		const data = await rest.put(
-			Routes.applicationCommands(clientId),
+			route,
 			{ body: commands },
 		);
 
-		// console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
 	} catch (error) {
 		// And of course, make sure you catch and log any errors!
 		console.error(error);

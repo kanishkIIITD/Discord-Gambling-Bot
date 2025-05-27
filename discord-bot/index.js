@@ -1,14 +1,18 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, Collection } = require('discord.js');
 const axios = require('axios');
 
 const backendApiUrl = process.env.BACKEND_API_URL;
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [
+	GatewayIntentBits.Guilds,
+	GatewayIntentBits.GuildMessages,
+	GatewayIntentBits.MessageContent
+] });
 
 client.once('ready', () => {
-    // console.log(`Logged in as ${client.user.tag}!`);
+	// console.log(`Logged in as ${client.user.tag}!`);
 });
 
 // Add an interaction listener
@@ -123,7 +127,7 @@ client.on('interactionCreate', async interaction => {
 			// Fetch and display placed bets for this bet
 			try {
 				const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`);
-				const placedBets = placedBetsResponse.data;
+				const placedBets = placedBetsResponse.data.data;
 
 				if (placedBets.length > 0) {
 					// Summarize placed bets by option
@@ -352,18 +356,35 @@ client.on('interactionCreate', async interaction => {
 
 		try {
 			const response = await axios.get(`${backendApiUrl}/users/${userId}/stats`);
-			const stats = response.data;
+			const { betting, gambling, currentWinStreak, maxWinStreak, jackpotWins, dailyBonusesClaimed, giftsSent, giftsReceived } = response.data;
 
 			const embed = {
 				color: 0x0099ff,
-				title: '📊 Your Betting Statistics',
-				fields: [
-					{ name: 'Total Bets', value: stats.totalBets.toString(), inline: true },
-					{ name: 'Wins', value: stats.totalWon.toString(), inline: true },
-					{ name: 'Losses', value: stats.totalLost.toString(), inline: true },
-					{ name: 'Total Wagered', value: `${stats.totalWagered} points`, inline: true },
-					{ name: 'Win Rate', value: `${((stats.totalWon / stats.totalBets) * 100).toFixed(1)}%`, inline: true }
-				],
+				title: '📊 Your Full Statistics',
+				description: '**__Betting Stats__**\n' +
+				  `Total Bets: **${betting.totalBets}**\n` +
+				  `Total Wagered: **${betting.totalWagered}** points\n` +
+				  `Total Won: **${betting.totalWon}** points\n` +
+				  `Total Lost: **${betting.totalLost}** points\n` +
+				  `Win Rate: **${betting.winRate}%**\n` +
+				  `Biggest Win: **${betting.biggestWin}** points\n` +
+				  `Biggest Loss: **${betting.biggestLoss}** points\n\n` +
+				  '**__Gambling Stats__**\n' +
+				  `Total Games Played: **${gambling.totalGamesPlayed}**\n` +
+				  `Total Gambled: **${gambling.totalGambled}** points\n` +
+				  `Total Won: **${gambling.totalWon}** points\n` +
+				  `Total Lost: **${gambling.totalLost}** points\n` +
+				  `Win Rate: **${gambling.winRate}%**\n` +
+				  `Biggest Win: **${gambling.biggestWin}** points\n` +
+				  `Biggest Loss: **${gambling.biggestLoss}** points\n` +
+				  `Favorite Game: **${gambling.favoriteGame}**\n\n` +
+				  '**__Other Stats__**\n' +
+				  `Current Win Streak: **${currentWinStreak}**\n` +
+				  `Max Win Streak: **${maxWinStreak}**\n` +
+				  `Jackpot Wins: **${jackpotWins}**\n` +
+				  `Daily Bonuses Claimed: **${dailyBonusesClaimed}**\n` +
+				  `Gifts Sent: **${giftsSent}**\n` +
+				  `Gifts Received: **${giftsReceived}**`,
 				timestamp: new Date()
 			};
 
@@ -383,6 +404,7 @@ client.on('interactionCreate', async interaction => {
 					'`/placebet` - Place a bet on an active event\n' +
 					'`/viewbet` - View details of a specific bet\n' +
 					'`/listbets` - List all currently open betting events\n' +
+					'`/unresolvedbets` - List all bets that are unresolved (open or closed)\n' +
 					'`/closebet` - Close betting for an event (Admin/Superadmin only)\n' +
 					'`/resolvebet` - Resolve a betting event (Admin/Superadmin only)\n' +
 					'`/cancelbet` - Cancel a bet before any bets are placed (Creator/Admin/Superadmin only)\n' +
@@ -406,9 +428,10 @@ client.on('interactionCreate', async interaction => {
 				},
 				{ name: '📊 Utility Commands', value:
 					'`/leaderboard` - View top users by balance\n' +
-					'`/stats` - View your betting statistics\n' +
+					'`/stats` - View your full betting and gambling statistics\n' +
 					'`/profile` - View your detailed profile\n' +
-					'`/help` - Show this help menu'
+					'`/help` - Show this help menu\n' +
+					'`/meowbark` - Perform a meow or bark to earn points (5 min cooldown, max 100,000 points)'
 				}
 			],
 			timestamp: new Date()
@@ -530,7 +553,7 @@ client.on('interactionCreate', async interaction => {
 
 			// Get placed bets
 			const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`);
-			const placedBets = placedBetsResponse.data;
+			const placedBets = placedBetsResponse.data.data;
 
 			// Calculate total pot and bets per option
 			const totalPot = placedBets.reduce((sum, placedBet) => sum + placedBet.amount, 0);
@@ -662,25 +685,28 @@ client.on('interactionCreate', async interaction => {
 
 		try {
 			const response = await axios.get(`${backendApiUrl}/users/${targetUser.id}/profile`);
-			const { user, wallet, stats } = response.data;
+			const { user, wallet, betting, gambling } = response.data;
 
 			const embed = {
 				color: 0x0099ff,
 				title: `👤 ${targetUser.username}'s Profile`,
 				fields: [
 					{ name: 'Balance', value: `${wallet.balance} points`, inline: true },
-					{ name: 'Total Bets', value: stats.totalBets.toString(), inline: true },
-					{ name: 'Win Rate', value: `${stats.winRate}%`, inline: true },
-					{ name: 'Total Wagered', value: `${stats.totalWagered} points`, inline: true },
-					{ name: 'Won Bets', value: stats.wonBets.toString(), inline: true }
+					{ name: '🎲 Betting', value:
+						`Total Bets: ${betting.totalBets}\n` +
+						`Total Wagered: ${betting.totalWagered} points\n` +
+						`Total Won: ${betting.totalWon} points`, inline: false },
+					{ name: '🎰 Gambling', value:
+						`Total Gambled: ${gambling.totalGambled} points\n` +
+						`Total Won: ${gambling.totalWon} points`, inline: false }
 				],
 				timestamp: new Date()
 			};
 
 			// Add recent bets if any
-			if (stats.recentBets.length > 0) {
+			if (betting.recentBets.length > 0) {
 				let recentBetsText = '';
-				stats.recentBets.forEach(bet => {
+				betting.recentBets.forEach(bet => {
 					const statusEmoji = bet.status === 'resolved' ? 
 						(bet.result === 'Won' ? '✅' : '❌') : '⏳';
 					recentBetsText += `${statusEmoji} ${bet.description} (${bet.amount} points)\n`;
@@ -1003,8 +1029,110 @@ client.on('interactionCreate', async interaction => {
 				await interaction.reply({ embeds: [embed] });
 			}
 		}
+	} else if (commandName === 'unresolvedbets') {
+		try {
+			const response = await axios.get(`${backendApiUrl}/bets/unresolved`);
+			const unresolvedBets = response.data;
+
+			if (unresolvedBets.length === 0) {
+				const embed = new EmbedBuilder()
+					.setColor(0xffbe76)
+					.setTitle('No Unresolved Bets')
+					.setDescription('There are no unresolved bets at the moment.')
+					.setTimestamp();
+				await interaction.reply({ embeds: [embed] });
+			} else {
+				const embeds = unresolvedBets.slice(0, 10).map(bet => {
+					const embed = new EmbedBuilder()
+						.setColor(bet.status === 'open' ? 0x0984e3 : 0x636e72)
+						.setTitle(`🎲 Bet: ${bet.description}`)
+						.addFields(
+							{ name: 'ID', value: bet._id, inline: true },
+							{ name: 'Status', value: bet.status, inline: true },
+							{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
+						)
+						.setTimestamp(new Date(bet.createdAt));
+					if (bet.creator && bet.creator.discordId) {
+						embed.addFields({ name: 'Created By', value: `<@${bet.creator.discordId}>`, inline: true });
+					}
+					return embed;
+				});
+				await interaction.reply({ embeds });
+			}
+		} catch (error) {
+			console.error('Error listing unresolved bets:', error.response?.data || error.message);
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Listing Unresolved Bets')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while listing unresolved bets.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
+		}
+	} else if (commandName === 'meowbark') {
+		const amount = interaction.options.getInteger('amount');
+		const userId = interaction.user.id;
+		const now = Date.now();
+		const lastUsed = meowbarkCooldowns.get(userId) || 0;
+		const cooldown = 5 * 60 * 1000; // 5 minutes
+		if (now - lastUsed < cooldown) {
+			const remaining = Math.ceil((cooldown - (now - lastUsed)) / 1000);
+			const embed = new EmbedBuilder()
+				.setColor(0xffbe76)
+				.setTitle('⏳ Cooldown')
+				.setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again.`)
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed], ephemeral: true });
+			return;
+		}
+		if (amount < 1 || amount > 100000) {
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Invalid Amount')
+				.setDescription('Amount must be between 1 and 100,000.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed], ephemeral: true });
+			return;
+		}
+		const promptEmbed = new EmbedBuilder()
+			.setColor(0x0099ff)
+			.setTitle('🐾 Meow or Bark Challenge!')
+			.setDescription(`To earn **${amount} points**, reply with either 🐱**meow**🐱 or 🐶**bark**🐶 in the next 30 seconds!`)
+			.setTimestamp();
+		await interaction.reply({ embeds: [promptEmbed], ephemeral: true });
+		const filter = m => m.author.id === userId && ['meow', 'bark'].includes(m.content.toLowerCase());
+		meowbarkCooldowns.set(userId, Date.now());
+		try {
+			const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
+			const reply = collected.first();
+			await axios.post(`${backendApiUrl}/users/${userId}/meowbark`, { amount });
+			const successEmbed = new EmbedBuilder()
+				.setColor(0x00ff00)
+				.setTitle('🎉 Success!')
+				.setDescription(`You did it! **${amount} points** have been added to your account.`)
+				.setTimestamp();
+			await interaction.followUp({ embeds: [successEmbed], ephemeral: true });
+		} catch (err) {
+			if (err instanceof Collection || (err && err.code === 'COLLECTION_MAX_TIME') || (err instanceof Error && err.message === 'time')) {
+				const timeoutEmbed = new EmbedBuilder()
+					.setColor(0xffbe76)
+					.setTitle('⏰ Time\'s Up!')
+					.setDescription('You did not meow or bark in time. Try again later.')
+					.setTimestamp();
+				await interaction.followUp({ embeds: [timeoutEmbed], ephemeral: true });
+			} else {
+				const errorEmbed = new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error')
+					.setDescription('Something went wrong. Please try again later.')
+					.setTimestamp();
+				await interaction.followUp({ embeds: [errorEmbed], ephemeral: true });
+			}
+		}
 	}
 });
 
 // Log in to Discord with your client's token
 client.login(process.env.DISCORD_TOKEN); 
+
+// In-memory cooldown map for /meowbark
+const meowbarkCooldowns = new Map(); 

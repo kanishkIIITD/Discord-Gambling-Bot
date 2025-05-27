@@ -107,42 +107,110 @@ router.get('/:discordId/leaderboard', async (req, res) => {
   }
 });
 
-// Get user's betting statistics
+// Get user's betting and gambling statistics
 router.get('/:discordId/stats', async (req, res) => {
   try {
     const user = req.user;
-    
-    // Get all placed bets for this user
+    // Betting stats
     const placedBets = await PlacedBet.find({ bettor: user._id })
-      .populate({
-        path: 'bet',
-        select: 'status winningOption'
-      });
-    
-    // Calculate statistics
-    const stats = {
+      .populate({ path: 'bet', select: 'status winningOption' });
+    const betting = {
       totalBets: placedBets.length,
+      totalWagered: 0,
       totalWon: 0,
       totalLost: 0,
-      totalWagered: 0,
-      totalWon: 0
+      winRate: 0,
+      biggestWin: 0,
+      biggestLoss: 0
     };
-    
+    let wonBets = 0;
+    let lostBets = 0;
     placedBets.forEach(placedBet => {
-      stats.totalWagered += placedBet.amount;
-      
+      betting.totalWagered += placedBet.amount;
       if (placedBet.bet.status === 'resolved') {
         if (placedBet.option === placedBet.bet.winningOption) {
-          stats.totalWon += 1;
+          betting.totalWon += placedBet.amount;
+          wonBets++;
+          if (placedBet.amount > betting.biggestWin) betting.biggestWin = placedBet.amount;
         } else {
-          stats.totalLost += 1;
+          betting.totalLost += placedBet.amount;
+          lostBets++;
+          if (placedBet.amount > betting.biggestLoss) betting.biggestLoss = placedBet.amount;
         }
       }
     });
-    
-    res.json(stats);
+    betting.winRate = (wonBets + lostBets) > 0 ? ((wonBets / (wonBets + lostBets)) * 100).toFixed(1) : '0.0';
+    // Gambling stats
+    const gamblingTransactions = await Transaction.find({
+      user: user._id,
+      type: { $in: ['bet', 'win'] },
+      $or: [
+        { description: /coinflip|dice|slots|blackjack|roulette/i },
+        { description: { $exists: false } }
+      ]
+    });
+    let totalGamesPlayed = 0;
+    let totalGambled = 0;
+    let totalGamblingWon = 0;
+    let biggestGamblingWin = 0;
+    let biggestGamblingLoss = 0;
+    const gameCounts = {};
+    let gamblingWins = 0;
+    let gamblingLosses = 0;
+    gamblingTransactions.forEach(tx => {
+      // Try to infer game type from description
+      let gameType = 'unknown';
+      if (tx.description) {
+        const match = tx.description.match(/(coinflip|dice|slots|blackjack|roulette)/i);
+        if (match) gameType = match[1].toLowerCase();
+      }
+      if (tx.type === 'bet' && tx.amount < 0) {
+        totalGamesPlayed++;
+        totalGambled += Math.abs(tx.amount);
+        if (Math.abs(tx.amount) > biggestGamblingLoss) biggestGamblingLoss = Math.abs(tx.amount);
+        gameCounts[gameType] = (gameCounts[gameType] || 0) + 1;
+        gamblingLosses++;
+      }
+      if (tx.type === 'win' && tx.amount > 0) {
+        totalGamblingWon += tx.amount;
+        if (tx.amount > biggestGamblingWin) biggestGamblingWin = tx.amount;
+        gamblingWins++;
+      }
+    });
+    const favoriteGame = Object.entries(gameCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+    const gambling = {
+      totalGamesPlayed,
+      totalGambled,
+      totalWon: totalGamblingWon,
+      totalLost: totalGambled - totalGamblingWon,
+      winRate: (gamblingWins + gamblingLosses) > 0 ? ((gamblingWins / (gamblingWins + gamblingLosses)) * 100).toFixed(1) : '0.0',
+      biggestWin: biggestGamblingWin,
+      biggestLoss: biggestGamblingLoss,
+      favoriteGame
+    };
+    // Other stats
+    // Jackpot wins
+    const jackpotWins = await Transaction.countDocuments({ user: user._id, type: 'jackpot' });
+    // Daily bonuses claimed
+    const dailyBonusesClaimed = await Transaction.countDocuments({ user: user._id, type: 'daily' });
+    // Gifts sent/received
+    const giftsSent = await Transaction.countDocuments({ user: user._id, type: 'gift_sent' });
+    const giftsReceived = await Transaction.countDocuments({ user: user._id, type: 'gift_received' });
+    // Win streaks
+    const currentWinStreak = user.currentWinStreak || 0;
+    const maxWinStreak = user.maxWinStreak || 0;
+    res.json({
+      betting,
+      gambling,
+      currentWinStreak,
+      maxWinStreak,
+      jackpotWins,
+      dailyBonusesClaimed,
+      giftsSent,
+      giftsReceived
+    });
   } catch (error) {
-    console.error('Error fetching user stats:', error); // Keep this error log
+    console.error('Error fetching user stats:', error);
     res.status(500).json({ message: 'Server error.' });
   }
 });
@@ -170,42 +238,23 @@ router.get('/:userId/profile', async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
-
     const wallet = await Wallet.findOne({ user: user._id });
+    // Betting stats
     const placedBets = await PlacedBet.find({ bettor: user._id }).populate('bet');
-
-    // Log placed bets before filtering
-    // // console.log('--- Placed Bets for Win Rate Calculation ---'); // Removed
-    // placedBets.forEach(bet => {
-    //     // console.log(`Bet ID: ${bet.bet._id}, Description: ${bet.bet.description}, User Option: ${bet.option}, Bet Status: ${bet.bet.status}, Winning Option: ${bet.bet.winningOption}`); // Removed
-    // });
-    // // console.log('--------------------------------------------'); // Removed
-
-    // Calculate statistics
-    const totalBets = placedBets.length;
-    const totalWagered = placedBets.reduce((sum, bet) => sum + bet.amount, 0);
-
-    // Filter for resolved bets
-    const resolvedBets = placedBets.filter(bet => bet.bet.status === 'resolved');
-    const totalResolvedBets = resolvedBets.length;
-
-    // Count won bets among resolved bets
-    const wonBets = resolvedBets.filter(bet => 
-      bet.option === bet.bet.winningOption
-    ).length;
-
-    // Log resolved bets and counts
-    // // console.log('--- Resolved Bets for Win Rate Calculation ---'); // Removed
-    // resolvedBets.forEach(bet => {
-    //     // console.log(`Resolved Bet ID: ${bet.bet._id}, User Option: ${bet.option}, Winning Option: ${bet.bet.winningOption}`); // Removed
-    // });
-    // // console.log(`Total Resolved Bets: ${totalResolvedBets}, Won Bets: ${wonBets}`); // Removed
-    // // console.log('----------------------------------------------'); // Removed
-
-    const winRate = totalResolvedBets > 0 ? (wonBets / totalResolvedBets) * 100 : 0;
-
-    // Get last 5 bets
-    const recentBets = placedBets
+    const betting = {
+      totalBets: placedBets.length,
+      totalWagered: 0,
+      totalWon: 0,
+      recentBets: []
+    };
+    placedBets.forEach(bet => {
+      betting.totalWagered += bet.amount;
+      if (bet.bet.status === 'resolved' && bet.option === bet.bet.winningOption) {
+        betting.totalWon += bet.amount;
+      }
+    });
+    // Add last 5 recent bets
+    betting.recentBets = placedBets
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 5)
       .map(bet => ({
@@ -217,7 +266,27 @@ router.get('/:userId/profile', async (req, res) => {
           (bet.bet.winningOption === bet.option ? 'Won' : 'Lost') : 
           'Pending'
       }));
-
+    // Gambling stats
+    const gamblingTransactions = await Transaction.find({
+      user: user._id,
+      type: { $in: ['bet', 'win'] },
+      $or: [
+        { description: /coinflip|dice|slots|blackjack|roulette/i },
+        { description: { $exists: false } }
+      ]
+    });
+    let totalGambled = 0;
+    let totalGamblingWon = 0;
+    gamblingTransactions.forEach(tx => {
+      if (tx.type === 'bet' && tx.amount < 0) totalGambled += Math.abs(tx.amount);
+      if (tx.type === 'win' && tx.amount > 0) totalGamblingWon += tx.amount;
+    });
+    const gambling = {
+      totalGambled,
+      totalWon: totalGamblingWon
+    };
+    // Round off balance
+    const roundedBalance = wallet ? Math.round(wallet.balance) : 0;
     res.json({
       user: {
         discordId: user.discordId,
@@ -225,18 +294,13 @@ router.get('/:userId/profile', async (req, res) => {
         createdAt: user.createdAt
       },
       wallet: {
-        balance: wallet ? wallet.balance : 0
+        balance: roundedBalance
       },
-      stats: {
-        totalBets,
-        totalWagered,
-        wonBets,
-        winRate: winRate.toFixed(1),
-        recentBets
-      }
+      betting,
+      gambling
     });
   } catch (error) {
-    console.error('Error fetching user profile:', error); // Keep this error log
+    console.error('Error fetching user profile:', error);
     res.status(500).json({ message: 'Server error.' });
   }
 });
@@ -602,6 +666,32 @@ router.post('/:discordId/update-username', async (req, res) => {
     res.json({ message: 'Username updated.', user });
   } catch (error) {
     console.error('Error updating username:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// MeowBark reward endpoint
+router.post('/:discordId/meowbark', async (req, res) => {
+  try {
+    const user = req.user;
+    const wallet = req.wallet;
+    const { amount } = req.body;
+    if (!amount || typeof amount !== 'number' || amount < 1 || amount > 100000) {
+      return res.status(400).json({ message: 'Amount must be between 1 and 100,000.' });
+    }
+    wallet.balance += amount;
+    await wallet.save();
+    // Record transaction
+    const transaction = new Transaction({
+      user: user._id,
+      type: 'meowbark',
+      amount,
+      description: 'Meow/Bark reward'
+    });
+    await transaction.save();
+    res.json({ message: `Added ${amount} points.`, newBalance: wallet.balance });
+  } catch (error) {
+    console.error('Error in meowbark endpoint:', error);
     res.status(500).json({ message: 'Server error.' });
   }
 });

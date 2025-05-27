@@ -73,7 +73,7 @@ export const Landing = () => {
               Login with Discord
             </Link>
             <a
-              href={`https://discord.com/api/oauth2/authorize?client_id=${process.env.REACT_APP_DISCORD_CLIENT_ID}&permissions=2147503104&scope=bot%20applications.commands`}
+              href={`https://discord.com/api/oauth2/authorize?client_id=${process.env.REACT_APP_DISCORD_CLIENT_ID}&permissions=2147698688&scope=bot%20applications.commands`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center px-6 py-3 border border-primary text-base font-medium rounded-md text-primary hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary tracking-wide"
