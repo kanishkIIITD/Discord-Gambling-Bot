@@ -4,7 +4,8 @@ import {
   getUserProfile,
   getTransactionHistory,
   getUpcomingBets,
-  placeBet
+  placeBet,
+  getUserStats
 } from '../services/api';
 import { Sidebar } from '../components/Sidebar';
 import { DashboardNavigation } from '../components/DashboardNavigation';
@@ -25,15 +26,15 @@ export const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [profile, historyResponse, upcoming] = await Promise.all([
-          getUserProfile(user.discordId),
+        const [stats, historyResponse, upcoming] = await Promise.all([
+          getUserStats(user.discordId),
           getTransactionHistory(user.discordId, 1, 5),
           getUpcomingBets()
         ]);
 
         setTransactions(historyResponse.transactions);
         setUpcomingBets(upcoming);
-        setUserStats(profile.stats);
+        setUserStats(stats);
 
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -56,24 +57,23 @@ export const Dashboard = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-card p-6 rounded-lg shadow-lg">
-          <h3 className="text-lg font-semibold text-text-primary mb-2 tracking-wide">Active Bets</h3>
-          <p className="text-3xl font-bold text-primary tracking-tight">{activeBets.length}</p>
+      {/* Stats Summary Grid */}
+      {userStats && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-card p-6 rounded-lg shadow-lg">
+            <h3 className="text-lg font-semibold text-text-primary mb-2 tracking-wide">Active Bets</h3>
+            <p className="text-3xl font-bold text-primary tracking-tight">{activeBets.length}</p>
+          </div>
+          <div className="bg-card p-6 rounded-lg shadow-lg">
+            <h3 className="text-lg font-semibold text-text-primary mb-2 tracking-wide">Betting Win Rate</h3>
+            <p className="text-3xl font-bold text-primary tracking-tight">{userStats.betting?.winRate ?? '0.0'}%</p>
+          </div>
+          <div className="bg-card p-6 rounded-lg shadow-lg">
+            <h3 className="text-lg font-semibold text-text-primary mb-2 tracking-wide">Gambling Win Rate</h3>
+            <p className="text-3xl font-bold text-primary tracking-tight">{userStats.gambling?.winRate ?? '0.0'}%</p>
+          </div>
         </div>
-        {userStats && (
-          <>
-            <div className="bg-card p-6 rounded-lg shadow-lg">
-              <h3 className="text-lg font-semibold text-text-primary mb-2 tracking-wide">Total Bets</h3>
-              <p className="text-3xl font-bold text-primary tracking-tight">{userStats.totalBets}</p>
-            </div>
-            <div className="bg-card p-6 rounded-lg shadow-lg">
-              <h3 className="text-lg font-semibold text-text-primary mb-2 tracking-wide">Win Rate</h3>
-              <p className="text-3xl font-bold text-primary tracking-tight">{userStats.winRate}%</p>
-            </div>
-          </>
-        )}
-      </div>
+      )}
 
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-text-primary mb-4 tracking-tight">Active Bets</h2>
@@ -182,6 +182,8 @@ export const Dashboard = () => {
                       case 'jackpot': return 'Jackpot Win';
                       case 'jackpot_contribution': return 'Jackpot Contribution';
                       case 'initial_balance': return 'Initial Balance';
+                      case 'meowbark': return 'Meowbark';
+                      case 'refund': return 'Refund';
                       default: return 'Unknown';
                     }
                   };

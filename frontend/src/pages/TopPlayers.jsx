@@ -44,7 +44,7 @@ export const TopPlayers = () => {
       if (!user?.discordId || !userPreferences) return;
       try {
         setLoading(true);
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/leaderboard?page=${page}&limit=${userPreferences.itemsPerPage}`);
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/leaderboard?page=${page}&limit=${userPreferences.itemsPerPage}&sortBy=${sortBy}&sortOrder=${sortOrder}`);
         setLeaderboard(res.data.data);
         setTotalCount(res.data.totalCount);
       } catch (err) {
@@ -54,7 +54,7 @@ export const TopPlayers = () => {
       }
     };
     fetchLeaderboardData();
-  }, [user, page, userPreferences]);
+  }, [user, page, userPreferences, sortBy, sortOrder]);
 
   useEffect(() => {
     if (!showSortMenu) return;
@@ -68,17 +68,6 @@ export const TopPlayers = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showSortMenu]);
-
-  // Sort leaderboard client-side (for alpha only, since backend sorts by balance)
-  const sortedLeaderboard = [...leaderboard].sort((a, b) => {
-    let cmp = 0;
-    if (sortBy === 'balance') {
-      cmp = b.balance - a.balance;
-    } else if (sortBy === 'alpha') {
-      cmp = a.username.localeCompare(b.username);
-    }
-    return sortOrder === 'asc' ? -cmp : cmp;
-  });
 
   const handleSortChange = (value) => {
     if (sortBy === value) {
@@ -159,12 +148,12 @@ export const TopPlayers = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {sortedLeaderboard.length > 0 ? (
-                sortedLeaderboard.map((player, index) => (
+              {leaderboard.length > 0 ? (
+                leaderboard.map((player, index) => (
                   <tr key={player.discordId} className={`hover:bg-primary/5 ${player.discordId === user?.discordId ? 'bg-primary/20' : ''}`}>
                     <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{(page - 1) * (userPreferences?.itemsPerPage || 10) + index + 1}</td>
                     <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{player.username}</td>
-                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm font-medium text-primary tracking-wide text-center">{player.balance.toLocaleString()} points</td>
+                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm font-medium text-primary tracking-wide text-center">{player.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points</td>
                   </tr>
                 ))
               ) : (

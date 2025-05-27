@@ -4,7 +4,7 @@ const betSchema = new mongoose.Schema({
   description: { type: String, required: true },
   options: [{ type: String, required: true }], // Array of possible outcomes
   creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  status: { type: String, enum: ['open', 'closed', 'resolved'], default: 'open' },
+  status: { type: String, enum: ['open', 'closed', 'resolved', 'refunded'], default: 'open' },
   winningOption: { type: String }, // To be filled upon resolution
   createdAt: { type: Date, default: Date.now },
   closingTime: { type: Date }, // Time when betting closes

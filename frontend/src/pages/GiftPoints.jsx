@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
@@ -11,6 +11,39 @@ export const GiftPoints = () => {
   const [recipientId, setRecipientId] = useState('');
   const [amount, setAmount] = useState('');
   const [isGifting, setIsGifting] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const inputRef = useRef(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+
+  const handleUserSearch = async (query) => {
+    if (!query || query.length < 2) {
+      setFilteredUsers([]);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/search-users?q=${encodeURIComponent(query)}`);
+      setFilteredUsers(res.data.data || []);
+    } catch (err) {
+      setFilteredUsers([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userSearch.length >= 2) {
+      handleUserSearch(userSearch);
+      setShowUserDropdown(true);
+    } else {
+      setFilteredUsers([]);
+      setShowUserDropdown(false);
+    }
+    // eslint-disable-next-line
+  }, [userSearch]);
 
   const handleGift = async (e) => {
     e.preventDefault();
@@ -73,28 +106,51 @@ export const GiftPoints = () => {
           <span className="text-text-secondary">Your current balance:</span>
           <span className="flex items-center gap-1 font-semibold text-primary text-lg">
             <CurrencyDollarIcon className="h-5 w-5 text-primary" aria-hidden="true" />
-            {walletBalance.toLocaleString()} points
+            {walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points
           </span>
         </div>
 
         <form onSubmit={handleGift} className="space-y-6">
           <div>
-            <label htmlFor="recipientId" className="block text-sm font-medium text-text-secondary flex items-center gap-1">
+            <label htmlFor="recipientUsername" className="block text-sm font-medium text-text-secondary flex items-center gap-1">
               <UserIcon className="h-5 w-5 text-text-secondary" aria-hidden="true" />
-              Recipient Discord ID
+              Recipient Username (search)
             </label>
             <input
+              ref={inputRef}
               type="text"
-              id="recipientId"
-              name="recipientId"
-              value={recipientId}
-              onChange={(e) => setRecipientId(e.target.value)}
-              required
-              className="mt-1 block w-full pl-3 pr-3 py-2 text-base bg-background border border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
-              placeholder="Enter Discord ID (e.g. 1234567890)"
+              id="recipientUsername"
+              name="recipientUsername"
+              value={userSearch}
+              onChange={e => setUserSearch(e.target.value)}
               autoComplete="off"
+              className="mt-1 block w-full pl-3 pr-3 py-2 text-base bg-background border border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
+              placeholder="Search by username"
+              onBlur={() => setTimeout(() => setShowUserDropdown(false), 150)}
+              onFocus={() => userSearch.length >= 2 && setShowUserDropdown(true)}
             />
-            <p className="text-xs text-text-tertiary mt-1">Ask your friend for their Discord ID. You can find it in their Discord profile.</p>
+            {showUserDropdown && filteredUsers.length > 0 && (
+              <ul
+                className="absolute z-50 bg-card border border-border rounded-md mt-1 max-h-48 overflow-y-auto shadow-lg"
+                style={{ minWidth: inputRef.current?.offsetWidth, width: inputRef.current?.offsetWidth }}
+              >
+                {filteredUsers.map(u => (
+                  <li
+                    key={u.discordId}
+                    className="px-4 py-2 cursor-pointer hover:bg-primary/10 text-text-primary"
+                    onMouseDown={() => {
+                      setRecipientId(u.discordId);
+                      setUserSearch(u.username);
+                      setShowUserDropdown(false);
+                    }}
+                  >
+                    {u.username} <span className="text-xs text-text-tertiary">({u.discordId})</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {searchLoading && <div className="text-xs text-text-tertiary mt-1">Searching...</div>}
+            <p className="text-xs text-text-tertiary mt-1">You can search by username or enter Discord ID below.</p>
           </div>
           <div>
             <label htmlFor="amount" className="block text-sm font-medium text-text-secondary flex items-center gap-1">

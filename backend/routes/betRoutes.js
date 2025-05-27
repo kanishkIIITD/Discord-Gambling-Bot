@@ -7,6 +7,7 @@ const Wallet = require('../models/Wallet');
 const Transaction = require('../models/Transaction');
 const WebSocket = require('ws');
 const { updateUserWinStreak } = require('../utils/gamblingUtils');
+const { requireAdmin, auth } = require('../middleware/auth');
 
 // Get the WebSocket server instance
 let wss;
@@ -101,6 +102,17 @@ router.get('/unresolved', async (req, res) => {
     res.json(unresolvedBets);
   } catch (error) {
     console.error('Error fetching unresolved bets:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Get all closed bets
+router.get('/closed', async (req, res) => {
+  try {
+    const closedBets = await Bet.find({ status: 'closed' }).populate('creator', 'discordId');
+    res.json(closedBets);
+  } catch (error) {
+    console.error('Error fetching closed bets:', error);
     res.status(500).json({ message: 'Server error.' });
   }
 });
@@ -482,5 +494,41 @@ router.put('/:betId/resolve', async (req, res) => {
       res.status(500).json({ message: 'Server error.' });
     }
   });
+
+// Refund a bet (admin/superadmin only)
+router.post('/:betId/refund', auth, requireAdmin, async (req, res) => {
+  try {
+    const { betId } = req.params;
+    const bet = await Bet.findById(betId);
+    if (!bet) return res.status(404).json({ message: 'Bet not found.' });
+    if (['resolved', 'cancelled', 'refunded'].includes(bet.status)) {
+      return res.status(400).json({ message: 'Bet is already resolved, cancelled, or refunded.' });
+    }
+    // Refund all placed bets
+    const placedBets = await PlacedBet.find({ bet: betId });
+    for (const placedBet of placedBets) {
+      // Fetch the bettor's wallet
+      const wallet = await Wallet.findOne({ user: placedBet.bettor });
+      if (wallet) {
+        // Refund points
+        wallet.balance += placedBet.amount;
+        await wallet.save();
+        // Create refund transaction
+        await Transaction.create({
+          user: placedBet.bettor,
+          type: 'refund',
+          amount: placedBet.amount,
+          description: `Refund for bet: ${bet.description}`
+        });
+      }
+    }
+    bet.status = 'refunded';
+    await bet.save();
+    res.json({ bet });
+  } catch (error) {
+    console.error('Error refunding bet:', error);
+    res.status(500).json({ message: 'Server error refunding bet.' });
+  }
+});
 
 module.exports = { router, setWebSocketServer }; 

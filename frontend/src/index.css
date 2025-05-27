@@ -28,3 +28,6 @@ body {
     @apply bg-card rounded-lg border border-border shadow-lg;
   }
 }
+
+.animate-fadeIn { animation: fadeIn 0.15s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

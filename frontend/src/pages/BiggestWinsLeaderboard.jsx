@@ -47,7 +47,7 @@ export const BiggestWinsLeaderboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/leaderboard/biggest-wins?page=${page}&limit=${userPreferences.itemsPerPage}`);
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/leaderboard/biggest-wins?page=${page}&limit=${userPreferences.itemsPerPage}&sortBy=${sortBy}&sortOrder=${sortOrder}`);
         setWins(res.data.data);
         setTotalCount(res.data.totalCount);
       } catch (err) {
@@ -57,7 +57,7 @@ export const BiggestWinsLeaderboard = () => {
       }
     };
     fetchWins();
-  }, [page, userPreferences]);
+  }, [page, userPreferences, sortBy, sortOrder]);
 
   useEffect(() => {
     if (!showSortMenu) return;
@@ -71,19 +71,6 @@ export const BiggestWinsLeaderboard = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showSortMenu]);
-
-  // Sort client-side
-  const sortedWins = [...wins].sort((a, b) => {
-    let cmp = 0;
-    if (sortBy === 'amount') {
-      cmp = b.amount - a.amount;
-    } else if (sortBy === 'alpha') {
-      cmp = a.username.localeCompare(b.username);
-    } else if (sortBy === 'date') {
-      cmp = new Date(b.timestamp) - new Date(a.timestamp);
-    }
-    return sortOrder === 'asc' ? -cmp : cmp;
-  });
 
   const handleSortChange = (value) => {
     if (sortBy === value) {
@@ -174,8 +161,8 @@ export const BiggestWinsLeaderboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {sortedWins.length > 0 ? (
-                sortedWins.map((win, index) => {
+              {wins.length > 0 ? (
+                wins.map((win, index) => {
                   const isExpanded = expandedRows[index];
                   const desc = win.description || '-';
                   const shouldTruncate = desc.length > 17;

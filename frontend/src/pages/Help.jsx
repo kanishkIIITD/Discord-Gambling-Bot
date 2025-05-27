@@ -5,6 +5,7 @@ export const Help = () => {
   const [commands, setCommands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [category, setCategory] = useState('All');
 
   useEffect(() => {
     const fetchCommands = async () => {
@@ -23,6 +24,9 @@ export const Help = () => {
     fetchCommands();
   }, []);
 
+  const categories = ['All', ...Array.from(new Set(commands.map(cmd => cmd.category).filter(Boolean)))];
+  const filteredCommands = category === 'All' ? commands : commands.filter(cmd => cmd.category === category);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -39,10 +43,22 @@ export const Help = () => {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Discord Commands</h1>
 
+      <div className="mb-6 flex flex-wrap gap-2 justify-center">
+        {categories.map(cat => (
+          <button
+            key={cat}
+            className={`px-4 py-2 rounded-md font-medium border transition-colors ${category === cat ? 'bg-primary text-white border-primary' : 'bg-background text-text-secondary border-border hover:bg-primary/10'}`}
+            onClick={() => setCategory(cat)}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6">
-        {commands.length > 0 ? (
+        {filteredCommands.length > 0 ? (
           <div className="space-y-6">
-            {commands.map((command, index) => (
+            {filteredCommands.map((command, index) => (
               <div key={index} className="pb-4 border-b border-border last:border-b-0">
                 <h3 className="text-xl font-semibold text-text-primary mb-2 tracking-wide">/{command.name}</h3>
                 <p className="text-text-secondary leading-relaxed tracking-wide">{command.description}</p>

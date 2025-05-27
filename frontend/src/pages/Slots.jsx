@@ -240,7 +240,7 @@ export const Slots = () => {
           <div className="bg-gradient-to-r from-yellow-300 to-yellow-500 rounded-xl shadow-lg px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 border-2 border-yellow-400 w-full max-w-lg">
             <span className="text-3xl">💰</span>
             <span className="text-xl sm:text-2xl font-bold text-yellow-900 tracking-wide">Jackpot Pool:</span>
-            <span className="text-xl sm:text-2xl font-mono text-yellow-900">{jackpotPool.toLocaleString()} points</span>
+            <span className="text-xl sm:text-2xl font-mono text-yellow-900">{jackpotPool.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points</span>
           </div>
         </div>
         <div className="w-full bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-6 text-center">

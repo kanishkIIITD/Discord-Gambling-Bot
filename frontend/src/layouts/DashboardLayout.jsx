@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom'; // Import Outlet
 import { useAuth } from '../contexts/AuthContext';
 import { Sidebar } from '../components/Sidebar';
 import { DashboardNavigation } from '../components/DashboardNavigation';
-import { getWalletBalance, setupWebSocket, getActiveBets } from '../services/api'; // Import necessary API functions and getActiveBets
+import { getWalletBalance, setupWebSocket, getActiveBets, getClosedBets } from '../services/api'; // Import necessary API functions and getActiveBets
 import { DashboardContext } from '../contexts/DashboardContext'; // Assuming you have a DashboardContext
 
 export const DashboardLayout = () => {
@@ -42,12 +42,13 @@ export const DashboardLayout = () => {
       if (!user?.discordId) return;
       try {
         setLoading(true); // Set loading before fetching
-        const [balanceData, activeBetsData] = await Promise.all([
+        const [balanceData, openBets, closedBets] = await Promise.all([
           getWalletBalance(user.discordId),
-          getActiveBets() // Fetch initial active bets
+          getActiveBets(),
+          getClosedBets()
         ]);
         setWalletBalance(balanceData.balance);
-        setActiveBets(activeBetsData); // Set initial active bets
+        setActiveBets([...openBets, ...closedBets]); // Combine open and closed bets
       } catch (error) {
         console.error('Error fetching initial dashboard data:', error);
       } finally {
@@ -75,12 +76,15 @@ export const DashboardLayout = () => {
         case 'BET_CLOSED':
         case 'BET_RESOLVED':
         case 'BET_UPDATED':
-          // When a bet-related event occurs, refetch active bets
+          // When a bet-related event occurs, refetch open and closed bets
           try {
-            const updatedActiveBets = await getActiveBets();
-            setActiveBets(updatedActiveBets);
+            const [openBets, closedBets] = await Promise.all([
+              getActiveBets(),
+              getClosedBets()
+            ]);
+            setActiveBets([...openBets, ...closedBets]);
           } catch (error) {
-            console.error('Error refetching active bets via WS update:', error);
+            console.error('Error refetching bets via WS update:', error);
           }
           break;
         case 'TRANSACTION':

@@ -102,6 +102,8 @@ export const Transactions = () => {
                       case 'jackpot': return 'Jackpot Win';
                       case 'jackpot_contribution': return 'Jackpot Contribution';
                       case 'initial_balance': return 'Initial Balance';
+                      case 'meowbark': return 'Meowbark';
+                      case 'refund': return 'Refund';
                       default: return 'Unknown';
                     }
                   };

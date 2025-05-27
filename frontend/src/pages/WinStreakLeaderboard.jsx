@@ -46,7 +46,7 @@ export const WinStreakLeaderboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/leaderboard/winstreaks?page=${page}&limit=${userPreferences.itemsPerPage}`);
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/leaderboard/winstreaks?page=${page}&limit=${userPreferences.itemsPerPage}&sortBy=${sortBy}&sortOrder=${sortOrder}`);
         setLeaderboard(res.data.data);
         setTotalCount(res.data.totalCount);
       } catch (err) {
@@ -56,7 +56,7 @@ export const WinStreakLeaderboard = () => {
       }
     };
     fetchLeaderboard();
-  }, [page, userPreferences]);
+  }, [page, userPreferences, sortBy, sortOrder]);
 
   useEffect(() => {
     if (!showSortMenu) return;
@@ -70,19 +70,6 @@ export const WinStreakLeaderboard = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showSortMenu]);
-
-  // Sort leaderboard client-side
-  const sortedLeaderboard = [...leaderboard].sort((a, b) => {
-    let cmp = 0;
-    if (sortBy === 'max') {
-      cmp = b.maxWinStreak - a.maxWinStreak;
-    } else if (sortBy === 'current') {
-      cmp = b.currentWinStreak - a.currentWinStreak;
-    } else if (sortBy === 'alpha') {
-      cmp = a.username.localeCompare(b.username);
-    }
-    return sortOrder === 'asc' ? -cmp : cmp;
-  });
 
   const handleSortChange = (value) => {
     if (sortBy === value) {
@@ -164,8 +151,8 @@ export const WinStreakLeaderboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {sortedLeaderboard.length > 0 ? (
-                sortedLeaderboard.map((player, index) => (
+              {leaderboard.length > 0 ? (
+                leaderboard.map((player, index) => (
                   <tr key={player.discordId} className={`hover:bg-primary/5 ${player.discordId === user?.discordId ? 'bg-primary/20' : ''}`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{(page - 1) * (userPreferences?.itemsPerPage || 10) + index + 1}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{player.username}</td>

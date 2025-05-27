@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 // import { Sidebar } from '../components/Sidebar'; // Removed
 // import { DashboardNavigation } from '../components/DashboardNavigation'; // Removed
 // import { getWalletBalance } from '../services/api'; // Removed getWalletBalance
-import { getBetDetails, getPlacedBetsForBet, placeBet, closeBet, resolveBet, cancelBet, editBet, extendBet, getUserPreferences } from '../services/api';
+import { getBetDetails, getPlacedBetsForBet, placeBet, closeBet, resolveBet, cancelBet, editBet, extendBet, getUserPreferences, refundBet } from '../services/api';
 import { useDashboard } from '../contexts/DashboardContext';
 import { toast } from 'react-hot-toast'; // Import toast for notifications
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth to get user discordId
@@ -44,6 +44,14 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [extendMinutes, setExtendMinutes] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+
+  // Calculate total pot and per-option totals
+  const optionTotals = bet && bet.options.reduce((acc, option) => {
+    acc[option] = placedBets.filter(pb => pb.option === option).reduce((sum, pb) => sum + pb.amount, 0);
+    return acc;
+  }, {});
+  const totalPot = placedBets.reduce((sum, pb) => sum + pb.amount, 0);
 
   // Fetch user preferences for pagination
   useEffect(() => {
@@ -255,6 +263,22 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
     }
   };
 
+  const handleRefundBet = async () => {
+    setAdminActionLoading(true);
+    try {
+      await refundBet(betId);
+      toast.success('Bet refunded successfully.');
+      setShowRefundModal(false);
+      // Refresh bet details
+      const betData = await getBetDetails(betId);
+      setBet(betData);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to refund bet.');
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
   // Loading is now handled by DashboardLayout, but we can keep this for local data loading
   if (loading) {
     return (
@@ -290,6 +314,37 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
             {bet.closingTime && <p><strong>Closing Time:</strong> {new Date(bet.closingTime).toLocaleString()}</p>}
             <p className="col-span-full"><strong>Options:</strong> {bet.options.join(', ')}</p>
             {bet.status === 'resolved' && bet.winningOption && <p className="col-span-full text-lg font-semibold text-success"><strong>Winning Option:</strong> {bet.winningOption}</p>}
+          </div>
+          {/* Pot and per-option totals - Professional, consistent style */}
+          <div className="mt-4 bg-surface rounded-lg p-6 shadow flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="text-lg font-semibold text-text-primary">Total Pot</div>
+              <div className="text-2xl font-bold text-primary font-mono">{totalPot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-base font-medium text-text-secondary">points</span></div>
+            </div>
+            <div className="divide-y divide-border">
+              {bet.options.map(option => {
+                const amount = optionTotals[option] || 0;
+                const percent = totalPot > 0 ? ((amount / totalPot) * 100) : 0;
+                // Find the leading option
+                const maxAmount = Math.max(...bet.options.map(opt => optionTotals[opt] || 0));
+                const isLeading = amount === maxAmount && amount > 0;
+                return (
+                  <div key={option} className="py-3 flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span className={`font-medium text-sm ${isLeading ? 'text-primary' : 'text-text-secondary'}`}>{option}</span>
+                      <span className={`font-mono text-base ${isLeading ? 'text-primary font-bold' : 'text-text-primary'}`}>{amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts</span>
+                      <span className="ml-2 text-xs text-text-secondary">({percent.toFixed(1)}%)</span>
+                    </div>
+                    <div className="w-full h-2 bg-border rounded overflow-hidden">
+                      <div
+                        className={`h-full rounded transition-all duration-300 ${isLeading ? 'bg-primary/80' : 'bg-primary/40'}`}
+                        style={{ width: `${percent}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
           {/* Admin Controls */}
           {user && (user.role === 'admin' || user.role === 'superadmin') && (
@@ -329,6 +384,16 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
               >
                 Extend
               </button>
+              {/* Refund button: show for open/closed, not resolved/cancelled/refunded */}
+              {['open', 'closed'].includes(bet.status) && (
+                <button
+                  className="px-3 py-1 rounded bg-warning text-white font-semibold hover:bg-warning/90 disabled:opacity-60"
+                  onClick={() => setShowRefundModal(true)}
+                  disabled={adminActionLoading}
+                >
+                  Refund
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -550,6 +615,18 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
           onConfirm={handleConfirmCancelBet}
           onCancel={() => setShowCancelModal(false)}
           confirmText="Yes, Cancel"
+          cancelText="No, Go Back"
+          loading={adminActionLoading}
+        />
+      )}
+      {showRefundModal && (
+        <ConfirmModal
+          open={showRefundModal}
+          title="Refund Bet"
+          message="Are you sure you want to refund all placed bets for this event? This cannot be undone."
+          onConfirm={handleRefundBet}
+          onCancel={() => setShowRefundModal(false)}
+          confirmText="Yes, Refund"
           cancelText="No, Go Back"
           loading={adminActionLoading}
         />

@@ -85,6 +85,18 @@ client.on('interactionCreate', async interaction => {
 			}
 			return;
 		}
+		// Autocomplete for /refund (bet_id)
+		if (interaction.commandName === 'refund' && focusedOption.name === 'bet_id') {
+			const response = await axios.get(`${backendApiUrl}/bets/unresolved`);
+			const bets = response.data;
+			await interaction.respond(
+				bets.slice(0, 25).map(bet => ({
+					name: `${bet.description} (${bet._id})`,
+					value: bet._id
+				}))
+			);
+			return;
+		}
 		return;
 	}
 	// TODO: Implement WebSocket connection to backend for real-time balance updates
@@ -455,7 +467,7 @@ client.on('interactionCreate', async interaction => {
 
 		try {
 			const response = await axios.get(`${backendApiUrl}/users/${userId}/stats`);
-			const { betting, gambling, currentWinStreak, maxWinStreak, jackpotWins, dailyBonusesClaimed, giftsSent, giftsReceived } = response.data;
+			const { betting, gambling, currentWinStreak, maxWinStreak, jackpotWins, dailyBonusesClaimed, giftsSent, giftsReceived, meowBarks } = response.data;
 
 			const embed = {
 				color: 0x0099ff,
@@ -483,7 +495,8 @@ client.on('interactionCreate', async interaction => {
 				  `Jackpot Wins: **${jackpotWins}**\n` +
 				  `Daily Bonuses Claimed: **${dailyBonusesClaimed}**\n` +
 				  `Gifts Sent: **${giftsSent}**\n` +
-				  `Gifts Received: **${giftsReceived}**`,
+				  `Gifts Received: **${giftsReceived}**\n` +
+				  `Meow/Bark Rewards: **${meowBarks}**`,
 				timestamp: new Date()
 			};
 
@@ -509,7 +522,8 @@ client.on('interactionCreate', async interaction => {
 					'`/cancelbet` - Cancel a bet before any bets are placed (Creator/Admin/Superadmin only)\n' +
 					'`/editbet` - Edit a bet\'s details before any bets are placed (Creator/Admin/Superadmin only)\n' +
 					'`/extendbet` - Extend the duration of an open bet (Creator/Admin/Superadmin only)\n' +
-					'`/betinfo` - Show detailed information about a bet'
+					'`/betinfo` - Show detailed information about a bet\n' +
+        	'`/refund` - Refund all placed bets for an unresolved bet (Admin/Superadmin only)'
 				},
 				{ name: '💰 Wallet Commands', value:
 					'`/balance` - Check your current balance\n' +
@@ -1209,7 +1223,12 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('🎉 Success!')
 				.setDescription(`You did it! **${amount} points** have been added to your account.`)
 				.setTimestamp();
-			await interaction.followUp({ embeds: [successEmbed] });
+			if (!interaction.replied && !interaction.deferred) {
+				await interaction.reply({ embeds: [successEmbed] });
+			} else {
+				await interaction.followUp({ embeds: [successEmbed] });
+			}
+			return;
 		} catch (err) {
 			if (err instanceof Collection || (err && err.code === 'COLLECTION_MAX_TIME') || (err instanceof Error && err.message === 'time')) {
 				const timeoutEmbed = new EmbedBuilder()
@@ -1217,15 +1236,52 @@ client.on('interactionCreate', async interaction => {
 					.setTitle('⏰ Time\'s Up!')
 					.setDescription('You did not meow or bark in time. Try again later.')
 					.setTimestamp();
-				await interaction.followUp({ embeds: [timeoutEmbed] });
+				if (!interaction.replied && !interaction.deferred) {
+					await interaction.reply({ embeds: [timeoutEmbed] });
+				} else {
+					await interaction.followUp({ embeds: [timeoutEmbed] });
+				}
+				return;
 			} else {
 				const errorEmbed = new EmbedBuilder()
 					.setColor(0xff7675)
 					.setTitle('❌ Error')
 					.setDescription('Something went wrong. Please try again later.')
 					.setTimestamp();
-				await interaction.followUp({ embeds: [errorEmbed] });
+				if (!interaction.replied && !interaction.deferred) {
+					await interaction.reply({ embeds: [errorEmbed] });
+				} else {
+					await interaction.followUp({ embeds: [errorEmbed] });
+				}
+				return;
 			}
+		}
+	} else if (commandName === 'refund') {
+		const betId = interaction.options.getString('bet_id');
+		try {
+			// Call backend to refund the bet
+			const response = await axios.post(`${backendApiUrl}/bets/${betId}/refund`, {
+				adminDiscordId: userId
+			});
+			const bet = response.data.bet;
+			const embed = new EmbedBuilder()
+				.setColor(0x00b894)
+				.setTitle('💸 Bet Refunded')
+				.setDescription(`All placed bets for **${bet.description}** have been refunded.`)
+				.addFields(
+					{ name: 'Bet ID', value: bet._id, inline: true },
+					{ name: 'Status', value: bet.status, inline: true }
+				)
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
+		} catch (error) {
+			console.error('Error refunding bet:', error.response?.data || error.message);
+			const embed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Refunding Bet')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while refunding the bet.')
+				.setTimestamp();
+			await interaction.reply({ embeds: [embed] });
 		}
 	}
 });

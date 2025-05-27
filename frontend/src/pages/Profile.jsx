@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserProfile } from '../services/api';
+import { getUserStats } from '../services/api';
 
 export const Profile = () => {
   const { user } = useAuth();
   const [profileData, setProfileData] = useState(null);
+  const [statsData, setStatsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -13,8 +15,12 @@ export const Profile = () => {
       if (!user?.discordId) return;
       try {
         setLoading(true);
-        const data = await getUserProfile(user.discordId);
-        setProfileData(data);
+        const [profile, stats] = await Promise.all([
+          getUserProfile(user.discordId),
+          getUserStats(user.discordId)
+        ]);
+        setProfileData(profile);
+        setStatsData(stats);
       } catch (err) {
         console.error('Error fetching user profile:', err);
         setError('Failed to load profile data.');
@@ -38,11 +44,12 @@ export const Profile = () => {
     return <div className="min-h-screen bg-background text-error flex items-center justify-center">{error}</div>;
   }
 
-  if (!profileData) {
+  if (!profileData || !statsData) {
     return <div className="min-h-screen bg-background text-text-secondary flex items-center justify-center">Profile data not found.</div>;
   }
 
-  const { user: userData, wallet, stats } = profileData;
+  const { user: userData, wallet, betting: profileBetting, gambling: profileGambling } = profileData;
+  const { betting, gambling, currentWinStreak, maxWinStreak, jackpotWins, dailyBonusesClaimed, giftsSent, giftsReceived } = statsData;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
@@ -60,18 +67,65 @@ export const Profile = () => {
       <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 mb-8 space-y-4">
         <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Wallet</h2>
         <div className="text-text-secondary leading-relaxed tracking-wide">
-          <p><strong>Current Balance:</strong> <span className="font-semibold text-primary">{wallet.balance.toLocaleString()} points</span></p>
+          <p><strong>Current Balance:</strong> <span className="font-semibold text-primary">{wallet.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points</span></p>
         </div>
       </div>
 
-      <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-4">
-        <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Betting Statistics</h2>
-        <div className="text-text-secondary leading-relaxed tracking-wide grid grid-cols-1 md:grid-cols-2 gap-4">
-          <p><strong>Total Bets Placed:</strong> {stats.totalBets}</p>
-          <p><strong>Total Wagered:</strong> {stats.totalWagered.toLocaleString()} points</p>
-          <p><strong>Bets Won:</strong> {stats.wonBets}</p>
-          <p><strong>Win Rate:</strong> {stats.winRate}%</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Betting Section */}
+        <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-4">
+          <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Betting</h2>
+          <div className="text-text-secondary leading-relaxed tracking-wide space-y-2">
+            <p><strong>Total Bets:</strong> {betting.totalBets}</p>
+            <p><strong>Total Wagered:</strong> {betting.totalWagered.toLocaleString()} points</p>
+            <p><strong>Total Won:</strong> {betting.totalWon.toLocaleString()} points</p>
+            <p><strong>Total Lost:</strong> {betting.totalLost.toLocaleString()} points</p>
+            <p><strong>Win Rate:</strong> {betting.winRate}%</p>
+            <p><strong>Biggest Win:</strong> {betting.biggestWin.toLocaleString()} points</p>
+            <p><strong>Biggest Loss:</strong> {betting.biggestLoss.toLocaleString()} points</p>
+          </div>
         </div>
+        {/* Gambling Section */}
+        <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-4">
+          <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Gambling</h2>
+          <div className="text-text-secondary leading-relaxed tracking-wide space-y-2">
+            <p><strong>Total Games Played:</strong> {gambling.totalGamesPlayed}</p>
+            <p><strong>Total Gambled:</strong> {gambling.totalGambled.toLocaleString()} points</p>
+            <p><strong>Total Won:</strong> {gambling.totalWon.toLocaleString()} points</p>
+            <p><strong>Total Lost:</strong> {gambling.totalLost.toLocaleString()} points</p>
+            <p><strong>Win Rate:</strong> {gambling.winRate}%</p>
+            <p><strong>Biggest Win:</strong> {gambling.biggestWin.toLocaleString()} points</p>
+            <p><strong>Biggest Loss:</strong> {gambling.biggestLoss.toLocaleString()} points</p>
+            <p><strong>Favorite Game:</strong> {gambling.favoriteGame}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Bets Section */}
+      {profileBetting.recentBets && profileBetting.recentBets.length > 0 && (
+        <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-4 mb-8">
+          <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Recent Bets</h2>
+          <ul className="list-disc list-inside text-text-secondary">
+            {profileBetting.recentBets.map((bet, idx) => (
+              <li key={idx}>
+                <span className="font-medium">{bet.description}</span> - {bet.amount.toLocaleString()} points on <span className="font-medium">{bet.option}</span> (<span className={bet.result === 'Won' ? 'text-success' : bet.result === 'Lost' ? 'text-error' : 'text-warning'}>{bet.result}</span>)
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-2 mb-8">
+        <h2 className="text-2xl font-semibold text-text-primary tracking-wide mb-2">Other Stats</h2>
+        <ul className="list-disc list-inside text-text-secondary space-y-1">
+          <li><strong>Current Win Streak:</strong> {currentWinStreak}</li>
+          <li><strong>Max Win Streak:</strong> {maxWinStreak}</li>
+          <li><strong>Jackpot Wins:</strong> {jackpotWins}</li>
+          <li><strong>Daily Bonuses Claimed:</strong> {dailyBonusesClaimed}</li>
+          <li><strong>Gifts Sent:</strong> {giftsSent}</li>
+          <li><strong>Gifts Received:</strong> {giftsReceived}</li>
+          <li><strong>Meow/Bark Rewards:</strong> {statsData.meowBarks}</li>
+        </ul>
       </div>
     </div>
   );

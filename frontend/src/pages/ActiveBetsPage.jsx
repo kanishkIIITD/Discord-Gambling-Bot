@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import ReactPaginate from 'react-paginate';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Statuses' },
@@ -39,8 +40,12 @@ const ActiveBetsPage = () => {
           prefs = await getUserPreferences(user.discordId);
           setUserPreferences(prefs);
         }
-        const data = await getActiveBets();
-        setBets(data);
+        // Fetch open and closed bets
+        const [openBets, closedBets] = await Promise.all([
+          axios.get(`${process.env.REACT_APP_API_URL}/api/bets/open`).then(res => res.data),
+          axios.get(`${process.env.REACT_APP_API_URL}/api/bets/closed`).then(res => res.data)
+        ]);
+        setBets([...openBets, ...closedBets]);
       } catch (err) {
         setError('Failed to fetch active bets or preferences.');
       } finally {

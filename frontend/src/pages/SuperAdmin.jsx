@@ -7,6 +7,7 @@ import { getAllUsers, getUserPreferences } from '../services/api';
 import ReactPaginate from 'react-paginate';
 import toast from 'react-hot-toast';
 import { UserGroupIcon } from '@heroicons/react/24/outline';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 const ROLE_OPTIONS = [
   { value: 'all', label: 'All Roles' },
@@ -117,7 +118,8 @@ export const SuperAdmin = () => {
     const btn = buttonRefs.current[userId];
     if (btn) {
       const rect = btn.getBoundingClientRect();
-      const dropdownHeight = 48 * ROLE_OPTIONS.length; // 48px per option
+      const dropdownHeight = 48 * ROLE_OPTIONS.filter(opt => opt.value !== 'all').length; // 48px per option
+      const buttonHeight = rect.height;
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
       const openUp = spaceBelow < dropdownHeight && spaceAbove > dropdownHeight;
@@ -125,6 +127,8 @@ export const SuperAdmin = () => {
         ...prev,
         [userId]: {
           top: openUp ? rect.top - dropdownHeight : rect.bottom,
+          buttonHeight,
+          dropdownHeight,
           left: rect.left,
           width: rect.width,
           openUp,
@@ -225,84 +229,59 @@ export const SuperAdmin = () => {
                           <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-sm text-text-secondary whitespace-nowrap">{u.role}</td>
                           <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-sm whitespace-nowrap">
                             <div className="flex items-center justify-center gap-2 min-w-[140px]">
-                              <Listbox
-                                value={u.role}
-                                onChange={role => {
-                                  handleRoleChange(u._id, role);
-                                  setOpenDropdown(null);
-                                }}
-                                disabled={isCurrentUser || updating[u._id]}
+                              <DropdownMenu.Root
+                                open={openDropdown === u._id}
+                                onOpenChange={(open) => setOpenDropdown(open ? u._id : null)}
                               >
-                                {({ open }) => (
-                                  <div className="relative w-full">
-                                    <Listbox.Button
-                                      ref={el => (buttonRefs.current[u._id] = el)}
-                                      className={`relative w-full cursor-pointer rounded bg-surface border border-border py-1 pl-3 pr-8 text-left text-text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-150 min-w-[110px] ${isCurrentUser || updating[u._id] ? 'opacity-60 cursor-not-allowed' : 'hover:border-primary'}`}
-                                      title={isCurrentUser ? 'You cannot change your own role' : undefined}
-                                      onClick={() => setOpenDropdown(isOpen ? null : u._id)}
-                                    >
-                                      <span className="block truncate capitalize">{ROLE_OPTIONS.find(opt => opt.value === u.role)?.label}</span>
-                                      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                                        <ChevronUpDownIcon className="h-5 w-5 text-text-secondary" aria-hidden="true" />
+                                <DropdownMenu.Trigger asChild>
+                                  <button
+                                    ref={el => buttonRefs.current[u._id] = el}
+                                    className={`relative w-full cursor-pointer rounded bg-surface border border-border py-1 pl-8 pr-3 text-left text-text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors duration-150 min-w-[110px] ${isCurrentUser || updating[u._id] ? 'opacity-60 cursor-not-allowed' : 'hover:border-primary hover:bg-primary/5'}`}
+                                    disabled={isCurrentUser || updating[u._id]}
+                                    title={isCurrentUser ? 'You cannot change your own role' : undefined}
+                                  >
+                                    <span className={`pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 transition-transform duration-200 ${openDropdown === u._id ? 'rotate-180' : ''}`}>
+                                      <svg className="h-5 w-5 text-text-secondary" fill="none" viewBox="0 0 20 20">
+                                        <path d="M7 7l3-3 3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                      </svg>
+                                    </span>
+                                    <span className="block truncate capitalize">{ROLE_OPTIONS.find(opt => opt.value === u.role)?.label}</span>
+                                    {updating[u._id] && (
+                                      <span className="absolute right-8 top-1/2 -translate-y-1/2">
+                                        <svg className="animate-spin h-4 w-4 text-primary" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>
                                       </span>
-                                      {updating[u._id] && (
-                                        <span className="absolute right-8 top-1/2 -translate-y-1/2">
-                                          <svg className="animate-spin h-4 w-4 text-primary" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>
-                                        </span>
-                                      )}
-                                    </Listbox.Button>
-                                    <Transition
-                                      as="div"
-                                      leave="transition ease-in duration-100"
-                                      leaveFrom="opacity-100"
-                                      leaveTo="opacity-0"
-                                    >
-                                      {isOpen && dropdownPos[u._id] && (
-                                        <Listbox.Options
-                                          className="z-50 rounded bg-card border border-border py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none text-left"
-                                          style={{
-                                            position: 'fixed',
-                                            top: dropdownPos[u._id].top,
-                                            left: dropdownPos[u._id].left,
-                                            width: dropdownPos[u._id].width,
-                                            maxHeight: 'calc(100vh - 32px)',
-                                            overflowY: 'auto',
-                                            backgroundColor: 'var(--color-card, #18181b)',
-                                          }}
-                                        >
-                                          {/* Arrow indicator with solid background */}
-                                          <div
-                                            className={`absolute left-6 w-3 h-3 z-50 ${dropdownPos[u._id].openUp ? 'bottom-0 translate-y-full' : 'top-0 -translate-y-full'}`}
-                                          >
-                                            <svg width="12" height="12" viewBox="0 0 12 12">
-                                              <polygon
-                                                points="6,0 12,12 0,12"
-                                                className="fill-card stroke-border"
-                                                style={{ strokeWidth: 1, fill: 'var(--color-card, #18181b)' }}
-                                              />
-                                            </svg>
-                                          </div>
-                                          {ROLE_OPTIONS.filter(opt => opt.value !== 'all').map((opt) => (
-                                            <Listbox.Option
-                                              key={opt.value}
-                                              value={opt.value}
-                                              className={({ active, selected }) =>
-                                                `relative cursor-pointer select-none py-2 pl-4 pr-4 text-text-primary text-left ${
-                                                  active ? 'bg-primary/10' : ''
-                                                } ${selected ? 'font-semibold text-primary' : 'font-normal'}`
-                                              }
-                                            >
-                                              {({ selected }) => (
-                                                <span className={`block truncate capitalize ${selected ? 'text-primary' : ''}`}>{opt.label}</span>
-                                              )}
-                                            </Listbox.Option>
-                                          ))}
-                                        </Listbox.Options>
-                                      )}
-                                    </Transition>
-                                  </div>
-                                )}
-                              </Listbox>
+                                    )}
+                                  </button>
+                                </DropdownMenu.Trigger>
+                                <DropdownMenu.Portal>
+                                  <DropdownMenu.Content
+                                    align="start"
+                                    sideOffset={4}
+                                    className="z-50 rounded-lg bg-card border border-border py-1 shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none text-left min-w-[110px] animate-fadeIn"
+                                    style={{
+                                      minWidth: buttonRefs.current[u._id]?.offsetWidth || 110,
+                                      width: buttonRefs.current[u._id]?.offsetWidth || 110,
+                                    }}
+                                  >
+                                    {ROLE_OPTIONS.filter(opt => opt.value !== 'all').map(opt => (
+                                      <DropdownMenu.Item
+                                        key={opt.value}
+                                        onSelect={() => handleRoleChange(u._id, opt.value)}
+                                        disabled={u.role === opt.value}
+                                        className={({ focused, disabled }) =>
+                                          `flex items-center gap-2 cursor-pointer select-none py-2 pl-4 pr-4 text-text-primary text-left capitalize transition-colors duration-100
+                                          ${u.role === opt.value ? 'font-semibold text-primary bg-primary/10' : 'font-normal'}
+                                          ${focused ? 'bg-primary/10' : ''}
+                                          ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:bg-primary/10'}
+                                          `
+                                        }
+                                      >
+                                        {opt.label}
+                                      </DropdownMenu.Item>
+                                    ))}
+                                  </DropdownMenu.Content>
+                                </DropdownMenu.Portal>
+                              </DropdownMenu.Root>
                             </div>
                           </td>
                         </tr>

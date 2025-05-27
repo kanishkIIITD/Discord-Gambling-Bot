@@ -4,6 +4,7 @@ import { getMyPlacedBets, getUserPreferences } from '../services/api';
 import ReactPaginate from 'react-paginate';
 import { Listbox } from '@headlessui/react';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
+import { Link } from 'react-router-dom';
 
 const RESULT_FILTERS = [
   { value: 'all', label: 'All Results' },
@@ -239,6 +240,7 @@ const MyBetsPage = () => {
                 <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Status</th>
                 <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Result</th>
                 <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Placed At</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -268,6 +270,16 @@ const MyBetsPage = () => {
                       )}
                     </td>
                     <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-secondary tracking-wide text-center">{bet.placedAt ? new Date(bet.placedAt).toLocaleString() : '-'}</td>
+                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-center">
+                      {bet.bet?._id && (
+                        <Link
+                          to={`/dashboard/betting/view?betId=${bet.bet._id}`}
+                          className="text-primary underline text-sm"
+                        >
+                          View Bet
+                        </Link>
+                      )}
+                    </td>
                   </tr>
                 );
               })}

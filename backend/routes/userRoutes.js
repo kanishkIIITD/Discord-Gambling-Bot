@@ -87,15 +87,29 @@ router.get('/:discordId/leaderboard', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const [wallets, totalCount] = await Promise.all([
-      Wallet.find()
-        .sort({ balance: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate('user', 'discordId username'),
-      Wallet.countDocuments()
-    ]);
-    const leaderboard = wallets.map(wallet => ({
+    const allowedSorts = {
+      balance: 'balance',
+      alpha: 'user.username'
+    };
+    const sortBy = allowedSorts[req.query.sortBy] || 'balance';
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
+    const wallets = await Wallet.find()
+      .populate('user', 'discordId username');
+    let sortedWallets;
+    if (sortBy === 'user.username') {
+      sortedWallets = wallets.sort((a, b) => {
+        const cmp = (a.user?.username || '').localeCompare(b.user?.username || '');
+        return sortOrder === 1 ? cmp : -cmp;
+      });
+    } else {
+      sortedWallets = wallets.sort((a, b) => {
+        let cmp = b.balance - a.balance;
+        return sortOrder === 1 ? -cmp : cmp;
+      });
+    }
+    const totalCount = sortedWallets.length;
+    const pagedWallets = sortedWallets.slice(skip, skip + limit);
+    const leaderboard = pagedWallets.map(wallet => ({
       discordId: wallet.user.discordId,
       username: wallet.user.username,
       balance: wallet.balance
@@ -199,6 +213,8 @@ router.get('/:discordId/stats', async (req, res) => {
     // Win streaks
     const currentWinStreak = user.currentWinStreak || 0;
     const maxWinStreak = user.maxWinStreak || 0;
+    const meowBarks = await Transaction.countDocuments({ user: user._id, type: 'meowbark' });
+    const refunds = await Transaction.countDocuments({ user: user._id, type: 'refund' });
     res.json({
       betting,
       gambling,
@@ -207,7 +223,8 @@ router.get('/:discordId/stats', async (req, res) => {
       jackpotWins,
       dailyBonusesClaimed,
       giftsSent,
-      giftsReceived
+      giftsReceived,
+      meowBarks
     });
   } catch (error) {
     console.error('Error fetching user stats:', error);
@@ -553,10 +570,17 @@ router.get('/leaderboard/winstreaks', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const allowedSorts = {
+      max: 'maxWinStreak',
+      current: 'currentWinStreak',
+      alpha: 'username'
+    };
+    const sortBy = allowedSorts[req.query.sortBy] || 'maxWinStreak';
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
     const UserModel = require('../models/User');
     const [users, totalCount] = await Promise.all([
       UserModel.find()
-        .sort({ maxWinStreak: -1 })
+        .sort({ [sortBy]: sortOrder })
         .skip(skip)
         .limit(limit)
         .select('username discordId maxWinStreak currentWinStreak'),
@@ -575,17 +599,34 @@ router.get('/leaderboard/biggest-wins', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
+    const allowedSorts = {
+      amount: 'amount',
+      alpha: 'user.username',
+      date: 'timestamp'
+    };
+    const sortBy = allowedSorts[req.query.sortBy] || 'amount';
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
     const Transaction = require('../models/Transaction');
     const User = require('../models/User');
-    const [wins, totalCount] = await Promise.all([
-      Transaction.find({ type: 'win' })
-        .sort({ amount: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate('user', 'username discordId')
-        .lean(),
-      Transaction.countDocuments({ type: 'win' })
-    ]);
+    let wins = await Transaction.find({ type: 'win' })
+      .populate('user', 'username discordId')
+      .lean();
+    // In-memory sort for username (alpha)
+    if (sortBy === 'user.username') {
+      wins.sort((a, b) => {
+        const cmp = (a.user?.username || '').localeCompare(b.user?.username || '');
+        return sortOrder === 1 ? cmp : -cmp;
+      });
+    } else {
+      wins.sort((a, b) => {
+        let cmp = 0;
+        if (sortBy === 'amount') cmp = b.amount - a.amount;
+        else if (sortBy === 'timestamp') cmp = new Date(b.timestamp) - new Date(a.timestamp);
+        return sortOrder === 1 ? -cmp : cmp;
+      });
+    }
+    const totalCount = wins.length;
+    wins = wins.slice(skip, skip + limit);
     const result = wins.map(win => ({
       username: win.user?.username || 'Unknown',
       discordId: win.user?.discordId || '',
@@ -693,6 +734,25 @@ router.post('/:discordId/meowbark', async (req, res) => {
   } catch (error) {
     console.error('Error in meowbark endpoint:', error);
     res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Search users by username (for gifting, autocomplete, etc.)
+router.get('/search-users', async (req, res) => {
+  try {
+    const q = req.query.q || '';
+    if (!q || q.length < 2) {
+      return res.json({ data: [] });
+    }
+    const users = await User.find({
+      username: { $regex: q, $options: 'i' }
+    })
+      .select('discordId username')
+      .limit(20);
+    res.json({ data: users });
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({ message: 'Server error searching users.' });
   }
 });
 

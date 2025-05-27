@@ -2,6 +2,8 @@ require('dotenv').config();
 const { REST, Routes, ApplicationCommandOptionType } = require('discord.js');
 const clientId = process.env.CLIENT_ID;
 const token = process.env.DISCORD_TOKEN;
+const guildId1 = process.env.GUILD_ID_1;
+const guildId2 = process.env.GUILD_ID_2;
 
 const commands = [
 	{
@@ -444,6 +446,20 @@ const commands = [
 			}
 		]
 	},
+	{
+		name: 'refund',
+		description: 'Refund all placed bets for an unresolved bet.',
+		options: [
+			{
+				name: 'bet_id',
+				description: 'The bet to refund.',
+				type: ApplicationCommandOptionType.String,
+				required: true,
+				autocomplete: true
+			}
+		],
+		defaultMemberPermissions: '0',
+	},
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);
@@ -458,6 +474,12 @@ const rest = new REST({ version: '10' }).setToken(token);
 		);
 
 		console.log(`Successfully reloaded ${data.length} global application (/) commands.`);
+		// console.log(`Started removing commands from guild ${guildId2}.`);
+		// await rest.put(
+		// 	Routes.applicationGuildCommands(clientId, guildId2),
+		// 	{ body: [] }
+		// );
+		// console.log(`Successfully removed commands from guild ${guildId2}.`);
 	} catch (error) {
 		console.error(error);
 	}

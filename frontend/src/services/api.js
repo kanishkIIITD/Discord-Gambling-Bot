@@ -22,6 +22,12 @@ export const getTransactionHistory = async (discordId, page = 1, limit = 20) => 
   return response.data;
 };
 
+// User Stats API
+export const getUserStats = async (discordId) => {
+  const response = await axios.get(`${API_URL}/api/users/${discordId}/stats`);
+  return response.data;
+};
+
 // Betting APIs
 export const getActiveBets = async () => {
   const response = await axios.get(`${API_URL}/api/bets/open`);
@@ -178,5 +184,16 @@ export const getMyPlacedBets = async (discordId, page = 1, limit = 20) => {
 // Update username for a user
 export const updateUsername = async (discordId, username) => {
   const response = await axios.post(`${API_URL}/api/users/${discordId}/update-username`, { username });
+  return response.data;
+};
+
+// Refund a bet (admin/superadmin only)
+export const refundBet = async (betId) => {
+  const response = await axios.post(`${API_URL}/api/bets/${betId}/refund`);
+  return response.data;
+};
+
+export const getClosedBets = async () => {
+  const response = await axios.get(`${API_URL}/api/bets/closed`);
   return response.data;
 }; 
