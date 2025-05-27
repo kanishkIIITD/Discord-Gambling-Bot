@@ -12,7 +12,7 @@ const client = new Client({ intents: [
 ] });
 
 client.once('ready', () => {
-	// console.log(`Logged in as ${client.user.tag}!`);
+	console.log(`Logged in as ${client.user.tag}!`);
 });
 
 // Add an interaction listener
@@ -1136,3 +1136,7 @@ client.login(process.env.DISCORD_TOKEN);
 
 // In-memory cooldown map for /meowbark
 const meowbarkCooldowns = new Map(); 
+
+process.on('unhandledRejection', error => {
+	console.error('Unhandled promise rejection:', error);
+}); 
