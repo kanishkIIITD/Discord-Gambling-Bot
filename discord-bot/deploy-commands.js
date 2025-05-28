@@ -447,18 +447,228 @@ const commands = [
 		]
 	},
 	{
-		name: 'refund',
-		description: 'Refund all placed bets for an unresolved bet.',
+		name: 'crime',
+		description: 'Attempt a crime for a chance to win or lose points, or get jailed!',
 		options: [
 			{
-				name: 'bet_id',
-				description: 'The bet to refund.',
-				type: ApplicationCommandOptionType.String,
-				required: true,
-				autocomplete: true
+				name: 'do',
+				description: 'Attempt a crime!',
+				type: 1
+			},
+			{
+				name: 'stats',
+				description: 'View your crime stats',
+				type: 1
 			}
-		],
-		defaultMemberPermissions: '0',
+		]
+	},
+	{
+		name: 'work',
+		description: 'Work a job for a chance to earn points and rare bonuses!',
+		options: [
+			{
+				name: 'do',
+				description: 'Work a job!',
+				type: 1,
+				options: [
+					{
+						name: 'job',
+						description: 'Choose a job or leave blank for random',
+						type: 3,
+						required: false,
+						choices: [
+							{ name: 'Streamer', value: 'streamer' },
+							{ name: 'Pizza Delivery', value: 'pizza delivery' },
+							{ name: 'Mercenary', value: 'mercenary' },
+							{ name: 'Taxi Driver', value: 'taxi driver' },
+							{ name: 'Street Musician', value: 'street musician' },
+							{ name: 'Dog Walker', value: 'dog walker' },
+							{ name: 'Barista', value: 'barista' },
+							{ name: 'Construction Worker', value: 'construction worker' },
+							{ name: 'Social Media Influencer', value: 'social media influencer' },
+							{ name: 'Private Investigator', value: 'private investigator' }
+						]
+					}
+				]
+			},
+			{
+				name: 'stats',
+				description: 'View your work/job stats',
+				type: 1
+			}
+		]
+	},
+	{
+		name: 'bail',
+		description: 'Bail a jailed user out of jail (for a fee)',
+		options: [
+			{
+				name: 'user',
+				description: 'The user to bail out',
+				type: 6,
+				required: true
+			}
+		]
+	},
+	{
+		name: 'fish',
+		description: 'Go fishing for a chance to catch something valuable!'
+	},
+	{
+		name: 'hunt',
+		description: 'Go hunting for a chance to catch a rare animal!'
+	},
+	{
+		name: 'collection',
+		description: 'View your fishing and hunting collection!'
+	},
+	{
+		name: 'sell',
+		description: 'Sell an item from your collection for points!',
+		options: [
+			{
+				name: 'type',
+				description: 'Type of item (fish or animal)',
+				type: 3,
+				required: true,
+				choices: [
+					{ name: 'Fish', value: 'fish' },
+					{ name: 'Animal', value: 'animal' }
+				]
+			},
+			{
+				name: 'name',
+				description: 'Name of the item to sell (case-sensitive)',
+				type: 3,
+				required: true
+			},
+			{
+				name: 'count',
+				description: 'How many to sell',
+				type: 4,
+				required: true
+			}
+		]
+	},
+	{
+		name: 'collection-leaderboard',
+		description: 'View the top collectors by collection value!',
+		options: [
+			{
+				name: 'limit',
+				description: 'Number of users to show (default: 5)',
+				type: ApplicationCommandOptionType.Integer,
+				required: false
+			}
+		]
+	},
+	{
+		name: 'trade',
+		description: 'Gift or trade an item from your collection to another user!',
+		options: [
+			{
+				name: 'user',
+				description: 'The user to trade with',
+				type: 6,
+				required: true
+			},
+			{
+				name: 'type',
+				description: 'Type of item (fish or animal)',
+				type: 3,
+				required: true,
+				choices: [
+					{ name: 'Fish', value: 'fish' },
+					{ name: 'Animal', value: 'animal' }
+				]
+			},
+			{
+				name: 'name',
+				description: 'Name of the item to trade (case-sensitive)',
+				type: 3,
+				required: true
+			},
+			{
+				name: 'count',
+				description: 'How many to trade',
+				type: 4,
+				required: true
+			}
+		]
+	},
+	{
+		name: 'duel',
+		description: 'Challenge another user to a duel for points!',
+		options: [
+			{
+				name: 'challenge',
+				description: 'Challenge a user to a duel!',
+				type: 1,
+				options: [
+					{
+						name: 'user',
+						description: 'The user to duel',
+						type: 6,
+						required: true
+					},
+					{
+						name: 'amount',
+						description: 'Amount to stake in the duel',
+						type: 4,
+						required: true
+					}
+				]
+			},
+			{
+				name: 'accept',
+				description: 'Accept a pending duel',
+				type: 1,
+				options: [
+					{
+						name: 'duel_id',
+						description: 'The ID of the duel to accept',
+						type: 3,
+						required: true,
+						autocomplete: true
+					}
+				]
+			},
+			{
+				name: 'decline',
+				description: 'Decline a pending duel',
+				type: 1,
+				options: [
+					{
+						name: 'duel_id',
+						description: 'The ID of the duel to decline',
+						type: 3,
+						required: true,
+						autocomplete: true
+					}
+				]
+			},
+			{
+				name: 'stats',
+				description: 'View your duel win/loss record',
+				type: 1
+			}
+		]
+	},
+	{
+		name: 'beg',
+		description: 'Beg for coins and see what happens!'
+	},
+	{
+		name: 'mysterybox',
+		description: 'Open a mystery box for a random reward! Free once per day, or pay 2,500 points for an extra box.',
+		options: [
+			{
+				name: 'paid',
+				description: 'Pay coins to open a box (no cooldown)',
+				type: 5,
+				required: false
+			}
+		]
 	},
 ];
 
@@ -466,20 +676,23 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
 	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
+		// console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
 
-		const data = await rest.put(
+		// Deploy to test guild only
+		// const data = await rest.put(
+		// 	Routes.applicationGuildCommands(clientId, guildId1),
+		// 	{ body: commands },
+		// );
+
+		// console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
+
+		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
+		console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
+		const globalData = await rest.put(
 			Routes.applicationCommands(clientId),
 			{ body: commands },
 		);
-
-		console.log(`Successfully reloaded ${data.length} global application (/) commands.`);
-		// console.log(`Started removing commands from guild ${guildId2}.`);
-		// await rest.put(
-		// 	Routes.applicationGuildCommands(clientId, guildId2),
-		// 	{ body: [] }
-		// );
-		// console.log(`Successfully removed commands from guild ${guildId2}.`);
+		console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
 	} catch (error) {
 		console.error(error);
 	}

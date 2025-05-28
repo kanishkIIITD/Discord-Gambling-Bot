@@ -2,6 +2,18 @@ require('dotenv').config();
 
 const { Client, GatewayIntentBits, EmbedBuilder, Collection } = require('discord.js');
 const axios = require('axios');
+const crimeCommand = require('./commands/crime');
+const workCommand = require('./commands/work');
+const fishCommand = require('./commands/fish');
+const huntCommand = require('./commands/hunt');
+const collectionCommand = require('./commands/collection');
+const sellCommand = require('./commands/sell');
+const collectionLeaderboardCommand = require('./commands/collectionLeaderboard');
+const tradeCommand = require('./commands/trade');
+const duelCommand = require('./commands/duel');
+const begCommand = require('./commands/beg');
+const mysteryboxCommand = require('./commands/mysterybox');
+const bailCommand = require('./commands/bail');
 
 const backendApiUrl = process.env.BACKEND_API_URL;
 
@@ -15,6 +27,16 @@ const client = new Client({ intents: [
 client.once('ready', () => {
 	console.log(`Logged in as ${client.user.tag}!`);
 });
+
+// List of commands blocked for jailed users
+const jailedBlockedCommands = [
+	'createbet', 'placebet', 'resolvebet', 'listbets', 'viewbet', 'closebet', 'cancelbet', 'editbet', 'extendbet', 'betinfo',
+	'coinflip', 'dice', 'slots', 'blackjack', 'roulette', 'jackpot', 'duel', 'work', 'beg', 'daily', 'meowbark', 'crime', 'fish', 'hunt', 'sell', 'trade', 'mysterybox', 'gift'
+];
+// List of view-only subcommands for duel, crime, work
+const viewOnlyDuelSubcommands = ['stats'];
+const viewOnlyCrimeSubcommands = ['stats'];
+const viewOnlyWorkSubcommands = ['stats'];
 
 // Add an interaction listener
 client.on('interactionCreate', async interaction => {
@@ -85,17 +107,9 @@ client.on('interactionCreate', async interaction => {
 			}
 			return;
 		}
-		// Autocomplete for /refund (bet_id)
-		if (interaction.commandName === 'refund' && focusedOption.name === 'bet_id') {
-			const response = await axios.get(`${backendApiUrl}/bets/unresolved`);
-			const bets = response.data;
-			await interaction.respond(
-				bets.slice(0, 25).map(bet => ({
-					name: `${bet.description} (${bet._id})`,
-					value: bet._id
-				}))
-			);
-			return;
+		// Add duel autocomplete support
+		if (interaction.commandName === 'duel') {
+			return duelCommand.autocomplete(interaction);
 		}
 		return;
 	}
@@ -106,6 +120,49 @@ client.on('interactionCreate', async interaction => {
 
 	const { commandName } = interaction;
 	const userId = interaction.user.id;
+
+	// Jail check logic
+	let blockForJail = false;
+	if (jailedBlockedCommands.includes(commandName)) {
+		// Special handling for subcommands that are view-only
+		if (commandName === 'duel') {
+			const sub = interaction.options.getSubcommand(false);
+			if (viewOnlyDuelSubcommands.includes(sub)) blockForJail = false;
+			else blockForJail = true;
+		} else if (commandName === 'crime') {
+			const sub = interaction.options.getSubcommand(false);
+			if (viewOnlyCrimeSubcommands.includes(sub)) blockForJail = false;
+			else blockForJail = true;
+		} else if (commandName === 'work') {
+			const sub = interaction.options.getSubcommand(false);
+			if (viewOnlyWorkSubcommands.includes(sub)) blockForJail = false;
+			else blockForJail = true;
+		} else {
+			blockForJail = true;
+		}
+	}
+	if (blockForJail) {
+		try {
+			// Fetch jail status from backend
+			const jailRes = await axios.get(`${backendApiUrl}/users/${userId}/profile`);
+			// console.log('[JAIL DEBUG] Backend /profile response:', JSON.stringify(jailRes.data, null, 2));
+			const isJailed = jailRes.data.user?.isJailed || false;
+			if (isJailed) {
+				const jailedUntil = jailRes.data.user?.jailedUntil;
+				const embed = new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('🚨 You are currently jailed!')
+					.setDescription('You cannot use this command while jailed. Ask a friend to `/bail` you out or wait until your sentence is over.')
+					.addFields({ name: 'Jailed Until', value: jailedUntil ? `<t:${Math.floor(new Date(jailedUntil).getTime()/1000)}:R>` : 'Unknown', inline: false })
+					.setTimestamp();
+				await interaction.reply({ embeds: [embed]});
+				return;
+			}
+		} catch (err) {
+			// If backend fails, allow command (fail open), but log error
+			console.error('Failed to check jail status:', err.response?.data || err.message);
+		}
+	}
 
 	// Ensure user exists in backend before proceeding with most commands
 	try {
@@ -132,7 +189,7 @@ client.on('interactionCreate', async interaction => {
 			const embed = new EmbedBuilder()
 				.setColor(0x0099ff)
 				.setTitle('💰 Your Balance')
-				.setDescription(`Your current balance is: **${balance.toLocaleString()} points**.`)
+				.setDescription(`Your current balance is: **${balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points**.`)
 				.setTimestamp();
 			await interaction.reply({ embeds: [embed] });
 		} catch (error) {
@@ -142,7 +199,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Fetching Balance')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while fetching your balance.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'listbets') {
 		// console.log(`Listing open bets.`);
@@ -182,7 +239,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Listing Bets')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while listing open bets.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'viewbet') {
 		const betId = interaction.options.getString('bet_id');
@@ -220,7 +277,7 @@ client.on('interactionCreate', async interaction => {
 
 					let placedBetsSummary = '';
 					for (const [option, totalAmount] of Object.entries(betsByOption)) {
-						placedBetsSummary += `**${option}:** ${totalAmount.toLocaleString()} points\n`;
+						placedBetsSummary += `**${option}:** ${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\n`;
 					}
 					embed.addFields({ name: 'Total Placed Per Option', value: placedBetsSummary, inline: false });
 				} else {
@@ -240,7 +297,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Viewing Bet')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while viewing the bet.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'createbet') {
 		const description = interaction.options.getString('description');
@@ -308,7 +365,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Creating Bet')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while creating the bet.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 
 	} else if (commandName === 'placebet') {
@@ -337,13 +394,13 @@ client.on('interactionCreate', async interaction => {
 			const embed = new EmbedBuilder()
 				.setColor(0x00b894)
 				.setTitle('✅ Bet Placed!')
-				.setDescription(`You placed a bet on **${option}** for **${amount.toLocaleString()} points**.`)
+				.setDescription(`You placed a bet on **${option}** for **${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points**.`)
 				.addFields(
 					{ name: 'Bet ID', value: betId, inline: true },
 					{ name: 'Option', value: option, inline: true },
-					{ name: 'Amount', value: `${amount.toLocaleString()} points`, inline: true },
+					{ name: 'Amount', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 				)
-				.setFooter({ text: updatedBalance !== null ? `Your new balance: ${updatedBalance.toLocaleString()} points` : 'Bet placed successfully!' })
+				.setFooter({ text: updatedBalance !== null ? `Your new balance: ${updatedBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points` : 'Bet placed successfully!' })
 				.setTimestamp();
 
 			await interaction.reply({ embeds: [embed] });
@@ -354,7 +411,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Placing Bet')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while placing your bet.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 
 	} else if (commandName === 'resolvebet') {
@@ -394,7 +451,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Resolving Bet')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while resolving the bet.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'closebet') {
 		const betId = interaction.options.getString('bet_id');
@@ -417,7 +474,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Closing Bet')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while closing the bet.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'leaderboard') {
 		const limit = interaction.options.getInteger('limit') || 5;
@@ -441,8 +498,8 @@ client.on('interactionCreate', async interaction => {
 
 			const trophyEmojis = ['🥇', '🥈', '🥉'];
 			const fields = leaderboard.map((user, index) => ({
-				name: `${trophyEmojis[index] || `#${index + 1}`} ${user.username}`,
-				value: `**Balance:** ${user.balance.toLocaleString()} points` + (user.discordId ? `\n<@${user.discordId}>` : ''),
+				name: `${trophyEmojis[index] || `#${index + 1}`} ${user.username}`,
+				value: `**Balance:** ${user.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points` + (user.discordId ? `\n<@${user.discordId}>` : ''),
 				inline: false
 			}));
 
@@ -476,7 +533,7 @@ client.on('interactionCreate', async interaction => {
 				  `Total Bets: **${betting.totalBets}**\n` +
 				  `Total Wagered: **${betting.totalWagered}** points\n` +
 				  `Total Won: **${betting.totalWon}** points\n` +
-				  `Total Lost: **${betting.totalLost}** points\n` +
+				  `Total Lost: **${Number(betting.totalLost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
 				  `Win Rate: **${betting.winRate}%**\n` +
 				  `Biggest Win: **${betting.biggestWin}** points\n` +
 				  `Biggest Loss: **${betting.biggestLoss}** points\n\n` +
@@ -484,7 +541,7 @@ client.on('interactionCreate', async interaction => {
 				  `Total Games Played: **${gambling.totalGamesPlayed}**\n` +
 				  `Total Gambled: **${gambling.totalGambled}** points\n` +
 				  `Total Won: **${gambling.totalWon}** points\n` +
-				  `Total Lost: **${gambling.totalLost}** points\n` +
+				  `Total Lost: **${Number(gambling.totalLost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
 				  `Win Rate: **${gambling.winRate}%**\n` +
 				  `Biggest Win: **${gambling.biggestWin}** points\n` +
 				  `Biggest Loss: **${gambling.biggestLoss}** points\n` +
@@ -522,8 +579,7 @@ client.on('interactionCreate', async interaction => {
 					'`/cancelbet` - Cancel a bet before any bets are placed (Creator/Admin/Superadmin only)\n' +
 					'`/editbet` - Edit a bet\'s details before any bets are placed (Creator/Admin/Superadmin only)\n' +
 					'`/extendbet` - Extend the duration of an open bet (Creator/Admin/Superadmin only)\n' +
-					'`/betinfo` - Show detailed information about a bet\n' +
-        	'`/refund` - Refund all placed bets for an unresolved bet (Admin/Superadmin only)'
+					'`/betinfo` - Show detailed information about a bet'
 				},
 				{ name: '💰 Wallet Commands', value:
 					'`/balance` - Check your current balance\n' +
@@ -542,9 +598,32 @@ client.on('interactionCreate', async interaction => {
 				{ name: '📊 Utility Commands', value:
 					'`/leaderboard` - View top users by balance\n' +
 					'`/stats` - View your full betting and gambling statistics\n' +
-					'`/profile` - View your detailed profile\n' +
-					'`/help` - Show this help menu\n' +
-					'`/meowbark` - Perform a meow or bark to earn points (5 min cooldown, max 100,000 points)'
+					'`/profile` - View your detailed profile'
+				},
+				{
+					name: '📊 Fun & Collection Commands', value:
+					'`/meowbark` - Perform a meow or bark to earn points (5 min cooldown, max 100,000 points)\n' +
+					'`/crime do` - Attempt a crime for a chance to win or lose points, or get jailed\n' +
+					'`/crime stats` - View your crime stats\n' +
+					'`/work do` - Work a job for a chance to earn points and rare bonuses\n' +
+					'`/work stats` - View your work/job stats\n' +
+					'`/bail @user` - Bail a jailed user out (for a fee)\n' +
+					'`/fish` - Go fishing for a chance to catch something valuable!\n' +
+					'`/hunt` - Go hunting for a chance to catch a rare animal!\n' +
+					'`/collection` - View your fishing and hunting collection\n' +
+					'`/collection-leaderboard` - View the top collectors by collection value\n' +
+					'`/sell` - Sell an item from your collection for points\n' +
+					'`/trade` - Gift or trade an item from your collection to another user\n' +
+					'`/beg` - Beg for coins and see what happens!\n' +
+					'`/mysterybox` - Open a mystery box for a random reward!\n' +
+					'Buffs: Obtain temporary buffs from `/mysterybox`! Active buffs are shown in `/collection.`'
+				},
+				{
+					name: '⚔️ Duel Commands', value:
+					'`/duel challenge @user amount` - Challenge another user to a duel for points\n' +
+					'`/duel accept duel_id` - Accept a pending duel (autocomplete duel ID)\n' +
+					'`/duel decline duel_id` - Decline a pending duel (autocomplete duel ID)\n' +
+					'`/duel stats` - View your duel win/loss record'
 				}
 			],
 			timestamp: new Date()
@@ -572,7 +651,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Cancelling Bet')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while cancelling the bet.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'editbet') {
 		const betId = interaction.options.getString('bet_id');
@@ -626,7 +705,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Editing Bet')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while editing the bet.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'extendbet') {
 		const betId = interaction.options.getString('bet_id');
@@ -653,7 +732,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Extending Bet')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while extending the bet.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'betinfo') {
 		const betId = interaction.options.getString('bet_id');
@@ -685,7 +764,7 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Created By', value: `<@${bet.creator.discordId}>`, inline: true },
 					{ name: 'Created At', value: new Date(bet.createdAt).toLocaleString(), inline: true },
 					{ name: 'Closing Time', value: bet.closingTime ? new Date(bet.closingTime).toLocaleString() : 'Not set', inline: true },
-					{ name: 'Total Pot', value: `${totalPot.toLocaleString()} points`, inline: true },
+					{ name: 'Total Pot', value: `${totalPot.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false }
 				)
 				.setTimestamp();
@@ -694,7 +773,7 @@ client.on('interactionCreate', async interaction => {
 			let betsPerOptionText = '';
 			for (const [option, amount] of Object.entries(betsByOption)) {
 				const percentage = totalPot > 0 ? ((amount / totalPot) * 100).toFixed(1) : 0;
-				betsPerOptionText += `**${option}:** ${amount.toLocaleString()} points (${percentage}%)\n`;
+				betsPerOptionText += `**${option}:** ${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points (${percentage}%)\n`;
 			}
 			embed.addFields({ name: 'Bets Per Option', value: betsPerOptionText || 'No bets placed yet', inline: false });
 
@@ -711,7 +790,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Fetching Bet Info')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while fetching bet information.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'daily') {
 		// console.log(`Attempting to claim daily bonus for user: ${userId}`);
@@ -723,7 +802,7 @@ client.on('interactionCreate', async interaction => {
 			const embed = new EmbedBuilder()
 				.setColor(0x00ff00)
 				.setTitle('🎁 Daily Bonus Claimed!')
-				.setDescription(`You received **${amount.toLocaleString()} points**!`)
+				.setDescription(`You received **${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points**!`)
 				.addFields(
 					{ name: 'Current Streak', value: `${streak} days`, inline: true },
 					{ name: 'Next Claim', value: `<t:${Math.floor(nextClaimTime / 1000)}:R>`, inline: true }
@@ -750,7 +829,7 @@ client.on('interactionCreate', async interaction => {
 						.setTitle('❌ Error Claiming Daily Bonus')
 						.setDescription(error.response.data.message)
 						.setTimestamp();
-					await interaction.reply({ embeds: [embed] });
+					await safeErrorReply(interaction, embed);
 				}
 			} else {
 				const embed = new EmbedBuilder()
@@ -758,7 +837,7 @@ client.on('interactionCreate', async interaction => {
 					.setTitle('❌ Error Claiming Daily Bonus')
 					.setDescription(error.message || 'An error occurred while claiming your daily bonus.')
 					.setTimestamp();
-				await interaction.reply({ embeds: [embed] });
+				await safeErrorReply(interaction, embed);
 			}
 		}
 	} else if (commandName === 'gift') {
@@ -776,9 +855,9 @@ client.on('interactionCreate', async interaction => {
 			const embed = new EmbedBuilder()
 				.setColor(0x00ff00)
 				.setTitle('🎁 Gift Sent!')
-				.setDescription(`You gifted **${amount.toLocaleString()} points** to ${recipient}!`)
+				.setDescription(`You gifted **${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points** to ${recipient}!`)
 				.addFields(
-					{ name: 'Your New Balance', value: `${response.data.newBalance.toLocaleString()} points`, inline: true }
+					{ name: 'Your New Balance', value: `${response.data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 				.setTimestamp();
 
@@ -790,7 +869,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Gifting Points')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while gifting points.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'profile') {
 		const targetUser = interaction.options.getUser('user') || interaction.user;
@@ -804,7 +883,7 @@ client.on('interactionCreate', async interaction => {
 				color: 0x0099ff,
 				title: `👤 ${targetUser.username}'s Profile`,
 				fields: [
-					{ name: 'Balance', value: `${wallet.balance} points`, inline: true },
+					{ name: 'Balance', value: `${wallet.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: '🎲 Betting', value:
 						`Total Bets: ${betting.totalBets}\n` +
 						`Total Wagered: ${betting.totalWagered} points\n` +
@@ -822,7 +901,7 @@ client.on('interactionCreate', async interaction => {
 				betting.recentBets.forEach(bet => {
 					const statusEmoji = bet.status === 'resolved' ? 
 						(bet.result === 'Won' ? '✅' : '❌') : '⏳';
-					recentBetsText += `${statusEmoji} ${bet.description} (${bet.amount} points)\n`;
+					recentBetsText += `${statusEmoji} ${bet.description} (${bet.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points)\n`;
 				});
 				embed.fields.push({ name: 'Recent Bets', value: recentBetsText, inline: false });
 			}
@@ -833,7 +912,12 @@ client.on('interactionCreate', async interaction => {
 			if (error.response && error.response.status === 404) {
 				await interaction.reply(`Could not find profile for ${targetUser.username}.`);
 			} else {
-				await interaction.reply('An error occurred while fetching the profile. Please try again later.');
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Fetching Profile')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while fetching the profile.')
+					.setTimestamp()
+				);
 			}
 		}
 	} else if (commandName === 'coinflip') {
@@ -853,8 +937,8 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Your Choice', value: choice, inline: true },
 					{ name: 'Result', value: result, inline: true },
 					{ name: 'Outcome', value: won ? '🎉 You won!' : '😢 You lost!', inline: true },
-					{ name: 'Winnings', value: `${winnings.toLocaleString()} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true }
+					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 				.setTimestamp();
 			await interaction.reply({ embeds: [embed] });
@@ -865,7 +949,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Playing Coinflip')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing coinflip.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'dice') {
 		const betType = interaction.options.getString('bet_type');
@@ -886,8 +970,8 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Bet Type', value: betType, inline: true },
 					{ name: 'Your Bet', value: betType === 'specific' ? number.toString() : betType, inline: true },
 					{ name: 'Outcome', value: won ? '🎉 You won!' : '😢 You lost!', inline: true },
-					{ name: 'Winnings', value: `${winnings.toLocaleString()} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true }
+					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 				.setTimestamp();
 			await interaction.reply({ embeds: [embed] });
@@ -898,7 +982,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Playing Dice')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing dice.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'slots') {
 		const amount = interaction.options.getInteger('amount');
@@ -908,7 +992,7 @@ client.on('interactionCreate', async interaction => {
 			});
 			const { reels, won, winnings, newBalance, isJackpot, jackpotPool, freeSpins, usedFreeSpin, winType } = response.data;
 			let description = isJackpot ?
-				`**JACKPOT!** You won the entire jackpot of ${winnings.toLocaleString()} points!` :
+				`**JACKPOT!** You won the entire jackpot of ${winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points!` :
 				`[ ${reels.join(' | ')} ]`;
 			let outcome = isJackpot ? '🎉 JACKPOT!' : (won ? '🎉 You won!' : '😢 You lost!');
 			if (winType === 'two-sevens') outcome = '✨ Two 7️⃣! 5x win!';
@@ -921,9 +1005,9 @@ client.on('interactionCreate', async interaction => {
 				.setDescription(description)
 				.addFields(
 					{ name: 'Outcome', value: outcome, inline: true },
-					{ name: 'Winnings', value: `${winnings.toLocaleString()} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true },
-					{ name: 'Jackpot Pool', value: `${(jackpotPool || 0).toLocaleString()} points`, inline: true },
+					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'Jackpot Pool', value: `${(jackpotPool || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'Free Spins', value: `${freeSpins || 0}`, inline: true },
 				);
 			if (usedFreeSpin && !won && !isJackpot) {
@@ -938,7 +1022,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Playing Slots')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing slots.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'blackjack') {
 		try {
@@ -953,7 +1037,7 @@ client.on('interactionCreate', async interaction => {
 				.setColor(data.gameOver ? (data.results.some(r => r.result === 'win' || r.result === 'blackjack') ? 0x00ff00 : 0xff0000) : 0x0099ff)
 				.setTitle(data.gameOver ? 'Blackjack Game Over' : 'Blackjack')
 				.setDescription(data.gameOver ? 
-					data.results.map((r, i) => `Hand ${i + 1}: ${r.result.toUpperCase()} (${r.winnings.toLocaleString()} points)`).join('\n') :
+					data.results.map((r, i) => `Hand ${i + 1}: ${r.result.toUpperCase()} (${r.winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points)`).join('\n') :
 					'Your turn! Choose an action below.');
 			// Add player hands
 			data.playerHands.forEach((hand, i) => {
@@ -988,7 +1072,7 @@ client.on('interactionCreate', async interaction => {
 			}
 			embed.addFields({
 				name: 'Your Balance',
-				value: `${data.newBalance.toLocaleString()} points`
+				value: `${data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`
 			});
 			embed.setTimestamp();
 			await interaction.reply({ embeds: [embed] });
@@ -1000,7 +1084,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Playing Blackjack')
 				.setDescription(errorMessage)
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'roulette') {
 		const betType = interaction.options.getString('bet_type');
@@ -1026,13 +1110,13 @@ client.on('interactionCreate', async interaction => {
 				.setDescription(`The ball landed on **${result}** (${color})!\n\n__Your Bets:__`)
 				.addFields(
 					...bets.map(bet => ({
-						name: `${bet.type}${bet.number !== undefined ? ` (${bet.number})` : ''} Bet: ${bet.amount.toLocaleString()}`,
-						value: bet.won ? `🎉 Won ${bet.winnings.toLocaleString()} points!` : '😢 Lost',
+						name: `${bet.type}${bet.number !== undefined ? ` (${bet.number})` : ''} Bet: ${bet.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+						value: bet.won ? `🎉 Won ${bet.winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points!` : '😢 Lost',
 						inline: true
 					})),
 					{ name: '\u200B', value: '\u200B' },
-					{ name: 'Total Winnings', value: `${totalWinnings.toLocaleString()} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true }
+					{ name: 'Total Winnings', value: `${totalWinnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 				.setTimestamp();
 			await interaction.reply({ embeds: [embed] });
@@ -1043,7 +1127,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Playing Roulette')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing roulette.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'jackpot') {
 		const action = interaction.options.getString('action');
@@ -1056,13 +1140,13 @@ client.on('interactionCreate', async interaction => {
 					.setColor(0xffd700)
 					.setTitle('💰 Progressive Jackpot')
 					.addFields(
-						{ name: 'Current Amount', value: `${currentAmount.toLocaleString()} points`, inline: true }
+						{ name: 'Current Amount', value: `${currentAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 					)
 					.setTimestamp();
 				if (lastWinner) {
 					embed.addFields(
 						{ name: 'Last Winner', value: `<@${lastWinner.discordId}>`, inline: true },
-						{ name: 'Last Win Amount', value: `${lastWinAmount.toLocaleString()} points`, inline: true },
+						{ name: 'Last Win Amount', value: `${lastWinAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 						{ name: 'Last Win Time', value: new Date(lastWinTime).toLocaleString(), inline: true }
 					);
 				}
@@ -1075,10 +1159,10 @@ client.on('interactionCreate', async interaction => {
 				const embed = new EmbedBuilder()
 					.setColor(0x00ff00)
 					.setTitle('💰 Jackpot Contribution')
-					.setDescription(`You contributed ${contribution.toLocaleString()} points to the jackpot!`)
+					.setDescription(`You contributed ${contribution.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points to the jackpot!`)
 					.addFields(
-						{ name: 'New Jackpot Amount', value: `${newJackpotAmount.toLocaleString()} points`, inline: true },
-						{ name: 'Your New Balance', value: `${newBalance.toLocaleString()} points`, inline: true }
+						{ name: 'New Jackpot Amount', value: `${newJackpotAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+						{ name: 'Your New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 					)
 					.setTimestamp();
 				await interaction.reply({ embeds: [embed] });
@@ -1090,7 +1174,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error in Jackpot')
 				.setDescription(error.response?.data?.message || error.message || `An error occurred while ${action}ing the jackpot.`)
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'transactions') {
 		try {
@@ -1122,7 +1206,7 @@ client.on('interactionCreate', async interaction => {
 				.addFields(
 					...transactions.map(tx => ({
 						name: `${tx.type.toUpperCase()} - ${new Date(tx.timestamp).toLocaleString()}`,
-						value: `Amount: ${tx.amount.toLocaleString()} points\nDescription: ${tx.description || 'No description'}`,
+						value: `Amount: ${tx.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\nDescription: ${tx.description || 'No description'}`,
 						inline: false
 					}))
 				)
@@ -1179,9 +1263,12 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('❌ Error Listing Unresolved Bets')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while listing unresolved bets.')
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'meowbark') {
+		// Defensive: prevent double reply if already replied (e.g., jail logic)
+		if (interaction.replied || interaction.deferred) return;
+
 		const amount = interaction.options.getInteger('amount');
 		const userId = interaction.user.id;
 		const now = Date.now();
@@ -1256,32 +1343,86 @@ client.on('interactionCreate', async interaction => {
 				return;
 			}
 		}
-	} else if (commandName === 'refund') {
-		const betId = interaction.options.getString('bet_id');
-		try {
-			// Call backend to refund the bet
-			const response = await axios.post(`${backendApiUrl}/bets/${betId}/refund`, {
-				adminDiscordId: userId
-			});
-			const bet = response.data.bet;
-			const embed = new EmbedBuilder()
-				.setColor(0x00b894)
-				.setTitle('💸 Bet Refunded')
-				.setDescription(`All placed bets for **${bet.description}** have been refunded.`)
-				.addFields(
-					{ name: 'Bet ID', value: bet._id, inline: true },
-					{ name: 'Status', value: bet.status, inline: true }
-				)
-				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
-		} catch (error) {
-			console.error('Error refunding bet:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Refunding Bet')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while refunding the bet.')
-				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+	} else if (commandName === 'crime') {
+		await crimeCommand.execute(interaction);
+	} else if (commandName === 'work') {
+		await workCommand.execute(interaction);
+	} else if (commandName === 'fish') {
+		await fishCommand.execute(interaction);
+	} else if (commandName === 'hunt') {
+		await huntCommand.execute(interaction);
+	} else if (commandName === 'collection') {
+		await collectionCommand.execute(interaction);
+	} else if (commandName === 'sell') {
+		await sellCommand.execute(interaction);
+	} else if (commandName === 'collection-leaderboard') {
+		await collectionLeaderboardCommand.execute(interaction);
+	} else if (commandName === 'trade') {
+		await tradeCommand.execute(interaction);
+	} else if (commandName === 'duel') {
+		await duelCommand.execute(interaction);
+	} else if (commandName === 'beg') {
+		await begCommand.execute(interaction);
+	} else if (commandName === 'mysterybox') {
+		await mysteryboxCommand.execute(interaction);
+	} else if (commandName === 'bail') {
+		await bailCommand.execute(interaction);
+	}
+
+	// --- Handle duel accept/decline buttons ---
+	if (interaction.isButton()) {
+		if (interaction.customId.startsWith('duel_accept_') || interaction.customId.startsWith('duel_decline_')) {
+			const duelId = interaction.customId.replace('duel_accept_', '').replace('duel_decline_', '');
+			const accept = interaction.customId.startsWith('duel_accept_');
+			const userId = interaction.user.id;
+			const backendUrl = process.env.BACKEND_API_URL;
+			try {
+				// Only allow the challenged user to respond
+				// Fetch duel info from backend to get the opponent's Discord ID
+				const duelRes = await axios.get(`${backendUrl}/duels/${duelId}`);
+				const duel = duelRes.data;
+				if (duel.status !== 'pending') {
+					await interaction.reply({ content: 'This duel has already been resolved.', ephemeral: true });
+					return;
+				}
+				if (userId !== duel.opponentDiscordId) {
+					await interaction.reply({ content: 'Only the challenged user can accept or decline this duel.', ephemeral: true });
+					return;
+				}
+				// Respond to duel
+				const response = await axios.post(`${backendUrl}/users/${userId}/duel/respond`, {
+					duelId,
+					accept
+				});
+				if (accept) {
+					const { winner, actionText } = response.data;
+					const winnerMention = `<@${winner}>`;
+					const resultEmbed = {
+						color: 0x00b894,
+						title: '⚔️ Duel Result',
+						description: `${winnerMention} ${actionText}\n\n**Winner:** ${winnerMention}`,
+						timestamp: new Date(),
+						footer: { text: `Duel ID: ${duelId}` }
+					};
+					await interaction.update({ embeds: [resultEmbed], components: [] });
+				} else {
+					const resultEmbed = {
+						color: 0xff7675,
+						title: 'Duel Declined',
+						description: `<@${userId}> declined the duel. Stakes refunded.`,
+						timestamp: new Date(),
+						footer: { text: `Duel ID: ${duelId}` }
+					};
+					await interaction.update({ embeds: [resultEmbed], components: [] });
+				}
+			} catch (error) {
+				if (error.response && error.response.data && error.response.data.message) {
+					await interaction.reply({ content: error.response.data.message, ephemeral: true });
+				} else {
+					await interaction.reply({ content: 'Error processing duel response.', ephemeral: true });
+				}
+			}
+			return;
 		}
 	}
 });
@@ -1295,3 +1436,18 @@ const meowbarkCooldowns = new Map();
 process.on('unhandledRejection', error => {
 	console.error('Unhandled promise rejection:', error);
 }); 
+
+// Patch: Helper for safe error reply
+async function safeErrorReply(interaction, embed) {
+	try {
+		if (interaction.replied) {
+			await interaction.followUp({ embeds: [embed], ephemeral: true });
+		} else if (interaction.deferred) {
+			await interaction.editReply({ embeds: [embed], ephemeral: true });
+		} else {
+			await interaction.reply({ embeds: [embed], ephemeral: true });
+		}
+	} catch (err) {
+		console.error('Failed to send error reply:', err);
+	}
+} 

@@ -59,9 +59,11 @@ module.exports = {
             };
 
             await interaction.editReply({ embeds: [embed] });
+            return;
         } catch (error) {
             logger.error('Error in transaction history command:', error);
             await ResponseHandler.handleError(interaction, error, 'Transaction History');
+            return;
         }
     },
 }; 
