@@ -6,6 +6,9 @@ import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import Dice from 'react-dice-roll';
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
 export const DiceRoll = () => {
   const { user } = useAuth();
   const { walletBalance, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance } = useDashboard();
@@ -52,11 +55,11 @@ export const DiceRoll = () => {
     setCheatValue(null); // Reset before roll
     setPendingResult(null);
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/dice`, {
-        amount: amount,
-        bet_type: betType,
-        number: betType === 'specific' ? parseInt(specificNumber, 10) : undefined,
-      });
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/dice`,
+        { amount: amount, bet_type: betType, number: betType === 'specific' ? parseInt(specificNumber, 10) : undefined, guildId: MAIN_GUILD_ID },
+        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
+      );
       const { roll, won, winnings, newBalance } = response.data;
       setResult(roll);
       setPendingResult({ roll, won, winnings, amount });

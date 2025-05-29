@@ -1,6 +1,7 @@
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const User = require('../models/User');
+const MAIN_GUILD_ID = process.env.DEFAULT_GUILD_ID;
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
@@ -30,13 +31,15 @@ passport.use(new DiscordStrategy({
         discordId: profile.id,
         username: profile.username,
         email: profile.email,
-        avatar: profile.avatar
+        avatar: profile.avatar,
+        guildId: MAIN_GUILD_ID
       });
     } else {
       // Update user info
       user.username = profile.username;
       user.email = profile.email;
       user.avatar = profile.avatar;
+      if (!user.guildId) user.guildId = MAIN_GUILD_ID;
       await user.save();
     }
 

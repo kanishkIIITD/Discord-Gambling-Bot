@@ -3,6 +3,10 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+// TODO: Replace with dynamic guild selection for multi-guild support
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID || 'YOUR_MAIN_GUILD_ID';
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,11 +26,16 @@ export const AuthProvider = ({ children }) => {
         throw new Error('No token found');
       }
 
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/api/auth/me`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'x-guild-id': MAIN_GUILD_ID
+          },
+          params: { guildId: MAIN_GUILD_ID }
         }
-      });
+      );
       // The returned user object contains the Discord username (from OAuth),
       // which is used to update the backend username after login.
       setUser(response.data);
@@ -55,9 +64,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/logout`, {}, {
+        await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/logout`, { guildId: MAIN_GUILD_ID }, {
           headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
+            'x-guild-id': MAIN_GUILD_ID
           }
         });
       }

@@ -5,6 +5,9 @@ import axios from 'axios';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import ReactPaginate from 'react-paginate';
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
 const SORT_OPTIONS = [
   { value: 'max', label: 'Max Streak' },
   { value: 'current', label: 'Current Streak' },
@@ -46,7 +49,13 @@ export const WinStreakLeaderboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/leaderboard/winstreaks?page=${page}&limit=${userPreferences.itemsPerPage}&sortBy=${sortBy}&sortOrder=${sortOrder}`);
+        const res = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/users/leaderboard/winstreaks`,
+          {
+            params: { page, limit: userPreferences.itemsPerPage, sortBy, sortOrder, guildId: MAIN_GUILD_ID },
+            headers: { 'x-guild-id': MAIN_GUILD_ID }
+          }
+        );
         setLeaderboard(res.data.data);
         setTotalCount(res.data.totalCount);
       } catch (err) {

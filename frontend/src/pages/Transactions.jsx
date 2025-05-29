@@ -1,7 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTransactionHistory, getUserPreferences } from '../services/api';
 import ReactPaginate from 'react-paginate';
+import axios from 'axios';
+
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
 
 export const Transactions = () => {
   const { user } = useAuth();
@@ -12,6 +16,7 @@ export const Transactions = () => {
   const [userPreferences, setUserPreferences] = useState(null);
   const [totalPages, setTotalPages] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     const fetchUserPreferences = async () => {
@@ -31,21 +36,27 @@ export const Transactions = () => {
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      if (!user?.discordId || !userPreferences) return;
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        const response = await getTransactionHistory(user.discordId, currentPage, userPreferences.itemsPerPage);
-        setTransactions(response.transactions);
-        setTotalPages(Math.ceil(response.totalCount / userPreferences.itemsPerPage));
-        setTotalCount(response.totalCount);
+        const itemsPerPage = userPreferences?.itemsPerPage || 20;
+        const res = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/transactions`,
+          { params: { page: currentPage, limit: itemsPerPage, type: filter, guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
+        );
+        setTransactions(res.data.transactions);
+        setTotalCount(res.data.totalCount);
+        setTotalPages(Math.ceil(res.data.totalCount / itemsPerPage) || 1);
       } catch (err) {
-        setError('Failed to load transaction history.');
+        setError('Failed to fetch transactions.');
       } finally {
         setLoading(false);
       }
     };
-    fetchTransactions();
-  }, [user, currentPage, userPreferences]);
+    if (user?.discordId && userPreferences) {
+      fetchTransactions();
+    }
+  }, [user, currentPage, filter, userPreferences]);
 
   // react-paginate expects 0-based page index
   const handlePageChange = (selectedItem) => {
@@ -96,6 +107,7 @@ export const Transactions = () => {
                     switch (transaction.type) {
                       case 'bet': return 'Bet Placed';
                       case 'win': return 'Win';
+                      case 'lose': return 'Loss';
                       case 'daily': return 'Daily Bonus';
                       case 'gift_sent': return 'Gift Sent';
                       case 'gift_received': return 'Gift Received';
@@ -104,6 +116,11 @@ export const Transactions = () => {
                       case 'initial_balance': return 'Initial Balance';
                       case 'meowbark': return 'Meowbark';
                       case 'refund': return 'Refund';
+                      case 'trade_sent': return 'Trade Sent';
+                      case 'trade_received': return 'Trade Received';
+                      case 'sell': return 'Sell';
+                      case 'bail': return 'Bail';
+                      case 'giveaway': return 'Giveaway';
                       default: return 'Unknown';
                     }
                   };

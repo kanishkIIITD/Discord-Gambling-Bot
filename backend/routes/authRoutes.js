@@ -22,9 +22,7 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// Apply requireGuildId to all routes
-router.use(requireGuildId);
-
+// --- DO NOT requireGuildId for Discord OAuth routes ---
 // Discord OAuth2 login route
 router.get('/discord', passport.authenticate('discord'));
 
@@ -44,8 +42,9 @@ router.get('/discord/callback',
   }
 );
 
+// --- Only requireGuildId for routes that need it ---
 // Get current user
-router.get('/me', verifyToken, async (req, res) => {
+router.get('/me', requireGuildId, verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-__v');
     if (!user) {
@@ -58,7 +57,7 @@ router.get('/me', verifyToken, async (req, res) => {
 });
 
 // Logout route
-router.post('/logout', verifyToken, (req, res) => {
+router.post('/logout', requireGuildId, verifyToken, (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 

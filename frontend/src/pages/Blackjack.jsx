@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDashboard } from '../contexts/DashboardContext';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import ChipList from '../components/ChipList';
 // import ChipSelector from '../components/ChipSelector'; // Placeholder for chip selector
 // import ResultModal from '../components/ResultModal'; // Placeholder for result modal
+
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
 
 export const Blackjack = () => {
   const { user } = useAuth();
@@ -53,9 +56,11 @@ export const Blackjack = () => {
     setPrevWalletBalance(walletBalance);
     setSuppressWalletBalance(true);
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/blackjack`, {
-        amount: totalBet
-      });
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/blackjack`,
+        { amount: totalBet, guildId: MAIN_GUILD_ID },
+        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
+      );
       setGameState(response.data);
       setChipStack([]); // Clear chips after bet
       setTimeout(() => {
@@ -73,9 +78,11 @@ export const Blackjack = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/blackjack`, {
-        action
-      });
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/blackjack`,
+        { action, guildId: MAIN_GUILD_ID },
+        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
+      );
       setGameState(response.data);
       if (response.data.gameOver) {
         setShowResultModal(true);

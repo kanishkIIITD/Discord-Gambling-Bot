@@ -5,6 +5,9 @@ import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import axios from 'axios';
 import ReactPaginate from 'react-paginate';
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
 const SORT_OPTIONS = [
   { value: 'balance', label: 'Balance' },
   { value: 'alpha', label: 'Player (A-Z)' },
@@ -44,7 +47,13 @@ export const TopPlayers = () => {
       if (!user?.discordId || !userPreferences) return;
       try {
         setLoading(true);
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/leaderboard?page=${page}&limit=${userPreferences.itemsPerPage}&sortBy=${sortBy}&sortOrder=${sortOrder}`);
+        const res = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/leaderboard`,
+          {
+            params: { page, limit: userPreferences.itemsPerPage, sortBy, sortOrder, guildId: MAIN_GUILD_ID },
+            headers: { 'x-guild-id': MAIN_GUILD_ID }
+          }
+        );
         setLeaderboard(res.data.data);
         setTotalCount(res.data.totalCount);
       } catch (err) {

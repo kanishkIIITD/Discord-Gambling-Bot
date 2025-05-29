@@ -2,6 +2,10 @@ import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+// TODO: Replace with dynamic guild selection for multi-guild support
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID || 'YOUR_MAIN_GUILD_ID';
+
 export const AuthCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,9 +32,10 @@ export const AuthCallback = () => {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
+                  'Authorization': `Bearer ${token}`,
+                  'x-guild-id': MAIN_GUILD_ID
                 },
-                body: JSON.stringify({ username: user.username })
+                body: JSON.stringify({ username: user.username, guildId: MAIN_GUILD_ID })
               });
             } catch (err) {
               // Not fatal, just log

@@ -5,6 +5,10 @@ import ReactPaginate from 'react-paginate';
 import { Listbox } from '@headlessui/react';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
+
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
 
 const RESULT_FILTERS = [
   { value: 'all', label: 'All Results' },
@@ -55,35 +59,37 @@ const MyBetsPage = () => {
   }, [user]);
 
   useEffect(() => {
-    const fetchBets = async () => {
-      if (!user?.discordId || !userPreferences) return;
+    const fetchMyBets = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        setError(null);
-        // Fetch ALL bets for the user (no pagination)
-        let allBets = [];
-        let pageNum = 1;
-        let keepFetching = true;
-        const pageSize = 100; // reasonable batch size
-        while (keepFetching) {
-          const res = await getMyPlacedBets(user.discordId, pageNum, pageSize);
-          allBets = allBets.concat(res.data);
-          if (res.data.length < pageSize) {
-            keepFetching = false;
-          } else {
-            pageNum++;
+        const res = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/bets`,
+          {
+            params: {
+              page,
+              limit: userPreferences.itemsPerPage,
+              guildId: MAIN_GUILD_ID,
+              result: resultFilter.value,
+              status: statusFilter.value,
+              sortBy: sortBy.value,
+              sortOrder,
+            },
+            headers: { 'x-guild-id': MAIN_GUILD_ID }
           }
-        }
-        setBets(allBets);
-        setTotalCount(allBets.length);
+        );
+        setBets(res.data.data);
+        setTotalCount(res.data.totalCount);
       } catch (err) {
-        setError('Failed to load your bets.');
+        setError('Failed to fetch your bets.');
       } finally {
         setLoading(false);
       }
     };
-    fetchBets();
-  }, [user, userPreferences]);
+    if (user?.discordId && userPreferences) {
+      fetchMyBets();
+    }
+  }, [user, page, userPreferences, resultFilter, statusFilter, sortBy, sortOrder]);
 
   useEffect(() => {
     if (!showSortMenu) return;
@@ -98,37 +104,10 @@ const MyBetsPage = () => {
     };
   }, [showSortMenu]);
 
-  // Filtering and sorting logic
-  let filteredBets = bets;
-  if (resultFilter.value !== 'all') {
-    filteredBets = filteredBets.filter(bet => {
-      const betStatus = bet.bet?.status;
-      const isResolved = betStatus === 'resolved';
-      const isWon = isResolved && bet.option === bet.bet?.winningOption;
-      if (resultFilter.value === 'won') return isResolved && isWon;
-      if (resultFilter.value === 'lost') return isResolved && !isWon;
-      if (resultFilter.value === 'pending') return !isResolved;
-      return true;
-    });
-  }
-  if (statusFilter.value !== 'all') {
-    filteredBets = filteredBets.filter(bet => bet.bet?.status === statusFilter.value);
-  }
-  // Sorting
-  filteredBets = [...filteredBets].sort((a, b) => {
-    let cmp = 0;
-    if (sortBy.value === 'amount') {
-      cmp = b.amount - a.amount;
-    } else if (sortBy.value === 'placedAt') {
-      cmp = new Date(b.placedAt) - new Date(a.placedAt);
-    }
-    return sortOrder === 'asc' ? -cmp : cmp;
-  });
-
-  // Pagination (client-side after filtering)
+  // Server-side pagination
   const itemsPerPage = userPreferences?.itemsPerPage || 10;
-  const totalPages = Math.ceil(filteredBets.length / itemsPerPage) || 1;
-  const paginatedBets = filteredBets.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
+  const paginatedBets = bets;
 
   const handlePageChange = (selectedItem) => {
     setPage(selectedItem.selected + 1);
@@ -244,45 +223,51 @@ const MyBetsPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {paginatedBets.map((bet, idx) => {
-                const betStatus = bet.bet?.status || '-';
-                const isResolved = betStatus === 'resolved';
-                const isWon = isResolved && bet.option === bet.bet?.winningOption;
-                return (
-                  <tr key={bet._id} className="hover:bg-primary/5">
-                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-pre-line break-words max-w-[120px] sm:max-w-none text-sm text-text-primary tracking-wide text-center">{bet.bet?.description || '-'}</td>
-                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm font-medium text-primary tracking-wide text-center">{bet.amount}</td>
-                    <td className="px-2 sm:px-6 py-2 sm:py-3 break-words max-w-[100px] sm:max-w-none text-sm text-text-secondary tracking-wide text-center">{bet.option}</td>
-                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-secondary tracking-wide text-center">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        betStatus === 'open' ? 'bg-success/20 text-success' :
-                        betStatus === 'closed' ? 'bg-warning/20 text-warning' :
-                        betStatus === 'resolved' ? 'bg-info/20 text-info' : 'bg-gray-500/20 text-gray-400'
-                      }`}>
-                        {betStatus.charAt(0).toUpperCase() + betStatus.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm tracking-wide text-center">
-                      {isResolved ? (
-                        isWon ? <span className="text-success font-semibold">Won</span> : <span className="text-error font-semibold">Lost</span>
-                      ) : (
-                        <span className="text-text-secondary">Pending</span>
-                      )}
-                    </td>
-                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-secondary tracking-wide text-center">{bet.placedAt ? new Date(bet.placedAt).toLocaleString() : '-'}</td>
-                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-center">
-                      {bet.bet?._id && (
-                        <Link
-                          to={`/dashboard/betting/view?betId=${bet.bet._id}`}
-                          className="text-primary underline text-sm"
-                        >
-                          View Bet
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {paginatedBets.length > 0 ? (
+                paginatedBets.map((bet, idx) => {
+                  const betStatus = bet.bet?.status || '-';
+                  const isResolved = betStatus === 'resolved';
+                  const isWon = isResolved && bet.option === bet.bet?.winningOption;
+                  return (
+                    <tr key={bet._id} className="hover:bg-primary/5">
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-pre-line break-words max-w-[120px] sm:max-w-none text-sm text-text-primary tracking-wide text-center">{bet.bet?.description || '-'}</td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm font-medium text-primary tracking-wide text-center">{bet.amount}</td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 break-words max-w-[100px] sm:max-w-none text-sm text-text-secondary tracking-wide text-center">{bet.option}</td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-secondary tracking-wide text-center">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          betStatus === 'open' ? 'bg-success/20 text-success' :
+                          betStatus === 'closed' ? 'bg-warning/20 text-warning' :
+                          betStatus === 'resolved' ? 'bg-info/20 text-info' : 'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {betStatus.charAt(0).toUpperCase() + betStatus.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm tracking-wide text-center">
+                        {isResolved ? (
+                          isWon ? <span className="text-success font-semibold">Won</span> : <span className="text-error font-semibold">Lost</span>
+                        ) : (
+                          <span className="text-text-secondary">Pending</span>
+                        )}
+                      </td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-secondary tracking-wide text-center">{bet.placedAt ? new Date(bet.placedAt).toLocaleString() : '-'}</td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-center">
+                        {bet.bet?._id && (
+                          <Link
+                            to={`/dashboard/betting/view?betId=${bet.bet._id}`}
+                            className="text-primary underline text-sm"
+                          >
+                            View Bet
+                          </Link>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="7" className="px-6 py-8 text-center text-text-secondary text-lg">No bets found for the selected filters or page.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -1,38 +1,63 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserProfile } from '../services/api';
 import { getUserStats } from '../services/api';
+import axios from 'axios';
+
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
 
 export const Profile = () => {
   const { user } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [statsData, setStatsData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user?.discordId) return;
+      setProfileLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        const [profile, stats] = await Promise.all([
-          getUserProfile(user.discordId),
-          getUserStats(user.discordId)
-        ]);
-        setProfileData(profile);
-        setStatsData(stats);
+        const res = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/profile`,
+          { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
+        );
+        setProfileData(res.data);
       } catch (err) {
-        console.error('Error fetching user profile:', err);
-        setError('Failed to load profile data.');
+        setError('Failed to fetch profile.');
       } finally {
-        setLoading(false);
+        setProfileLoading(false);
       }
     };
-
-    fetchProfile();
+    if (user?.discordId) {
+      fetchProfile();
+    }
   }, [user]);
 
-  if (loading) {
+  useEffect(() => {
+    const fetchStats = async () => {
+      setStatsLoading(true);
+      setError(null);
+      try {
+        const res = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/stats`,
+          { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
+        );
+        setStatsData(res.data);
+      } catch (err) {
+        setError('Failed to fetch stats.');
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+    if (user?.discordId) {
+      fetchStats();
+    }
+  }, [user]);
+
+  if (profileLoading || statsLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>

@@ -5,6 +5,9 @@ import { toast } from 'react-hot-toast';
 import { useDashboard } from '../contexts/DashboardContext';
 import { GiftIcon, UserIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
 export const GiftPoints = () => {
   const { user } = useAuth();
   const { walletBalance } = useDashboard(); // Get wallet balance from context
@@ -25,7 +28,13 @@ export const GiftPoints = () => {
     }
     setSearchLoading(true);
     try {
-      const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/search-users?q=${encodeURIComponent(query)}`);
+      const res = await axios.get(
+        `${process.env.REACT_APP_API_URL}/api/users/search-users`,
+        {
+          params: { q: encodeURIComponent(query), guildId: MAIN_GUILD_ID },
+          headers: { 'x-guild-id': MAIN_GUILD_ID }
+        }
+      );
       setFilteredUsers(res.data.data || []);
     } catch (err) {
       setFilteredUsers([]);
@@ -74,6 +83,9 @@ export const GiftPoints = () => {
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/gift`, {
         recipientDiscordId: recipientId,
         amount: giftAmount,
+        guildId: MAIN_GUILD_ID
+      }, {
+        headers: { 'x-guild-id': MAIN_GUILD_ID }
       });
 
       toast.success(response.data.message || `Successfully gifted ${giftAmount} points to ${recipientId}.`);

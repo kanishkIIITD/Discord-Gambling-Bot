@@ -24,7 +24,8 @@ const transactionSchema = new mongoose.Schema({
       'trade_received',
       'sell',
       'bail',
-      'initial_balance'
+      'initial_balance',
+      'giveaway'
     ],
     required: true
   },

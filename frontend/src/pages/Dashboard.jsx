@@ -176,6 +176,7 @@ export const Dashboard = () => {
                     switch (transaction.type) {
                       case 'bet': return 'Bet Placed';
                       case 'win': return 'Win';
+                      case 'lose': return 'Loss';
                       case 'daily': return 'Daily Bonus';
                       case 'gift_sent': return 'Gift Sent';
                       case 'gift_received': return 'Gift Received';
@@ -184,6 +185,11 @@ export const Dashboard = () => {
                       case 'initial_balance': return 'Initial Balance';
                       case 'meowbark': return 'Meowbark';
                       case 'refund': return 'Refund';
+                      case 'trade_sent': return 'Trade Sent';
+                      case 'trade_received': return 'Trade Received';
+                      case 'sell': return 'Sell';
+                      case 'bail': return 'Bail';
+                      case 'giveaway': return 'Giveaway';
                       default: return 'Unknown';
                     }
                   };

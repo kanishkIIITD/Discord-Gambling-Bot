@@ -859,9 +859,7 @@ client.on('interactionCreate', async interaction => {
 		// console.log(`Attempting to claim daily bonus for user: ${userId}`);
 
 		try {
-			const response = await axios.post(`${backendApiUrl}/users/${userId}/daily`, {
-				headers: { 'x-guild-id': interaction.guildId }
-			});
+			const response = await axios.post(`${backendApiUrl}/users/${userId}/daily`, { guildId: interaction.guildId }, { headers: { 'x-guild-id': interaction.guildId } });
 			const { amount, streak, nextClaimTime } = response.data;
 
 			const embed = new EmbedBuilder()

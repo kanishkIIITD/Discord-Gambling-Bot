@@ -108,6 +108,64 @@ router.get('/discord-commands', async (req, res) => {
         { name: 'amount', description: 'Amount of points to earn (max 100,000)', type: 4, required: true, max_value: 100000 },
       ] },
     ];
+
+    const existingNames = new Set(commands.map(cmd => cmd.name));
+    const missingCommands = [
+      { name: 'bail', description: 'Bail a jailed user out of jail (for a fee)', category: 'Fun', options: [
+        { name: 'user', description: 'The user to bail out', type: 6, required: true },
+      ] },
+      { name: 'beg', description: 'Beg for coins and see what happens!', category: 'Fun' },
+      { name: 'collection', description: 'View your fishing and hunting collection!', category: 'Fun' },
+      { name: 'collection-leaderboard', description: 'View the top collectors by collection value!', category: 'Fun', options: [
+        { name: 'limit', description: 'Number of users to show (default: 5)', type: 4, required: false },
+      ] },
+      { name: 'crime', description: 'Attempt a crime for a chance to win or lose points, or get jailed!', category: 'Fun', options: [
+        { name: 'action', description: 'do/stats', type: 3, required: false, choices: [ { name: 'Do', value: 'do' }, { name: 'Stats', value: 'stats' } ] },
+      ] },
+      { name: 'duel', description: 'Challenge another user to a duel for points!', category: 'Fun', options: [
+        { name: 'action', description: 'challenge/accept/decline/stats', type: 3, required: false, choices: [ { name: 'Challenge', value: 'challenge' }, { name: 'Accept', value: 'accept' }, { name: 'Decline', value: 'decline' }, { name: 'Stats', value: 'stats' } ] },
+        { name: 'user', description: 'The user to duel', type: 6, required: false },
+        { name: 'amount', description: 'Amount to stake in the duel', type: 4, required: false },
+        { name: 'duel_id', description: 'The ID of the duel', type: 3, required: false },
+      ] },
+      { name: 'fish', description: 'Go fishing for a chance to catch something valuable!', category: 'Fun' },
+      { name: 'hunt', description: 'Go hunting for a chance to catch a rare animal!', category: 'Fun' },
+      { name: 'mysterybox', description: 'Open a mystery box for a random reward!', category: 'Fun', options: [
+        { name: 'paid', description: 'Pay coins to open a box (no cooldown)', type: 5, required: false },
+      ] },
+      { name: 'sell', description: 'Sell an item from your collection for points!', category: 'Fun', options: [
+        { name: 'type', description: 'Type of item (fish or animal)', type: 3, required: true, choices: [ { name: 'Fish', value: 'fish' }, { name: 'Animal', value: 'animal' } ] },
+        { name: 'name', description: 'Name of the item to sell (case-sensitive)', type: 3, required: true },
+        { name: 'count', description: 'How many to sell', type: 4, required: true },
+      ] },
+      { name: 'trade', description: 'Gift or trade an item from your collection to another user!', category: 'Fun', options: [
+        { name: 'user', description: 'The user to trade with', type: 6, required: true },
+        { name: 'type', description: 'Type of item (fish or animal)', type: 3, required: true, choices: [ { name: 'Fish', value: 'fish' }, { name: 'Animal', value: 'animal' } ] },
+        { name: 'name', description: 'Name of the item to trade (case-sensitive)', type: 3, required: true },
+        { name: 'count', description: 'How many to trade', type: 4, required: true },
+      ] },
+      { name: 'work', description: 'Work a job for a chance to earn points and rare bonuses!', category: 'Fun', options: [
+        { name: 'action', description: 'do/stats', type: 3, required: false, choices: [ { name: 'Do', value: 'do' }, { name: 'Stats', value: 'stats' } ] },
+        { name: 'job', description: 'Choose a job or leave blank for random', type: 3, required: false, choices: [
+          { name: 'Streamer', value: 'streamer' },
+          { name: 'Pizza Delivery', value: 'pizza delivery' },
+          { name: 'Mercenary', value: 'mercenary' },
+          { name: 'Taxi Driver', value: 'taxi driver' },
+          { name: 'Street Musician', value: 'street musician' },
+          { name: 'Dog Walker', value: 'dog walker' },
+          { name: 'Barista', value: 'barista' },
+          { name: 'Construction Worker', value: 'construction worker' },
+          { name: 'Social Media Influencer', value: 'social media influencer' },
+          { name: 'Private Investigator', value: 'private investigator' },
+        ] },
+      ] },
+    ];
+    for (const cmd of missingCommands) {
+      if (!existingNames.has(cmd.name)) {
+        commands.push(cmd);
+      }
+    }
+
     res.json(commands);
   } catch (error) {
     console.error('Error fetching Discord commands:', error);

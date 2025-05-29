@@ -7,6 +7,10 @@ import axios from 'axios';
 import Confetti from 'react-confetti';
 import Modal from 'react-modal';
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+// TODO: Replace with dynamic guild selection for multi-guild support
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
 export const Slots = () => {
   const { user } = useAuth();
   const { walletBalance, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance } = useDashboard();
@@ -57,7 +61,13 @@ export const Slots = () => {
   useEffect(() => {
     async function fetchJackpot() {
       try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/gambling/${user?.discordId || ''}/jackpot`);
+        const response = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/gambling/${user?.discordId || ''}/jackpot`,
+          {
+            params: { guildId: MAIN_GUILD_ID },
+            headers: { 'x-guild-id': MAIN_GUILD_ID }
+          }
+        );
         setJackpotPool(response.data.currentAmount || 0);
       } catch (e) {
         setJackpotPool(0);
@@ -110,9 +120,11 @@ export const Slots = () => {
     setPrevWalletBalance(walletBalance);
     setSuppressWalletBalance(true);
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/slots`, {
-        amount: amount,
-      });
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/slots`,
+        { amount: amount, guildId: MAIN_GUILD_ID },
+        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
+      );
       const { reels: finalReels, won, winnings, isJackpot, jackpotPool, freeSpins, usedFreeSpin, winType } = response.data;
       setFinalReelSymbols(finalReels);
       setReelResults(finalReels);

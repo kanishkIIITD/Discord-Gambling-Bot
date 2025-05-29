@@ -6,6 +6,9 @@ import ReactPaginate from 'react-paginate';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Statuses' },
   { value: 'open', label: 'Open' },
@@ -42,8 +45,8 @@ const ActiveBetsPage = () => {
         }
         // Fetch open and closed bets
         const [openBets, closedBets] = await Promise.all([
-          axios.get(`${process.env.REACT_APP_API_URL}/api/bets/open`).then(res => res.data),
-          axios.get(`${process.env.REACT_APP_API_URL}/api/bets/closed`).then(res => res.data)
+          axios.get(`${process.env.REACT_APP_API_URL}/api/bets/open`, { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }).then(res => res.data),
+          axios.get(`${process.env.REACT_APP_API_URL}/api/bets/closed`, { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }).then(res => res.data)
         ]);
         setBets([...openBets, ...closedBets]);
       } catch (err) {

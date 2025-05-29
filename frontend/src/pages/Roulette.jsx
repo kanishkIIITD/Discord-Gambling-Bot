@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useDashboard } from '../contexts/DashboardContext';
 import { toast } from 'react-hot-toast';
@@ -11,6 +11,9 @@ import { getUserPreferences } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import Confetti from 'react-confetti';
 import { ConfirmModal } from '../components/ConfirmModal';
+
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
 
 const CHIP_OPTIONS = [
   { value: 1, image: '/chips/white-chip.png' },
@@ -173,11 +176,12 @@ export const Roulette = () => {
           amount: bet.amount,
         };
       });
-      const payload = {
-        bets: payloadBets,
-      };
-      const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/roulette`, payload);
-      const { result: resultNum, color, bets: betResults, totalWinnings, newBalance } = res.data;
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/roulette`,
+        { bets: payloadBets, guildId: MAIN_GUILD_ID },
+        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
+      );
+      const { result: resultNum, color, bets: betResults, totalWinnings, newBalance } = response.data;
       setWinningBet(String(resultNum));
       setStart(true);
       setTimeout(() => {

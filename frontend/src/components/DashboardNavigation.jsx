@@ -6,6 +6,10 @@ import { toast } from 'react-hot-toast';
 import { setupWebSocket } from '../services/api'; // Import setupWebSocket
 import { useDashboard } from '../contexts/DashboardContext';
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+// TODO: Replace with dynamic guild selection for multi-guild support
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
 export const DashboardNavigation = ({ walletBalance, setWalletBalance, onProfileMenuToggle }) => { // Accept walletBalance, setWalletBalance, and onProfileMenuToggle as props
   const { user, logout } = useAuth();
   const { suppressWalletBalance, prevWalletBalance } = useDashboard();
@@ -72,7 +76,13 @@ export const DashboardNavigation = ({ walletBalance, setWalletBalance, onProfile
   const fetchDailyStatus = async () => {
     if (!user?.discordId) return null;
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/daily-status`);
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/daily-status`,
+        {
+          params: { guildId: MAIN_GUILD_ID },
+          headers: { 'x-guild-id': MAIN_GUILD_ID }
+        }
+      );
       const { nextClaimTime: nextTime, currentStreak: streak } = response.data;
       setNextClaimTime(nextTime);
       setCurrentStreak(streak);
@@ -156,7 +166,11 @@ export const DashboardNavigation = ({ walletBalance, setWalletBalance, onProfile
     let prevStreak = currentStreak;
     let prevNextClaimTime = nextClaimTime;
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/daily`);
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/daily`,
+        { guildId: MAIN_GUILD_ID },
+        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
+      );
       const { amount, streak, nextClaimTime: nextTime } = response.data;
       toast.success(`Claimed ${amount} points! (${streak} day streak)`);
       // Re-fetch daily status to update streak and timer

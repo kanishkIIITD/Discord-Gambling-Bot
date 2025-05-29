@@ -5,6 +5,9 @@ import { toast } from 'react-hot-toast';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { InformationCircleIcon, PlusCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
 const MAX_DESCRIPTION_LENGTH = 100;
 const MAX_OPTION_LENGTH = 100;
 
@@ -93,10 +96,18 @@ const CreateBetPage = () => {
         options: cleanOptions,
         creatorDiscordId: user.discordId,
         ...(durationMinutes ? { durationMinutes } : {}),
+        guildId: MAIN_GUILD_ID
       };
-      await axios.post(`${process.env.REACT_APP_API_URL}/api/bets`, payload, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/bets`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'x-guild-id': MAIN_GUILD_ID
+          }
+        }
+      );
       toast.success('Bet created successfully!');
       handleClear();
     } catch (err) {

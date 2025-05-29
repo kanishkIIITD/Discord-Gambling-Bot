@@ -5,6 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
 export const CoinFlip = () => {
   const { user } = useAuth();
   const { walletBalance, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance } = useDashboard();
@@ -48,11 +51,11 @@ export const CoinFlip = () => {
     setSuppressWalletBalance(true);
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/coinflip`, {
-        amount: amount,
-        choice: selectedSide,
-      });
-
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/coinflip`,
+        { amount: amount, choice: selectedSide, guildId: MAIN_GUILD_ID },
+        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
+      );
       const { result, won, winnings } = response.data;
       setPendingResult({ result, won, winnings, amount });
 

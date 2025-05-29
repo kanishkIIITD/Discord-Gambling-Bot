@@ -5,6 +5,9 @@ import axios from 'axios';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import ReactPaginate from 'react-paginate';
 
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
 const SORT_OPTIONS = [
   { value: 'amount', label: 'Amount' },
   { value: 'alpha', label: 'Player (A-Z)' },
@@ -47,7 +50,13 @@ export const BiggestWinsLeaderboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/leaderboard/biggest-wins?page=${page}&limit=${userPreferences.itemsPerPage}&sortBy=${sortBy}&sortOrder=${sortOrder}`);
+        const res = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/users/leaderboard/biggest-wins`,
+          {
+            params: { page, limit: userPreferences.itemsPerPage, sortBy, sortOrder, guildId: MAIN_GUILD_ID },
+            headers: { 'x-guild-id': MAIN_GUILD_ID }
+          }
+        );
         setWins(res.data.data);
         setTotalCount(res.data.totalCount);
       } catch (err) {

@@ -639,17 +639,18 @@ router.get('/leaderboard/biggest-wins', async (req, res) => {
 });
 
 // Add endpoint to get all users (for superadmin)
-router.get('/', async (req, res) => {
+router.get('/', requireGuildId, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const queryObj = { guildId: req.guildId };
     const [users, totalCount] = await Promise.all([
-      User.find({ guildId: req.guildId }, '_id username discordId role')
+      User.find(queryObj, '_id username discordId role')
         .sort({ username: 1 })
         .skip(skip)
         .limit(limit),
-      User.countDocuments({ guildId: req.guildId })
+      User.countDocuments(queryObj)
     ]);
     res.json({ data: users, totalCount });
   } catch (error) {
@@ -664,16 +665,48 @@ router.get('/:discordId/bets', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
-
-    const [placedBets, totalCount] = await Promise.all([
-      PlacedBet.find({ bettor: user._id, guildId: req.guildId })
-        .populate('bet')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      PlacedBet.countDocuments({ bettor: user._id, guildId: req.guildId })
+    const sortBy = req.query.sortBy || 'createdAt';
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
+    // Aggregation pipeline for filtering and sorting
+    const matchStage = { $match: { bettor: user._id, guildId: req.guildId } };
+    const lookupStage = {
+      $lookup: {
+        from: 'bets',
+        localField: 'bet',
+        foreignField: '_id',
+        as: 'bet'
+      }
+    };
+    const unwindStage = { $unwind: '$bet' };
+    const pipeline = [matchStage, lookupStage, unwindStage];
+    // Status filter
+    if (req.query.status && req.query.status !== 'all') {
+      pipeline.push({ $match: { 'bet.status': req.query.status } });
+    }
+    // Result filter
+    if (req.query.result && req.query.result !== 'all') {
+      if (req.query.result === 'won') {
+        pipeline.push({ $match: { $expr: { $and: [ { $eq: ['$bet.status', 'resolved'] }, { $eq: ['$option', '$bet.winningOption'] } ] } } });
+      } else if (req.query.result === 'lost') {
+        pipeline.push({ $match: { $expr: { $and: [ { $eq: ['$bet.status', 'resolved'] }, { $ne: ['$option', '$bet.winningOption'] } ] } } });
+      } else if (req.query.result === 'pending') {
+        pipeline.push({ $match: { 'bet.status': { $ne: 'resolved' } } });
+      }
+    }
+    // Sorting
+    pipeline.push({ $sort: { [sortBy]: sortOrder } });
+    // For totalCount, run the same pipeline up to this point
+    const countPipeline = [...pipeline];
+    countPipeline.push({ $count: 'total' });
+    // Pagination
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
+    // Run aggregation
+    const [placedBets, countResult] = await Promise.all([
+      PlacedBet.aggregate(pipeline),
+      PlacedBet.aggregate(countPipeline)
     ]);
-
+    const totalCount = countResult[0]?.total || 0;
     res.json({
       data: placedBets,
       totalCount,
@@ -746,7 +779,7 @@ router.get('/search-users', async (req, res) => {
       username: { $regex: q, $options: 'i' },
       guildId: req.guildId
     })
-      .select('discordId username')
+      .select('discordId username role')
       .limit(20);
     res.json({ data: users });
   } catch (error) {
@@ -1737,6 +1770,43 @@ router.get('/:discordId/pending-duels', async (req, res) => {
     res.json({ duels });
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching pending duels.' });
+  }
+});
+
+// --- SUPERADMIN GIVEAWAY ENDPOINT ---
+// Use auth middleware to set req.user, then requireGuildId
+router.post('/:discordId/giveaway', require('../middleware/auth').auth, requireGuildId, async (req, res) => {
+  try {
+    // Only allow superadmin
+    if (!req.user || req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Only superadmins can give points.' });
+    }
+    const { amount } = req.body;
+    if (!amount || typeof amount !== 'number' || amount < 1) {
+      return res.status(400).json({ message: 'Invalid amount.' });
+    }
+    const targetUser = await User.findOne({ discordId: req.params.discordId, guildId: req.guildId });
+    if (!targetUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    let wallet = await Wallet.findOne({ user: targetUser._id, guildId: req.guildId });
+    if (!wallet) {
+      wallet = new Wallet({ user: targetUser._id, guildId: req.guildId, balance: 0 });
+    }
+    wallet.balance += amount;
+    await wallet.save();
+    // Record transaction
+    const transaction = new Transaction({
+      user: targetUser._id,
+      type: 'giveaway',
+      amount,
+      description: `Superadmin giveaway`,
+      guildId: req.guildId
+    });
+    await transaction.save();
+    res.json({ message: 'Points given successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error during giveaway.' });
   }
 });
 

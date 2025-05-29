@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 // Sidebar and DashboardNavigation are now part of DashboardLayout
 // import { Sidebar } from '../components/Sidebar'; // Removed
@@ -10,6 +10,10 @@ import { toast } from 'react-hot-toast'; // Import toast for notifications
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth to get user discordId
 import { ConfirmModal } from '../components/ConfirmModal';
 import ReactPaginate from 'react-paginate';
+import axios from 'axios';
+
+// --- TEMP: Main Guild ID for single-guild mode ---
+const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
 
 export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const { betId: routeBetId } = useParams();
@@ -77,28 +81,34 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   }, [userPreferences?.itemsPerPage]);
 
   useEffect(() => {
-    if (!betId || !userPreferences) return;
-    const fetchData = async () => {
+    const fetchBetDetails = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        const betData = await getBetDetails(betId);
-        setBet(betData);
-        if (betData && betData.status === 'open' && betData.options.length > 0) {
-            setSelectedOption(betData.options[0]);
+        const betRes = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/bets/${betId}`,
+          { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
+        );
+        setBet(betRes.data);
+        if (betRes.data && betRes.data.status === 'open' && betRes.data.options.length > 0) {
+            setSelectedOption(betRes.data.options[0]);
         }
-        // Fetch paginated placed bets
-        const placedBetsRes = await getPlacedBetsForBet(betId, placedBetsPage, userPreferences.itemsPerPage || 10);
-        setPlacedBets(placedBetsRes.data || placedBetsRes);
-        setPlacedBetsTotal(placedBetsRes.totalCount || (placedBetsRes.data ? placedBetsRes.data.length : placedBetsRes.length));
+        // Fetch placed bets for this bet
+        const placedRes = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/bets/${betId}/placed`,
+          { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
+        );
+        setPlacedBets(placedRes.data.data);
+        setPlacedBetsTotal(placedRes.data.totalCount || (placedRes.data.data ? placedRes.data.data.length : placedRes.data.length));
       } catch (err) {
         console.error('Error fetching bet details:', err);
-        setError('Failed to load bet details.');
+        setError('Failed to fetch bet details.');
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
-  }, [betId, placedBetsPage, userPreferences]);
+    fetchBetDetails();
+  }, [betId]);
 
   // Removed wallet balance fetch as it's handled in DashboardLayout
   // useEffect(() => {
@@ -144,14 +154,21 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
 
         setIsPlacingBet(true);
         try {
-            const response = await placeBet(betId, amount, selectedOption, user.discordId);
-            toast.success(response.message || 'Bet placed successfully!');
+            const response = await axios.post(
+                `${process.env.REACT_APP_API_URL}/api/bets/${betId}/place`,
+                { bettorDiscordId: user.discordId, option: selectedOption, amount: amount, guildId: MAIN_GUILD_ID },
+                { headers: { 'x-guild-id': MAIN_GUILD_ID } }
+            );
+            toast.success(response.data.message || 'Bet placed successfully!');
             setBetAmount(''); // Clear input after placing bet
 
             // Refetch placed bets for this specific bet to update the list
-            const placedBetsRes = await getPlacedBetsForBet(betId, placedBetsPage, userPreferences.itemsPerPage || 10);
-            setPlacedBets(placedBetsRes.data || placedBetsRes);
-            setPlacedBetsTotal(placedBetsRes.totalCount || (placedBetsRes.data ? placedBetsRes.data.length : placedBetsRes.length));
+            const placedBetsRes = await axios.get(
+                `${process.env.REACT_APP_API_URL}/api/bets/${betId}/placed`,
+                { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
+            );
+            setPlacedBets(placedBetsRes.data.data);
+            setPlacedBetsTotal(placedBetsRes.data.totalCount || (placedBetsRes.data.data ? placedBetsRes.data.data.length : placedBetsRes.data.length));
 
             // Balance update is handled by WebSocket in DashboardLayout
 
