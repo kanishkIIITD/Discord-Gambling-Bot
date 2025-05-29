@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const duelSchema = new mongoose.Schema({
+  guildId: { type: String, required: true },
   challenger: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   opponent: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   challengerDiscordId: { type: String, required: true },

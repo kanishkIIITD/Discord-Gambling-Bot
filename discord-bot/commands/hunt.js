@@ -38,8 +38,9 @@ module.exports = {
     try {
       await interaction.deferReply();
       const userId = interaction.user.id;
+      const guildId = interaction.guildId;
       const backendUrl = process.env.BACKEND_API_URL;
-      const response = await axios.post(`${backendUrl}/users/${userId}/hunt`);
+      const response = await axios.post(`${backendUrl}/users/${userId}/hunt`, { guildId }, { headers: { 'x-guild-id': guildId } });
       const { name, rarity, value, count, cooldown } = response.data;
       const flavorArr = flavorTexts[rarity] || flavorTexts.common;
       const flavor = flavorArr[Math.floor(Math.random() * flavorArr.length)].replace('{name}', name);

@@ -17,9 +17,10 @@ module.exports = {
     try {
       await interaction.deferReply();
       const userId = interaction.user.id;
+      const guildId = interaction.guildId;
       const paid = interaction.options.getBoolean('paid') || false;
       const backendUrl = process.env.BACKEND_API_URL;
-      const response = await axios.post(`${backendUrl}/users/${userId}/mysterybox`, { paid });
+      const response = await axios.post(`${backendUrl}/users/${userId}/mysterybox`, { paid, guildId }, { headers: { 'x-guild-id': guildId } });
       const { rewardType, amount, item, message, cooldown } = response.data;
       let color = 0x0099ff;
       if (rewardType === 'coins') color = 0x2ecc71;

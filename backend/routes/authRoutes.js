@@ -2,6 +2,7 @@ const express = require('express');
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { requireGuildId } = require('../middleware/auth');
 const router = express.Router();
 
 // Middleware to verify JWT token
@@ -20,6 +21,9 @@ const verifyToken = (req, res, next) => {
     return res.status(401).json({ message: 'Invalid token' });
   }
 };
+
+// Apply requireGuildId to all routes
+router.use(requireGuildId);
 
 // Discord OAuth2 login route
 router.get('/discord', passport.authenticate('discord'));

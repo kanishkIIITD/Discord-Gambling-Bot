@@ -4,9 +4,9 @@ const userPreferencesSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    unique: true // Each user has only one preference document
+    required: true
   },
+  guildId: { type: String, required: true },
   itemsPerPage: {
     type: Number,
     default: 10, // Default value for items per page
@@ -19,6 +19,8 @@ const userPreferencesSchema = new mongoose.Schema({
   },
   // Add other preferences here as we define them
 });
+
+userPreferencesSchema.index({ user: 1, guildId: 1 }, { unique: true });
 
 const UserPreferences = mongoose.model('UserPreferences', userPreferencesSchema);
 

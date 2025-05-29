@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const jackpotSchema = new mongoose.Schema({
+    guildId: { type: String, required: true },
     currentAmount: {
         type: Number,
         required: true,

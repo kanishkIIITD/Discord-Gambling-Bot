@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const betSchema = new mongoose.Schema({
+  guildId: { type: String, required: true },
   description: { type: String, required: true },
   options: [{ type: String, required: true }], // Array of possible outcomes
   creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

@@ -35,8 +35,9 @@ module.exports = {
       const name = interaction.options.getString('name');
       const count = interaction.options.getInteger('count');
       const backendUrl = process.env.BACKEND_API_URL;
+      const guildId = interaction.guildId;
       // Optionally: fetch inventory to validate
-      const invRes = await axios.get(`${backendUrl}/users/${userId}/collection`);
+      const invRes = await axios.get(`${backendUrl}/users/${userId}/collection`, { params: { guildId }, headers: { 'x-guild-id': guildId } });
       const inventory = invRes.data.inventory || [];
       const item = inventory.find(i => i.type === type && i.name === name);
       if (!item) {
@@ -48,7 +49,7 @@ module.exports = {
         return;
       }
       // Call backend to sell
-      const response = await axios.post(`${backendUrl}/users/${userId}/sell`, { type, name, count });
+      const response = await axios.post(`${backendUrl}/users/${userId}/sell`, { type, name, count, guildId }, { headers: { 'x-guild-id': guildId } });
       const { message, newBalance } = response.data;
       const embed = {
         color: 0x27ae60,

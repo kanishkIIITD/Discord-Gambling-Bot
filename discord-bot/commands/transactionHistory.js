@@ -27,13 +27,15 @@ module.exports = {
         try {
             await interaction.deferReply();
             const userId = interaction.user.id;
+            const guildId = interaction.guildId;
             const limit = interaction.options.getInteger('limit') || 10;
             const type = interaction.options.getString('type') || 'all';
 
             logger.info(`Fetching transactions for user ${userId} with limit ${limit} and type ${type}`);
 
             const response = await axios.get(`${process.env.BACKEND_API_URL}/users/${userId}/transactions`, {
-                params: { limit, type }
+                params: { limit, type, guildId },
+                headers: { 'x-guild-id': guildId }
             });
 
             const transactions = response.data;

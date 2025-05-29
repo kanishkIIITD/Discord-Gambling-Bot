@@ -7,7 +7,7 @@ const Wallet = require('../models/Wallet');
 const Transaction = require('../models/Transaction');
 const WebSocket = require('ws');
 const { updateUserWinStreak } = require('../utils/gamblingUtils');
-const { requireAdmin, auth } = require('../middleware/auth');
+const { requireAdmin, auth, requireGuildId } = require('../middleware/auth');
 
 // Get the WebSocket server instance
 let wss;
@@ -37,6 +37,9 @@ router.use(async (req, res, next) => {
   next();
 });
 
+// Apply requireGuildId to all routes
+router.use(requireGuildId);
+
 // Create a new bet
 router.post('/', async (req, res) => {
   try {
@@ -53,6 +56,7 @@ router.post('/', async (req, res) => {
       options,
       creator: creator._id,
       closingTime: durationMinutes ? new Date(Date.now() + durationMinutes * 60 * 1000) : undefined,
+      guildId: req.guildId,
     });
 
     await newBet.save();
@@ -73,7 +77,7 @@ router.post('/', async (req, res) => {
 // Get all open bets
 router.get('/open', async (req, res) => {
   try {
-    const openBets = await Bet.find({ status: 'open' }).populate('creator', 'discordId');
+    const openBets = await Bet.find({ status: 'open', guildId: req.guildId }).populate('creator', 'discordId');
     res.json(openBets);
   } catch (error) {
     console.error('Error fetching open bets:', error);
@@ -86,7 +90,8 @@ router.get('/upcoming', async (req, res) => {
   try {
     const upcomingBets = await Bet.find({
       status: 'open',
-      closingTime: { $gt: new Date() }
+      closingTime: { $gt: new Date() },
+      guildId: req.guildId
     }).populate('creator', 'discordId');
     res.json(upcomingBets);
   } catch (error) {
@@ -98,7 +103,7 @@ router.get('/upcoming', async (req, res) => {
 // Get all unresolved bets (open or closed)
 router.get('/unresolved', async (req, res) => {
   try {
-    const unresolvedBets = await Bet.find({ status: { $in: ['open', 'closed'] } }).populate('creator', 'discordId');
+    const unresolvedBets = await Bet.find({ status: { $in: ['open', 'closed'] }, guildId: req.guildId }).populate('creator', 'discordId');
     res.json(unresolvedBets);
   } catch (error) {
     console.error('Error fetching unresolved bets:', error);
@@ -109,7 +114,7 @@ router.get('/unresolved', async (req, res) => {
 // Get all closed bets
 router.get('/closed', async (req, res) => {
   try {
-    const closedBets = await Bet.find({ status: 'closed' }).populate('creator', 'discordId');
+    const closedBets = await Bet.find({ status: 'closed', guildId: req.guildId }).populate('creator', 'discordId');
     res.json(closedBets);
   } catch (error) {
     console.error('Error fetching closed bets:', error);
@@ -120,7 +125,7 @@ router.get('/closed', async (req, res) => {
 // Get a specific bet by ID
 router.get('/:betId', async (req, res) => {
   try {
-    const bet = await Bet.findById(req.params.betId).populate('creator', 'username discordId');
+    const bet = await Bet.findById(req.params.betId).populate('creator', 'username discordId').where({ guildId: req.guildId });
     if (!bet) {
       return res.status(404).json({ message: 'Bet not found.' });
     }
@@ -138,7 +143,7 @@ router.post('/:betId/place', async (req, res) => {
     const betId = req.params.betId;
 
     // Find the bet and the bettor
-    const bet = await Bet.findById(betId);
+    const bet = await Bet.findById(betId).where({ guildId: req.guildId });
     const bettor = await User.findOne({ discordId: bettorDiscordId });
 
     if (!bet) {
@@ -195,7 +200,8 @@ router.post('/:betId/place', async (req, res) => {
       user: bettor._id,
       type: 'bet',
       amount: -amount,
-      description: `Bet placed on "${bet.description}" - Option: ${option}`
+      description: `Bet placed on "${bet.description}" - Option: ${option}`,
+      guildId: req.guildId,
     });
     await betTransaction.save();
 
@@ -205,6 +211,7 @@ router.post('/:betId/place', async (req, res) => {
       bettor: bettor._id,
       option,
       amount,
+      guildId: req.guildId,
     });
 
     await placedBet.save();
@@ -212,7 +219,7 @@ router.post('/:betId/place', async (req, res) => {
     // Broadcast bet update
     broadcastToAll({
       type: 'BET_UPDATED',
-      bet: await Bet.findById(betId).populate('creator', 'discordId')
+      bet: await Bet.findById(betId).populate('creator', 'discordId').where({ guildId: req.guildId })
     });
 
     // Broadcast balance update to the bettor
@@ -245,12 +252,12 @@ router.get('/:betId/placed', async (req, res) => {
     const skip = (page - 1) * limit;
 
     const [placedBets, totalCount] = await Promise.all([
-      PlacedBet.find({ bet: betId })
+      PlacedBet.find({ bet: betId, guildId: req.guildId })
         .populate('bettor', 'username')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      PlacedBet.countDocuments({ bet: betId })
+      PlacedBet.countDocuments({ bet: betId, guildId: req.guildId })
     ]);
 
     res.json({
@@ -271,7 +278,7 @@ router.put('/:betId/close', async (req, res) => {
       const betId = req.params.betId;
       // Optional: Add logic here to verify if the user closing the bet has permissions (e.g., is the creator)
 
-      const bet = await Bet.findById(betId);
+      const bet = await Bet.findById(betId).where({ guildId: req.guildId });
 
       if (!bet) {
         return res.status(404).json({ message: 'Bet not found.' });
@@ -303,7 +310,7 @@ router.delete('/:betId', async (req, res) => {
     const betId = req.params.betId;
     const { creatorDiscordId } = req.body;
 
-    const bet = await Bet.findById(betId).populate('creator', 'discordId');
+    const bet = await Bet.findById(betId).populate('creator', 'discordId').where({ guildId: req.guildId });
     if (!bet) {
       return res.status(404).json({ message: 'Bet not found.' });
     }
@@ -335,7 +342,7 @@ router.put('/:betId/edit', async (req, res) => {
     const betId = req.params.betId;
     const { creatorDiscordId, description, options, durationMinutes } = req.body;
 
-    const bet = await Bet.findById(betId).populate('creator', 'discordId');
+    const bet = await Bet.findById(betId).populate('creator', 'discordId').where({ guildId: req.guildId });
     if (!bet) {
       return res.status(404).json({ message: 'Bet not found.' });
     }
@@ -373,7 +380,7 @@ router.put('/:betId/extend', async (req, res) => {
     const betId = req.params.betId;
     const { creatorDiscordId, additionalMinutes } = req.body;
 
-    const bet = await Bet.findById(betId).populate('creator', 'discordId');
+    const bet = await Bet.findById(betId).populate('creator', 'discordId').where({ guildId: req.guildId });
     if (!bet) {
       return res.status(404).json({ message: 'Bet not found.' });
     }
@@ -416,7 +423,7 @@ router.put('/:betId/resolve', async (req, res) => {
       const betId = req.params.betId;
       const { winningOption, resolverDiscordId } = req.body;
 
-      const bet = await Bet.findById(betId);
+      const bet = await Bet.findById(betId).where({ guildId: req.guildId });
 
       if (!bet) {
         return res.status(404).json({ message: 'Bet not found.' });
@@ -433,7 +440,7 @@ router.put('/:betId/resolve', async (req, res) => {
       bet.winningOption = winningOption;
       await bet.save();
 
-      const placedBets = await PlacedBet.find({ bet: bet._id }).populate('bettor');
+      const placedBets = await PlacedBet.find({ bet: bet._id }).populate('bettor').where({ guildId: req.guildId });
 
       const totalPot = placedBets.reduce((sum, placedBet) => sum + placedBet.amount, 0);
 
@@ -454,7 +461,8 @@ router.put('/:betId/resolve', async (req, res) => {
               user: placedBet.bettor._id,
               type: 'win',
               amount: winnings,
-              description: `Won bet on "${bet.description}" - Option: ${winningOption}`
+              description: `Won bet on "${bet.description}" - Option: ${winningOption}`,
+              guildId: req.guildId,
             });
             await winTransaction.save();
 
@@ -499,7 +507,7 @@ router.put('/:betId/resolve', async (req, res) => {
 router.post('/:betId/refund', auth, requireAdmin, async (req, res) => {
   try {
     const { betId } = req.params;
-    const bet = await Bet.findById(betId);
+    const bet = await Bet.findById(betId).where({ guildId: req.guildId });
     if (!bet) return res.status(404).json({ message: 'Bet not found.' });
     if (['resolved', 'cancelled', 'refunded'].includes(bet.status)) {
       return res.status(400).json({ message: 'Bet is already resolved, cancelled, or refunded.' });
@@ -518,7 +526,8 @@ router.post('/:betId/refund', auth, requireAdmin, async (req, res) => {
           user: placedBet.bettor,
           type: 'refund',
           amount: placedBet.amount,
-          description: `Refund for bet: ${bet.description}`
+          description: `Refund for bet: ${bet.description}`,
+          guildId: req.guildId,
         });
       }
     }

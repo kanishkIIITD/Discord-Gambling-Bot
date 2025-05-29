@@ -13,7 +13,8 @@ module.exports = {
       await interaction.deferReply();
       const userId = interaction.user.id;
       const backendUrl = process.env.BACKEND_API_URL;
-      const response = await axios.post(`${backendUrl}/users/${userId}/beg`);
+      const guildId = interaction.guildId;
+      const response = await axios.post(`${backendUrl}/users/${userId}/beg`, { guildId }, { headers: { 'x-guild-id': guildId } });
       const { outcome, amount, message, cooldown } = response.data;
       let color = 0x95a5a6;
       if (outcome === 'success') color = 0x2ecc71;

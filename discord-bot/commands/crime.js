@@ -23,8 +23,9 @@ module.exports = {
         await interaction.deferReply();
         const userId = interaction.user.id;
         const backendUrl = process.env.BACKEND_API_URL;
-        const response = await axios.get(`${backendUrl}/users/${userId}/crime-stats`);
-        const stats = response.data.crimeStats || { success: 0, fail: 0, jail: 0 };
+        const guildId = interaction.guildId;
+        const statsRes = await axios.get(`${backendUrl}/users/${userId}/crime-stats`, { params: { guildId }, headers: { 'x-guild-id': guildId } });
+        const stats = statsRes.data.crimeStats || { success: 0, fail: 0, jail: 0 };
         const embed = {
           color: 0x0099ff,
           title: '🧙 Crime Stats',
@@ -49,7 +50,8 @@ module.exports = {
       await interaction.deferReply();
       const userId = interaction.user.id;
       const backendUrl = process.env.BACKEND_API_URL;
-      const response = await axios.post(`${backendUrl}/users/${userId}/crime`);
+      const guildId = interaction.guildId;
+      const response = await axios.post(`${backendUrl}/users/${userId}/crime`, { guildId }, { headers: { 'x-guild-id': guildId } });
       const { outcome, amount, jailMinutes, message, cooldown, jailedUntil } = response.data;
 
       let color = 0x0099ff;

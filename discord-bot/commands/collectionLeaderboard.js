@@ -18,7 +18,8 @@ module.exports = {
       await interaction.deferReply();
       const backendUrl = process.env.BACKEND_API_URL;
       const limit = interaction.options.getInteger('limit') || 5;
-      const response = await axios.get(`${backendUrl}/users/collection-leaderboard`, { params: { limit } });
+      const guildId = interaction.guildId;
+      const response = await axios.get(`${backendUrl}/users/collection-leaderboard`, { params: { limit, guildId }, headers: { 'x-guild-id': guildId } });
       const leaderboard = response.data.data || [];
       if (leaderboard.length === 0) {
         const embed = {

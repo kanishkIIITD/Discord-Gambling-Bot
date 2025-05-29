@@ -8,16 +8,20 @@ const { validateBetAmount, handleGamblingError } = require('../middleware/gambli
 const { updateWalletBalance, createGamblingResponse, calculateMultiplier, getNumbersCoveredByBet, updateUserWinStreak } = require('../utils/gamblingUtils');
 const Transaction = require('../models/Transaction');
 const { broadcastToUser } = require('../utils/websocketService');
+const { requireGuildId } = require('../middleware/auth');
+
+// Apply requireGuildId to all routes
+router.use(requireGuildId);
 
 // Middleware to find user and wallet
 router.use('/:discordId', async (req, res, next) => {
   try {
-    const user = await User.findOne({ discordId: req.params.discordId });
+    const user = await User.findOne({ discordId: req.params.discordId, guildId: req.guildId });
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    const wallet = await Wallet.findOne({ user: user._id });
+    const wallet = await Wallet.findOne({ user: user._id, guildId: req.guildId });
     if (!wallet) {
       return res.status(404).json({ message: 'Wallet not found.' });
     }
@@ -52,7 +56,7 @@ router.post('/:discordId/coinflip', validateBetAmount, async (req, res) => {
     );
 
     // Send WebSocket updates
-    const latestTransaction = await Transaction.findOne({ user: user._id }).sort({ timestamp: -1 });
+    const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
     if (latestTransaction) {
       broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
     }
@@ -123,7 +127,7 @@ router.post('/:discordId/dice', validateBetAmount, async (req, res) => {
     );
 
     // Send WebSocket updates
-    const latestTransaction = await Transaction.findOne({ user: user._id }).sort({ timestamp: -1 });
+    const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
     if (latestTransaction) {
       broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
     }
@@ -180,7 +184,7 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
     let winType = null;
     if (isJackpot) {
       // Win the entire jackpot
-      const jackpot = await Jackpot.findOne() || new Jackpot();
+      const jackpot = await Jackpot.findOne({ guildId: req.guildId }) || new Jackpot();
       jackpotAmount = jackpot.currentAmount; // Store jackpot amount before resetting
       multiplier = 554.83; // Recommended jackpot payout multiplier
       winType = 'jackpot';
@@ -193,7 +197,8 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
         user: user._id,
         type: 'jackpot',
         amount: jackpotAmount,
-        description: 'JACKPOT WIN! 🎉'
+        description: 'JACKPOT WIN! 🎉',
+        guildId: req.guildId
       });
       await jackpotTransaction.save();
       if (isJackpot && jackpotTransaction) {
@@ -246,12 +251,13 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
       usedFreeSpin ? 0 : amount,
       winnings,
       'slots',
-      won ? (isJackpot ? 'JACKPOT!' : `[${reels.join('|')}]`) : ''
+      won ? (isJackpot ? 'JACKPOT!' : `[${reels.join('|')}]`) : '',
+      req.guildId
     );
     await wallet.save();
 
     if (!isJackpot) {
-      const latestTransaction = await Transaction.findOne({ user: user._id }).sort({ timestamp: -1 });
+      const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
       if (latestTransaction) {
         broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
       }
@@ -259,11 +265,12 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
 
     // Add to jackpot if lost and not a free spin
     if (!won && !usedFreeSpin) {
-      const jackpot = await Jackpot.findOne() || new Jackpot();
+      const jackpot = await Jackpot.findOne({ guildId: req.guildId }) || new Jackpot();
       jackpot.currentAmount += Math.floor(amount * 0.1); // 10% goes to jackpot
       jackpot.contributions.push({
         user: user._id,
-        amount: Math.floor(amount * 0.1)
+        amount: Math.floor(amount * 0.1),
+        guildId: req.guildId
       });
       await jackpot.save();
     }
@@ -271,7 +278,7 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
     // Fetch the updated balance *after* all transactions and saves
     const updatedWallet = await Wallet.findById(wallet._id);
     const newBalance = updatedWallet.balance;
-    const jackpot = await Jackpot.findOne() || { currentAmount: 0 };
+    const jackpot = await Jackpot.findOne({ guildId: req.guildId }) || { currentAmount: 0 };
 
     // Send WebSocket update for balance
     broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: newBalance });
@@ -293,7 +300,8 @@ router.post('/:discordId/blackjack', async (req, res) => {
     // Find existing game or create new one
     let gameState = await BlackjackGame.findOne({ 
       user: req.user._id,
-      gameOver: false 
+      gameOver: false,
+      guildId: req.guildId
     });
 
     // // console.log('Current game state:', gameState);
@@ -443,7 +451,8 @@ router.post('/:discordId/blackjack', async (req, res) => {
             user: req.user._id,
             type: 'bet',
             amount: -currentBet,
-            description: 'Blackjack double down'
+            description: 'Blackjack double down',
+            guildId: req.guildId
           });
           await doubleTransaction.save();
 
@@ -482,7 +491,8 @@ router.post('/:discordId/blackjack', async (req, res) => {
             user: req.user._id,
             type: 'bet',
             amount: -gameState.bets[gameState.currentHand],
-            description: 'Blackjack split'
+            description: 'Blackjack split',
+            guildId: req.guildId
           });
           await splitTransaction.save();
           break;
@@ -499,7 +509,8 @@ router.post('/:discordId/blackjack', async (req, res) => {
         dealerHand: [deck.pop(), deck.pop()],
         bets: [amount],
         currentHand: 0,
-        gameOver: false
+        gameOver: false,
+        guildId: req.guildId
       });
       wallet.balance -= amount;
 
@@ -508,7 +519,8 @@ router.post('/:discordId/blackjack', async (req, res) => {
         user: req.user._id,
         type: 'bet',
         amount: -amount,
-        description: 'Blackjack initial bet'
+        description: 'Blackjack initial bet',
+        guildId: req.guildId
       });
       await betTransaction.save();
     }
@@ -563,7 +575,8 @@ router.post('/:discordId/blackjack', async (req, res) => {
             user: req.user._id,
             type: 'win',
             amount: winnings,
-            description: `Blackjack ${result} (Hand ${i + 1})`
+            description: `Blackjack ${result} (Hand ${i + 1})`,
+            guildId: req.guildId
           });
           await resultTransaction.save();
         }
@@ -595,7 +608,7 @@ router.post('/:discordId/blackjack', async (req, res) => {
     });
 
     // Send WebSocket updates
-    const latestTransaction = await Transaction.findOne({ user: user._id }).sort({ timestamp: -1 });
+    const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
     if (latestTransaction) {
       broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
     }
@@ -735,6 +748,7 @@ router.post('/:discordId/roulette', validateBetAmount, async (req, res) => {
         won,
         winnings,
         payout: multiplier,
+        guildId: req.guildId
       });
     }
 
@@ -744,11 +758,12 @@ router.post('/:discordId/roulette', validateBetAmount, async (req, res) => {
       totalBet,
       totalWinnings,
       'roulette',
-      betResults.filter(b => b.won).map(b => `${b.type}${b.number !== undefined ? ` (${b.number})` : ''}`).join(', ')
+      betResults.filter(b => b.won).map(b => `${b.type}${b.number !== undefined ? ` (${b.number})` : ''}`).join(', '),
+      req.guildId
     );
 
     // Send WebSocket updates
-    const latestTransaction = await Transaction.findOne({ user: user._id }).sort({ timestamp: -1 });
+    const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
     if (latestTransaction) {
       broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
     }
@@ -772,7 +787,7 @@ router.post('/:discordId/roulette', validateBetAmount, async (req, res) => {
 // Jackpot routes
 router.get('/:discordId/jackpot', async (req, res) => {
   try {
-    const jackpot = await Jackpot.findOne() || new Jackpot();
+    const jackpot = await Jackpot.findOne({ guildId: req.guildId }) || new Jackpot();
     res.json({
       currentAmount: jackpot.currentAmount,
       lastWinner: jackpot.lastWinner ? await User.findById(jackpot.lastWinner) : null,
@@ -802,11 +817,12 @@ router.post('/:discordId/jackpot/contribute', async (req, res) => {
     }
 
     // Update jackpot
-    const jackpot = await Jackpot.findOne() || new Jackpot();
+    const jackpot = await Jackpot.findOne({ guildId: req.guildId }) || new Jackpot();
     jackpot.currentAmount += amount;
     jackpot.contributions.push({
       user: req.user._id,
-      amount
+      amount,
+      guildId: req.guildId
     });
     await jackpot.save();
 
@@ -819,7 +835,8 @@ router.post('/:discordId/jackpot/contribute', async (req, res) => {
       user: req.user._id,
       type: 'jackpot_contribution',
       amount: -amount,
-      description: 'Contribution to jackpot'
+      description: 'Contribution to jackpot',
+      guildId: req.guildId
     });
     await transaction.save();
 

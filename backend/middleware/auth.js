@@ -44,8 +44,19 @@ const requireSuperAdmin = (req, res, next) => {
   next();
 };
 
+// Middleware to require guildId
+const requireGuildId = (req, res, next) => {
+  const guildId = req.body.guildId || req.query.guildId || req.headers['x-guild-id'];
+  if (!guildId) {
+    return res.status(400).json({ message: 'guildId is required in body, query, or x-guild-id header.' });
+  }
+  req.guildId = guildId;
+  next();
+};
+
 module.exports = {
   auth,
   requireAdmin,
-  requireSuperAdmin
+  requireSuperAdmin,
+  requireGuildId
 }; 

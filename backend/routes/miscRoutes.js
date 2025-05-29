@@ -1,5 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const { requireGuildId } = require('../middleware/auth');
+
+// Apply requireGuildId to all routes
+router.use(requireGuildId);
 
 // Endpoint to get Discord commands
 router.get('/discord-commands', async (req, res) => {

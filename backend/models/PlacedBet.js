@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const placedBetSchema = new mongoose.Schema({
+  guildId: { type: String, required: true },
   bet: { type: mongoose.Schema.Types.ObjectId, ref: 'Bet', required: true },
   bettor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   option: { type: String, required: true },

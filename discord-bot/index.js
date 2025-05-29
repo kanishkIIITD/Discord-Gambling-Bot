@@ -45,7 +45,10 @@ client.on('interactionCreate', async interaction => {
 		if (interaction.commandName === 'placebet') {
 			if (focusedOption.name === 'bet_id') {
 				// Fetch open bets from backend
-				const response = await axios.get(`${backendApiUrl}/bets/open`);
+				const response = await axios.get(`${backendApiUrl}/bets/open`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
 				const bets = response.data;
 				await interaction.respond(
 					bets.slice(0, 25).map(bet => ({
@@ -58,7 +61,10 @@ client.on('interactionCreate', async interaction => {
 				const betId = interaction.options.getString('bet_id');
 				if (!betId) return interaction.respond([]);
 				// Fetch bet details
-				const response = await axios.get(`${backendApiUrl}/bets/${betId}`);
+				const response = await axios.get(`${backendApiUrl}/bets/${betId}`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
 				const bet = response.data;
 				await interaction.respond(
 					bet.options.map(opt => ({
@@ -71,7 +77,10 @@ client.on('interactionCreate', async interaction => {
 		}
 		// Autocomplete for /closebet (bet_id)
 		if (interaction.commandName === 'closebet' && focusedOption.name === 'bet_id') {
-			const response = await axios.get(`${backendApiUrl}/bets/open`);
+			const response = await axios.get(`${backendApiUrl}/bets/open`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const bets = response.data;
 			await interaction.respond(
 				bets.slice(0, 25).map(bet => ({
@@ -85,7 +94,10 @@ client.on('interactionCreate', async interaction => {
 		if (interaction.commandName === 'resolvebet') {
 			if (focusedOption.name === 'bet_id') {
 				// Show bets with status 'open' or 'closed' (unresolved)
-				const response = await axios.get(`${backendApiUrl}/bets/unresolved`);
+				const response = await axios.get(`${backendApiUrl}/bets/unresolved`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
 				const bets = response.data;
 				await interaction.respond(
 					bets.slice(0, 25).map(bet => ({
@@ -96,7 +108,10 @@ client.on('interactionCreate', async interaction => {
 			} else if (focusedOption.name === 'winning_option') {
 				const betId = interaction.options.getString('bet_id');
 				if (!betId) return interaction.respond([]);
-				const response = await axios.get(`${backendApiUrl}/bets/${betId}`);
+				const response = await axios.get(`${backendApiUrl}/bets/${betId}`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
 				const bet = response.data;
 				await interaction.respond(
 					bet.options.map(opt => ({
@@ -144,7 +159,10 @@ client.on('interactionCreate', async interaction => {
 	if (blockForJail) {
 		try {
 			// Fetch jail status from backend
-			const jailRes = await axios.get(`${backendApiUrl}/users/${userId}/profile`);
+			const jailRes = await axios.get(`${backendApiUrl}/users/${userId}/profile`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			// console.log('[JAIL DEBUG] Backend /profile response:', JSON.stringify(jailRes.data, null, 2));
 			const isJailed = jailRes.data.user?.isJailed || false;
 			if (isJailed) {
@@ -166,11 +184,16 @@ client.on('interactionCreate', async interaction => {
 
 	// Ensure user exists in backend before proceeding with most commands
 	try {
-		await axios.get(`${backendApiUrl}/users/${userId}/wallet`); // This endpoint's middleware creates user/wallet if they don't exist
+		await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+			params: { guildId: interaction.guildId },
+			headers: { 'x-guild-id': interaction.guildId }
+		}); // This endpoint's middleware creates user/wallet if they don't exist
 		// Update username in backend to ensure it's always correct
 		try {
 			await axios.post(`${backendApiUrl}/users/${userId}/update-username`, {
 				username: interaction.user.username
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 		} catch (err) {
 			console.warn('Failed to update username in backend:', err.response?.data || err.message);
@@ -184,7 +207,10 @@ client.on('interactionCreate', async interaction => {
 	if (commandName === 'balance') {
 		// console.log(`Fetching balance for user: ${userId}`);
 		try {
-			const response = await axios.get(`${backendApiUrl}/users/${userId}/wallet`);
+			const response = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const balance = response.data.balance;
 			const embed = new EmbedBuilder()
 				.setColor(0x0099ff)
@@ -204,7 +230,10 @@ client.on('interactionCreate', async interaction => {
 	} else if (commandName === 'listbets') {
 		// console.log(`Listing open bets.`);
 		try {
-			const response = await axios.get(`${backendApiUrl}/bets/open`);
+			const response = await axios.get(`${backendApiUrl}/bets/open`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const openBets = response.data;
 
 			if (openBets.length === 0) {
@@ -246,7 +275,10 @@ client.on('interactionCreate', async interaction => {
 		// console.log(`Viewing bet with ID: ${betId}`);
 
 		try {
-			const response = await axios.get(`${backendApiUrl}/bets/${betId}`);
+			const response = await axios.get(`${backendApiUrl}/bets/${betId}`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const bet = response.data;
 
 			const embed = new EmbedBuilder()
@@ -265,7 +297,10 @@ client.on('interactionCreate', async interaction => {
 
 			// Fetch and display placed bets for this bet
 			try {
-				const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`);
+				const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
 				const placedBets = placedBetsResponse.data.data;
 
 				if (placedBets.length > 0) {
@@ -325,6 +360,8 @@ client.on('interactionCreate', async interaction => {
 				options,
 				creatorDiscordId: userId,
 				durationMinutes: durationMinutes,
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 			// console.log('Replied successfully');
 
@@ -356,7 +393,8 @@ client.on('interactionCreate', async interaction => {
 			await interaction.reply({
 				content,
 				embeds: [embed],
-				...(gamblersRole ? { allowedMentions: { roles: [gamblersRole.id] } } : {})
+				...(gamblersRole ? { allowedMentions: { roles: [gamblersRole.id] } } : {}),
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 		} catch (error) {
 			console.error('Error creating bet:', error, error?.response?.data);
@@ -380,12 +418,17 @@ client.on('interactionCreate', async interaction => {
 				bettorDiscordId: userId,
 				option,
 				amount,
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 
 			// Fetch and display updated wallet balance after placing bet
 			let updatedBalance = null;
 			try {
-				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`);
+				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
 				updatedBalance = walletResponse.data.balance;
 			} catch (walletError) {
 				console.error('Error fetching updated balance after placing bet:', walletError.response?.data || walletError.message);
@@ -421,6 +464,8 @@ client.on('interactionCreate', async interaction => {
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/resolve`, {
 				winningOption: winningOption,
 				resolverDiscordId: userId,
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const resolvedBet = response.data.bet;
 			const embed = new EmbedBuilder()
@@ -442,7 +487,8 @@ client.on('interactionCreate', async interaction => {
 			await interaction.reply({ 
 				content, 
 				embeds: [embed],
-				allowedMentions: { roles: [gamblersRole?.id] }
+				allowedMentions: { roles: [gamblersRole?.id] },
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 		} catch (error) {
 			console.error('Error resolving bet:', error.response?.data || error.message);
@@ -458,7 +504,9 @@ client.on('interactionCreate', async interaction => {
 		// console.log(`Attempting to close bet with ID: ${betId}`);
 
 		try {
-			const response = await axios.put(`${backendApiUrl}/bets/${betId}/close`);
+			const response = await axios.put(`${backendApiUrl}/bets/${betId}/close`, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 
 			const embed = new EmbedBuilder()
 				.setColor(0x636e72)
@@ -486,7 +534,8 @@ client.on('interactionCreate', async interaction => {
 			const response = await axios.get(
 				`${backendApiUrl}/users/${userId}/leaderboard`,
 				{
-					params: { limit }
+					params: { limit, guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
 				}
 			);
 			const leaderboard = response.data.data;
@@ -523,7 +572,10 @@ client.on('interactionCreate', async interaction => {
 		// console.log(`Fetching stats for user: ${userId}`);
 
 		try {
-			const response = await axios.get(`${backendApiUrl}/users/${userId}/stats`);
+			const response = await axios.get(`${backendApiUrl}/users/${userId}/stats`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const { betting, gambling, currentWinStreak, maxWinStreak, jackpotWins, dailyBonusesClaimed, giftsSent, giftsReceived, meowBarks } = response.data;
 
 			const embed = {
@@ -636,7 +688,8 @@ client.on('interactionCreate', async interaction => {
 
 		try {
 			await axios.delete(`${backendApiUrl}/bets/${betId}`, {
-				data: { creatorDiscordId: userId }
+				data: { creatorDiscordId: userId },
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const embed = new EmbedBuilder()
 				.setColor(0x636e72)
@@ -685,6 +738,8 @@ client.on('interactionCreate', async interaction => {
 				description,
 				options: optionsString,
 				durationMinutes
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const updatedBet = response.data.bet;
 			const embed = new EmbedBuilder()
@@ -714,6 +769,8 @@ client.on('interactionCreate', async interaction => {
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/extend`, {
 				creatorDiscordId: userId,
 				additionalMinutes
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const { bet, newClosingTime } = response.data;
 			const embed = new EmbedBuilder()
@@ -740,11 +797,17 @@ client.on('interactionCreate', async interaction => {
 
 		try {
 			// Get bet details
-			const betResponse = await axios.get(`${backendApiUrl}/bets/${betId}`);
+			const betResponse = await axios.get(`${backendApiUrl}/bets/${betId}`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const bet = betResponse.data;
 
 			// Get placed bets
-			const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`);
+			const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const placedBets = placedBetsResponse.data.data;
 
 			// Calculate total pot and bets per option
@@ -796,7 +859,9 @@ client.on('interactionCreate', async interaction => {
 		// console.log(`Attempting to claim daily bonus for user: ${userId}`);
 
 		try {
-			const response = await axios.post(`${backendApiUrl}/users/${userId}/daily`);
+			const response = await axios.post(`${backendApiUrl}/users/${userId}/daily`, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const { amount, streak, nextClaimTime } = response.data;
 
 			const embed = new EmbedBuilder()
@@ -850,6 +915,8 @@ client.on('interactionCreate', async interaction => {
 			const response = await axios.post(`${backendApiUrl}/users/${userId}/gift`, {
 				recipientDiscordId: recipient.id,
 				amount
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 
 			const embed = new EmbedBuilder()
@@ -876,7 +943,10 @@ client.on('interactionCreate', async interaction => {
 		// console.log(`Fetching profile for user: ${targetUser.id}`);
 
 		try {
-			const response = await axios.get(`${backendApiUrl}/users/${targetUser.id}/profile`);
+			const response = await axios.get(`${backendApiUrl}/users/${targetUser.id}/profile`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const { user, wallet, betting, gambling } = response.data;
 
 			const embed = {
@@ -927,6 +997,8 @@ client.on('interactionCreate', async interaction => {
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/coinflip`, {
 				choice,
 				amount
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const { result, won, winnings, newBalance } = response.data;
 			const embed = new EmbedBuilder()
@@ -960,6 +1032,8 @@ client.on('interactionCreate', async interaction => {
 				bet_type: betType,
 				number,
 				amount
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const { roll, won, winnings, newBalance } = response.data;
 			const embed = new EmbedBuilder()
@@ -989,6 +1063,8 @@ client.on('interactionCreate', async interaction => {
 		try {
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/slots`, {
 				amount
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const { reels, won, winnings, newBalance, isJackpot, jackpotPool, freeSpins, usedFreeSpin, winType } = response.data;
 			let description = isJackpot ?
@@ -1009,7 +1085,7 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'Jackpot Pool', value: `${(jackpotPool || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'Free Spins', value: `${freeSpins || 0}`, inline: true },
-				);
+				)
 			if (usedFreeSpin && !won && !isJackpot) {
 				embed.addFields({ name: 'Note', value: 'You used a free spin!', inline: false });
 			}
@@ -1031,7 +1107,9 @@ client.on('interactionCreate', async interaction => {
 			const requestBody = {};
 			if (amount !== null) requestBody.amount = amount;
 			if (action) requestBody.action = action;
-			const response = await axios.post(`${backendApiUrl}/gambling/${interaction.user.id}/blackjack`, requestBody);
+			const response = await axios.post(`${backendApiUrl}/gambling/${interaction.user.id}/blackjack`, requestBody, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const data = response.data;
 			const embed = new EmbedBuilder()
 				.setColor(data.gameOver ? (data.results.some(r => r.result === 'win' || r.result === 'blackjack') ? 0x00ff00 : 0xff0000) : 0x0099ff)
@@ -1102,7 +1180,9 @@ client.on('interactionCreate', async interaction => {
 			if (betType === 'single' && number !== null) {
 				requestBody.bets[0].number = number;
 			}
-			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/roulette`, requestBody);
+			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/roulette`, requestBody, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const { result, color, bets, totalWinnings, newBalance } = response.data;
 			const embed = new EmbedBuilder()
 				.setColor(totalWinnings > 0 ? 0x00ff00 : 0xff0000)
@@ -1134,7 +1214,10 @@ client.on('interactionCreate', async interaction => {
 		const amount = interaction.options.getInteger('amount');
 		try {
 			if (action === 'view') {
-				const response = await axios.get(`${backendApiUrl}/gambling/${userId}/jackpot`);
+				const response = await axios.get(`${backendApiUrl}/gambling/${userId}/jackpot`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
 				const { currentAmount, lastWinner, lastWinAmount, lastWinTime } = response.data;
 				const embed = new EmbedBuilder()
 					.setColor(0xffd700)
@@ -1154,6 +1237,8 @@ client.on('interactionCreate', async interaction => {
 			} else if (action === 'contribute') {
 				const response = await axios.post(`${backendApiUrl}/gambling/${userId}/jackpot/contribute`, {
 					amount
+				}, {
+					headers: { 'x-guild-id': interaction.guildId }
 				});
 				const { contribution, newJackpotAmount, newBalance } = response.data;
 				const embed = new EmbedBuilder()
@@ -1184,7 +1269,8 @@ client.on('interactionCreate', async interaction => {
 			const type = interaction.options.getString('type') || 'all';
 
 			const response = await axios.get(`${backendApiUrl}/users/${userId}/transactions`, {
-				params: { limit, type }
+				params: { limit, type, guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
 			});
 
 			const transactions = response.data.transactions;
@@ -1228,7 +1314,10 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'unresolvedbets') {
 		try {
-			const response = await axios.get(`${backendApiUrl}/bets/unresolved`);
+			const response = await axios.get(`${backendApiUrl}/bets/unresolved`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const unresolvedBets = response.data;
 
 			if (unresolvedBets.length === 0) {
@@ -1298,22 +1387,24 @@ client.on('interactionCreate', async interaction => {
 			.setTitle('🐾 Meow or Bark Challenge!')
 			.setDescription(`To earn **${amount} points**, reply with either 🐱**meow**🐱 or 🐶**bark**🐶 in the next 30 seconds!`)
 			.setTimestamp();
-		await interaction.reply({ embeds: [promptEmbed] });
+		await interaction.reply({ embeds: [promptEmbed], headers: { 'x-guild-id': interaction.guildId } });
 		const filter = m => m.author.id === userId && ['meow', 'bark', 'woof', 'woof woof'].includes(m.content.toLowerCase());
 		meowbarkCooldowns.set(userId, Date.now());
 		try {
 			const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
 			const reply = collected.first();
-			await axios.post(`${backendApiUrl}/users/${userId}/meowbark`, { amount });
+			await axios.post(`${backendApiUrl}/users/${userId}/meowbark`, { amount }, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
 			const successEmbed = new EmbedBuilder()
 				.setColor(0x00ff00)
 				.setTitle('🎉 Success!')
 				.setDescription(`You did it! **${amount} points** have been added to your account.`)
 				.setTimestamp();
 			if (!interaction.replied && !interaction.deferred) {
-				await interaction.reply({ embeds: [successEmbed] });
+				await interaction.reply({ embeds: [successEmbed], headers: { 'x-guild-id': interaction.guildId } });
 			} else {
-				await interaction.followUp({ embeds: [successEmbed] });
+				await interaction.followUp({ embeds: [successEmbed], headers: { 'x-guild-id': interaction.guildId } });
 			}
 			return;
 		} catch (err) {
@@ -1324,9 +1415,9 @@ client.on('interactionCreate', async interaction => {
 					.setDescription('You did not meow or bark in time. Try again later.')
 					.setTimestamp();
 				if (!interaction.replied && !interaction.deferred) {
-					await interaction.reply({ embeds: [timeoutEmbed] });
+					await interaction.reply({ embeds: [timeoutEmbed], headers: { 'x-guild-id': interaction.guildId } });
 				} else {
-					await interaction.followUp({ embeds: [timeoutEmbed] });
+					await interaction.followUp({ embeds: [timeoutEmbed], headers: { 'x-guild-id': interaction.guildId } });
 				}
 				return;
 			} else {
@@ -1336,9 +1427,9 @@ client.on('interactionCreate', async interaction => {
 					.setDescription('Something went wrong. Please try again later.')
 					.setTimestamp();
 				if (!interaction.replied && !interaction.deferred) {
-					await interaction.reply({ embeds: [errorEmbed] });
+					await interaction.reply({ embeds: [errorEmbed], headers: { 'x-guild-id': interaction.guildId } });
 				} else {
-					await interaction.followUp({ embeds: [errorEmbed] });
+					await interaction.followUp({ embeds: [errorEmbed], headers: { 'x-guild-id': interaction.guildId } });
 				}
 				return;
 			}
@@ -1379,20 +1470,25 @@ client.on('interactionCreate', async interaction => {
 			try {
 				// Only allow the challenged user to respond
 				// Fetch duel info from backend to get the opponent's Discord ID
-				const duelRes = await axios.get(`${backendUrl}/duels/${duelId}`);
+				const duelRes = await axios.get(`${backendUrl}/duels/${duelId}`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
 				const duel = duelRes.data;
 				if (duel.status !== 'pending') {
-					await interaction.reply({ content: 'This duel has already been resolved.', ephemeral: true });
+					await interaction.reply({ content: 'This duel has already been resolved.', ephemeral: true, headers: { 'x-guild-id': interaction.guildId } });
 					return;
 				}
 				if (userId !== duel.opponentDiscordId) {
-					await interaction.reply({ content: 'Only the challenged user can accept or decline this duel.', ephemeral: true });
+					await interaction.reply({ content: 'Only the challenged user can accept or decline this duel.', ephemeral: true, headers: { 'x-guild-id': interaction.guildId } });
 					return;
 				}
 				// Respond to duel
 				const response = await axios.post(`${backendUrl}/users/${userId}/duel/respond`, {
 					duelId,
 					accept
+				}, {
+					headers: { 'x-guild-id': interaction.guildId }
 				});
 				if (accept) {
 					const { winner, actionText } = response.data;
@@ -1402,24 +1498,24 @@ client.on('interactionCreate', async interaction => {
 						title: '⚔️ Duel Result',
 						description: `${winnerMention} ${actionText}\n\n**Winner:** ${winnerMention}`,
 						timestamp: new Date(),
-						footer: { text: `Duel ID: ${duelId}` }
+						footer: { text: `Duel ID: ${duelId}`, headers: { 'x-guild-id': interaction.guildId } }
 					};
-					await interaction.update({ embeds: [resultEmbed], components: [] });
+					await interaction.update({ embeds: [resultEmbed], components: [], headers: { 'x-guild-id': interaction.guildId } });
 				} else {
 					const resultEmbed = {
 						color: 0xff7675,
 						title: 'Duel Declined',
 						description: `<@${userId}> declined the duel. Stakes refunded.`,
 						timestamp: new Date(),
-						footer: { text: `Duel ID: ${duelId}` }
+						footer: { text: `Duel ID: ${duelId}`, headers: { 'x-guild-id': interaction.guildId } }
 					};
-					await interaction.update({ embeds: [resultEmbed], components: [] });
+					await interaction.update({ embeds: [resultEmbed], components: [], headers: { 'x-guild-id': interaction.guildId } });
 				}
 			} catch (error) {
 				if (error.response && error.response.data && error.response.data.message) {
-					await interaction.reply({ content: error.response.data.message, ephemeral: true });
+						await interaction.reply({ content: error.response.data.message, ephemeral: true, headers: { 'x-guild-id': interaction.guildId } });
 				} else {
-					await interaction.reply({ content: 'Error processing duel response.', ephemeral: true });
+					await interaction.reply({ content: 'Error processing duel response.', ephemeral: true, headers: { 'x-guild-id': interaction.guildId } });
 				}
 			}
 			return;

@@ -7,62 +7,49 @@ const Transaction = require('../models/Transaction');
 const { broadcastToUser } = require('../utils/websocketService'); // Import WebSocket service
 const UserPreferences = require('../models/UserPreferences');
 const Duel = require('../models/Duel');
+const { requireGuildId } = require('../middleware/auth');
 
 // Middleware to find or create user and wallet
-router.use('/:discordId', async (req, res, next) => {
+router.use('/:discordId', requireGuildId, async (req, res, next) => {
   try {
-    let user = await User.findOne({ discordId: req.params.discordId });
+    let user = await User.findOne({ discordId: req.params.discordId, guildId: req.guildId });
 
     if (!user) {
-      // // console.log(`New user detected: ${req.params.discordId}. Attempting to create user, wallet, and initial transaction.`);
-
-      // Create user, including username from request body
       user = new User({ 
         discordId: req.params.discordId,
-        username: req.body.username || `User${req.params.discordId}` // Use username from body or a default if not provided
+        guildId: req.guildId,
+        username: req.body.username || `User${req.params.discordId}`
       });
       await user.save();
-      // // console.log(`User ${user.discordId} created.`);
-
-      // Create wallet for the new user
-      const wallet = new Wallet({ user: user._id });
-      wallet.balance = 100000; // Set starting balance
+      const wallet = new Wallet({ user: user._id, guildId: req.guildId });
+      wallet.balance = 100000;
       await wallet.save();
-      // // console.log(`Wallet for user ${user.discordId} created with initial balance.`);
-
-      // Record initial balance transaction
       const transaction = new Transaction({
         user: user._id,
-        type: 'initial_balance', // Changed type for clarity
+        guildId: req.guildId,
+        type: 'initial_balance',
         amount: 100000,
         description: 'Initial balance'
       });
       await transaction.save();
-      // // console.log(`Initial transaction for user ${user.discordId} recorded.`);
     }
 
     req.user = user;
-    // Attempt to find wallet even if user existed, to ensure req.wallet is populated consistently
     if (!req.wallet) {
-       req.wallet = await Wallet.findOne({ user: user._id });
+       req.wallet = await Wallet.findOne({ user: user._id, guildId: req.guildId });
        if (!req.wallet) {
-           console.warn(`Wallet not found for existing user ${user.discordId} after middleware. Creating one now.`); // Keep this warn for unexpected cases
-           // Create a wallet for the existing user
-           const wallet = new Wallet({ user: user._id });
-           wallet.balance = 100000; // Set initial balance (can be adjusted if needed for existing users)
+           const wallet = new Wallet({ user: user._id, guildId: req.guildId });
+           wallet.balance = 100000;
            await wallet.save();
-           // // console.log(`New wallet created for existing user ${user.discordId}.`); // Removed this log
-           req.wallet = wallet; // Attach the newly created wallet
+           req.wallet = wallet;
        }
     }
     next();
   } catch (error) {
-    console.error('Error in user middleware during creation/finding:', error); // Keep this error log
-    // Only send error response if no headers have been sent yet
+    console.error('Error in user middleware during creation/finding:', error);
     if (!res.headersSent) {
         res.status(500).json({ message: 'Server error during user/wallet initialization.' });
     } else {
-        // If headers are already sent, just pass the error to the next error handler
         next(error);
     }
   }
@@ -71,7 +58,7 @@ router.use('/:discordId', async (req, res, next) => {
 // Get user's wallet balance
 router.get('/:discordId/wallet', async (req, res) => {
   try {
-    const wallet = await Wallet.findOne({ user: req.user._id });
+    const wallet = await Wallet.findOne({ user: req.user._id, guildId: req.guildId });
     if (!wallet) {
       return res.status(404).json({ message: 'Wallet not found.' });
     }
@@ -94,7 +81,7 @@ router.get('/:discordId/leaderboard', async (req, res) => {
     };
     const sortBy = allowedSorts[req.query.sortBy] || 'balance';
     const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
-    const wallets = await Wallet.find()
+    const wallets = await Wallet.find({ guildId: req.guildId })
       .populate('user', 'discordId username');
     let sortedWallets;
     if (sortBy === 'user.username') {
@@ -127,7 +114,7 @@ router.get('/:discordId/stats', async (req, res) => {
   try {
     const user = req.user;
     // Betting stats
-    const placedBets = await PlacedBet.find({ bettor: user._id })
+    const placedBets = await PlacedBet.find({ bettor: user._id, guildId: req.guildId })
       .populate({ path: 'bet', select: 'status winningOption' });
     const betting = {
       totalBets: placedBets.length,
@@ -162,7 +149,8 @@ router.get('/:discordId/stats', async (req, res) => {
       $or: [
         { description: /coinflip|dice|slots|blackjack|roulette/i },
         { description: { $exists: false } }
-      ]
+      ],
+      guildId: req.guildId
     });
     let totalGamesPlayed = 0;
     let totalGambled = 0;
@@ -205,17 +193,17 @@ router.get('/:discordId/stats', async (req, res) => {
     };
     // Other stats
     // Jackpot wins
-    const jackpotWins = await Transaction.countDocuments({ user: user._id, type: 'jackpot' });
+    const jackpotWins = await Transaction.countDocuments({ user: user._id, type: 'jackpot', guildId: req.guildId });
     // Daily bonuses claimed
-    const dailyBonusesClaimed = await Transaction.countDocuments({ user: user._id, type: 'daily' });
+    const dailyBonusesClaimed = await Transaction.countDocuments({ user: user._id, type: 'daily', guildId: req.guildId });
     // Gifts sent/received
-    const giftsSent = await Transaction.countDocuments({ user: user._id, type: 'gift_sent' });
-    const giftsReceived = await Transaction.countDocuments({ user: user._id, type: 'gift_received' });
+    const giftsSent = await Transaction.countDocuments({ user: user._id, type: 'gift_sent', guildId: req.guildId });
+    const giftsReceived = await Transaction.countDocuments({ user: user._id, type: 'gift_received', guildId: req.guildId });
     // Win streaks
     const currentWinStreak = user.currentWinStreak || 0;
     const maxWinStreak = user.maxWinStreak || 0;
-    const meowBarks = await Transaction.countDocuments({ user: user._id, type: 'meowbark' });
-    const refunds = await Transaction.countDocuments({ user: user._id, type: 'refund' });
+    const meowBarks = await Transaction.countDocuments({ user: user._id, type: 'meowbark', guildId: req.guildId });
+    const refunds = await Transaction.countDocuments({ user: user._id, type: 'refund', guildId: req.guildId });
     res.json({
       betting,
       gambling,
@@ -236,11 +224,11 @@ router.get('/:discordId/stats', async (req, res) => {
 // (Optional) Endpoint to initialize wallet if not created by middleware
 router.post('/:discordId/wallet/initialize', async (req, res) => {
   try {
-    let wallet = await Wallet.findOne({ user: req.user._id });
+    let wallet = await Wallet.findOne({ user: req.user._id, guildId: req.guildId });
     if (wallet) {
       return res.status(409).json({ message: 'Wallet already exists.' });
     }
-    wallet = new Wallet({ user: req.user._id });
+    wallet = new Wallet({ user: req.user._id, guildId: req.guildId });
     await wallet.save();
     res.status(201).json({ message: 'Wallet initialized.', wallet });
   } catch (error) {
@@ -252,13 +240,13 @@ router.post('/:discordId/wallet/initialize', async (req, res) => {
 // Get user profile
 router.get('/:userId/profile', async (req, res) => {
   try {
-    const user = await User.findOne({ discordId: req.params.userId });
+    const user = await User.findOne({ discordId: req.params.userId, guildId: req.guildId });
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
-    const wallet = await Wallet.findOne({ user: user._id });
+    const wallet = await Wallet.findOne({ user: user._id, guildId: req.guildId });
     // Betting stats
-    const placedBets = await PlacedBet.find({ bettor: user._id }).populate('bet');
+    const placedBets = await PlacedBet.find({ bettor: user._id, guildId: req.guildId }).populate('bet');
     const betting = {
       totalBets: placedBets.length,
       totalWagered: 0,
@@ -291,7 +279,8 @@ router.get('/:userId/profile', async (req, res) => {
       $or: [
         { description: /coinflip|dice|slots|blackjack|roulette/i },
         { description: { $exists: false } }
-      ]
+      ],
+      guildId: req.guildId
     });
     let totalGambled = 0;
     let totalGamblingWon = 0;
@@ -330,12 +319,12 @@ router.get('/:userId/profile', async (req, res) => {
 // Claim daily bonus
 router.post('/:userId/daily', async (req, res) => {
   try {
-    const user = await User.findOne({ discordId: req.params.userId });
+    const user = await User.findOne({ discordId: req.params.userId, guildId: req.guildId });
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    const wallet = await Wallet.findOne({ user: user._id });
+    const wallet = await Wallet.findOne({ user: user._id, guildId: req.guildId });
     if (!wallet) {
       return res.status(404).json({ message: 'Wallet not found.' });
     }
@@ -370,7 +359,8 @@ router.post('/:userId/daily', async (req, res) => {
       user: user._id,
       type: 'daily',
       amount: bonusAmount,
-      description: `Daily bonus (${wallet.dailyStreak} day streak)`
+      description: `Daily bonus (${wallet.dailyStreak} day streak)`,
+      guildId: req.guildId
     });
     await transaction.save();
 
@@ -402,16 +392,16 @@ router.post('/:userId/gift', async (req, res) => {
     }
 
     // Find sender and recipient
-    const sender = await User.findOne({ discordId: senderDiscordId });
-    const recipient = await User.findOne({ discordId: recipientDiscordId });
+    const sender = await User.findOne({ discordId: senderDiscordId, guildId: req.guildId });
+    const recipient = await User.findOne({ discordId: recipientDiscordId, guildId: req.guildId });
 
     if (!sender || !recipient) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
     // Get wallets
-    const senderWallet = await Wallet.findOne({ user: sender._id });
-    const recipientWallet = await Wallet.findOne({ user: recipient._id });
+    const senderWallet = await Wallet.findOne({ user: sender._id, guildId: req.guildId });
+    const recipientWallet = await Wallet.findOne({ user: recipient._id, guildId: req.guildId });
 
     if (!senderWallet || !recipientWallet) {
       return res.status(404).json({ message: 'Wallet not found.' });
@@ -433,7 +423,8 @@ router.post('/:userId/gift', async (req, res) => {
       user: sender._id,
       type: 'gift_sent',
       amount: -amount,
-      description: `Gift to ${recipientDiscordId}`
+      description: `Gift to ${recipientDiscordId}`,
+      guildId: req.guildId
     });
     await senderTransaction.save();
 
@@ -441,7 +432,8 @@ router.post('/:userId/gift', async (req, res) => {
       user: recipient._id,
       type: 'gift_received',
       amount: amount,
-      description: `Gift from ${senderDiscordId}`
+      description: `Gift from ${senderDiscordId}`,
+      guildId: req.guildId
     });
     await recipientTransaction.save();
 
@@ -477,7 +469,7 @@ router.get('/:discordId/transactions', async (req, res) => {
     }
 
     // Build query
-    const query = { user: user._id };
+    const query = { user: user._id, guildId: req.guildId };
     if (type && type !== 'all') {
       query.type = type;
     }
@@ -504,12 +496,12 @@ router.get('/:discordId/transactions', async (req, res) => {
 // Get daily bonus status
 router.get('/:userId/daily-status', async (req, res) => {
   try {
-    const user = await User.findOne({ discordId: req.params.userId });
+    const user = await User.findOne({ discordId: req.params.userId, guildId: req.guildId });
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    const wallet = await Wallet.findOne({ user: user._id });
+    const wallet = await Wallet.findOne({ user: user._id, guildId: req.guildId });
     if (!wallet) {
       return res.status(404).json({ message: 'Wallet not found.' });
     }
@@ -537,10 +529,10 @@ router.get('/:userId/daily-status', async (req, res) => {
 router.get('/:discordId/preferences', async (req, res) => {
   try {
     // Find user preferences or create default if none exist
-    let preferences = await UserPreferences.findOne({ user: req.user._id });
+    let preferences = await UserPreferences.findOne({ user: req.user._id, guildId: req.guildId });
     
     if (!preferences) {
-      preferences = new UserPreferences({ user: req.user._id });
+      preferences = new UserPreferences({ user: req.user._id, guildId: req.guildId });
       await preferences.save();
     }
     
@@ -557,7 +549,7 @@ router.put('/:discordId/preferences', async (req, res) => {
     const updates = req.body;
     // Find preferences and update
     const preferences = await UserPreferences.findOneAndUpdate(
-      { user: req.user._id },
+      { user: req.user._id, guildId: req.guildId },
       { $set: updates },
       { new: true, upsert: true } // Create if not exists, return updated document
     );
@@ -584,12 +576,12 @@ router.get('/leaderboard/winstreaks', async (req, res) => {
     const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
     const UserModel = require('../models/User');
     const [users, totalCount] = await Promise.all([
-      UserModel.find()
+      UserModel.find({ guildId: req.guildId })
         .sort({ [sortBy]: sortOrder })
         .skip(skip)
         .limit(limit)
         .select('username discordId maxWinStreak currentWinStreak'),
-      UserModel.countDocuments()
+      UserModel.countDocuments({ guildId: req.guildId })
     ]);
     res.json({ data: users, totalCount });
   } catch (error) {
@@ -613,7 +605,7 @@ router.get('/leaderboard/biggest-wins', async (req, res) => {
     const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
     const Transaction = require('../models/Transaction');
     const User = require('../models/User');
-    let wins = await Transaction.find({ type: 'win' })
+    let wins = await Transaction.find({ type: 'win', guildId: req.guildId })
       .populate('user', 'username discordId')
       .lean();
     // In-memory sort for username (alpha)
@@ -653,11 +645,11 @@ router.get('/', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     const [users, totalCount] = await Promise.all([
-      User.find({}, '_id username discordId role')
+      User.find({ guildId: req.guildId }, '_id username discordId role')
         .sort({ username: 1 })
         .skip(skip)
         .limit(limit),
-      User.countDocuments()
+      User.countDocuments({ guildId: req.guildId })
     ]);
     res.json({ data: users, totalCount });
   } catch (error) {
@@ -674,12 +666,12 @@ router.get('/:discordId/bets', async (req, res) => {
     const skip = (page - 1) * limit;
 
     const [placedBets, totalCount] = await Promise.all([
-      PlacedBet.find({ bettor: user._id })
+      PlacedBet.find({ bettor: user._id, guildId: req.guildId })
         .populate('bet')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      PlacedBet.countDocuments({ bettor: user._id })
+      PlacedBet.countDocuments({ bettor: user._id, guildId: req.guildId })
     ]);
 
     res.json({
@@ -702,7 +694,7 @@ router.post('/:discordId/update-username', async (req, res) => {
       return res.status(400).json({ message: 'Invalid username.' });
     }
     const user = await User.findOneAndUpdate(
-      { discordId: req.params.discordId },
+      { discordId: req.params.discordId, guildId: req.guildId },
       { username },
       { new: true }
     );
@@ -732,7 +724,8 @@ router.post('/:discordId/meowbark', async (req, res) => {
       user: user._id,
       type: 'meowbark',
       amount,
-      description: 'Meow/Bark reward'
+      description: 'Meow/Bark reward',
+      guildId: req.guildId
     });
     await transaction.save();
     res.json({ message: `Added ${amount} points.`, newBalance: wallet.balance });
@@ -750,7 +743,8 @@ router.get('/search-users', async (req, res) => {
       return res.json({ data: [] });
     }
     const users = await User.find({
-      username: { $regex: q, $options: 'i' }
+      username: { $regex: q, $options: 'i' },
+      guildId: req.guildId
     })
       .select('discordId username')
       .limit(20);
@@ -1039,7 +1033,7 @@ router.post('/:discordId/bail', async (req, res) => {
     console.log('[BAIL] payer:', payer.discordId, 'target:', targetDiscordId);
     if (!targetDiscordId) return res.status(400).json({ message: 'No target user specified.' });
     if (targetDiscordId === payer.discordId) return res.status(400).json({ message: 'You cannot bail yourself out.' });
-    const targetUser = await User.findOne({ discordId: targetDiscordId });
+    const targetUser = await User.findOne({ discordId: targetDiscordId, guildId: req.guildId });
     console.log('[BAIL] targetUser:', targetUser && targetUser.discordId, 'jailedUntil:', targetUser && targetUser.jailedUntil);
     if (!targetUser) return res.status(404).json({ message: 'Target user not found.' });
     if (!targetUser.jailedUntil || targetUser.jailedUntil < new Date()) {
@@ -1049,7 +1043,7 @@ router.post('/:discordId/bail', async (req, res) => {
     const now = new Date();
     const minutesLeft = Math.ceil((targetUser.jailedUntil - now) / 60000);
     const bailCost = 10000 + minutesLeft * 1000;
-    const payerWallet = await Wallet.findOne({ user: payer._id });
+    const payerWallet = await Wallet.findOne({ user: payer._id, guildId: req.guildId });
     console.log('[BAIL] payerWallet balance:', payerWallet && payerWallet.balance, 'bailCost:', bailCost);
     if (!payerWallet || payerWallet.balance < bailCost) {
       return res.status(400).json({ message: `You need ${bailCost.toLocaleString()} points to bail this user out.` });
@@ -1062,7 +1056,8 @@ router.post('/:discordId/bail', async (req, res) => {
       user: payer._id,
       type: 'bail',
       amount: -bailCost,
-      description: `Bailed out <@${targetDiscordId}>`
+      description: `Bailed out <@${targetDiscordId}>`,
+      guildId: req.guildId
     });
     await transaction.save();
     broadcastToUser(payer.discordId, { type: 'TRANSACTION', transaction });
@@ -1220,7 +1215,7 @@ router.post('/:discordId/hunt', async (req, res) => {
 // --- COLLECTION ---
 router.get('/:discordId/collection', async (req, res) => {
   try {
-    const user = await User.findOne({ discordId: req.params.discordId });
+    const user = await User.findOne({ discordId: req.params.discordId, guildId: req.guildId });
     if (!user) return res.status(404).json({ message: 'User not found.' });
     if (typeof cleanUserBuffs === 'function') cleanUserBuffs(user);
     await user.save();
@@ -1265,7 +1260,8 @@ router.post('/:discordId/sell', async (req, res) => {
       user: user._id,
       type: 'sell',
       amount: totalValue,
-      description: `Sold ${count}x ${item.name} (${item.rarity})`
+      description: `Sold ${count}x ${item.name} (${item.rarity})`,
+      guildId: req.guildId
     });
     res.json({ message: `Sold ${count}x ${item.name} for ${totalValue.toLocaleString()} points.`, newBalance: wallet.balance });
     // Record transaction and broadcast updates AFTER sending response
@@ -1287,7 +1283,7 @@ router.post('/:discordId/sell', async (req, res) => {
 router.get('/collection-leaderboard', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 5;
-    const users = await User.find();
+    const users = await User.find({ guildId: req.guildId });
     // Calculate total collection value for each user
     const leaderboard = users.map(u => {
       const totalValue = (u.inventory || []).reduce((sum, i) => sum + (i.value * i.count), 0);
@@ -1316,7 +1312,7 @@ router.post('/:discordId/trade', async (req, res) => {
     if (targetDiscordId === sender.discordId) {
       return res.status(400).json({ message: 'Cannot trade with yourself.' });
     }
-    const receiver = await User.findOne({ discordId: targetDiscordId });
+    const receiver = await User.findOne({ discordId: targetDiscordId, guildId: req.guildId });
     if (!receiver) return res.status(404).json({ message: 'Target user not found.' });
     // Find item in sender inventory
     const idx = (sender.inventory || []).findIndex(i => i.type === type && i.name === name);
@@ -1361,7 +1357,8 @@ router.post('/:discordId/trade', async (req, res) => {
       user: sender._id,
       type: 'trade_sent',
       amount: 0,
-      description: `Traded ${count}x ${item.name} to ${targetDiscordId}`
+      description: `Traded ${count}x ${item.name} to ${targetDiscordId}`,
+      guildId: req.guildId
     });
     await transaction.save();
     // Record transaction for receiver
@@ -1369,7 +1366,8 @@ router.post('/:discordId/trade', async (req, res) => {
       user: receiver._id,
       type: 'trade_received',
       amount: 0,
-      description: `Received ${count}x ${item.name} from ${sender.discordId}`
+      description: `Received ${count}x ${item.name} from ${sender.discordId}`,
+      guildId: req.guildId
     });
     await transaction2.save();
     broadcastToUser(sender.discordId, { type: 'TRANSACTION', transaction });
@@ -1397,7 +1395,7 @@ router.post('/:discordId/duel', async (req, res) => {
     if (challenger.duelCooldown && challenger.duelCooldown > now) {
       return res.status(429).json({ message: `You are on duel cooldown. Try again at ${challenger.duelCooldown.toLocaleString()}` });
     }
-    const opponent = await User.findOne({ discordId: opponentDiscordId });
+    const opponent = await User.findOne({ discordId: opponentDiscordId, guildId: req.guildId });
     if (!opponent) return res.status(404).json({ message: 'Opponent not found.' });
     if (opponent.duelCooldown && opponent.duelCooldown > now) {
       return res.status(429).json({ message: 'Opponent is on duel cooldown.' });
@@ -1406,14 +1404,15 @@ router.post('/:discordId/duel', async (req, res) => {
     const existing = await Duel.findOne({
       challengerDiscordId: challenger.discordId,
       opponentDiscordId,
-      status: 'pending'
+      status: 'pending',
+      guildId: req.guildId
     });
     if (existing) {
       return res.status(400).json({ message: 'There is already a pending duel with this user.' });
     }
     // Check balances
-    const challengerWallet = await Wallet.findOne({ user: challenger._id });
-    const opponentWallet = await Wallet.findOne({ user: opponent._id });
+    const challengerWallet = await Wallet.findOne({ user: challenger._id, guildId: req.guildId });
+    const opponentWallet = await Wallet.findOne({ user: opponent._id, guildId: req.guildId });
     if (!challengerWallet || challengerWallet.balance < amount) {
       return res.status(400).json({ message: 'You do not have enough points to duel.' });
     }
@@ -1432,7 +1431,8 @@ router.post('/:discordId/duel', async (req, res) => {
       challengerDiscordId: challenger.discordId,
       opponentDiscordId,
       amount,
-      status: 'pending'
+      status: 'pending',
+      guildId: req.guildId
     });
     await duel.save();
     // Set cooldown (5-10 min random)
@@ -1480,7 +1480,7 @@ router.post('/:discordId/duel/respond', async (req, res) => {
       await duel.save();
       // Award winnings
       const total = duel.amount * 2;
-      const winnerWallet = await Wallet.findOne({ user: winner._id });
+      const winnerWallet = await Wallet.findOne({ user: winner._id, guildId: req.guildId });
       winnerWallet.balance += total;
       await winnerWallet.save();
       // Update stats
@@ -1494,13 +1494,15 @@ router.post('/:discordId/duel/respond', async (req, res) => {
         user: winner._id,
         type: 'win',
         amount: total,
-        description: `Duel win vs ${loser.username}`
+        description: `Duel win vs ${loser.username}`,
+        guildId: req.guildId
       });
       await Transaction.create({
         user: loser._id,
         type: 'lose',
         amount: 0,
-        description: `Duel loss vs ${winner.username}`
+        description: `Duel loss vs ${winner.username}`,
+        guildId: req.guildId
       });
       res.json({
         message: `Duel resolved. Winner: ${winner.username}`,
@@ -1513,8 +1515,8 @@ router.post('/:discordId/duel/respond', async (req, res) => {
       duel.status = 'declined';
       duel.resolvedAt = new Date();
       await duel.save();
-      const challengerWallet = await Wallet.findOne({ user: duel.challenger._id });
-      const opponentWallet = await Wallet.findOne({ user: duel.opponent._id });
+      const challengerWallet = await Wallet.findOne({ user: duel.challenger._id, guildId: req.guildId });
+      const opponentWallet = await Wallet.findOne({ user: duel.opponent._id, guildId: req.guildId });
       challengerWallet.balance += duel.amount;
       opponentWallet.balance += duel.amount;
       await challengerWallet.save();
@@ -1546,7 +1548,7 @@ router.post('/:discordId/beg', async (req, res) => {
     const wallet = req.wallet;
     const now = new Date();
     // Always fetch user fresh from DB for cooldown check
-    const user = await User.findOne({ discordId: userId });
+    const user = await User.findOne({ discordId: userId, guildId: req.guildId });
     if (!user) return res.status(404).json({ message: 'User not found.' });
     if (user.begCooldown && user.begCooldown > now) {
       return res.status(429).json({ message: `You must wait before begging again. Try at ${user.begCooldown.toLocaleString()}` });
@@ -1729,7 +1731,8 @@ router.get('/:discordId/pending-duels', async (req, res) => {
     // Find all pending duels where this user is the opponent
     const duels = await Duel.find({
       opponentDiscordId: user.discordId,
-      status: 'pending'
+      status: 'pending',
+      guildId: req.guildId
     }).select('_id challengerDiscordId amount');
     res.json({ duels });
   } catch (error) {

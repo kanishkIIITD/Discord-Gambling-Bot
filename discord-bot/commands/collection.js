@@ -12,8 +12,9 @@ module.exports = {
     try {
       await interaction.deferReply();
       const userId = interaction.user.id;
+      const guildId = interaction.guildId;
       const backendUrl = process.env.BACKEND_API_URL;
-      const response = await axios.get(`${backendUrl}/users/${userId}/collection`);
+      const response = await axios.get(`${backendUrl}/users/${userId}/collection`, { params: { guildId }, headers: { 'x-guild-id': guildId } });
       const inventory = response.data.inventory || [];
       const buffs = response.data.buffs || [];
       if (inventory.length === 0) {

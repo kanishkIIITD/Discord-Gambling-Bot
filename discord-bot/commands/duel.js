@@ -51,9 +51,10 @@ module.exports = {
     if (sub === 'accept' || sub === 'decline') {
       const userId = interaction.user.id;
       const backendUrl = process.env.BACKEND_API_URL;
+      const guildId = interaction.guildId;
       try {
         // Fetch pending duels where user is opponent
-        const res = await axios.get(`${backendUrl}/users/${userId}/pending-duels`);
+        const res = await axios.get(`${backendUrl}/users/${userId}/pending-duels`, { params: { guildId }, headers: { 'x-guild-id': guildId } });
         const duels = res.data.duels || [];
         await interaction.respond(
           duels.slice(0, 25).map(duel => ({
@@ -71,6 +72,7 @@ module.exports = {
     const sub = interaction.options.getSubcommand();
     const backendUrl = process.env.BACKEND_API_URL;
     const userId = interaction.user.id;
+    const guildId = interaction.guildId;
     if (sub === 'challenge') {
       try {
         await interaction.deferReply();
@@ -81,10 +83,7 @@ module.exports = {
           return;
         }
         // Initiate duel in backend
-        const duelRes = await axios.post(`${backendUrl}/users/${userId}/duel`, {
-          opponentDiscordId: opponent.id,
-          amount
-        });
+        const duelRes = await axios.post(`${backendUrl}/users/${userId}/duel`, { opponentDiscordId: opponent.id, amount, guildId }, { headers: { 'x-guild-id': guildId } });
         const { duelId } = duelRes.data;
         const embed = {
           color: 0xe17055,
@@ -111,10 +110,7 @@ module.exports = {
         const duelId = interaction.options.getString('duel_id');
         const accept = sub === 'accept';
         // Respond to duel
-        const response = await axios.post(`${backendUrl}/users/${userId}/duel/respond`, {
-          duelId,
-          accept
-        });
+        const response = await axios.post(`${backendUrl}/users/${userId}/duel/respond`, { duelId, accept, guildId }, { headers: { 'x-guild-id': guildId } });
         if (accept) {
           const { winner, loser, actionText } = response.data;
           const winnerMention = `<@${winner}>`;
@@ -152,8 +148,8 @@ module.exports = {
     } else if (sub === 'stats') {
       try {
         await interaction.deferReply();
-        const response = await axios.get(`${backendUrl}/users/${userId}/duel-stats`);
-        const { wins, losses } = response.data;
+        const statsRes = await axios.get(`${backendUrl}/users/${userId}/duel-stats`, { params: { guildId }, headers: { 'x-guild-id': guildId } });
+        const { wins, losses } = statsRes.data;
         const embed = {
           color: 0x8e44ad,
           title: '⚔️ Duel Stats',

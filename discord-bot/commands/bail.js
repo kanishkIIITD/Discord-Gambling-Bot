@@ -19,8 +19,9 @@ module.exports = {
       const userId = interaction.user.id;
       const target = interaction.options.getUser('user');
       const backendUrl = process.env.BACKEND_API_URL;
+      const guildId = interaction.guildId;
       logger.info(`[BAIL] Attempting to bail out user ${target.id} by ${userId}`);
-      const response = await axios.post(`${backendUrl}/users/${userId}/bail`, { targetDiscordId: target.id });
+      const response = await axios.post(`${backendUrl}/users/${userId}/bail`, { targetDiscordId: target.id, guildId }, { headers: { 'x-guild-id': guildId } });
       logger.info('[BAIL] Backend call succeeded. Preparing embed.');
       const { message, bailCost, minutesLeft } = response.data;
       const embed = {

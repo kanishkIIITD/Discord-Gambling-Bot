@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const { auth, requireSuperAdmin } = require('../middleware/auth');
+const { auth, requireSuperAdmin, requireGuildId } = require('../middleware/auth');
+
+// Apply requireGuildId to all routes
+router.use(requireGuildId);
 
 // PATCH /api/admin/users/:id/role
 // Body: { role: 'user' | 'admin' | 'superadmin' }
@@ -13,7 +16,7 @@ router.patch('/users/:id/role', auth, requireSuperAdmin, async (req, res) => {
     if (!validRoles.includes(role)) {
       return res.status(400).json({ message: 'Invalid role specified.' });
     }
-    const user = await User.findById(req.params.id);
+    const user = await User.findOne({ _id: req.params.id, guildId: req.guildId });
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }

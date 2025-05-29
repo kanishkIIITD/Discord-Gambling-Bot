@@ -42,8 +42,9 @@ module.exports = {
         await interaction.deferReply();
         const userId = interaction.user.id;
         const backendUrl = process.env.BACKEND_API_URL;
-        const response = await axios.get(`${backendUrl}/users/${userId}/work-stats`);
-        const workStats = response.data.workStats || [];
+        const guildId = interaction.guildId;
+        const statsRes = await axios.get(`${backendUrl}/users/${userId}/work-stats`, { params: { guildId }, headers: { 'x-guild-id': guildId } });
+        const workStats = statsRes.data.workStats || [];
         let totalEarned = 0;
         const fields = workStats.map(stat => {
           const jobName = stat.job ? stat.job.charAt(0).toUpperCase() + stat.job.slice(1) : 'Unknown';
@@ -79,8 +80,9 @@ module.exports = {
       await interaction.deferReply();
       const userId = interaction.user.id;
       const backendUrl = process.env.BACKEND_API_URL;
+      const guildId = interaction.guildId;
       const job = interaction.options.getString('job');
-      const response = await axios.post(`${backendUrl}/users/${userId}/work`, job ? { job } : {});
+      const response = await axios.post(`${backendUrl}/users/${userId}/work`, job ? { job, guildId } : { guildId }, { headers: { 'x-guild-id': guildId } });
       const { job: jobResult, amount, bonus, message, cooldown } = response.data;
 
       const embed = {
