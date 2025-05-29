@@ -47,6 +47,16 @@ export const Slots = () => {
   const [prevFreeSpins, setPrevFreeSpins] = useState(0);
   const [usedFreeSpin, setUsedFreeSpin] = useState(false);
   const [winType, setWinType] = useState(null);
+  const [autoSpinEnabled, setAutoSpinEnabled] = useState(false);
+  const [autoSpinCount, setAutoSpinCount] = useState(1);
+  const [autoSpinProgress, setAutoSpinProgress] = useState(0);
+  const autoSpinRef = useRef({ running: false });
+
+  // Refs to track animation completion, store response data, and the spin promise resolver
+  const completedReels = useRef(new Set()); // Keep this for now, though counter is primary
+  const completedReelCountRef = useRef(0); // Counter for completed reels
+  const responseRef = useRef(null);
+  const spinPromiseResolveRef = useRef(null); // Ref to store the spin promise's resolve function
 
   useEffect(() => {
     function handleResize() {
@@ -95,81 +105,142 @@ export const Slots = () => {
     return repeated;
   };
 
-  // Handle spin
-  const handleSpin = async (e) => {
-    e.preventDefault();
-    if (!user?.discordId) {
-      toast.error('User not authenticated.');
-      return;
-    }
-    const amount = parseInt(betAmount, 10);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid positive amount.');
-      return;
-    }
-    if (amount > walletBalance) {
-      toast.error('Insufficient balance.');
-      return;
-    }
-    setIsSpinning(true);
-    setResultMessage('');
-    setFinalReelSymbols([null, null, null]);
-    setReelResults([null, null, null]);
-    setSpinKey(prev => prev + 1); // Force rerender
-    setIsJackpot(false);
-    setPrevWalletBalance(walletBalance);
-    setSuppressWalletBalance(true);
-    try {
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/slots`,
-        { amount: amount, guildId: MAIN_GUILD_ID },
-        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
-      );
-      const { reels: finalReels, won, winnings, isJackpot, jackpotPool, freeSpins, usedFreeSpin, winType } = response.data;
-      setFinalReelSymbols(finalReels);
-      setReelResults(finalReels);
-      setIsJackpot(isJackpot);
-      setJackpotPool(jackpotPool || 0);
-      setPrevFreeSpins(freeSpins || 0);
-      // Show modal if a new free spin is earned
-      if ((freeSpins || 0) > prevFreeSpins) {
-        setShowFreeSpinModal(true);
-      }
-      setFreeSpins(freeSpins || 0);
-      setUsedFreeSpin(!!usedFreeSpin);
-      setWinType(winType || null);
-      let messageText = '';
-      if (isJackpot) {
-        messageText = `JACKPOT! 🎉 You won ${Math.round(winnings)} points!`;
-      } else if (winType === 'two-sevens') {
-        messageText = `Two 7️⃣! You win 5x your bet: ${Math.round(winnings)} points!`;
-      } else if (winType === 'two-matching') {
-        messageText = `Two matching symbols! You win 2x your bet: ${Math.round(winnings)} points!`;
-      } else if (winType === 'three-of-a-kind') {
-        messageText = `Three of a kind! You win ${Math.round(winnings)} points!`;
-      } else if (won) {
-        messageText = `You won ${Math.round(winnings)} points!`;
-      } else if (usedFreeSpin) {
-        messageText = `You used a free spin!`;
-      } else {
-        messageText = `You lost ${Math.round(amount)} points.`;
-      }
+  // Handler for when a single reel's animation completes
+  const handleReelAnimationComplete = () => {
+    // Increment the counter for completed reels
+    completedReelCountRef.current += 1;
+
+    const totalReels = REEL_COUNT;
+
+    // Check if all reels have completed their animation
+    if (completedReelCountRef.current === totalReels) {
+      // Reset the counter for the next spin
+      completedReelCountRef.current = 0;
+
+      // All reels finished animating, now show results and resolve the spin promise
+      // Add a small buffer after animation completes before showing results
       setTimeout(() => {
-        setResultMessage(messageText);
+        // Retrieve response data and original bet amount from the ref
+        const { won, winnings, isJackpot, freeSpins, usedFreeSpin, winType, amount: betAmountUsed } = responseRef.current; // Get amount here
+
+        let messageText = '';
+        if (isJackpot) {
+          messageText = `JACKPOT! 🎉 You won ${Math.round(winnings)} points!`;
+        } else if (winType === 'two-sevens') {
+          messageText = `Two 7️⃣! You win 5x your bet: ${Math.round(winnings)} points!`;
+        } else if (winType === 'two-matching') {
+          messageText = `Two matching symbols! You win 2x your bet: ${Math.round(winnings)} points!`;
+        } else if (winType === 'three-of-a-kind') {
+          messageText = `Three of a kind! You win ${Math.round(winnings)} points!`;
+        } else if (won) {
+          messageText = `You won ${Math.round(winnings)} points!`;
+        } else if (usedFreeSpin) {
+          messageText = `You used a free spin!`;
+        } else {
+          messageText = `You lost ${Math.round(betAmountUsed)} points.`; // Use betAmountUsed
+        }
+        setResultMessage(messageText); // This is now hidden, but good to keep for debugging/structure
         toast[won || isJackpot ? 'success' : 'error'](messageText);
-        setIsSpinning(false);
+        // isSpinning is set to false at the end of runAutoSpin for auto spins
+        // For manual spins, it's set to false here
+        if (!autoSpinRef.current.running) {
+          setIsSpinning(false);
+        }
         setSuppressWalletBalance(false);
-      }, (1.6 + STOP_DELAYS[REEL_COUNT - 1]) * 1000 + 400);
-    } catch (error) {
-      console.error('Slots spin error:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to spin slots.';
-      setTimeout(() => {
-        setResultMessage(errorMessage);
-        toast.error(errorMessage);
-        setIsSpinning(false);
-        setSuppressWalletBalance(false);
-      }, (1.6 + STOP_DELAYS[REEL_COUNT - 1]) * 1000 + 400);
+        // Resolve the promise that was created in handleSpin
+        if (spinPromiseResolveRef.current) {
+           spinPromiseResolveRef.current(); // Call the stored resolve function
+           spinPromiseResolveRef.current = null; // Clear the ref
+        }
+
+      }, 1000); // Increased buffer after animation completes to a full second
     }
+  };
+
+  // Auto-spin handler
+  const runAutoSpin = async (count) => {
+    setIsSpinning(true);
+    autoSpinRef.current.running = true;
+    for (let i = 0; i < count; i++) {
+      if (!autoSpinRef.current.running) break;
+      setAutoSpinProgress(i + 1);
+      // Add a small delay before starting the next spin's animation
+      await new Promise((resolve) => setTimeout(resolve, 100)); // Small delay
+      // Await handleSpin's animation and UI update
+      await handleSpin({ preventDefault: () => {} }, true);
+      // Pause for 1 second after each spin (except last) before the *next* spin starts (which has its own delay)
+      if (i < count - 1) {
+        // This 1-second pause is between the end of the previous spin's results and the start of the next spin's initial delay.
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+    setAutoSpinProgress(0);
+    autoSpinRef.current.running = false;
+    setIsSpinning(false);
+  };
+
+  // Modified handleSpin to support auto-spin and return a Promise
+  const handleSpin = (e, isAuto = false) => {
+    return new Promise(async (resolve) => {
+      if (e && e.preventDefault) e.preventDefault();
+      if (!user?.discordId) {
+        toast.error('User not authenticated.');
+        resolve();
+        return;
+      }
+      const amount = parseInt(betAmount, 10);
+      if (isNaN(amount) || amount <= 0) {
+        toast.error('Please enter a valid positive amount.');
+        resolve();
+        return;
+      }
+      if (amount > walletBalance) {
+        toast.error('Insufficient balance.');
+        resolve();
+        return;
+      }
+
+      // Store the resolve function to call it from handleReelAnimationComplete
+      spinPromiseResolveRef.current = resolve; // Use the component-level ref
+
+      if (!isAuto) setIsSpinning(true);
+      setResultMessage('');
+      setFinalReelSymbols([null, null, null]); // Clear previous final results immediately
+      // Do NOT clear reelResults here, it will be updated with new symbols after API call
+      setSpinKey(prev => prev + 1); // Force rerender
+      setIsJackpot(false);
+      setPrevWalletBalance(walletBalance);
+      setSuppressWalletBalance(true);
+      completedReelCountRef.current = 0; // Reset completed reel count for this spin
+
+      try {
+        const response = await axios.post(
+          `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/slots`,
+          { amount: amount, guildId: MAIN_GUILD_ID },
+          { headers: { 'x-guild-id': MAIN_GUILD_ID } }
+        );
+        const { reels: finalReels, ...restOfResponse } = response.data; // Extract reels and keep the rest
+
+        // Store ALL response data, including the original amount, in the ref
+        responseRef.current = { ...restOfResponse, amount: amount };
+
+        setFinalReelSymbols(finalReels); // Set the final results (hidden during animation)
+        setReelResults(finalReels); // Set the reels for animation calculation *after* getting the response
+
+        // Now, handleReelAnimationComplete will resolve the promise after animations
+
+      } catch (error) {
+        console.error('Slots spin error:', error);
+        const errorMessage = error.response?.data?.message || 'Failed to spin slots.';
+        setTimeout(() => {
+          setResultMessage(errorMessage);
+          toast.error(errorMessage);
+          if (!isAuto) setIsSpinning(false);
+          setSuppressWalletBalance(false);
+          resolve(); // Resolve immediately on error
+        }, 0);
+      }
+    });
   };
 
   // Symbol image renderer
@@ -185,7 +256,7 @@ export const Slots = () => {
   };
 
   // Reel component
-  const Reel = ({ finalSymbol, spinning, stopDelay, spinKey }) => {
+  const Reel = ({ finalSymbol, spinning, stopDelay, spinKey, onComplete }) => {
     if (!finalSymbol) {
       // Render a placeholder or a blank symbol
       return (
@@ -230,6 +301,11 @@ export const Slots = () => {
             y: { duration: 0 }
           }}
           style={{ position: 'absolute', top: 0, left: 0, width: '100%' }}
+          onAnimationComplete={() => {
+            if (spinning) {
+              onComplete();
+            }
+          }}
         >
           {reelArray.map((symbol, i) => (
             <div key={i} className="h-[60px] flex items-center justify-center">
@@ -240,6 +316,11 @@ export const Slots = () => {
       </div>
     );
   };
+
+  // Stop auto-spin if user leaves page
+  useEffect(() => {
+    return () => { autoSpinRef.current.running = false; };
+  }, []);
 
   // console.log('isSpinning:', isSpinning, 'reelResults:', reelResults, 'finalReelSymbols:', finalReelSymbols);
 
@@ -269,6 +350,7 @@ export const Slots = () => {
                 spinning={isSpinning}
                 stopDelay={STOP_DELAYS[index]}
                 spinKey={spinKey}
+                onComplete={handleReelAnimationComplete}
               />
             ))}
           </div>
@@ -289,7 +371,48 @@ export const Slots = () => {
               OK
             </button>
           </Modal>
-          <form onSubmit={handleSpin} className="space-y-4 w-full max-w-xs mx-auto">
+          {/* Auto Spin Controls */}
+          <div className="flex items-center justify-center gap-4 mb-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={autoSpinEnabled}
+                onChange={e => {
+                  setAutoSpinEnabled(e.target.checked);
+                  if (!e.target.checked) setAutoSpinProgress(0);
+                }}
+                disabled={isSpinning || autoSpinProgress > 0}
+                className="form-checkbox h-5 w-5 text-primary"
+              />
+              <span className="text-text-primary font-medium">Auto Spin</span>
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={autoSpinCount}
+              onChange={e => setAutoSpinCount(Math.max(1, Math.min(20, Number(e.target.value))))}
+              disabled={!autoSpinEnabled || isSpinning || autoSpinProgress > 0}
+              className="w-16 px-2 py-1 border border-border rounded-md bg-background text-sm no-spinners text-center"
+            />
+            <span className="text-text-secondary">spins</span>
+            {autoSpinProgress > 0 && (
+              <span className="ml-2 text-primary font-semibold">Auto-spinning: {autoSpinProgress}/{autoSpinCount}</span>
+            )}
+          </div>
+          <form
+            onSubmit={async (e) => {
+              if (autoSpinEnabled && autoSpinCount > 1) {
+                e.preventDefault();
+                if (!isSpinning && autoSpinProgress === 0) {
+                  runAutoSpin(autoSpinCount);
+                }
+              } else {
+                await handleSpin(e);
+              }
+            }}
+            className="space-y-4 w-full max-w-xs mx-auto"
+          >
             <div>
               <label htmlFor="betAmount" className="block text-sm font-medium text-text-secondary">Bet Amount</label>
               <input
@@ -302,23 +425,25 @@ export const Slots = () => {
                 min="1"
                 className="mt-1 block w-full px-3 py-2 text-base bg-background border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md no-spinners text-center"
                 placeholder="e.g., 100"
-                disabled={isSpinning}
+                disabled={isSpinning || autoSpinProgress > 0}
               />
             </div>
             <div>
               <button
                 type="submit"
-                disabled={isSpinning || !betAmount || parseInt(betAmount, 10) <= 0 || parseInt(betAmount, 10) > walletBalance}
-                className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${isSpinning ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
+                disabled={isSpinning || autoSpinProgress > 0 || !betAmount || parseInt(betAmount, 10) <= 0 || parseInt(betAmount, 10) > walletBalance}
+                className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${(isSpinning || autoSpinProgress > 0) ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
               >
-                {isSpinning ? 'Spinning...' : 'Spin Reels'}
+                {(isSpinning || autoSpinProgress > 0)
+                  ? (autoSpinProgress > 0 ? `Auto-spinning... (${autoSpinProgress}/${autoSpinCount})` : 'Spinning...')
+                  : 'Spin Reels'}
               </button>
             </div>
           </form>
           {/* Result Message */}
-          {resultMessage && (
+          {/* {resultMessage && (
             <div className="mt-4 text-lg font-semibold text-text-primary text-center">{resultMessage}</div>
-          )}
+          )} */}
         </div>
       </div>
     </div>
