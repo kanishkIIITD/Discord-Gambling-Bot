@@ -72,7 +72,8 @@ const updateWalletBalance = async (wallet, betAmount, winnings, gameType, winDes
     user: wallet.user,
     type: 'bet',
     amount: -betAmount,
-    description: `Bet on ${gameType}`
+    description: `Bet on ${gameType}`,
+    guildId: wallet.guildId
   });
   await betTransaction.save();
 
@@ -84,7 +85,8 @@ const updateWalletBalance = async (wallet, betAmount, winnings, gameType, winDes
       user: wallet.user,
       type: 'win',
       amount: winnings,
-      description: `Win from ${gameType}${winDescription ? `: ${winDescription}` : ''}`
+      description: `Win from ${gameType}${winDescription ? `: ${winDescription}` : ''}`,
+      guildId: wallet.guildId
     });
     await winTransaction.save();
   }
@@ -161,9 +163,9 @@ const calculateMultiplier = (betType, result) => {
  * @param {string} discordId - The user's Discord ID
  * @param {boolean} didWin - Whether the user won the game
  */
-async function updateUserWinStreak(discordId, didWin) {
+async function updateUserWinStreak(discordId, didWin, guildId) {
   if (!discordId) return;
-  const user = await User.findOne({ discordId });
+  const user = await User.findOne({ discordId, guildId });
   if (!user) return;
   if (didWin) {
     user.currentWinStreak = (user.currentWinStreak || 0) + 1;

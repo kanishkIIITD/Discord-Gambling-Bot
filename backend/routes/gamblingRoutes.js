@@ -63,7 +63,7 @@ router.post('/:discordId/coinflip', validateBetAmount, async (req, res) => {
     broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: newBalance });
 
     // Update win streak
-    await updateUserWinStreak(user.discordId, won);
+    await updateUserWinStreak(user.discordId, won, req.guildId);
 
     res.json(createGamblingResponse({ result }, won, winnings, newBalance));
   } catch (error) {
@@ -134,7 +134,7 @@ router.post('/:discordId/dice', validateBetAmount, async (req, res) => {
     broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: newBalance });
 
     // Update win streak
-    await updateUserWinStreak(user.discordId, won);
+    await updateUserWinStreak(user.discordId, won, req.guildId);
 
     res.json(createGamblingResponse({ roll }, won, winnings, newBalance));
   } catch (error) {
@@ -282,7 +282,7 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
 
     // Send WebSocket update for balance
     broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: newBalance });
-    await updateUserWinStreak(user.discordId, winnings > 0);
+    await updateUserWinStreak(user.discordId, winnings > 0, req.guildId);
 
     res.json(createGamblingResponse({ reels, isJackpot, jackpotAmount, jackpotPool: jackpot.currentAmount, usedFreeSpin, freeSpins: wallet.freeSpins }, won, winnings, newBalance));
   } catch (error) {
@@ -588,7 +588,7 @@ router.post('/:discordId/blackjack', async (req, res) => {
       // Update win streak: win if any hand is 'win' or 'blackjack', lose if all are 'lose' or 'bust'
       const anyWin = results.some(r => r.result === 'win' || r.result === 'blackjack');
       const allLose = results.every(r => r.result === 'lose' || r.result === 'bust');
-      await updateUserWinStreak(user.discordId, anyWin && !allLose);
+      await updateUserWinStreak(user.discordId, anyWin && !allLose, req.guildId);
     }
 
     await wallet.save();
@@ -770,7 +770,7 @@ router.post('/:discordId/roulette', validateBetAmount, async (req, res) => {
     broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: newBalance });
 
     // Update win streak: win if totalWinnings > 0
-    await updateUserWinStreak(user.discordId, totalWinnings > 0);
+    await updateUserWinStreak(user.discordId, totalWinnings > 0, req.guildId);
 
     res.json({
       result,
