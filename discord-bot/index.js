@@ -1079,7 +1079,7 @@ client.on('interactionCreate', async interaction => {
 			const filter = m => m.author.id === userId && ['meow', 'bark', 'woof', 'woof woof'].includes(m.content.toLowerCase());
 			meowbarkCooldowns.set(userId, Date.now());
 
-			console.log(`[MEOWBARK] User ${userId} in guild ${interaction.guildId} prompted. Awaiting reply with filter...`);
+			// console.log(`[MEOWBARK] User ${userId} in guild ${interaction.guildId} prompted. Awaiting reply with filter...`);
 
 			// --- Add check for interaction.channel --- 
             if (!interaction.channel) {
@@ -1096,7 +1096,7 @@ client.on('interactionCreate', async interaction => {
 
 			try {
 				const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
-				console.log(`[MEOWBARK] Reply collected from ${userId}. Content: ${collected.first()?.content}`);
+				// console.log(`[MEOWBARK] Reply collected from ${userId}. Content: ${collected.first()?.content}`);
 
 				const reply = collected.first();
 				await axios.post(`${backendApiUrl}/users/${userId}/meowbark`, { amount }, {
@@ -1119,7 +1119,7 @@ client.on('interactionCreate', async interaction => {
 					await interaction.followUp({ embeds: [timeoutEmbed] });
 					return;
 				} else {
-					console.error('[MEOWBARK] Unexpected error during awaitMessages:', err);
+					// console.error('[MEOWBARK] Unexpected error during awaitMessages:', err);
 					const errorEmbed = new EmbedBuilder()
 						.setColor(0xff7675)
 						.setTitle('❌ Error')
