@@ -1081,6 +1081,19 @@ client.on('interactionCreate', async interaction => {
 
 			console.log(`[MEOWBARK] User ${userId} in guild ${interaction.guildId} prompted. Awaiting reply with filter...`);
 
+			// --- Add check for interaction.channel --- 
+            if (!interaction.channel) {
+                console.error(`[MEOWBARK] interaction.channel is null for user ${userId} in guild ${interaction.guildId}. Cannot await messages.`);
+                const errorEmbed = new EmbedBuilder()
+                    .setColor(0xff7675)
+                    .setTitle('❌ Error')
+                    .setDescription('This command requires being run in a channel where the bot can read messages.')
+                    .setTimestamp();
+                await safeErrorReply(interaction, errorEmbed);
+                return;
+            }
+            // --- End check --- 
+
 			try {
 				const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
 				console.log(`[MEOWBARK] Reply collected from ${userId}. Content: ${collected.first()?.content}`);
