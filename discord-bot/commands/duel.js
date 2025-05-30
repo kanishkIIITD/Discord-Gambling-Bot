@@ -88,7 +88,7 @@ module.exports = {
         const embed = {
           color: 0xe17055,
           title: '⚔️ Duel Challenge!',
-          description: `<@${userId}> has challenged <@${opponent.id}> to a duel for **${amount.toLocaleString('en-US')} points**!\n\n<@${opponent.id}>, use \`/duel accept duel_id:${duelId}\` to accept or \`/duel decline duel_id:${duelId}\` to decline.`,
+          description: `<@${userId}> has challenged <@${opponent.id}> to a duel for **${amount.toLocaleString('en-US')} points**!\n\n<@${opponent.id}>, use \`/duel accept duel_id:${duelId}\` to accept or \`/duel decline duel_id:${duelId}\` to decline.\n\n**You must accept within 1 minute or the duel will be cancelled and stakes refunded.**`,
           timestamp: new Date(),
           footer: { text: `Duel ID: ${duelId}` }
         };

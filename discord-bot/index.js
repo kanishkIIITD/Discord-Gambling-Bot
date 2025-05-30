@@ -26,6 +26,7 @@ const client = new Client({ intents: [
 
 client.once('ready', () => {
 	console.log(`Logged in as ${client.user.tag}!`);
+	console.log(`Discord Client ID: ${process.env.CLIENT_ID}`);
 });
 
 // List of commands blocked for jailed users
@@ -205,8 +206,8 @@ client.on('interactionCreate', async interaction => {
 	}
 
 	if (commandName === 'balance') {
-		// console.log(`Fetching balance for user: ${userId}`);
 		try {
+			await interaction.deferReply();
 			const response = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
@@ -217,7 +218,7 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('💰 Your Balance')
 				.setDescription(`Your current balance is: **${balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points**.`)
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error fetching balance:', error.response?.data || error.message);
 			const embed = new EmbedBuilder()
@@ -228,8 +229,8 @@ client.on('interactionCreate', async interaction => {
 			await safeErrorReply(interaction, embed);
 		}
 	} else if (commandName === 'listbets') {
-		// console.log(`Listing open bets.`);
 		try {
+			await interaction.deferReply();
 			const response = await axios.get(`${backendApiUrl}/bets/open`, {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
@@ -242,7 +243,7 @@ client.on('interactionCreate', async interaction => {
 					.setTitle('No Open Bets')
 					.setDescription('There are no open bets at the moment.')
 					.setTimestamp();
-				await interaction.reply({ embeds: [embed] });
+				await interaction.editReply({ embeds: [embed] });
 			} else {
 				const embeds = openBets.slice(0, 10).map(bet => {
 					const embed = new EmbedBuilder()
@@ -258,23 +259,23 @@ client.on('interactionCreate', async interaction => {
 					}
 					return embed;
 				});
-				await interaction.reply({ embeds });
+				await interaction.editReply({ embeds });
 			}
-
 		} catch (error) {
 			console.error('Error listing open bets:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Listing Bets')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while listing open bets.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Listing Bets')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while listing open bets.')
+					.setTimestamp()
+				);
+			}
 		}
 	} else if (commandName === 'viewbet') {
-		const betId = interaction.options.getString('bet_id');
-		// console.log(`Viewing bet with ID: ${betId}`);
-
 		try {
+			await interaction.deferReply();
+			const betId = interaction.options.getString('bet_id');
 			const response = await axios.get(`${backendApiUrl}/bets/${betId}`, {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
@@ -295,7 +296,6 @@ client.on('interactionCreate', async interaction => {
 				embed.addFields({ name: 'Winning Option', value: bet.winningOption, inline: true });
 			}
 
-			// Fetch and display placed bets for this bet
 			try {
 				const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`, {
 					params: { guildId: interaction.guildId },
@@ -304,7 +304,6 @@ client.on('interactionCreate', async interaction => {
 				const placedBets = placedBetsResponse.data.data;
 
 				if (placedBets.length > 0) {
-					// Summarize placed bets by option
 					const betsByOption = placedBets.reduce((acc, placedBet) => {
 						acc[placedBet.option] = (acc[placedBet.option] || 0) + placedBet.amount;
 						return acc;
@@ -323,38 +322,35 @@ client.on('interactionCreate', async interaction => {
 				embed.addFields({ name: 'Placed Bets', value: '*Could not fetch placed bets.', inline: false });
 			}
 
-			await interaction.reply({ embeds: [embed] });
-
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error viewing bet:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
+			await safeErrorReply(interaction, new EmbedBuilder()
 				.setColor(0xff7675)
 				.setTitle('❌ Error Viewing Bet')
 				.setDescription(error.response?.data?.message || error.message || 'An error occurred while viewing the bet.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+				.setTimestamp()
+			);
 		}
 	} else if (commandName === 'createbet') {
-		const description = interaction.options.getString('description');
-		const optionsString = interaction.options.getString('options');
-		const options = optionsString.split(',').map(option => option.trim());
-
-		if (options.length < 2) {
-			const embed = new EmbedBuilder()
-				.setColor(0xffbe76)
-				.setTitle('⚠️ Invalid Options')
-				.setDescription('Please provide at least two comma-separated options for the bet.')
-				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
-			return;
-		}
-
-		const durationMinutes = interaction.options.getInteger('duration_minutes');
-
-		// console.log(`Attempting to create bet with description: ${description} with options: ${options}`);
-
 		try {
-			// console.log('About to reply with bet creation embed');
+			await interaction.deferReply();
+			const description = interaction.options.getString('description');
+			const optionsString = interaction.options.getString('options');
+			const options = optionsString.split(',').map(option => option.trim());
+
+			if (options.length < 2) {
+				const embed = new EmbedBuilder()
+					.setColor(0xffbe76)
+					.setTitle('⚠️ Invalid Options')
+					.setDescription('Please provide at least two comma-separated options for the bet.')
+					.setTimestamp();
+				await interaction.editReply({ embeds: [embed] });
+				return;
+			}
+
+			const durationMinutes = interaction.options.getInteger('duration_minutes');
+
 			const response = await axios.post(`${backendApiUrl}/bets`, {
 				description,
 				options,
@@ -363,7 +359,6 @@ client.on('interactionCreate', async interaction => {
 			}, {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
-			// console.log('Replied successfully');
 
 			const newBet = response.data;
 			const embed = new EmbedBuilder()
@@ -380,7 +375,6 @@ client.on('interactionCreate', async interaction => {
 				embed.setFooter({ text: `Closes in ${durationMinutes} min` });
 			}
 
-			// Mention the Gamblers role if it exists
 			const guild = interaction.guild;
 			let gamblersRole;
 			let content = '';
@@ -390,30 +384,29 @@ client.on('interactionCreate', async interaction => {
 					content = `<@&${gamblersRole.id}>`;
 				}
 			}
-			await interaction.reply({
+			await interaction.editReply({
 				content,
 				embeds: [embed],
-				...(gamblersRole ? { allowedMentions: { roles: [gamblersRole.id] } } : {}),
-				headers: { 'x-guild-id': interaction.guildId }
+				...(gamblersRole ? { allowedMentions: { roles: [gamblersRole.id] } } : {})
 			});
 		} catch (error) {
 			console.error('Error creating bet:', error, error?.response?.data);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Creating Bet')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while creating the bet.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Creating Bet')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while creating the bet.')
+					.setTimestamp()
+				);
+			}
 		}
-
 	} else if (commandName === 'placebet') {
-		const betId = interaction.options.getString('bet_id');
-		const option = interaction.options.getString('option');
-		const amount = interaction.options.getInteger('amount');
-
-		// console.log(`Attempting to place bet on ID: ${betId}, option: ${option}, amount: ${amount}`);
-
 		try {
+			await interaction.deferReply();
+			const betId = interaction.options.getString('bet_id');
+			const option = interaction.options.getString('option');
+			const amount = interaction.options.getInteger('amount');
+
 			const response = await axios.post(`${backendApiUrl}/bets/${betId}/place`, {
 				bettorDiscordId: userId,
 				option,
@@ -422,7 +415,6 @@ client.on('interactionCreate', async interaction => {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
 
-			// Fetch and display updated wallet balance after placing bet
 			let updatedBalance = null;
 			try {
 				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
@@ -446,21 +438,23 @@ client.on('interactionCreate', async interaction => {
 				.setFooter({ text: updatedBalance !== null ? `Your new balance: ${updatedBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points` : 'Bet placed successfully!' })
 				.setTimestamp();
 
-			await interaction.reply({ embeds: [embed] });
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error placing bet:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Placing Bet')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while placing your bet.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Placing Bet')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while placing your bet.')
+					.setTimestamp()
+				);
+			}
 		}
-
 	} else if (commandName === 'resolvebet') {
-		const betId = interaction.options.getString('bet_id');
-		const winningOption = interaction.options.getString('winning_option');
 		try {
+			await interaction.deferReply();
+			const betId = interaction.options.getString('bet_id');
+			const winningOption = interaction.options.getString('winning_option');
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/resolve`, {
 				winningOption: winningOption,
 				resolverDiscordId: userId,
@@ -479,32 +473,33 @@ client.on('interactionCreate', async interaction => {
 				)
 				.setTimestamp();
 
-			// Mention the Gamblers role if it exists
 			const guild = interaction.guild;
 			let gamblersRole = guild?.roles?.cache?.find(role => role.name === 'Gamblers');
 			let content = gamblersRole ? `<@&${gamblersRole.id}>` : '';
 
-			await interaction.reply({ 
+			await interaction.editReply({ 
 				content, 
 				embeds: [embed],
-				allowedMentions: { roles: [gamblersRole?.id] },
-				headers: { 'x-guild-id': interaction.guildId }
+				allowedMentions: { roles: [gamblersRole?.id] }
 			});
 		} catch (error) {
 			console.error('Error resolving bet:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Resolving Bet')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while resolving the bet.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Resolving Bet')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while resolving the bet.')
+					.setTimestamp()
+				);
+			}
 		}
 	} else if (commandName === 'closebet') {
-		const betId = interaction.options.getString('bet_id');
-		// console.log(`Attempting to close bet with ID: ${betId}`);
-
 		try {
+			await interaction.deferReply();
+			const betId = interaction.options.getString('bet_id');
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/close`, {
+				guildId: interaction.guildId
+			}, {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
 
@@ -513,24 +508,24 @@ client.on('interactionCreate', async interaction => {
 				.setTitle('🔒 Bet Closed')
 				.setDescription(`Bet ID **${betId}** is now closed. No more bets can be placed.`)
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
-
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error closing bet:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Closing Bet')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while closing the bet.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Closing Bet')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while closing the bet.')
+					.setTimestamp()
+				);
+			}
 		}
 	} else if (commandName === 'leaderboard') {
-		const limit = interaction.options.getInteger('limit') || 5;
-		const userId = interaction.user.id;
-		const username = interaction.user.username;
-		// console.log(`Fetching leaderboard for user ${userId} with limit: ${limit}`);
-
 		try {
+			await interaction.deferReply();
+			const limit = interaction.options.getInteger('limit') || 5;
+			const userId = interaction.user.id;
+			const username = interaction.user.username;
 			const response = await axios.get(
 				`${backendApiUrl}/users/${userId}/leaderboard`,
 				{
@@ -541,7 +536,7 @@ client.on('interactionCreate', async interaction => {
 			const leaderboard = response.data.data;
 
 			if (leaderboard.length === 0) {
-				await interaction.reply('No users found in the leaderboard.');
+				await interaction.editReply('No users found in the leaderboard.');
 				return;
 			}
 
@@ -563,15 +558,21 @@ client.on('interactionCreate', async interaction => {
 				}
 			};
 
-			await interaction.reply({ embeds: [embed] });
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error fetching leaderboard:', error.response?.status, error.response?.data, error.config);
-			await interaction.reply('An error occurred while fetching the leaderboard. Please try again later.');
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Fetching Leaderboard')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while fetching the leaderboard.')
+					.setTimestamp()
+				);
+			}
 		}
 	} else if (commandName === 'stats') {
-		// console.log(`Fetching stats for user: ${userId}`);
-
 		try {
+			await interaction.deferReply();
 			const response = await axios.get(`${backendApiUrl}/users/${userId}/stats`, {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
@@ -582,365 +583,47 @@ client.on('interactionCreate', async interaction => {
 				color: 0x0099ff,
 				title: '📊 Your Full Statistics',
 				description: '**__Betting Stats__**\n' +
-				  `Total Bets: **${betting.totalBets}**\n` +
-				  `Total Wagered: **${betting.totalWagered}** points\n` +
-				  `Total Won: **${betting.totalWon}** points\n` +
+				  `Total Bets: **${betting.totalBets.toLocaleString('en-US')}**\n` +
+				  `Total Wagered: **${betting.totalWagered.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
+				  `Total Won: **${betting.totalWon.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
 				  `Total Lost: **${Number(betting.totalLost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
 				  `Win Rate: **${betting.winRate}%**\n` +
-				  `Biggest Win: **${betting.biggestWin}** points\n` +
-				  `Biggest Loss: **${betting.biggestLoss}** points\n\n` +
+				  `Biggest Win: **${betting.biggestWin.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
+				  `Biggest Loss: **${betting.biggestLoss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n\n` +
 				  '**__Gambling Stats__**\n' +
-				  `Total Games Played: **${gambling.totalGamesPlayed}**\n` +
-				  `Total Gambled: **${gambling.totalGambled}** points\n` +
-				  `Total Won: **${gambling.totalWon}** points\n` +
+				  `Total Games Played: **${gambling.totalGamesPlayed.toLocaleString('en-US')}**\n` +
+				  `Total Gambled: **${gambling.totalGambled.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
+				  `Total Won: **${gambling.totalWon.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
 				  `Total Lost: **${Number(gambling.totalLost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
 				  `Win Rate: **${gambling.winRate}%**\n` +
-				  `Biggest Win: **${gambling.biggestWin}** points\n` +
-				  `Biggest Loss: **${gambling.biggestLoss}** points\n` +
+				  `Biggest Win: **${gambling.biggestWin.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
+				  `Biggest Loss: **${gambling.biggestLoss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
 				  `Favorite Game: **${gambling.favoriteGame}**\n\n` +
 				  '**__Other Stats__**\n' +
-				  `Current Win Streak: **${currentWinStreak}**\n` +
-				  `Max Win Streak: **${maxWinStreak}**\n` +
-				  `Jackpot Wins: **${jackpotWins}**\n` +
-				  `Daily Bonuses Claimed: **${dailyBonusesClaimed}**\n` +
-				  `Gifts Sent: **${giftsSent}**\n` +
-				  `Gifts Received: **${giftsReceived}**\n` +
-				  `Meow/Bark Rewards: **${meowBarks}**`,
+				  `Current Win Streak: **${currentWinStreak.toLocaleString('en-US')}**\n` +
+				  `Max Win Streak: **${maxWinStreak.toLocaleString('en-US')}**\n` +
+				  `Jackpot Wins: **${jackpotWins.toLocaleString('en-US')}**\n` +
+				  `Daily Bonuses Claimed: **${dailyBonusesClaimed.toLocaleString('en-US')}**\n` +
+				  `Gifts Sent: **${giftsSent.toLocaleString('en-US')}**\n` +
+				  `Gifts Received: **${giftsReceived.toLocaleString('en-US')}**\n` +
+				  `Meow/Bark Rewards: **${meowBarks.toLocaleString('en-US')}**`,
 				timestamp: new Date()
 			};
 
-			await interaction.reply({ embeds: [embed] });
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error fetching user stats:', error.response?.data || error.message);
-			await interaction.reply('An error occurred while fetching your statistics. Please try again later.');
-		}
-	} else if (commandName === 'help') {
-		const embed = {
-			color: 0x0099ff,
-			title: '🤖 Bot Commands',
-			description: 'Here are all the available commands:',
-			fields: [
-				{ name: '🎲 Betting Commands', value:
-					'`/createbet` - Create a new betting event (Admin/Superadmin only)\n' +
-					'`/placebet` - Place a bet on an active event\n' +
-					'`/viewbet` - View details of a specific bet\n' +
-					'`/listbets` - List all currently open betting events\n' +
-					'`/unresolvedbets` - List all bets that are unresolved (open or closed)\n' +
-					'`/closebet` - Close betting for an event (Admin/Superadmin only)\n' +
-					'`/resolvebet` - Resolve a betting event (Admin/Superadmin only)\n' +
-					'`/cancelbet` - Cancel a bet before any bets are placed (Creator/Admin/Superadmin only)\n' +
-					'`/editbet` - Edit a bet\'s details before any bets are placed (Creator/Admin/Superadmin only)\n' +
-					'`/extendbet` - Extend the duration of an open bet (Creator/Admin/Superadmin only)\n' +
-					'`/betinfo` - Show detailed information about a bet'
-				},
-				{ name: '💰 Wallet Commands', value:
-					'`/balance` - Check your current balance\n' +
-					'`/daily` - Claim your daily point bonus\n' +
-					'`/gift` - Gift points to another user\n' +
-					'`/transactions` - View your transaction history'
-				},
-				{ name: '🎮 Gambling Commands', value:
-					'`/coinflip` - Flip a coin and bet on the outcome\n' +
-					'`/dice` - Roll dice and bet on the outcome\n' +
-					'`/slots` - Play the slot machine\n' +
-					'`/blackjack` - Play blackjack\n' +
-					'`/roulette` - Play roulette\n' +
-					'`/jackpot` - View or contribute to the jackpot'
-				},
-				{ name: '📊 Utility Commands', value:
-					'`/leaderboard` - View top users by balance\n' +
-					'`/stats` - View your full betting and gambling statistics\n' +
-					'`/profile` - View your detailed profile'
-				},
-				{
-					name: '📊 Fun & Collection Commands', value:
-					'`/meowbark` - Perform a meow or bark to earn points (5 min cooldown, max 100,000 points)\n' +
-					'`/crime do` - Attempt a crime for a chance to win or lose points, or get jailed\n' +
-					'`/crime stats` - View your crime stats\n' +
-					'`/work do` - Work a job for a chance to earn points and rare bonuses\n' +
-					'`/work stats` - View your work/job stats\n' +
-					'`/bail @user` - Bail a jailed user out (for a fee)\n' +
-					'`/fish` - Go fishing for a chance to catch something valuable!\n' +
-					'`/hunt` - Go hunting for a chance to catch a rare animal!\n' +
-					'`/collection` - View your fishing and hunting collection\n' +
-					'`/collection-leaderboard` - View the top collectors by collection value\n' +
-					'`/sell` - Sell an item from your collection for points\n' +
-					'`/trade` - Gift or trade an item from your collection to another user\n' +
-					'`/beg` - Beg for coins and see what happens!\n' +
-					'`/mysterybox` - Open a mystery box for a random reward!\n' +
-					'Buffs: Obtain temporary buffs from `/mysterybox`! Active buffs are shown in `/collection.`'
-				},
-				{
-					name: '⚔️ Duel Commands', value:
-					'`/duel challenge @user amount` - Challenge another user to a duel for points\n' +
-					'`/duel accept duel_id` - Accept a pending duel (autocomplete duel ID)\n' +
-					'`/duel decline duel_id` - Decline a pending duel (autocomplete duel ID)\n' +
-					'`/duel stats` - View your duel win/loss record'
-				}
-			],
-			timestamp: new Date()
-		};
-
-		await interaction.reply({ embeds: [embed] });
-	} else if (commandName === 'cancelbet') {
-		const betId = interaction.options.getString('bet_id');
-		// console.log(`Attempting to cancel bet with ID: ${betId}`);
-
-		try {
-			await axios.delete(`${backendApiUrl}/bets/${betId}`, {
-				data: { creatorDiscordId: userId },
-				headers: { 'x-guild-id': interaction.guildId }
-			});
-			const embed = new EmbedBuilder()
-				.setColor(0x636e72)
-				.setTitle('🚫 Bet Cancelled')
-				.setDescription(`Bet ID **${betId}** has been cancelled successfully.`)
-				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
-		} catch (error) {
-			console.error('Error cancelling bet:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
+			await safeErrorReply(interaction, new EmbedBuilder()
 				.setColor(0xff7675)
-				.setTitle('❌ Error Cancelling Bet')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while cancelling the bet.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
-		}
-	} else if (commandName === 'editbet') {
-		const betId = interaction.options.getString('bet_id');
-		const description = interaction.options.getString('description');
-		const optionsString = interaction.options.getString('options');
-		const durationMinutes = interaction.options.getInteger('duration_minutes');
-		if (!description && !optionsString && !durationMinutes) {
-			const embed = new EmbedBuilder()
-				.setColor(0xffbe76)
-				.setTitle('⚠️ Nothing to Update')
-				.setDescription('Please provide at least one field to update (description, options, or duration).')
-				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
-			return;
-		}
-		if (optionsString) {
-			const options = optionsString.split(',').map(option => option.trim());
-			if (options.length < 2) {
-				const embed = new EmbedBuilder()
-					.setColor(0xffbe76)
-					.setTitle('⚠️ Invalid Options')
-					.setDescription('Please provide at least two comma-separated options for the bet.')
-					.setTimestamp();
-				await interaction.reply({ embeds: [embed] });
-				return;
-			}
-		}
-		try {
-			const response = await axios.put(`${backendApiUrl}/bets/${betId}/edit`, {
-				creatorDiscordId: userId,
-				description,
-				options: optionsString,
-				durationMinutes
-			}, {
-				headers: { 'x-guild-id': interaction.guildId }
-			});
-			const updatedBet = response.data.bet;
-			const embed = new EmbedBuilder()
-				.setColor(0x00b894)
-				.setTitle('✏️ Bet Updated')
-				.setDescription(`Bet ID **${betId}** has been updated.`)
-				.addFields(
-					{ name: 'Description', value: updatedBet.description, inline: false },
-					{ name: 'Options', value: updatedBet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
-					{ name: 'Closing Time', value: updatedBet.closingTime ? new Date(updatedBet.closingTime).toLocaleString() : 'Not set', inline: true },
-				)
-				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
-		} catch (error) {
-			console.error('Error editing bet:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Editing Bet')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while editing the bet.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
-		}
-	} else if (commandName === 'extendbet') {
-		const betId = interaction.options.getString('bet_id');
-		const additionalMinutes = interaction.options.getInteger('additional_minutes');
-		try {
-			const response = await axios.put(`${backendApiUrl}/bets/${betId}/extend`, {
-				creatorDiscordId: userId,
-				additionalMinutes
-			}, {
-				headers: { 'x-guild-id': interaction.guildId }
-			});
-			const { bet, newClosingTime } = response.data;
-			const embed = new EmbedBuilder()
-				.setColor(0x00b894)
-				.setTitle('⏳ Bet Extended')
-				.setDescription(`Bet ID **${betId}** has been extended.`)
-				.addFields(
-					{ name: 'New Closing Time', value: new Date(newClosingTime).toLocaleString(), inline: true },
-				)
-				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
-		} catch (error) {
-			console.error('Error extending bet:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Extending Bet')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while extending the bet.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
-		}
-	} else if (commandName === 'betinfo') {
-		const betId = interaction.options.getString('bet_id');
-		// console.log(`Fetching detailed info for bet with ID: ${betId}`);
-
-		try {
-			// Get bet details
-			const betResponse = await axios.get(`${backendApiUrl}/bets/${betId}`, {
-				params: { guildId: interaction.guildId },
-				headers: { 'x-guild-id': interaction.guildId }
-			});
-			const bet = betResponse.data;
-
-			// Get placed bets
-			const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`, {
-				params: { guildId: interaction.guildId },
-				headers: { 'x-guild-id': interaction.guildId }
-			});
-			const placedBets = placedBetsResponse.data.data;
-
-			// Calculate total pot and bets per option
-			const totalPot = placedBets.reduce((sum, placedBet) => sum + placedBet.amount, 0);
-			const betsByOption = placedBets.reduce((acc, placedBet) => {
-				acc[placedBet.option] = (acc[placedBet.option] || 0) + placedBet.amount;
-				return acc;
-			}, {});
-
-			// Create detailed embed
-			const embed = new EmbedBuilder()
-				.setColor(0x6c5ce7)
-				.setTitle(`📊 Bet Information: ${bet.description}`)
-				.addFields(
-					{ name: 'ID', value: bet._id, inline: true },
-					{ name: 'Status', value: bet.status, inline: true },
-					{ name: 'Created By', value: `<@${bet.creator.discordId}>`, inline: true },
-					{ name: 'Created At', value: new Date(bet.createdAt).toLocaleString(), inline: true },
-					{ name: 'Closing Time', value: bet.closingTime ? new Date(bet.closingTime).toLocaleString() : 'Not set', inline: true },
-					{ name: 'Total Pot', value: `${totalPot.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-					{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false }
-				)
-				.setTimestamp();
-
-			// Add bets per option
-			let betsPerOptionText = '';
-			for (const [option, amount] of Object.entries(betsByOption)) {
-				const percentage = totalPot > 0 ? ((amount / totalPot) * 100).toFixed(1) : 0;
-				betsPerOptionText += `**${option}:** ${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points (${percentage}%)\n`;
-			}
-			embed.addFields({ name: 'Bets Per Option', value: betsPerOptionText || 'No bets placed yet', inline: false });
-
-			// Add winning option if resolved
-			if (bet.status === 'resolved' && bet.winningOption) {
-				embed.addFields({ name: 'Winning Option', value: bet.winningOption, inline: true });
-			}
-
-			await interaction.reply({ embeds: [embed] });
-		} catch (error) {
-			console.error('Error fetching bet info:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Fetching Bet Info')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while fetching bet information.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
-		}
-	} else if (commandName === 'daily') {
-		// console.log(`Attempting to claim daily bonus for user: ${userId}`);
-
-		try {
-			const response = await axios.post(`${backendApiUrl}/users/${userId}/daily`, { guildId: interaction.guildId }, { headers: { 'x-guild-id': interaction.guildId } });
-			const { amount, streak, nextClaimTime } = response.data;
-
-			const embed = new EmbedBuilder()
-				.setColor(0x00ff00)
-				.setTitle('🎁 Daily Bonus Claimed!')
-				.setDescription(`You received **${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points**!`)
-				.addFields(
-					{ name: 'Current Streak', value: `${streak} days`, inline: true },
-					{ name: 'Next Claim', value: `<t:${Math.floor(nextClaimTime / 1000)}:R>`, inline: true }
-				)
-				.setTimestamp();
-
-			await interaction.reply({ embeds: [embed] });
-		} catch (error) {
-			console.error('Error claiming daily bonus:', error.response?.data || error.message);
-			if (error.response && error.response.data && error.response.data.message) {
-				if (error.response.data.nextClaimTime) {
-					const embed = new EmbedBuilder()
-						.setColor(0xff9900)
-						.setTitle('⏰ Already Claimed')
-						.setDescription(error.response.data.message)
-						.addFields(
-							{ name: 'Next Claim', value: `<t:${Math.floor(error.response.data.nextClaimTime / 1000)}:R>`, inline: true }
-						)
-						.setTimestamp();
-					await interaction.reply({ embeds: [embed] });
-				} else {
-					const embed = new EmbedBuilder()
-						.setColor(0xff7675)
-						.setTitle('❌ Error Claiming Daily Bonus')
-						.setDescription(error.response.data.message)
-						.setTimestamp();
-					await safeErrorReply(interaction, embed);
-				}
-			} else {
-				const embed = new EmbedBuilder()
-					.setColor(0xff7675)
-					.setTitle('❌ Error Claiming Daily Bonus')
-					.setDescription(error.message || 'An error occurred while claiming your daily bonus.')
-					.setTimestamp();
-				await safeErrorReply(interaction, embed);
-			}
-		}
-	} else if (commandName === 'gift') {
-		const recipient = interaction.options.getUser('user');
-		const amount = interaction.options.getInteger('amount');
-
-		// console.log(`Attempting to gift ${amount} points from ${userId} to ${recipient.id}`);
-
-		try {
-			const response = await axios.post(`${backendApiUrl}/users/${userId}/gift`, {
-				recipientDiscordId: recipient.id,
-				amount
-			}, {
-				headers: { 'x-guild-id': interaction.guildId }
-			});
-
-			const embed = new EmbedBuilder()
-				.setColor(0x00ff00)
-				.setTitle('🎁 Gift Sent!')
-				.setDescription(`You gifted **${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points** to ${recipient}!`)
-				.addFields(
-					{ name: 'Your New Balance', value: `${response.data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
-				)
-				.setTimestamp();
-
-			await interaction.reply({ embeds: [embed] });
-		} catch (error) {
-			console.error('Error gifting points:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Gifting Points')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while gifting points.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+				.setTitle('❌ Error Fetching Stats')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while fetching your statistics.')
+				.setTimestamp()
+			);
 		}
 	} else if (commandName === 'profile') {
-		const targetUser = interaction.options.getUser('user') || interaction.user;
-		// console.log(`Fetching profile for user: ${targetUser.id}`);
-
 		try {
+			await interaction.deferReply();
+			const targetUser = interaction.options.getUser('user') || interaction.user;
 			const response = await axios.get(`${backendApiUrl}/users/${targetUser.id}/profile`, {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
@@ -953,12 +636,12 @@ client.on('interactionCreate', async interaction => {
 				fields: [
 					{ name: 'Balance', value: `${wallet.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: '🎲 Betting', value:
-						`Total Bets: ${betting.totalBets}\n` +
-						`Total Wagered: ${betting.totalWagered} points\n` +
-						`Total Won: ${betting.totalWon} points`, inline: false },
+						`Total Bets: ${betting.totalBets.toLocaleString('en-US')}\n` +
+						`Total Wagered: ${betting.totalWagered.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\n` +
+						`Total Won: ${betting.totalWon.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: false },
 					{ name: '🎰 Gambling', value:
-						`Total Gambled: ${gambling.totalGambled} points\n` +
-						`Total Won: ${gambling.totalWon} points`, inline: false }
+						`Total Gambled: ${gambling.totalGambled.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\n` +
+						`Total Won: ${gambling.totalWon.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: false }
 				],
 				timestamp: new Date()
 			};
@@ -974,12 +657,12 @@ client.on('interactionCreate', async interaction => {
 				embed.fields.push({ name: 'Recent Bets', value: recentBetsText, inline: false });
 			}
 
-			await interaction.reply({ embeds: [embed] });
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error fetching profile:', error.response?.data || error.message);
 			if (error.response && error.response.status === 404) {
-				await interaction.reply(`Could not find profile for ${targetUser.username}.`);
-			} else {
+				await interaction.editReply(`Could not find profile for ${interaction.options.getUser('user')?.username || interaction.user.username}.`);
+			} else if (!interaction.replied) {
 				await safeErrorReply(interaction, new EmbedBuilder()
 					.setColor(0xff7675)
 					.setTitle('❌ Error Fetching Profile')
@@ -989,9 +672,10 @@ client.on('interactionCreate', async interaction => {
 			}
 		}
 	} else if (commandName === 'coinflip') {
-		const choice = interaction.options.getString('choice');
-		const amount = interaction.options.getInteger('amount');
 		try {
+			await interaction.deferReply();
+			const choice = interaction.options.getString('choice');
+			const amount = interaction.options.getInteger('amount');
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/coinflip`, {
 				choice,
 				amount
@@ -1011,21 +695,23 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
-			console.error('Error in coinflip:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Playing Coinflip')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing coinflip.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Playing Coinflip')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing coinflip.')
+					.setTimestamp()
+				);
+			}
 		}
 	} else if (commandName === 'dice') {
-		const betType = interaction.options.getString('bet_type');
-		const number = interaction.options.getInteger('number');
-		const amount = interaction.options.getInteger('amount');
 		try {
+			await interaction.deferReply();
+			const betType = interaction.options.getString('bet_type');
+			const number = interaction.options.getInteger('number');
+			const amount = interaction.options.getInteger('amount');
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/dice`, {
 				bet_type: betType,
 				number,
@@ -1046,19 +732,21 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
-			console.error('Error in dice:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Playing Dice')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing dice.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Playing Dice')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing dice.')
+					.setTimestamp()
+				);
+			}
 		}
 	} else if (commandName === 'slots') {
-		const amount = interaction.options.getInteger('amount');
 		try {
+			await interaction.deferReply();
+			const amount = interaction.options.getInteger('amount');
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/slots`, {
 				amount
 			}, {
@@ -1088,18 +776,20 @@ client.on('interactionCreate', async interaction => {
 				embed.addFields({ name: 'Note', value: 'You used a free spin!', inline: false });
 			}
 			embed.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
-			console.error('Error in slots:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Playing Slots')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing slots.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Playing Slots')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing slots.')
+					.setTimestamp()
+				);
+			}
 		}
 	} else if (commandName === 'blackjack') {
 		try {
+			await interaction.deferReply();
 			const amount = interaction.options.getInteger('amount');
 			const action = interaction.options.getString('action')?.toLowerCase();
 			const requestBody = {};
@@ -1115,7 +805,6 @@ client.on('interactionCreate', async interaction => {
 				.setDescription(data.gameOver ? 
 					data.results.map((r, i) => `Hand ${i + 1}: ${r.result.toUpperCase()} (${r.winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points)`).join('\n') :
 					'Your turn! Choose an action below.');
-			// Add player hands
 			data.playerHands.forEach((hand, i) => {
 				const handValue = hand.reduce((sum, card) => {
 					if (card.value === 'A') return sum + 11;
@@ -1127,7 +816,6 @@ client.on('interactionCreate', async interaction => {
 					value: hand.map(card => `${card.value}${card.suit}`).join(' ')
 				});
 			});
-			// Add dealer hand
 			const dealerValue = data.dealerHand.reduce((sum, card) => {
 				if (card.value === 'A') return sum + 11;
 				if (['K', 'Q', 'J'].includes(card.value)) return sum + 10;
@@ -1151,22 +839,23 @@ client.on('interactionCreate', async interaction => {
 				value: `${data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`
 			});
 			embed.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
-			console.error('Error in blackjack:', error.response?.data || error);
-			const errorMessage = error.response?.data?.message || error.message || 'An unknown error occurred';
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Playing Blackjack')
-				.setDescription(errorMessage)
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Playing Blackjack')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing blackjack.')
+					.setTimestamp()
+				);
+			}
 		}
 	} else if (commandName === 'roulette') {
-		const betType = interaction.options.getString('bet_type');
-		const number = interaction.options.getInteger('number');
-		const amount = interaction.options.getInteger('amount');
 		try {
+			await interaction.deferReply();
+			const betType = interaction.options.getString('bet_type');
+			const number = interaction.options.getInteger('number');
+			const amount = interaction.options.getInteger('amount');
 			const requestBody = {
 				bets: [
 					{
@@ -1197,20 +886,22 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
+			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
-			console.error('Error in roulette:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Playing Roulette')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing roulette.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Playing Roulette')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while playing roulette.')
+					.setTimestamp()
+				);
+			}
 		}
 	} else if (commandName === 'jackpot') {
-		const action = interaction.options.getString('action');
-		const amount = interaction.options.getInteger('amount');
 		try {
+			await interaction.deferReply();
+			const action = interaction.options.getString('action');
+			const amount = interaction.options.getInteger('amount');
 			if (action === 'view') {
 				const response = await axios.get(`${backendApiUrl}/gambling/${userId}/jackpot`, {
 					params: { guildId: interaction.guildId },
@@ -1231,7 +922,7 @@ client.on('interactionCreate', async interaction => {
 						{ name: 'Last Win Time', value: new Date(lastWinTime).toLocaleString(), inline: true }
 					);
 				}
-				await interaction.reply({ embeds: [embed] });
+				await interaction.editReply({ embeds: [embed] });
 			} else if (action === 'contribute') {
 				const response = await axios.post(`${backendApiUrl}/gambling/${userId}/jackpot/contribute`, {
 					amount
@@ -1248,16 +939,17 @@ client.on('interactionCreate', async interaction => {
 						{ name: 'Your New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 					)
 					.setTimestamp();
-				await interaction.reply({ embeds: [embed] });
+				await interaction.editReply({ embeds: [embed] });
 			}
 		} catch (error) {
-			console.error('Error in jackpot:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error in Jackpot')
-				.setDescription(error.response?.data?.message || error.message || `An error occurred while ${action}ing the jackpot.`)
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error in Jackpot')
+					.setDescription(error.response?.data?.message || error.message || `An error occurred while ${action}ing the jackpot.`)
+					.setTimestamp()
+				);
+			}
 		}
 	} else if (commandName === 'transactions') {
 		try {
@@ -1299,32 +991,28 @@ client.on('interactionCreate', async interaction => {
 			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error in transaction history command:', error);
-			const embed = new EmbedBuilder()
+			await safeErrorReply(interaction, new EmbedBuilder()
 				.setColor(0xff7675)
 				.setTitle('❌ Error Fetching Transactions')
 				.setDescription(error.message || 'An error occurred while fetching your transaction history.')
-				.setTimestamp();
-			if (interaction.deferred) {
-				await interaction.editReply({ embeds: [embed] });
-			} else {
-				await interaction.reply({ embeds: [embed] });
-			}
+				.setTimestamp()
+			);
 		}
 	} else if (commandName === 'unresolvedbets') {
 		try {
+			await interaction.deferReply();
 			const response = await axios.get(`${backendApiUrl}/bets/unresolved`, {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const unresolvedBets = response.data;
-
 			if (unresolvedBets.length === 0) {
 				const embed = new EmbedBuilder()
 					.setColor(0xffbe76)
 					.setTitle('No Unresolved Bets')
 					.setDescription('There are no unresolved bets at the moment.')
 					.setTimestamp();
-				await interaction.reply({ embeds: [embed] });
+				await interaction.editReply({ embeds: [embed] });
 			} else {
 				const embeds = unresolvedBets.slice(0, 10).map(bet => {
 					const embed = new EmbedBuilder()
@@ -1341,95 +1029,94 @@ client.on('interactionCreate', async interaction => {
 					}
 					return embed;
 				});
-				await interaction.reply({ embeds });
+				await interaction.editReply({ embeds });
 			}
 		} catch (error) {
 			console.error('Error listing unresolved bets:', error.response?.data || error.message);
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Error Listing Unresolved Bets')
-				.setDescription(error.response?.data?.message || error.message || 'An error occurred while listing unresolved bets.')
-				.setTimestamp();
-			await safeErrorReply(interaction, embed);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Listing Unresolved Bets')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while listing unresolved bets.')
+					.setTimestamp()
+				);
+			}
 		}
 	} else if (commandName === 'meowbark') {
-		// Defensive: prevent double reply if already replied (e.g., jail logic)
-		if (interaction.replied || interaction.deferred) return;
-
-		const amount = interaction.options.getInteger('amount');
-		const userId = interaction.user.id;
-		const now = Date.now();
-		const lastUsed = meowbarkCooldowns.get(userId) || 0;
-		const cooldown = 5 * 60 * 1000; // 5 minutes
-		if (now - lastUsed < cooldown) {
-			const remaining = Math.ceil((cooldown - (now - lastUsed)) / 1000);
-			const embed = new EmbedBuilder()
-				.setColor(0xffbe76)
-				.setTitle('⏳ Cooldown')
-				.setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again.`)
-				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
-			return;
-		}
-		if (amount < 1 || amount > 100000) {
-			const embed = new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Invalid Amount')
-				.setDescription('Amount must be between 1 and 100,000.')
-				.setTimestamp();
-			await interaction.reply({ embeds: [embed] });
-			return;
-		}
-		const promptEmbed = new EmbedBuilder()
-			.setColor(0x0099ff)
-			.setTitle('🐾 Meow or Bark Challenge!')
-			.setDescription(`To earn **${amount} points**, reply with either 🐱**meow**🐱 or 🐶**bark**🐶 in the next 30 seconds!`)
-			.setTimestamp();
-		await interaction.reply({ embeds: [promptEmbed], headers: { 'x-guild-id': interaction.guildId } });
-		const filter = m => m.author.id === userId && ['meow', 'bark', 'woof', 'woof woof'].includes(m.content.toLowerCase());
-		meowbarkCooldowns.set(userId, Date.now());
 		try {
-			const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
-			const reply = collected.first();
-			await axios.post(`${backendApiUrl}/users/${userId}/meowbark`, { amount }, {
-				headers: { 'x-guild-id': interaction.guildId }
-			});
-			const successEmbed = new EmbedBuilder()
-				.setColor(0x00ff00)
-				.setTitle('🎉 Success!')
-				.setDescription(`You did it! **${amount} points** have been added to your account.`)
-				.setTimestamp();
-			if (!interaction.replied && !interaction.deferred) {
-				await interaction.reply({ embeds: [successEmbed], headers: { 'x-guild-id': interaction.guildId } });
-			} else {
-				await interaction.followUp({ embeds: [successEmbed], headers: { 'x-guild-id': interaction.guildId } });
-			}
-			return;
-		} catch (err) {
-			if (err instanceof Collection || (err && err.code === 'COLLECTION_MAX_TIME') || (err instanceof Error && err.message === 'time')) {
-				const timeoutEmbed = new EmbedBuilder()
+			await interaction.deferReply();
+			const amount = interaction.options.getInteger('amount');
+			const userId = interaction.user.id;
+			const now = Date.now();
+			const lastUsed = meowbarkCooldowns.get(userId) || 0;
+			const cooldown = 5 * 60 * 1000; // 5 minutes
+			if (now - lastUsed < cooldown) {
+				const remaining = Math.ceil((cooldown - (now - lastUsed)) / 1000);
+				const embed = new EmbedBuilder()
 					.setColor(0xffbe76)
-					.setTitle('⏰ Time\'s Up!')
-					.setDescription('You did not meow or bark in time. Try again later.')
+					.setTitle('⏳ Cooldown')
+					.setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again.`)
 					.setTimestamp();
-				if (!interaction.replied && !interaction.deferred) {
-					await interaction.reply({ embeds: [timeoutEmbed], headers: { 'x-guild-id': interaction.guildId } });
-				} else {
-					await interaction.followUp({ embeds: [timeoutEmbed], headers: { 'x-guild-id': interaction.guildId } });
-				}
+				await interaction.editReply({ embeds: [embed] });
 				return;
-			} else {
-				const errorEmbed = new EmbedBuilder()
+			}
+			if (amount < 1 || amount > 100000) {
+				const embed = new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Invalid Amount')
+					.setDescription('Amount must be between 1 and 100,000.')
+					.setTimestamp();
+				await interaction.editReply({ embeds: [embed] });
+				return;
+			}
+			const promptEmbed = new EmbedBuilder()
+				.setColor(0x0099ff)
+				.setTitle('🐾 Meow or Bark Challenge!')
+				.setDescription(`To earn **${amount} points**, reply with either 🐱**meow**🐱 or 🐶**bark**🐶 in the next 30 seconds!`)
+				.setTimestamp();
+			await interaction.editReply({ embeds: [promptEmbed] });
+			const filter = m => m.author.id === userId && ['meow', 'bark', 'woof', 'woof woof'].includes(m.content.toLowerCase());
+			meowbarkCooldowns.set(userId, Date.now());
+			try {
+				const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
+				const reply = collected.first();
+				await axios.post(`${backendApiUrl}/users/${userId}/meowbark`, { amount }, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const successEmbed = new EmbedBuilder()
+					.setColor(0x00ff00)
+					.setTitle('🎉 Success!')
+					.setDescription(`You did it! **${amount} points** have been added to your account.`)
+					.setTimestamp();
+				await interaction.followUp({ embeds: [successEmbed] });
+				return;
+			} catch (err) {
+				if (err instanceof Collection || (err && err.code === 'COLLECTION_MAX_TIME') || (err instanceof Error && err.message === 'time')) {
+					const timeoutEmbed = new EmbedBuilder()
+						.setColor(0xffbe76)
+						.setTitle('⏰ Time\'s Up!')
+						.setDescription('You did not meow or bark in time. Try again later.')
+						.setTimestamp();
+					await interaction.followUp({ embeds: [timeoutEmbed] });
+					return;
+				} else {
+					const errorEmbed = new EmbedBuilder()
+						.setColor(0xff7675)
+						.setTitle('❌ Error')
+						.setDescription('Something went wrong. Please try again later.')
+						.setTimestamp();
+					await interaction.followUp({ embeds: [errorEmbed] });
+					return;
+				}
+			}
+		} catch (error) {
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
 					.setColor(0xff7675)
 					.setTitle('❌ Error')
 					.setDescription('Something went wrong. Please try again later.')
-					.setTimestamp();
-				if (!interaction.replied && !interaction.deferred) {
-					await interaction.reply({ embeds: [errorEmbed], headers: { 'x-guild-id': interaction.guildId } });
-				} else {
-					await interaction.followUp({ embeds: [errorEmbed], headers: { 'x-guild-id': interaction.guildId } });
-				}
-				return;
+					.setTimestamp()
+				);
 			}
 		}
 	} else if (commandName === 'crime') {
@@ -1456,6 +1143,326 @@ client.on('interactionCreate', async interaction => {
 		await mysteryboxCommand.execute(interaction);
 	} else if (commandName === 'bail') {
 		await bailCommand.execute(interaction);
+	} else if (commandName === 'help') {
+		try {
+			await interaction.deferReply();
+			const embed = {
+				color: 0x0099ff,
+				title: '🤖 Bot Commands',
+				description: 'Here are all the available commands:',
+				fields: [
+					{ name: '🎲 Betting Commands', value:
+						'`/createbet` - Create a new betting event (Admin/Superadmin only)\n' +
+						'`/placebet` - Place a bet on an active event\n' +
+						'`/viewbet` - View details of a specific bet\n' +
+						'`/listbets` - List all currently open betting events\n' +
+						'`/unresolvedbets` - List all bets that are unresolved (open or closed)\n' +
+						'`/closebet` - Close betting for an event (Admin/Superadmin only)\n' +
+						'`/resolvebet` - Resolve a betting event (Admin/Superadmin only)\n' +
+						'`/cancelbet` - Cancel a bet before any bets are placed (Creator/Admin/Superadmin only)\n' +
+						'`/editbet` - Edit a bet\'s details before any bets are placed (Creator/Admin/Superadmin only)\n' +
+						'`/extendbet` - Extend the duration of an open bet (Creator/Admin/Superadmin only)\n' +
+						'`/betinfo` - Show detailed information about a bet'
+					},
+					{ name: '💰 Wallet Commands', value:
+						'`/balance` - Check your current balance\n' +
+						'`/daily` - Claim your daily point bonus\n' +
+						'`/gift` - Gift points to another user\n' +
+						'`/transactions` - View your transaction history'
+					},
+					{ name: '🎮 Gambling Commands', value:
+						'`/coinflip` - Flip a coin and bet on the outcome\n' +
+						'`/dice` - Roll dice and bet on the outcome\n' +
+						'`/slots` - Play the slot machine\n' +
+						'`/blackjack` - Play blackjack\n' +
+						'`/roulette` - Play roulette\n' +
+						'`/jackpot` - View or contribute to the jackpot'
+					},
+					{ name: '📊 Utility Commands', value:
+						'`/leaderboard` - View top users by balance\n' +
+						'`/stats` - View your full betting and gambling statistics\n' +
+						'`/profile` - View your detailed profile'
+					},
+					{
+						name: '📊 Fun & Collection Commands', value:
+						'`/meowbark` - Perform a meow or bark to earn points (5 min cooldown, max 100,000 points)\n' +
+						'`/crime do` - Attempt a crime for a chance to win or lose points, or get jailed\n' +
+						'`/crime stats` - View your crime stats\n' +
+						'`/work do` - Work a job for a chance to earn points and rare bonuses\n' +
+						'`/work stats` - View your work/job stats\n' +
+						'`/bail @user` - Bail a jailed user out (for a fee)\n' +
+						'`/fish` - Go fishing for a chance to catch something valuable!\n' +
+						'`/hunt` - Go hunting for a chance to catch a rare animal!\n' +
+						'`/collection` - View your fishing and hunting collection\n' +
+						'`/collection-leaderboard` - View the top collectors by collection value\n' +
+						'`/sell` - Sell an item from your collection for points\n' +
+						'`/trade` - Gift or trade an item from your collection to another user\n' +
+						'`/beg` - Beg for coins and see what happens!\n' +
+						'`/mysterybox` - Open a mystery box for a random reward!\n' +
+						'Buffs: Obtain temporary buffs from `/mysterybox`! Active buffs are shown in `/collection.`'
+					},
+					{
+						name: '⚔️ Duel Commands', value:
+						'`/duel challenge @user amount` - Challenge another user to a duel for points\n' +
+						'`/duel accept duel_id` - Accept a pending duel (autocomplete duel ID)\n' +
+						'`/duel decline duel_id` - Decline a pending duel (autocomplete duel ID)\n' +
+						'`/duel stats` - View your duel win/loss record'
+					}
+				],
+				timestamp: new Date()
+			};
+			await interaction.editReply({ embeds: [embed] });
+		} catch (error) {
+			console.error('Error in help command:', error);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Fetching Help')
+					.setDescription(error.message || 'An error occurred while fetching the help menu.')
+					.setTimestamp()
+				);
+			}
+		}
+	} else if (commandName === 'cancelbet') {
+		try {
+			await interaction.deferReply();
+			const betId = interaction.options.getString('bet_id');
+			await axios.delete(`${backendApiUrl}/bets/${betId}`, {
+				data: { creatorDiscordId: userId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
+			const embed = new EmbedBuilder()
+				.setColor(0x636e72)
+				.setTitle('🚫 Bet Cancelled')
+				.setDescription(`Bet ID **${betId}** has been cancelled successfully.`)
+				.setTimestamp();
+			await interaction.editReply({ embeds: [embed] });
+		} catch (error) {
+			console.error('Error cancelling bet:', error.response?.data || error.message);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Cancelling Bet')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while cancelling the bet.')
+					.setTimestamp()
+				);
+			}
+		}
+	} else if (commandName === 'editbet') {
+		try {
+			await interaction.deferReply();
+			const betId = interaction.options.getString('bet_id');
+			const description = interaction.options.getString('description');
+			const optionsString = interaction.options.getString('options');
+			const durationMinutes = interaction.options.getInteger('duration_minutes');
+			if (!description && !optionsString && !durationMinutes) {
+				const embed = new EmbedBuilder()
+					.setColor(0xffbe76)
+					.setTitle('⚠️ Nothing to Update')
+					.setDescription('Please provide at least one field to update (description, options, or duration).')
+					.setTimestamp();
+				await interaction.editReply({ embeds: [embed] });
+				return;
+			}
+			if (optionsString) {
+				const options = optionsString.split(',').map(option => option.trim());
+				if (options.length < 2) {
+					const embed = new EmbedBuilder()
+						.setColor(0xffbe76)
+						.setTitle('⚠️ Invalid Options')
+						.setDescription('Please provide at least two comma-separated options for the bet.')
+						.setTimestamp();
+					await interaction.editReply({ embeds: [embed] });
+					return;
+				}
+			}
+			const response = await axios.put(`${backendApiUrl}/bets/${betId}/edit`, {
+				creatorDiscordId: userId,
+				description,
+				options: optionsString,
+				durationMinutes
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
+			const updatedBet = response.data.bet;
+			const embed = new EmbedBuilder()
+				.setColor(0x00b894)
+				.setTitle('✏️ Bet Updated')
+				.setDescription(`Bet ID **${betId}** has been updated.`)
+				.addFields(
+					{ name: 'Description', value: updatedBet.description, inline: false },
+					{ name: 'Options', value: updatedBet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
+					{ name: 'Closing Time', value: updatedBet.closingTime ? new Date(updatedBet.closingTime).toLocaleString() : 'Not set', inline: true },
+				)
+				.setTimestamp();
+			await interaction.editReply({ embeds: [embed] });
+		} catch (error) {
+			console.error('Error editing bet:', error.response?.data || error.message);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Editing Bet')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while editing the bet.')
+					.setTimestamp()
+				);
+			}
+		}
+	} else if (commandName === 'extendbet') {
+		try {
+			await interaction.deferReply();
+			const betId = interaction.options.getString('bet_id');
+			const additionalMinutes = interaction.options.getInteger('additional_minutes');
+			const response = await axios.put(`${backendApiUrl}/bets/${betId}/extend`, {
+				creatorDiscordId: userId,
+				additionalMinutes
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
+			const { bet, newClosingTime } = response.data;
+			const embed = new EmbedBuilder()
+				.setColor(0x00b894)
+				.setTitle('⏳ Bet Extended')
+				.setDescription(`Bet ID **${betId}** has been extended.`)
+				.addFields(
+					{ name: 'New Closing Time', value: new Date(newClosingTime).toLocaleString(), inline: true },
+				)
+				.setTimestamp();
+			await interaction.editReply({ embeds: [embed] });
+		} catch (error) {
+			console.error('Error extending bet:', error.response?.data || error.message);
+			if (!interaction.replied) {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Extending Bet')
+					.setDescription(error.response?.data?.message || error.message || 'An error occurred while extending the bet.')
+					.setTimestamp()
+				);
+			}
+		}
+	} else if (commandName === 'betinfo') {
+		try {
+			await interaction.deferReply();
+			const betId = interaction.options.getString('bet_id');
+			const betResponse = await axios.get(`${backendApiUrl}/bets/${betId}`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
+			const bet = betResponse.data;
+			const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`, {
+				params: { guildId: interaction.guildId },
+				headers: { 'x-guild-id': interaction.guildId }
+			});
+			const placedBets = placedBetsResponse.data.data;
+			const totalPot = placedBets.reduce((sum, placedBet) => sum + placedBet.amount, 0);
+			const betsByOption = placedBets.reduce((acc, placedBet) => {
+				acc[placedBet.option] = (acc[placedBet.option] || 0) + placedBet.amount;
+				return acc;
+			}, {});
+			const embed = new EmbedBuilder()
+				.setColor(0x6c5ce7)
+				.setTitle(`📊 Bet Information: ${bet.description}`)
+				.addFields(
+					{ name: 'ID', value: bet._id, inline: true },
+					{ name: 'Status', value: bet.status, inline: true },
+					{ name: 'Created By', value: `<@${bet.creator.discordId}>`, inline: true },
+					{ name: 'Created At', value: new Date(bet.createdAt).toLocaleString(), inline: true },
+					{ name: 'Closing Time', value: bet.closingTime ? new Date(bet.closingTime).toLocaleString() : 'Not set', inline: true },
+					{ name: 'Total Pot', value: `${totalPot.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false }
+				)
+				.setTimestamp();
+			let betsPerOptionText = '';
+			for (const [option, amount] of Object.entries(betsByOption)) {
+				const percentage = totalPot > 0 ? ((amount / totalPot) * 100).toFixed(1) : 0;
+				betsPerOptionText += `**${option}:** ${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points (${percentage}%)\n`;
+			}
+			embed.addFields({ name: 'Bets Per Option', value: betsPerOptionText || 'No bets placed yet', inline: false });
+			if (bet.status === 'resolved' && bet.winningOption) {
+				embed.addFields({ name: 'Winning Option', value: bet.winningOption, inline: true });
+			}
+			await interaction.editReply({ embeds: [embed] });
+		} catch (error) {
+			console.error('Error fetching bet info:', error.response?.data || error.message);
+			await safeErrorReply(interaction, new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Fetching Bet Info')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while fetching bet information.')
+				.setTimestamp()
+			);
+		}
+	} else if (commandName === 'daily') {
+		try {
+			await interaction.deferReply();
+			const response = await axios.post(`${backendApiUrl}/users/${userId}/daily`, { guildId: interaction.guildId }, { headers: { 'x-guild-id': interaction.guildId } });
+			const { amount, streak, nextClaimTime } = response.data;
+			const embed = new EmbedBuilder()
+				.setColor(0x00ff00)
+				.setTitle('🎁 Daily Bonus Claimed!')
+				.setDescription(`You received **${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points**!`)
+				.addFields(
+					{ name: 'Current Streak', value: `${streak} days`, inline: true },
+					{ name: 'Next Claim', value: `<t:${Math.floor(nextClaimTime / 1000)}:R>`, inline: true }
+				)
+				.setTimestamp();
+			await interaction.editReply({ embeds: [embed] });
+		} catch (error) {
+			console.error('Error claiming daily bonus:', error.response?.data || error.message);
+			if (error.response && error.response.data && error.response.data.message) {
+				if (error.response.data.nextClaimTime) {
+					const embed = new EmbedBuilder()
+						.setColor(0xff9900)
+						.setTitle('⏰ Already Claimed')
+						.setDescription(error.response.data.message)
+						.addFields(
+							{ name: 'Next Claim', value: `<t:${Math.floor(error.response.data.nextClaimTime / 1000)}:R>`, inline: true }
+						)
+						.setTimestamp();
+					await interaction.editReply({ embeds: [embed] });
+				} else {
+					await safeErrorReply(interaction, new EmbedBuilder()
+						.setColor(0xff7675)
+						.setTitle('❌ Error Claiming Daily Bonus')
+						.setDescription(error.response.data.message)
+						.setTimestamp()
+					);
+				}
+			} else {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Error Claiming Daily Bonus')
+					.setDescription(error.message || 'An error occurred while claiming your daily bonus.')
+					.setTimestamp()
+				);
+			}
+		}
+	} else if (commandName === 'gift') {
+		try {
+			await interaction.deferReply();
+			const recipient = interaction.options.getUser('user');
+			const amount = interaction.options.getInteger('amount');
+			const response = await axios.post(`${backendApiUrl}/users/${userId}/gift`, {
+				recipientDiscordId: recipient.id,
+				amount
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
+			const embed = new EmbedBuilder()
+				.setColor(0x00ff00)
+				.setTitle('🎁 Gift Sent!')
+				.setDescription(`You gifted **${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points** to ${recipient}!`)
+				.addFields(
+					{ name: 'Your New Balance', value: `${response.data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+				)
+				.setTimestamp();
+			await interaction.editReply({ embeds: [embed] });
+		} catch (error) {
+			await safeErrorReply(interaction, new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Gifting Points')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while gifting points.')
+				.setTimestamp()
+			);
+		}
 	}
 
 	// --- Handle duel accept/decline buttons ---
@@ -1474,11 +1481,11 @@ client.on('interactionCreate', async interaction => {
 				});
 				const duel = duelRes.data;
 				if (duel.status !== 'pending') {
-					await interaction.reply({ content: 'This duel has already been resolved.', ephemeral: true, headers: { 'x-guild-id': interaction.guildId } });
+					await interaction.reply({ content: 'This duel has already been resolved.', headers: { 'x-guild-id': interaction.guildId } });
 					return;
 				}
 				if (userId !== duel.opponentDiscordId) {
-					await interaction.reply({ content: 'Only the challenged user can accept or decline this duel.', ephemeral: true, headers: { 'x-guild-id': interaction.guildId } });
+					await interaction.reply({ content: 'Only the challenged user can accept or decline this duel.', headers: { 'x-guild-id': interaction.guildId } });
 					return;
 				}
 				// Respond to duel
@@ -1511,9 +1518,9 @@ client.on('interactionCreate', async interaction => {
 				}
 			} catch (error) {
 				if (error.response && error.response.data && error.response.data.message) {
-						await interaction.reply({ content: error.response.data.message, ephemeral: true, headers: { 'x-guild-id': interaction.guildId } });
+						await interaction.reply({ content: error.response.data.message, headers: { 'x-guild-id': interaction.guildId } });
 				} else {
-					await interaction.reply({ content: 'Error processing duel response.', ephemeral: true, headers: { 'x-guild-id': interaction.guildId } });
+					await interaction.reply({ content: 'Error processing duel response.', headers: { 'x-guild-id': interaction.guildId } });
 				}
 			}
 			return;
@@ -1533,15 +1540,55 @@ process.on('unhandledRejection', error => {
 
 // Patch: Helper for safe error reply
 async function safeErrorReply(interaction, embed) {
-	try {
-		if (interaction.replied) {
-			await interaction.followUp({ embeds: [embed], ephemeral: true });
-		} else if (interaction.deferred) {
-			await interaction.editReply({ embeds: [embed], ephemeral: true });
-		} else {
-			await interaction.reply({ embeds: [embed], ephemeral: true });
-		}
-	} catch (err) {
-		console.error('Failed to send error reply:', err);
-	}
+    try {
+        if (interaction.deferred && !interaction.replied) {
+            await interaction.editReply({ embeds: [embed] });
+        } else {
+            await interaction.followUp({ embeds: [embed], ephemeral: true });
+        }
+    } catch (err) {
+        console.error('Failed to send error reply:', err);
+    }
 } 
+
+// --- Duel Expiry Notification Poller ---
+setInterval(async () => {
+  try {
+    const response = await axios.get(`${backendApiUrl}/duels/expired-unnotified`);
+    const duels = response.data.duels || [];
+    if (duels.length === 0) return;
+    for (const duel of duels) {
+      // Notify challenger
+      try {
+        const challengerUser = await client.users.fetch(duel.challengerDiscordId);
+        const embed = new EmbedBuilder()
+          .setColor(0xff7675)
+          .setTitle('⏰ Duel Cancelled')
+          .setDescription(`Your duel with <@${duel.opponentDiscordId}> was cancelled as time ran out. Both players have been refunded their stakes (**${duel.amount.toLocaleString('en-US')} points** each).`)
+          .setFooter({ text: `Duel ID: ${duel._id}` })
+          .setTimestamp();
+        await challengerUser.send({ embeds: [embed] });
+      } catch (err) {
+        console.warn('Failed to notify challenger:', duel.challengerDiscordId, err.message);
+      }
+      // Notify opponent
+      try {
+        const opponentUser = await client.users.fetch(duel.opponentDiscordId);
+        const embed = new EmbedBuilder()
+          .setColor(0xff7675)
+          .setTitle('⏰ Duel Cancelled')
+          .setDescription(`Your duel with <@${duel.challengerDiscordId}> was cancelled as time ran out. Both players have been refunded their stakes (**${duel.amount.toLocaleString('en-US')} points** each).`)
+          .setFooter({ text: `Duel ID: ${duel._id}` })
+          .setTimestamp();
+        await opponentUser.send({ embeds: [embed] });
+      } catch (err) {
+        console.warn('Failed to notify opponent:', duel.opponentDiscordId, err.message);
+      }
+    }
+    // Mark as notified
+    const duelIds = duels.map(d => d._id);
+    await axios.post(`${backendApiUrl}/duels/mark-notified`, { duelIds });
+  } catch (err) {
+    console.error('Error polling for expired duels:', err.message);
+  }
+}, 10000); // every 10 seconds

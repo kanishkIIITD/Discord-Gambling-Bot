@@ -23,7 +23,7 @@ module.exports = {
     )
     .addStringOption(option =>
       option.setName('name')
-        .setDescription('Name of the item to trade (case-sensitive)')
+        .setDescription('Name of the item to trade')
         .setRequired(true)
     )
     .addIntegerOption(option =>
@@ -42,10 +42,12 @@ module.exports = {
       const count = interaction.options.getInteger('count');
       const backendUrl = process.env.BACKEND_API_URL;
       const guildId = interaction.guildId;
-      // Optionally: fetch inventory to validate
+
+      // Fetch inventory to validate (case-insensitive name check)
       const invRes = await axios.get(`${backendUrl}/users/${userId}/collection`, { params: { guildId }, headers: { 'x-guild-id': guildId } });
       const inventory = invRes.data.inventory || [];
-      const item = inventory.find(i => i.type === type && i.name === name);
+      const item = inventory.find(i => i.type === type && i.name.toLowerCase() === name.toLowerCase()); // Case-insensitive check
+
       if (!item) {
         await ResponseHandler.handleError(interaction, { message: 'You do not own this item.' }, 'Trade');
         return;
@@ -54,16 +56,18 @@ module.exports = {
         await ResponseHandler.handleError(interaction, { message: `You only own ${item.count} of this item.` }, 'Trade');
         return;
       }
+
       // Call backend to trade
-      const response = await axios.post(`${backendUrl}/users/${userId}/trade`, { targetDiscordId: target.id, type, name, count, guildId }, { headers: { 'x-guild-id': guildId } });
+      const response = await axios.post(`${backendUrl}/users/${userId}/trade`, { targetDiscordId: target.id, type, name: item.name, count, guildId }, { headers: { 'x-guild-id': guildId } }); // Use the exact item.name from inventory
       const { message } = response.data;
+
       const embed = {
         color: 0x00b894,
         title: '🔄 Trade Result',
         description: message,
         fields: [
           { name: 'Recipient', value: `<@${target.id}>`, inline: true },
-          { name: 'Item', value: `${count}x ${name} (${type})`, inline: true }
+          { name: 'Item', value: `${count}x ${item.name} (${type})`, inline: true } // Use item.name for embed
         ],
         timestamp: new Date(),
         footer: { text: `Requested by ${interaction.user.tag}` }

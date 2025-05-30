@@ -13,6 +13,8 @@ const duelSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   resolvedAt: { type: Date },
   actionText: { type: String },
+  expiresAt: { type: Date },
+  notified: { type: Boolean, default: false },
 });
 
 module.exports = mongoose.model('Duel', duelSchema); 

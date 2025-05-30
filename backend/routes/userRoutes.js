@@ -1465,7 +1465,8 @@ router.post('/:discordId/duel', async (req, res) => {
       opponentDiscordId,
       amount,
       status: 'pending',
-      guildId: req.guildId
+      guildId: req.guildId,
+      expiresAt: new Date(Date.now() + 60 * 1000) // 1 minute from now
     });
     await duel.save();
     // Set cooldown (5-10 min random)

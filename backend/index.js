@@ -20,6 +20,8 @@ const Bet = require('./models/Bet');
 const websocketService = require('./utils/websocketService');
 const adminRoutes = require('./routes/adminRoutes');
 const serverless = require('serverless-http');
+const Duel = require('./models/Duel');
+const Wallet = require('./models/Wallet');
 
 const app = express();
 const server = http.createServer(app);
@@ -104,7 +106,7 @@ app.use(passport.session());
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
-    // console.log('Connected to MongoDB');
+    console.log(`Connected to MongoDB ${process.env.MONGODB_URI}`);
   })
   .catch(err => {
     console.error('MongoDB connection error:', err);
@@ -122,6 +124,56 @@ app.get('/', (req, res) => {
   res.send('Hello from the backend!');
 });
 
+// Duel timeout cleanup: auto-decline and refund expired pending duels
+setInterval(async () => {
+  try {
+    const now = new Date();
+    const expiredDuels = await Duel.find({ status: 'pending', expiresAt: { $lte: now } });
+    for (const duel of expiredDuels) {
+      duel.status = 'declined';
+      duel.resolvedAt = now;
+      duel.notified = false; // Mark as not notified so bot can notify
+      await duel.save();
+      // Refund both users
+      const challengerWallet = await Wallet.findOne({ user: duel.challenger, guildId: duel.guildId });
+      const opponentWallet = await Wallet.findOne({ user: duel.opponent, guildId: duel.guildId });
+      if (challengerWallet) {
+        challengerWallet.balance += duel.amount;
+        await challengerWallet.save();
+      }
+      if (opponentWallet) {
+        opponentWallet.balance += duel.amount;
+        await opponentWallet.save();
+      }
+    }
+  } catch (err) {
+    console.error('Error in duel timeout cleanup:', err);
+  }
+}, 10000); // every 10 seconds
+
+// --- API endpoint for expired, unnotified duels ---
+app.get('/api/duels/expired-unnotified', async (req, res) => {
+  try {
+    const now = new Date();
+    const duels = await Duel.find({ status: 'declined', notified: false, expiresAt: { $lte: now } });
+    res.json({ duels });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching expired duels', error: err.message });
+  }
+});
+
+// --- API endpoint to mark duels as notified ---
+app.post('/api/duels/mark-notified', async (req, res) => {
+  try {
+    const { duelIds } = req.body;
+    if (!Array.isArray(duelIds)) return res.status(400).json({ message: 'duelIds must be an array' });
+    await Duel.updateMany({ _id: { $in: duelIds } }, { $set: { notified: true } });
+    res.json({ message: 'Duels marked as notified' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error marking duels as notified', error: err.message });
+  }
+});
+
 // Update your server start to use the HTTP server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, '0.0.0.0', () => {
@@ -135,5 +187,7 @@ if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`Discord Client ID: ${process.env.DISCORD_CLIENT_ID}`);
+    console.log(`Discord Client Secret: ${process.env.DISCORD_CLIENT_SECRET}`);
   });
 }

@@ -15,10 +15,14 @@ class ResponseHandler {
             )
             .setTimestamp();
 
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ embeds: [errorEmbed], ephemeral: true });
-        } else {
-            await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        try {
+            if (interaction.deferred && !interaction.replied) {
+                await interaction.editReply({ embeds: [errorEmbed] });
+            } else {
+                await interaction.followUp({ embeds: [errorEmbed], ephemeral: true });
+            }
+        } catch (err) {
+            logger.error('Failed to send error reply:', err);
         }
     }
 
@@ -35,10 +39,14 @@ class ResponseHandler {
             });
         }
 
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ embeds: [successEmbed] });
-        } else {
-            await interaction.reply({ embeds: [successEmbed] });
+        try {
+            if (interaction.deferred && !interaction.replied) {
+                await interaction.editReply({ embeds: [successEmbed] });
+            } else {
+                await interaction.followUp({ embeds: [successEmbed], ephemeral: true });
+            }
+        } catch (err) {
+            logger.error('Failed to send success reply:', err);
         }
     }
 
@@ -55,10 +63,14 @@ class ResponseHandler {
             });
         }
 
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ embeds: [infoEmbed] });
-        } else {
-            await interaction.reply({ embeds: [infoEmbed] });
+        try {
+            if (interaction.deferred && !interaction.replied) {
+                await interaction.editReply({ embeds: [infoEmbed] });
+            } else {
+                await interaction.followUp({ embeds: [infoEmbed], ephemeral: true });
+            }
+        } catch (err) {
+            logger.error('Failed to send info reply:', err);
         }
     }
 }

@@ -184,7 +184,8 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
     let winType = null;
     if (isJackpot) {
       // Win the entire jackpot
-      const jackpot = await Jackpot.findOne({ guildId: req.guildId }) || new Jackpot();
+      let jackpot = await Jackpot.findOne({ guildId: req.guildId });
+      if (!jackpot) jackpot = new Jackpot({ guildId: req.guildId });
       jackpotAmount = jackpot.currentAmount; // Store jackpot amount before resetting
       multiplier = 554.83; // Recommended jackpot payout multiplier
       winType = 'jackpot';
@@ -265,12 +266,13 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
 
     // Add to jackpot if lost and not a free spin
     if (!won && !usedFreeSpin) {
-      const jackpot = await Jackpot.findOne({ guildId: req.guildId }) || new Jackpot();
-      jackpot.currentAmount += Math.floor(amount * 0.1); // 10% goes to jackpot
+      let jackpot = await Jackpot.findOne({ guildId: req.guildId });
+      if (!jackpot) jackpot = new Jackpot({ guildId: req.guildId });
+      const contributionAmount = Math.floor(amount * 0.1); // 10% goes to jackpot
+      jackpot.currentAmount += contributionAmount;
       jackpot.contributions.push({
         user: user._id,
-        amount: Math.floor(amount * 0.1),
-        guildId: req.guildId
+        amount: contributionAmount
       });
       await jackpot.save();
     }
@@ -787,7 +789,8 @@ router.post('/:discordId/roulette', validateBetAmount, async (req, res) => {
 // Jackpot routes
 router.get('/:discordId/jackpot', async (req, res) => {
   try {
-    const jackpot = await Jackpot.findOne({ guildId: req.guildId }) || new Jackpot();
+    let jackpot = await Jackpot.findOne({ guildId: req.guildId });
+    if (!jackpot) jackpot = new Jackpot({ guildId: req.guildId });
     res.json({
       currentAmount: jackpot.currentAmount,
       lastWinner: jackpot.lastWinner ? await User.findById(jackpot.lastWinner) : null,
@@ -817,12 +820,12 @@ router.post('/:discordId/jackpot/contribute', async (req, res) => {
     }
 
     // Update jackpot
-    const jackpot = await Jackpot.findOne({ guildId: req.guildId }) || new Jackpot();
+    let jackpot = await Jackpot.findOne({ guildId: req.guildId });
+    if (!jackpot) jackpot = new Jackpot({ guildId: req.guildId });
     jackpot.currentAmount += amount;
     jackpot.contributions.push({
       user: req.user._id,
-      amount,
-      guildId: req.guildId
+      amount
     });
     await jackpot.save();
 

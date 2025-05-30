@@ -18,7 +18,7 @@ module.exports = {
     )
     .addStringOption(option =>
       option.setName('name')
-        .setDescription('Name of the item to sell (case-sensitive)')
+        .setDescription('Name of the item to sell')
         .setRequired(true)
     )
     .addIntegerOption(option =>
@@ -36,10 +36,12 @@ module.exports = {
       const count = interaction.options.getInteger('count');
       const backendUrl = process.env.BACKEND_API_URL;
       const guildId = interaction.guildId;
-      // Optionally: fetch inventory to validate
+
+      // Fetch inventory to validate (case-insensitive name check)
       const invRes = await axios.get(`${backendUrl}/users/${userId}/collection`, { params: { guildId }, headers: { 'x-guild-id': guildId } });
       const inventory = invRes.data.inventory || [];
-      const item = inventory.find(i => i.type === type && i.name === name);
+      const item = inventory.find(i => i.type === type && i.name.toLowerCase() === name.toLowerCase()); // Case-insensitive check
+
       if (!item) {
         await ResponseHandler.handleError(interaction, { message: 'You do not own this item.' }, 'Sell');
         return;
@@ -48,9 +50,11 @@ module.exports = {
         await ResponseHandler.handleError(interaction, { message: `You only own ${item.count} of this item.` }, 'Sell');
         return;
       }
+
       // Call backend to sell
-      const response = await axios.post(`${backendUrl}/users/${userId}/sell`, { type, name, count, guildId }, { headers: { 'x-guild-id': guildId } });
+      const response = await axios.post(`${backendUrl}/users/${userId}/sell`, { type, name: item.name, count, guildId }, { headers: { 'x-guild-id': guildId } }); // Use the exact item.name from inventory
       const { message, newBalance } = response.data;
+
       const embed = {
         color: 0x27ae60,
         title: '🪙 Sell Result',
