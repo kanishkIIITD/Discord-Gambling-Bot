@@ -24,7 +24,6 @@ export const BiggestWinsLeaderboard = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [expandedRows, setExpandedRows] = useState({});
   const sortMenuRef = useRef(null);
 
@@ -50,15 +49,15 @@ export const BiggestWinsLeaderboard = () => {
       setLoading(true);
       setError(null);
       try {
+        const effectiveItemsPerPage = userPreferences.itemsPerPage || 10;
         const res = await axios.get(
           `${process.env.REACT_APP_API_URL}/api/users/leaderboard/biggest-wins`,
           {
-            params: { page, limit: userPreferences.itemsPerPage, sortBy, sortOrder, guildId: MAIN_GUILD_ID },
+            params: { page, limit: Math.min(effectiveItemsPerPage, 500), sortBy, sortOrder, guildId: MAIN_GUILD_ID },
             headers: { 'x-guild-id': MAIN_GUILD_ID }
           }
         );
         setWins(res.data.data);
-        setTotalCount(res.data.totalCount);
       } catch (err) {
         setError('Failed to load biggest wins leaderboard.');
       } finally {
@@ -91,7 +90,7 @@ export const BiggestWinsLeaderboard = () => {
     setShowSortMenu(false);
   };
 
-  const totalPages = userPreferences ? Math.ceil(totalCount / userPreferences.itemsPerPage) : 1;
+  const totalPages = userPreferences ? Math.ceil(500 / (userPreferences.itemsPerPage || 10)) : 1;
 
   // react-paginate expects 0-based page index
   const handlePageChange = (selectedItem) => {

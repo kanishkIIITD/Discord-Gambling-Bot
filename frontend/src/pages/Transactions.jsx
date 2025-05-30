@@ -18,6 +18,9 @@ export const Transactions = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [filter, setFilter] = useState('all');
 
+  const ITEMS_PER_PAGE = 10; // Default items per page if preferences are not loaded yet
+  const MAX_TOTAL_ITEMS = 500; // Set the maximum number of items to display from the top
+
   useEffect(() => {
     const fetchUserPreferences = async () => {
       if (!user?.discordId) return;
@@ -35,18 +38,19 @@ export const Transactions = () => {
   }, [user]);
 
   useEffect(() => {
-    const fetchTransactions = async () => {
+    const fetchTransactions = async (page, limit) => {
       setLoading(true);
       setError(null);
       try {
-        const itemsPerPage = userPreferences?.itemsPerPage || 20;
         const res = await axios.get(
           `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/transactions`,
-          { params: { page: currentPage, limit: itemsPerPage, type: filter, guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
+          { params: { page: page, limit: limit, type: filter, guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
         );
         setTransactions(res.data.transactions);
-        setTotalCount(res.data.totalCount);
-        setTotalPages(Math.ceil(res.data.totalCount / itemsPerPage) || 1);
+        // Total count from backend is not needed for frontend pagination limit
+        // Calculate total pages based on the maximum number of items to display on the frontend
+        const effectiveItemsPerPage = userPreferences?.itemsPerPage || ITEMS_PER_PAGE;
+        setTotalPages(Math.ceil(MAX_TOTAL_ITEMS / effectiveItemsPerPage)); // Corrected calculation
       } catch (err) {
         setError('Failed to fetch transactions.');
       } finally {
@@ -54,7 +58,8 @@ export const Transactions = () => {
       }
     };
     if (user?.discordId && userPreferences) {
-      fetchTransactions();
+      // Pass the current page and the adjusted limit (up to MAX_TOTAL_ITEMS)
+      fetchTransactions(currentPage, Math.min(userPreferences.itemsPerPage || ITEMS_PER_PAGE, MAX_TOTAL_ITEMS));
     }
   }, [user, currentPage, filter, userPreferences]);
 

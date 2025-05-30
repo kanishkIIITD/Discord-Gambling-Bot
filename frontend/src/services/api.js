@@ -27,8 +27,15 @@ export const getWalletBalance = async (discordId) => {
 };
 
 export const getTransactionHistory = async (discordId, page = 1, limit = 20) => {
-  const response = await axios.get(`${API_URL}/api/users/${discordId}/transactions`, withGuild({ params: { page, limit } }));
-  return response.data;
+  try {
+    const response = await axios.get(`${API_URL}/api/users/${discordId}/transactions`, withGuild({
+      params: { limit: Math.min(limit, 500), type: 'all', page }, // Limit to max 500 items
+    }));
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching transaction history:', error);
+    throw error;
+  }
 };
 
 // User Stats API
@@ -168,8 +175,15 @@ export const extendBet = async (betId, creatorDiscordId, additionalMinutes) => {
 
 // Fetch all placed bets for a user (My Bets)
 export const getMyPlacedBets = async (discordId, page = 1, limit = 20) => {
-  const response = await axios.get(`${API_URL}/api/users/${discordId}/bets`, withGuild({ params: { page, limit } }));
-  return response.data;
+  try {
+    const response = await axios.get(`${API_URL}/api/users/${discordId}/bets`, withGuild({
+      params: { limit: Math.min(limit, 500), page }, // Limit to max 500 items
+    }));
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching my placed bets:', error);
+    throw error;
+  }
 };
 
 // Update username for a user
@@ -187,4 +201,17 @@ export const refundBet = async (betId) => {
 export const getClosedBets = async () => {
   const response = await axios.get(`${API_URL}/api/bets/closed`, withGuild());
   return response.data;
+};
+
+// Assuming an endpoint like this exists for Biggest Wins Leaderboard
+export const getBiggestWinsLeaderboard = async (page = 1, limit = 10) => {
+  try {
+    const response = await axios.get(`${API_URL}/leaderboards/biggest-wins`, withGuild({
+      params: { limit: Math.min(limit, 500), page }, // Limit to max 500 items
+    }));
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching biggest wins leaderboard:', error);
+    throw error;
+  }
 }; 

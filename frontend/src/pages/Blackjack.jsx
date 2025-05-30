@@ -19,6 +19,8 @@ export const Blackjack = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showResultModal, setShowResultModal] = useState(false);
+  const [lastBetAmount, setLastBetAmount] = useState(0);
+  const [manualBetAmount, setManualBetAmount] = useState('');
 
   // Define chips as in Roulette
   const chips = [
@@ -49,24 +51,31 @@ export const Blackjack = () => {
     setChipStack([]);
   };
 
-  // Handle deal (start game)
+  // Handle deal (start game) using the chip stack
   const handleDeal = async () => {
     if (loading || totalBet < 10 || totalBet > walletBalance) return;
+    handleStartGame(totalBet);
+  };
+
+  // Generalized function to start a game with a given bet amount
+  const handleStartGame = async (amount) => {
+    if (loading || amount < 10 || amount > walletBalance) return;
     setLoading(true);
+    setError('');
     setPrevWalletBalance(walletBalance);
     setSuppressWalletBalance(true);
+
     try {
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/blackjack`,
-        { amount: totalBet, guildId: MAIN_GUILD_ID },
+        { amount, guildId: MAIN_GUILD_ID },
         { headers: { 'x-guild-id': MAIN_GUILD_ID } }
       );
       setGameState(response.data);
-      setChipStack([]); // Clear chips after bet
-      setTimeout(() => {
-        setLoading(false);
-        setSuppressWalletBalance(false);
-      }, 1500);
+      setLastBetAmount(amount);
+      setChipStack([]);
+      setLoading(false);
+      setSuppressWalletBalance(false);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to start game.');
       setLoading(false);
@@ -142,6 +151,36 @@ export const Blackjack = () => {
     );
   };
 
+  // Helper to convert an amount into a chip stack representation
+  function amountToChipStack(amount) {
+    let remainingAmount = amount;
+    const stack = [];
+    // Use chips in descending order of value
+    const sortedChips = [...chips].sort((a, b) => b.value - a.value);
+
+    for (const chip of sortedChips) {
+      while (remainingAmount >= chip.value) {
+        stack.push(chip.value);
+        remainingAmount -= chip.value;
+      }
+    }
+    return stack;
+  }
+
+  // Handle direct amount input change
+  const handleManualBetAmountChange = (event) => {
+    const value = event.target.value;
+    setManualBetAmount(value);
+    const numValue = parseInt(value, 10);
+
+    if (!isNaN(numValue) && numValue >= 0) {
+      setChipStack(amountToChipStack(numValue));
+    } else if (value === '') {
+       setChipStack([]); // Clear chips if input is empty
+    }
+    // Note: Invalid number input will just not update the chips
+  };
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] p-0 m-0 relative font-sans">
       {/* Top Bar */}
@@ -166,7 +205,19 @@ export const Blackjack = () => {
       {/* Bet Area */}
       {!gameState && (
         <div className="flex flex-col items-center mt-8 w-full max-w-2xl px-2 sm:px-0">
-          <div className="text-2xl font-bold text-white mb-2">Total Bet: <span className="text-yellow-300">${totalBet}</span></div>
+          <div className="text-2xl font-bold text-white mb-2">Total Bet: <span className="text-yellow-300">${totalBet.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div>
+
+          {/* Manual Amount Input */}
+          <input
+            type="number"
+            value={manualBetAmount}
+            onChange={handleManualBetAmountChange}
+            placeholder="Enter bet amount"
+            className="mb-4 px-4 py-2 rounded-lg bg-gray-700 text-white text-xl text-center placeholder-gray-400 no-spinners"
+            min="0"
+            disabled={loading}
+          />
+
           <ChipList
             chips={chips}
             selectedChip={null}
@@ -220,7 +271,20 @@ export const Blackjack = () => {
               <div className={`mb-4 text-xl font-bold ${gameState?.results?.[0]?.result === 'win' || gameState?.results?.[0]?.result === 'blackjack' ? 'text-green-400' : 'text-red-400'}`} style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif' }}>
                 Winnings: <span className="text-yellow-300">${gameState?.results?.[0]?.winnings}</span>
               </div>
-              <button className="mt-2 px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', fontSize: '1rem' }} onClick={handlePlayAgain}>Play Again</button>
+              {/* Container for Play Again and Repeat Bet buttons */}
+              <div className="flex flex-row items-center justify-center gap-4">
+                <button className="mt-2 px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', fontSize: '1rem' }} onClick={handlePlayAgain}>Play Again</button>
+                 {/* Repeat Bet button */}
+                {lastBetAmount > 0 && lastBetAmount <= walletBalance && (
+                  <button
+                    className="mt-2 px-6 py-2 rounded-xl bg-green-600 text-white font-bold text-lg shadow-lg hover:bg-green-500 transition"
+                    onClick={() => handleStartGame(lastBetAmount)}
+                    disabled={loading}
+                  >
+                    Repeat Bet (${lastBetAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -268,7 +332,20 @@ export const Blackjack = () => {
             </button>
             <h2 className="text-[1.5rem] font-extrabold mb-4 tracking-wide drop-shadow-lg" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif' }}>{gameState?.results?.[0]?.result === 'win' ? 'You Win!' : gameState?.results?.[0]?.result === 'blackjack' ? 'Blackjack!' : 'You Lose.'}</h2>
             <div className={`mb-4 text-xl font-bold ${gameState?.results?.[0]?.result === 'win' || gameState?.results?.[0]?.result === 'blackjack' ? 'text-green-400' : 'text-red-400'}`} style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif' }}>Winnings: <span className="text-yellow-300">${gameState?.results?.[0]?.winnings}</span></div>
-            <button className="mt-2 px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', fontSize: '1rem' }} onClick={handlePlayAgain}>Play Again</button>
+            {/* Container for Play Again and Repeat Bet buttons in Modal */}
+            <div className="flex flex-row items-center justify-center gap-4 mt-2">
+              <button className="px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', fontSize: '1rem' }} onClick={handlePlayAgain}>Play Again</button>
+              {/* Repeat Bet button in Modal */}
+              {lastBetAmount > 0 && lastBetAmount <= walletBalance && (
+                <button
+                  className="px-6 py-2 rounded-xl bg-green-600 text-white font-bold text-lg shadow-lg hover:bg-green-500 transition"
+                  onClick={() => handleStartGame(lastBetAmount)}
+                  disabled={loading}
+                >
+                  Repeat Bet (${lastBetAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
