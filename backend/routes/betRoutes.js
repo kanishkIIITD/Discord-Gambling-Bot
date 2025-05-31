@@ -8,7 +8,7 @@ const Transaction = require('../models/Transaction');
 const WebSocket = require('ws');
 const { updateUserWinStreak } = require('../utils/gamblingUtils');
 const { requireAdmin, auth, requireGuildId } = require('../middleware/auth');
-const logger = require('../utils/logger');
+const logger = require('../../discord-bot/utils/logger');
 
 // Get the WebSocket server instance
 let wss;

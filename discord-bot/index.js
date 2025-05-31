@@ -405,7 +405,37 @@ client.on('interactionCreate', async interaction => {
 			await interaction.deferReply();
 			const betId = interaction.options.getString('bet_id');
 			const option = interaction.options.getString('option');
-			const amount = interaction.options.getInteger('amount');
+            let rawAmount = interaction.options.getString('amount');
+            let amount;
+            if (rawAmount && rawAmount.toLowerCase() === 'allin') {
+                // Fetch user's wallet balance
+                const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+                    params: { guildId: interaction.guildId },
+                    headers: { 'x-guild-id': interaction.guildId }
+                });
+                const balance = walletResponse.data.balance;
+                if (!balance || balance <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ All In Failed')
+                        .setDescription('You have no points to go all in with!')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+                amount = balance;
+            } else {
+                amount = parseInt(rawAmount, 10);
+                if (isNaN(amount) || amount <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ Invalid Amount')
+                        .setDescription('Please enter a valid amount greater than 0, or use "allin".')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+            }
 
 			const response = await axios.post(`${backendApiUrl}/bets/${betId}/place`, {
 				bettorDiscordId: userId,
@@ -675,7 +705,36 @@ client.on('interactionCreate', async interaction => {
 		try {
 			await interaction.deferReply();
 			const choice = interaction.options.getString('choice');
-			const amount = interaction.options.getInteger('amount');
+            let rawAmount = interaction.options.getString('amount');
+            let amount;
+            if (rawAmount && rawAmount.toLowerCase() === 'allin') {
+                const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+                    params: { guildId: interaction.guildId },
+                    headers: { 'x-guild-id': interaction.guildId }
+                });
+                const balance = walletResponse.data.balance;
+                if (!balance || balance <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ All In Failed')
+                        .setDescription('You have no points to go all in with!')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+                amount = balance;
+            } else {
+                amount = parseInt(rawAmount, 10);
+                if (isNaN(amount) || amount <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ Invalid Amount')
+                        .setDescription('Please enter a valid amount greater than 0, or use "allin".')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+            }
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/coinflip`, {
 				choice,
 				amount
@@ -692,7 +751,8 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Result', value: result, inline: true },
 					{ name: 'Outcome', value: won ? '🎉 You won!' : '😢 You lost!', inline: true },
 					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+                    { name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 				.setTimestamp();
 			await interaction.editReply({ embeds: [embed] });
@@ -711,7 +771,36 @@ client.on('interactionCreate', async interaction => {
 			await interaction.deferReply();
 			const betType = interaction.options.getString('bet_type');
 			const number = interaction.options.getInteger('number');
-			const amount = interaction.options.getInteger('amount');
+            let rawAmount = interaction.options.getString('amount');
+            let amount;
+            if (rawAmount && rawAmount.toLowerCase() === 'allin') {
+                const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+                    params: { guildId: interaction.guildId },
+                    headers: { 'x-guild-id': interaction.guildId }
+                });
+                const balance = walletResponse.data.balance;
+                if (!balance || balance <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ All In Failed')
+                        .setDescription('You have no points to go all in with!')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+                amount = balance;
+            } else {
+                amount = parseInt(rawAmount, 10);
+                if (isNaN(amount) || amount <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ Invalid Amount')
+                        .setDescription('Please enter a valid amount greater than 0, or use "allin".')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+            }
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/dice`, {
 				bet_type: betType,
 				number,
@@ -726,10 +815,11 @@ client.on('interactionCreate', async interaction => {
 				.setDescription(`You rolled a **${roll}**!`)
 				.addFields(
 					{ name: 'Bet Type', value: betType, inline: true },
-					{ name: 'Your Bet', value: betType === 'specific' ? number.toString() : betType, inline: true },
+					{ name: 'Your Bet', value: betType === 'specific' ? number?.toString() : betType, inline: true },
 					{ name: 'Outcome', value: won ? '🎉 You won!' : '😢 You lost!', inline: true },
 					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+                    { name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 				.setTimestamp();
 			await interaction.editReply({ embeds: [embed] });
@@ -746,11 +836,40 @@ client.on('interactionCreate', async interaction => {
 	} else if (commandName === 'slots') {
 		try {
 			await interaction.deferReply();
-			const amount = interaction.options.getInteger('amount');
+            let rawAmount = interaction.options.getString('amount');
+            let amount;
+            if (rawAmount && rawAmount.toLowerCase() === 'allin') {
+                const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+                    params: { guildId: interaction.guildId },
+                    headers: { 'x-guild-id': interaction.guildId }
+                });
+                const balance = walletResponse.data.balance;
+                if (!balance || balance <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ All In Failed')
+                        .setDescription('You have no points to go all in with!')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+                amount = balance;
+            } else {
+                amount = parseInt(rawAmount, 10);
+                if (isNaN(amount) || amount <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ Invalid Amount')
+                        .setDescription('Please enter a valid amount greater than 0, or use "allin".')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+            }
 			const response = await axios.post(`${backendApiUrl}/gambling/${userId}/slots`, {
 				amount
 			}, {
-				headers: { 'x-guild-id': interaction.guildId }
+					headers: { 'x-guild-id': interaction.guildId }
 			});
 			const { reels, won, winnings, newBalance, isJackpot, jackpotPool, freeSpins, usedFreeSpin, winType } = response.data;
 			let description = isJackpot ?
@@ -771,6 +890,7 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'Jackpot Pool', value: `${(jackpotPool || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'Free Spins', value: `${freeSpins || 0}`, inline: true },
+                    { name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 			if (usedFreeSpin && !won && !isJackpot) {
 				embed.addFields({ name: 'Note', value: 'You used a free spin!', inline: false });
@@ -790,10 +910,39 @@ client.on('interactionCreate', async interaction => {
 	} else if (commandName === 'blackjack') {
 		try {
 			await interaction.deferReply();
-			const amount = interaction.options.getInteger('amount');
-			const action = interaction.options.getString('action')?.toLowerCase();
+            let rawAmount = interaction.options.getString('amount');
+            let amount;
+            const action = interaction.options.getString('action')?.toLowerCase();
+            if (rawAmount && rawAmount.toLowerCase() === 'allin') {
+                const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+                    params: { guildId: interaction.guildId },
+                    headers: { 'x-guild-id': interaction.guildId }
+                });
+                const balance = walletResponse.data.balance;
+                if (!balance || balance <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ All In Failed')
+                        .setDescription('You have no points to go all in with!')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+                amount = balance;
+            } else if (rawAmount) {
+                amount = parseInt(rawAmount, 10);
+                if (isNaN(amount) || amount <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ Invalid Amount')
+                        .setDescription('Please enter a valid amount greater than 0, or use "allin".')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+            }
 			const requestBody = {};
-			if (amount !== null) requestBody.amount = amount;
+			if (amount !== undefined) requestBody.amount = amount;
 			if (action) requestBody.action = action;
 			const response = await axios.post(`${backendApiUrl}/gambling/${interaction.user.id}/blackjack`, requestBody, {
 				headers: { 'x-guild-id': interaction.guildId }
@@ -838,6 +987,9 @@ client.on('interactionCreate', async interaction => {
 				name: 'Your Balance',
 				value: `${data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`
 			});
+            if (amount) {
+                embed.addFields({ name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points` });
+            }
 			embed.setTimestamp();
 			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
@@ -855,7 +1007,36 @@ client.on('interactionCreate', async interaction => {
 			await interaction.deferReply();
 			const betType = interaction.options.getString('bet_type');
 			const number = interaction.options.getInteger('number');
-			const amount = interaction.options.getInteger('amount');
+            let rawAmount = interaction.options.getString('amount');
+            let amount;
+            if (rawAmount && rawAmount.toLowerCase() === 'allin') {
+                const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+                    params: { guildId: interaction.guildId },
+                    headers: { 'x-guild-id': interaction.guildId }
+                });
+                const balance = walletResponse.data.balance;
+                if (!balance || balance <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ All In Failed')
+                        .setDescription('You have no points to go all in with!')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+                amount = balance;
+            } else {
+                amount = parseInt(rawAmount, 10);
+                if (isNaN(amount) || amount <= 0) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xff7675)
+                        .setTitle('❌ Invalid Amount')
+                        .setDescription('Please enter a valid amount greater than 0, or use "allin".')
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+                }
+            }
 			const requestBody = {
 				bets: [
 					{
@@ -883,7 +1064,8 @@ client.on('interactionCreate', async interaction => {
 					})),
 					{ name: '\u200B', value: '\u200B' },
 					{ name: 'Total Winnings', value: `${totalWinnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+                    { name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 				.setTimestamp();
 			await interaction.editReply({ embeds: [embed] });

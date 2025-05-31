@@ -55,8 +55,8 @@ const commands = [
 			},
 			{
 				name: 'amount',
-				description: 'The amount of points you are betting.',
-				type: ApplicationCommandOptionType.Integer,
+				description: 'The amount of points you are betting (number or "allin").',
+				type: ApplicationCommandOptionType.String,
 				required: true,
 			},
 		],
@@ -237,8 +237,8 @@ const commands = [
 			},
 			{
 				name: 'amount',
-				description: 'Amount of points to bet',
-				type: 4,
+				description: 'Amount of points to bet (number or "allin")',
+				type: ApplicationCommandOptionType.String,
 				required: true
 			}
 		]
@@ -262,8 +262,8 @@ const commands = [
 			},
 			{
 				name: 'amount',
-				description: 'Amount to bet',
-				type: 4,
+				description: 'Amount to bet (number or "allin")',
+				type: ApplicationCommandOptionType.String,
 				required: true
 			},
 			{
@@ -280,8 +280,8 @@ const commands = [
 		options: [
 			{
 				name: 'amount',
-				description: 'Amount to bet',
-				type: 4,
+				description: 'Amount to bet (number or "allin")',
+				type: ApplicationCommandOptionType.String,
 				required: true
 			}
 		]
@@ -292,8 +292,8 @@ const commands = [
 		options: [
 			{
 				name: 'amount',
-				description: 'Amount to bet (only required for new game)',
-				type: 4,
+				description: 'Amount to bet (number or "allin") (only required for new game)',
+				type: ApplicationCommandOptionType.String,
 				required: false
 			},
 			{
@@ -349,8 +349,8 @@ const commands = [
 			},
 			{
 				name: 'amount',
-				description: 'Amount to bet',
-				type: 4,
+				description: 'Amount to bet (number or "allin")',
+				type: ApplicationCommandOptionType.String,
 				required: true
 			},
 			{
@@ -679,20 +679,20 @@ const rest = new REST({ version: '10' }).setToken(token);
 		console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
 
 		// Deploy to test guild only
-		const data = await rest.put(
-			Routes.applicationGuildCommands(clientId, guildId1),
-			{ body: commands },
-		);
-
-		console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
-
-		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
-		// console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
-		// const globalData = await rest.put(
-		// 	Routes.applicationCommands(clientId),
+		// const data = await rest.put(
+		// 	Routes.applicationGuildCommands(clientId, guildId1),
 		// 	{ body: commands },
 		// );
-		// console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
+
+		// console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
+
+		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
+		console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
+		const globalData = await rest.put(
+			Routes.applicationCommands(clientId),
+			{ body: commands },
+		);
+		console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
 	} catch (error) {
 		console.error(error);
 	}
