@@ -556,11 +556,11 @@ const commands = [
 	},
 	{
 		name: 'sell',
-		description: 'Sell an item from your collection for points!',
+		description: 'Sell items from your collection for points (supports comma-separated lists).',
 		options: [
 			{
 				name: 'type',
-				description: 'Type of item (fish or animal)',
+				description: 'Type(s) of item(s) (fish or animal, comma-separated)',
 				type: 3,
 				required: true,
 				choices: [
@@ -570,14 +570,14 @@ const commands = [
 			},
 			{
 				name: 'name',
-				description: 'Name of the item to sell',
+				description: 'Item names (comma-separated, e.g. Carp,Bass)',
 				type: 3,
 				required: true
 			},
 			{
 				name: 'count',
-				description: 'How many to sell',
-				type: 4,
+				description: 'Counts (comma-separated numbers, e.g. 2,1)',
+				type: 3,
 				required: true
 			}
 		]
@@ -596,7 +596,7 @@ const commands = [
 	},
 	{
 		name: 'trade',
-		description: 'Gift or trade an item from your collection to another user!',
+		description: 'Trade items from your collection to another user (comma-separated lists allowed).',
 		options: [
 			{
 				name: 'user',
@@ -606,7 +606,7 @@ const commands = [
 			},
 			{
 				name: 'type',
-				description: 'Type of item (fish or animal)',
+				description: 'Type(s) of item(s) (fish or animal, comma-separated)',
 				type: 3,
 				required: true,
 				choices: [
@@ -616,14 +616,14 @@ const commands = [
 			},
 			{
 				name: 'name',
-				description: 'Name of the item to trade',
+				description: 'Item names (comma-separated, e.g. Carp,Bass)',
 				type: 3,
 				required: true
 			},
 			{
 				name: 'count',
-				description: 'How many to trade',
-				type: 4,
+				description: 'Counts (comma-separated numbers, e.g. 2,1)',
+				type: 3,
 				required: true
 			}
 		]
@@ -710,7 +710,7 @@ const rest = new REST({ version: '10' }).setToken(token);
 	try {
 		// console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
 
-		// Deploy to test guild only
+		// // Deploy to test guild only
 		// const data = await rest.put(
 		// 	Routes.applicationGuildCommands(clientId, guildId1),
 		// 	{ body: commands },

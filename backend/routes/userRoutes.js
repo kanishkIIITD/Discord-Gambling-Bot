@@ -839,7 +839,7 @@ router.post('/:discordId/crime', async (req, res) => {
     if (crimeSuccessIdx >= 0) {
       // Buff: guaranteed success
       outcome = 'success';
-      amount = Math.floor(Math.random() * 200000) + 100000; // 100k-300k
+      amount = Math.floor(Math.random() * 150000) + 50000; // 50-200k
       usedBuff = user.buffs[crimeSuccessIdx];
       user.buffs[crimeSuccessIdx].usesLeft = (user.buffs[crimeSuccessIdx].usesLeft || 1) - 1;
       if (typeof cleanUserBuffs === 'function') cleanUserBuffs(user);
@@ -849,13 +849,13 @@ router.post('/:discordId/crime', async (req, res) => {
       if (outcomeRoll < 0.5) {
         // Success
         outcome = 'success';
-        amount = Math.floor(Math.random() * 200000) + 50000; // 50k-250k
+        amount = Math.floor(Math.random() * 125000) + 25000; // 25k-150k
         message = `You pulled off the ${crime} and got away with ${amount.toLocaleString()} points! 🤑`;
         user.crimeStats.success++;
       } else if (outcomeRoll < 0.85) {
         // Failure
         outcome = 'fail';
-        amount = Math.floor(Math.random() * 80000) + 20000; // 20k-100k
+        amount = Math.floor(Math.random() * 70000) + 10000; // 10k-80k
         message = `You tried to ${crime}, but failed. Lost ${amount.toLocaleString()} points.`;
         user.crimeStats.fail++;
       } else {
@@ -946,7 +946,7 @@ router.post('/:discordId/work', async (req, res) => {
     }
 
     // Determine reward
-    let baseMin = 50000, baseMax = 200000;
+    let baseMin = 25000, baseMax = 150000; // Updated to match crime success
     let bonusChance = 0.15;
     let bonus = 0, bonusMsg = '';
     switch (job) {
@@ -964,7 +964,7 @@ router.post('/:discordId/work', async (req, res) => {
     let amount = Math.floor(Math.random() * (baseMax - baseMin + 1)) + baseMin;
     let rare = false;
     if (Math.random() < bonusChance) {
-      bonus = Math.floor(Math.random() * 200000) + 100000; // 100k-300k
+      bonus = Math.floor(Math.random() * 150000) + 50000; // 50k-200k, matches crime guaranteed success
       amount += bonus;
       rare = true;
     }
@@ -1263,7 +1263,57 @@ router.post('/:discordId/sell', async (req, res) => {
   try {
     const user = req.user;
     const wallet = req.wallet;
-    const { type, name, count } = req.body;
+    const { items, type, name, count } = req.body;
+    // Bulk sell if items array is provided
+    if (Array.isArray(items) && items.length > 0) {
+      let totalValue = 0;
+      const results = [];
+      for (const itemReq of items) {
+        const { type: typeSell, name: nameSell, count: countSell } = itemReq;
+        if (!typeSell || !nameSell || !countSell || countSell < 1) {
+          results.push({ type: typeSell, name: nameSell, count: countSell, error: 'Invalid sell request.', success: false });
+          continue;
+        }
+        // Find item in inventory
+        const idxSell = (user.inventory || []).findIndex(i => i.type === typeSell && i.name === nameSell);
+        if (idxSell === -1) {
+          results.push({ type: typeSell, name: nameSell, count: countSell, error: 'Item not found in inventory.', success: false });
+          continue;
+        }
+        const itemSell = user.inventory[idxSell];
+        if (itemSell.count < countSell) {
+          results.push({ type: typeSell, name: nameSell, count: countSell, error: `You only have ${itemSell.count} of this item.`, success: false });
+          continue;
+        }
+        // Calculate total value
+        const valueSell = itemSell.value * countSell;
+        // Remove/sell items
+        itemSell.count -= countSell;
+        if (itemSell.count === 0) {
+          user.inventory.splice(idxSell, 1);
+        } else {
+          user.inventory[idxSell] = itemSell;
+        }
+        wallet.balance += valueSell;
+        totalValue += valueSell;
+        results.push({ type: typeSell, name: nameSell, count: countSell, value: valueSell, success: true });
+        // Record transaction for each item
+        const transactionSell = new Transaction({
+          user: user._id,
+          type: 'sell',
+          amount: valueSell,
+          description: `Sold ${countSell}x ${itemSell.name} (${itemSell.rarity})`,
+          guildId: req.guildId
+        });
+        await transactionSell.save();
+        broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: transactionSell });
+      }
+      await user.save();
+      await wallet.save();
+      broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
+      return res.json({ results, newBalance: wallet.balance });
+    }
+    // Fallback: single item logic
     if (!type || !name || !count || count < 1) {
       return res.status(400).json({ message: 'Invalid sell request.' });
     }
@@ -1296,16 +1346,10 @@ router.post('/:discordId/sell', async (req, res) => {
       description: `Sold ${count}x ${item.name} (${item.rarity})`,
       guildId: req.guildId
     });
+    await transaction.save();
+    broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction });
+    broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
     res.json({ message: `Sold ${count}x ${item.name} for ${totalValue.toLocaleString()} points.`, newBalance: wallet.balance });
-    // Record transaction and broadcast updates AFTER sending response
-    try {
-      await transaction.save();
-      broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction });
-      broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
-    } catch (broadcastError) {
-      console.error('Error saving transaction or broadcasting after sell:', broadcastError);
-      // Do not send another response here as res.json was already called
-    }
   } catch (error) {
     console.error('Error selling inventory item:', error);
     res.status(500).json({ message: 'Server error during sell.' });
@@ -1338,15 +1382,95 @@ router.get('/collection-leaderboard', async (req, res) => {
 router.post('/:discordId/trade', async (req, res) => {
   try {
     const sender = req.user;
-    const { targetDiscordId, type, name, count } = req.body;
-    if (!targetDiscordId || !type || !name || !count || count < 1) {
-      return res.status(400).json({ message: 'Invalid trade request.' });
+    const { targetDiscordId, items, type, name, count } = req.body;
+    if (!targetDiscordId) {
+      return res.status(400).json({ message: 'Invalid trade request: missing target.' });
     }
     if (targetDiscordId === sender.discordId) {
       return res.status(400).json({ message: 'Cannot trade with yourself.' });
     }
     const receiver = await User.findOne({ discordId: targetDiscordId, guildId: req.guildId });
     if (!receiver) return res.status(404).json({ message: 'Target user not found.' });
+    // Bulk trade if items array is provided
+    if (Array.isArray(items) && items.length > 0) {
+      const results = [];
+      for (const itemReq of items) {
+        const { type: typeTrade, name: nameTrade, count: countTrade } = itemReq;
+        if (!typeTrade || !nameTrade || !countTrade || countTrade < 1) {
+          results.push({ type: typeTrade, name: nameTrade, count: countTrade, error: 'Invalid trade request.', success: false });
+          continue;
+        }
+        // Find item in sender inventory
+        const idxTrade = (sender.inventory || []).findIndex(i => i.type === typeTrade && i.name === nameTrade);
+        if (idxTrade === -1) {
+          results.push({ type: typeTrade, name: nameTrade, count: countTrade, error: 'Item not found in your inventory.', success: false });
+          continue;
+        }
+        const itemTrade = sender.inventory[idxTrade];
+        if (itemTrade.count < countTrade) {
+          results.push({ type: typeTrade, name: nameTrade, count: countTrade, error: `You only have ${itemTrade.count} of this item.`, success: false });
+          continue;
+        }
+        // Store original item properties before mutating
+        const itemToTransferTrade = {
+          type: itemTrade.type,
+          name: itemTrade.name,
+          rarity: itemTrade.rarity,
+          value: itemTrade.value,
+          count: countTrade
+        };
+        // Remove from sender
+        itemTrade.count -= countTrade;
+        if (itemTrade.count === 0) {
+          sender.inventory.splice(idxTrade, 1);
+        } else {
+          sender.inventory[idxTrade] = itemTrade;
+        }
+        // Add to receiver
+        const rIdxTrade = (receiver.inventory || []).findIndex(i => i.type === typeTrade && i.name === nameTrade);
+        if (rIdxTrade === -1) {
+          receiver.inventory.push(itemToTransferTrade);
+        } else {
+          // Recalculate average value for receiver
+          const receiverItem = receiver.inventory[rIdxTrade];
+          const totalValue = (receiverItem.value * receiverItem.count) + (itemToTransferTrade.value * countTrade);
+          receiverItem.count += countTrade;
+          receiverItem.value = totalValue / receiverItem.count;
+          receiver.inventory[rIdxTrade] = receiverItem;
+        }
+        results.push({ type: typeTrade, name: nameTrade, count: countTrade, success: true });
+        // Record transaction for sender
+        const transactionTrade = new Transaction({
+          user: sender._id,
+          type: 'trade_sent',
+          amount: 0,
+          description: `Traded ${countTrade}x ${itemTrade.name} to ${targetDiscordId}`,
+          guildId: req.guildId
+        });
+        await transactionTrade.save();
+        // Record transaction for receiver
+        const transaction2Trade = new Transaction({
+          user: receiver._id,
+          type: 'trade_received',
+          amount: 0,
+          description: `Received ${countTrade}x ${itemTrade.name} from ${sender.discordId}`,
+          guildId: req.guildId
+        });
+        await transaction2Trade.save();
+        broadcastToUser(sender.discordId, { type: 'TRANSACTION', transaction: transactionTrade });
+        broadcastToUser(receiver.discordId, { type: 'TRANSACTION', transaction: transaction2Trade });
+      }
+      await sender.save();
+      await receiver.save();
+      return res.json({ results });
+    }
+    // Fallback: single item logic
+    if (!type || !name || !count || count < 1) {
+      return res.status(400).json({ message: 'Invalid trade request.' });
+    }
+    if (targetDiscordId === sender.discordId) {
+      return res.status(400).json({ message: 'Cannot trade with yourself.' });
+    }
     // Find item in sender inventory
     const idx = (sender.inventory || []).findIndex(i => i.type === type && i.name === name);
     if (idx === -1) {

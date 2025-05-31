@@ -21,7 +21,7 @@ module.exports = {
         .setDescription('Name of the item to sell')
         .setRequired(true)
     )
-    .addIntegerOption(option =>
+    .addStringOption(option =>
       option.setName('count')
         .setDescription('How many to sell')
         .setRequired(true)
@@ -32,27 +32,84 @@ module.exports = {
       await interaction.deferReply();
       const userId = interaction.user.id;
       const type = interaction.options.getString('type');
-      const name = interaction.options.getString('name');
-      const count = interaction.options.getInteger('count');
+      const nameRaw = interaction.options.getString('name');
+      const countRaw = interaction.options.getString('count');
       const backendUrl = process.env.BACKEND_API_URL;
       const guildId = interaction.guildId;
 
+      // Support comma-separated lists for bulk sell
+      const nameList = nameRaw.split(',').map(s => s.trim()).filter(Boolean);
+      const countList = countRaw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+      let typeList = [type];
+      if (type.includes(',')) {
+        typeList = type.split(',').map(s => s.trim());
+      }
+      // If multiple names/counts, build items array
+      let items = [];
+      if (nameList.length > 1 || countList.length > 1 || typeList.length > 1) {
+        // If only one type, repeat it for all names
+        if (typeList.length === 1) {
+          typeList = Array(nameList.length).fill(typeList[0]);
+        }
+        for (let i = 0; i < nameList.length; i++) {
+          items.push({
+            type: typeList[i] || typeList[0],
+            name: nameList[i],
+            count: countList[i] || countList[0] || 1
+          });
+        }
+      }
+
+      if (items.length > 0) {
+        // Bulk sell
+        console.log('[SELL] Payload to backend:', { items, guildId });
+        const response = await axios.post(`${backendUrl}/users/${userId}/sell`, { items, guildId }, { headers: { 'x-guild-id': guildId } });
+        const { results, newBalance } = response.data;
+        const fields = results.map(r => {
+          if (r.success) {
+            return {
+              name: `✅ Sold ${r.count}x ${r.name} (${r.type})`,
+              value: `+${r.value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`,
+              inline: false
+            };
+          } else {
+            return {
+              name: `❌ ${r.name} (${r.type})`,
+              value: r.error || 'Unknown error',
+              inline: false
+            };
+          }
+        });
+        const embed = {
+          color: 0x27ae60,
+          title: '🪙 Sell Result',
+          description: 'Bulk sell summary:',
+          fields: fields.length > 0 ? fields : [{ name: 'No items processed', value: 'Nothing was sold.' }],
+          footer: { text: `New Balance: ${newBalance?.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points` },
+          timestamp: new Date()
+        };
+        await interaction.editReply({ embeds: [embed] });
+        return;
+      }
+
+      // Fallback: single item logic
       // Fetch inventory to validate (case-insensitive name check)
       const invRes = await axios.get(`${backendUrl}/users/${userId}/collection`, { params: { guildId }, headers: { 'x-guild-id': guildId } });
       const inventory = invRes.data.inventory || [];
-      const item = inventory.find(i => i.type === type && i.name.toLowerCase() === name.toLowerCase()); // Case-insensitive check
+      const item = inventory.find(i => i.type === type && i.name.toLowerCase() === nameRaw.toLowerCase()); // Case-insensitive check
 
       if (!item) {
         await ResponseHandler.handleError(interaction, { message: 'You do not own this item.' }, 'Sell');
         return;
       }
-      if (item.count < count) {
+      if (item.count < (countList[0] || 1)) {
         await ResponseHandler.handleError(interaction, { message: `You only own ${item.count} of this item.` }, 'Sell');
         return;
       }
 
       // Call backend to sell
-      const response = await axios.post(`${backendUrl}/users/${userId}/sell`, { type, name: item.name, count, guildId }, { headers: { 'x-guild-id': guildId } }); // Use the exact item.name from inventory
+      console.log('[SELL] Payload to backend:', { type, name: item.name, count: countList[0] || 1, guildId });
+      const response = await axios.post(`${backendUrl}/users/${userId}/sell`, { type, name: item.name, count: countList[0] || 1, guildId }, { headers: { 'x-guild-id': guildId } });
       const { message, newBalance } = response.data;
 
       const embed = {
