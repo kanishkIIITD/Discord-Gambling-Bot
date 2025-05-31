@@ -8,7 +8,6 @@ const Transaction = require('../models/Transaction');
 const WebSocket = require('ws');
 const { updateUserWinStreak } = require('../utils/gamblingUtils');
 const { requireAdmin, auth, requireGuildId } = require('../middleware/auth');
-const logger = require('../../discord-bot/utils/logger');
 
 // Get the WebSocket server instance
 let wss;
@@ -138,14 +137,11 @@ router.get('/:betId', async (req, res) => {
 });
 
 // Place a bet on an existing event
-router.post('/:betId/place', requireGuildId, async (req, res) => {
-  const { betId } = req.params;
-  const { bettorDiscordId, option, amount } = req.body;
-  const { guildId } = req;
-
-  logger.info(`[PLACEBET] User ${bettorDiscordId} attempting to place bet ${betId} with amount ${amount} on option ${option} in guild ${guildId}`);
-
+router.post('/:betId/place', async (req, res) => {
   try {
+    const { bettorDiscordId, option, amount } = req.body;
+    const betId = req.params.betId;
+
     // Find the bet and the bettor
     const bet = await Bet.findById(betId).where({ guildId: req.guildId });
     const bettor = await User.findOne({ discordId: bettorDiscordId });
@@ -173,7 +169,6 @@ router.post('/:betId/place', requireGuildId, async (req, res) => {
         return res.status(400).json({ message: 'Bet is closed as the closing time has passed.' });
     }
     if (!bettor) {
-      logger.warn(`[PLACEBET] User not found for discordId ${bettorDiscordId}`);
       return res.status(404).json({ message: 'Bettor user not found.' });
     }
     if (!bet.options.includes(option)) {
@@ -190,27 +185,15 @@ router.post('/:betId/place', requireGuildId, async (req, res) => {
       return res.status(400).json({ message: `You have already placed a bet on the option "${existingBetOnEvent.option}" for this event. You cannot bet on a different option.` });
     }
 
-    // Find user and wallet
-    const wallet = await Wallet.findOne({ user: bettor._id, guildId });
-    if (!wallet) {
-      logger.warn(`[PLACEBET] Wallet not found for user ${bettor._id} in guild ${guildId}`);
-      return res.status(404).json({ message: 'Wallet not found for this user in this guild.' });
-    }
-
-    logger.info(`[PLACEBET] User ${bettorDiscordId} current balance: ${wallet.balance}. Attempting to bet ${amount}.`);
-
-    // Check if user has enough balance
-    if (wallet.balance < amount) {
-      logger.warn(`[PLACEBET] Insufficient balance for user ${bettorDiscordId}. Required: ${amount}, Available: ${wallet.balance}`);
-      return res.status(400).json({ message: 'Insufficient balance.' });
+    // Check if user has enough balance (requires wallet access)
+    const wallet = await Wallet.findOne({ user: bettor._id });
+    if (!wallet || wallet.balance < amount) {
+        return res.status(400).json({ message: 'Insufficient balance.' });
     }
 
     // Deduct amount from wallet
     wallet.balance -= amount;
-    const newBalance = wallet.balance;
     await wallet.save();
-
-    logger.info(`[PLACEBET] Bet placed successfully by ${bettorDiscordId}. New balance: ${newBalance}`);
 
     // Record bet placement transaction
     const betTransaction = new Transaction({
@@ -247,24 +230,16 @@ router.post('/:betId/place', requireGuildId, async (req, res) => {
       if (client && client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({
           type: 'BALANCE_UPDATE',
-          balance: newBalance
+          balance: wallet.balance
         }));
       }
     }
 
-    res.status(201).json({
-      message: 'Bet placed successfully!',
-      placedBet,
-      newBalance
-    });
+    res.status(201).json({ message: 'Bet placed successfully.', placedBet });
 
   } catch (error) {
-    logger.error('[PLACEBET] Error placing bet:', error);
-    // Check for specific Mongoose errors or other known issues
-    if (error.message.includes('Insufficient balance.')) {
-       return res.status(400).json({ message: 'Insufficient balance.' }); // Ensure the specific error message is returned
-    }
-    res.status(500).json({ message: 'Error placing bet.' });
+    console.error('Error placing bet:', error);
+    res.status(500).json({ message: 'Server error.' });
   }
 });
 
@@ -565,4 +540,4 @@ router.post('/:betId/refund', auth, requireAdmin, async (req, res) => {
   }
 });
 
-module.exports = { router, setWebSocketServer }; 
+module.exports = { router, setWebSocketServer };
