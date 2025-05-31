@@ -55,7 +55,7 @@ const commands = [
 			},
 			{
 				name: 'amount',
-				description: 'The amount of points you are betting (number or "allin").',
+				description: 'The amount of points you are betting (number or one of: allin, half, quarter, third, random).',
 				type: ApplicationCommandOptionType.String,
 				required: true,
 			},
@@ -237,7 +237,7 @@ const commands = [
 			},
 			{
 				name: 'amount',
-				description: 'Amount of points to bet (number or "allin")',
+				description: 'Amount of points to bet (number or one of: allin, half, quarter, third, random)',
 				type: ApplicationCommandOptionType.String,
 				required: true
 			}
@@ -262,7 +262,7 @@ const commands = [
 			},
 			{
 				name: 'amount',
-				description: 'Amount to bet (number or "allin")',
+				description: 'Amount to bet (number or one of: allin, half, quarter, third, random)',
 				type: ApplicationCommandOptionType.String,
 				required: true
 			},
@@ -280,7 +280,7 @@ const commands = [
 		options: [
 			{
 				name: 'amount',
-				description: 'Amount to bet (number or "allin")',
+				description: 'Amount to bet (number or one of: allin, half, quarter, third, random)',
 				type: ApplicationCommandOptionType.String,
 				required: true
 			}
@@ -292,7 +292,7 @@ const commands = [
 		options: [
 			{
 				name: 'amount',
-				description: 'Amount to bet (number or "allin") (only required for new game)',
+				description: 'Amount to bet (number or one of: allin, half, quarter, third, random) (only required for new game)',
 				type: ApplicationCommandOptionType.String,
 				required: false
 			},
@@ -349,7 +349,7 @@ const commands = [
 			},
 			{
 				name: 'amount',
-				description: 'Amount to bet (number or "allin")',
+				description: 'Amount to bet (number or one of: allin, half, quarter, third, random)',
 				type: ApplicationCommandOptionType.String,
 				required: true
 			},
