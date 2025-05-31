@@ -676,7 +676,7 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
 	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
+		// console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
 
 		// Deploy to test guild only
 		// const data = await rest.put(
