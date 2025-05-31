@@ -839,7 +839,7 @@ router.post('/:discordId/crime', async (req, res) => {
     if (crimeSuccessIdx >= 0) {
       // Buff: guaranteed success
       outcome = 'success';
-      amount = Math.floor(Math.random() * 20000) + 10000; // 10k-30k
+      amount = Math.floor(Math.random() * 200000) + 100000; // 100k-300k
       usedBuff = user.buffs[crimeSuccessIdx];
       user.buffs[crimeSuccessIdx].usesLeft = (user.buffs[crimeSuccessIdx].usesLeft || 1) - 1;
       if (typeof cleanUserBuffs === 'function') cleanUserBuffs(user);
@@ -849,13 +849,13 @@ router.post('/:discordId/crime', async (req, res) => {
       if (outcomeRoll < 0.5) {
         // Success
         outcome = 'success';
-        amount = Math.floor(Math.random() * 20000) + 5000; // 5k-25k
+        amount = Math.floor(Math.random() * 200000) + 50000; // 50k-250k
         message = `You pulled off the ${crime} and got away with ${amount.toLocaleString()} points! 🤑`;
         user.crimeStats.success++;
       } else if (outcomeRoll < 0.85) {
         // Failure
         outcome = 'fail';
-        amount = Math.floor(Math.random() * 8000) + 2000; // 2k-10k
+        amount = Math.floor(Math.random() * 80000) + 20000; // 20k-100k
         message = `You tried to ${crime}, but failed. Lost ${amount.toLocaleString()} points.`;
         user.crimeStats.fail++;
       } else {
@@ -946,7 +946,7 @@ router.post('/:discordId/work', async (req, res) => {
     }
 
     // Determine reward
-    let baseMin = 5000, baseMax = 20000;
+    let baseMin = 50000, baseMax = 200000;
     let bonusChance = 0.15;
     let bonus = 0, bonusMsg = '';
     switch (job) {
@@ -964,7 +964,7 @@ router.post('/:discordId/work', async (req, res) => {
     let amount = Math.floor(Math.random() * (baseMax - baseMin + 1)) + baseMin;
     let rare = false;
     if (Math.random() < bonusChance) {
-      bonus = Math.floor(Math.random() * 20000) + 10000; // 10k-30k
+      bonus = Math.floor(Math.random() * 200000) + 100000; // 100k-300k
       amount += bonus;
       rare = true;
     }
@@ -1121,17 +1121,17 @@ router.post('/:discordId/fish', async (req, res) => {
     }
     // Fish table
     const fishTable = [
-      { name: 'Carp', rarity: 'common', value: () => Math.floor(Math.random() * 100) + 50 },
-      { name: 'Perch', rarity: 'common', value: () => Math.floor(Math.random() * 100) + 50 },
-      { name: 'Bluegill', rarity: 'common', value: () => Math.floor(Math.random() * 100) + 50 },
-      { name: 'Bass', rarity: 'uncommon', value: () => Math.floor(Math.random() * 200) + 150 },
-      { name: 'Catfish', rarity: 'uncommon', value: () => Math.floor(Math.random() * 200) + 150 },
-      { name: 'Pike', rarity: 'uncommon', value: () => Math.floor(Math.random() * 200) + 150 },
-      { name: 'Salmon', rarity: 'rare', value: () => Math.floor(Math.random() * 400) + 400 },
-      { name: 'Sturgeon', rarity: 'rare', value: () => Math.floor(Math.random() * 400) + 400 },
-      { name: 'Eel', rarity: 'rare', value: () => Math.floor(Math.random() * 400) + 400 },
-      { name: 'Golden Koi', rarity: 'legendary', value: () => Math.floor(Math.random() * 2000) + 3000 },
-      { name: 'Ancient Leviathan', rarity: 'legendary', value: () => Math.floor(Math.random() * 3000) + 5000 }
+      { name: 'Carp', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Perch', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Bluegill', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Bass', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Catfish', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Pike', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Salmon', rarity: 'rare', value: () => Math.floor(Math.random() * 4000) + 4000 },
+      { name: 'Sturgeon', rarity: 'rare', value: () => Math.floor(Math.random() * 4000) + 4000 },
+      { name: 'Eel', rarity: 'rare', value: () => Math.floor(Math.random() * 4000) + 4000 },
+      { name: 'Golden Koi', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
+      { name: 'Ancient Leviathan', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 }
     ];
     // Rarity weights
     const rarityRoll = Math.random();
@@ -1189,17 +1189,17 @@ router.post('/:discordId/hunt', async (req, res) => {
     }
     // Animal table
     const animalTable = [
-      { name: 'Rabbit', rarity: 'common', value: () => Math.floor(Math.random() * 100) + 50 },
-      { name: 'Squirrel', rarity: 'common', value: () => Math.floor(Math.random() * 100) + 50 },
-      { name: 'Pigeon', rarity: 'common', value: () => Math.floor(Math.random() * 100) + 50 },
-      { name: 'Fox', rarity: 'uncommon', value: () => Math.floor(Math.random() * 200) + 150 },
-      { name: 'Raccoon', rarity: 'uncommon', value: () => Math.floor(Math.random() * 200) + 150 },
-      { name: 'Owl', rarity: 'uncommon', value: () => Math.floor(Math.random() * 200) + 150 },
-      { name: 'Deer', rarity: 'rare', value: () => Math.floor(Math.random() * 400) + 400 },
-      { name: 'Boar', rarity: 'rare', value: () => Math.floor(Math.random() * 400) + 400 },
-      { name: 'Hawk', rarity: 'rare', value: () => Math.floor(Math.random() * 400) + 400 },
-      { name: 'White Stag', rarity: 'legendary', value: () => Math.floor(Math.random() * 2000) + 3000 },
-      { name: 'Mythic Phoenix', rarity: 'legendary', value: () => Math.floor(Math.random() * 3000) + 5000 }
+      { name: 'Rabbit', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Squirrel', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Pigeon', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Fox', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Raccoon', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Owl', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Deer', rarity: 'rare', value: () => Math.floor(Math.random() * 4000) + 4000 },
+      { name: 'Boar', rarity: 'rare', value: () => Math.floor(Math.random() * 4000) + 4000 },
+      { name: 'Hawk', rarity: 'rare', value: () => Math.floor(Math.random() * 4000) + 4000 },
+      { name: 'White Stag', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
+      { name: 'Mythic Phoenix', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 }
     ];
     // Rarity weights
     const rarityRoll = Math.random();
@@ -1596,7 +1596,7 @@ router.post('/:discordId/beg', async (req, res) => {
     let outcome, amount = 0, message;
     if (roll < 0.65) {
       // Small coin gain
-      amount = Math.floor(Math.random() * 500) + 100;
+      amount = Math.floor(Math.random() * 5000) + 1000;
       wallet.balance += amount;
       outcome = 'success';
       const texts = [
@@ -1619,7 +1619,7 @@ router.post('/:discordId/beg', async (req, res) => {
     } else if (roll < 0.97) {
       // Negative event
       outcome = 'negative';
-      amount = Math.floor(Math.random() * 200) + 50;
+      amount = Math.floor(Math.random() * 2000) + 500;
       wallet.balance = Math.max(0, wallet.balance - amount);
       const texts = [
         `A thief snatched ${amount.toLocaleString()} points from you!`,
@@ -1630,7 +1630,7 @@ router.post('/:discordId/beg', async (req, res) => {
       message = texts[Math.floor(Math.random() * texts.length)];
     } else {
       // Rare big reward
-      amount = Math.floor(Math.random() * 5000) + 5000;
+      amount = Math.floor(Math.random() * 50000) + 50000;
       wallet.balance += amount;
       outcome = 'jackpot';
       const texts = [

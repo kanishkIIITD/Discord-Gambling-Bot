@@ -404,6 +404,38 @@ const commands = [
 	{
 		name: 'help',
 		description: 'Shows a help menu with all available commands.',
+		options: [
+			{
+				type: 1,
+				name: 'betting',
+				description: 'Show help for betting commands'
+			},
+			{
+				type: 1,
+				name: 'gambling',
+				description: 'Show help for gambling commands'
+			},
+			{
+				type: 1,
+				name: 'wallet',
+				description: 'Show help for wallet commands'
+			},
+			{
+				type: 1,
+				name: 'utility',
+				description: 'Show help for utility commands'
+			},
+			{
+				type: 1,
+				name: 'fun',
+				description: 'Show help for fun & collection commands'
+			},
+			{
+				type: 1,
+				name: 'duel',
+				description: 'Show help for duel commands'
+			}
+		]
 	},
 	{
 		name: 'transactions',

@@ -1792,71 +1792,140 @@ client.on('interactionCreate', async interaction => {
 	} else if (commandName === 'help') {
 		try {
 			await interaction.deferReply();
-			const embed = {
-				color: 0x0099ff,
-				title: '🤖 Bot Commands',
-				description: 'Here are all the available commands:',
-				fields: [
-					{ name: '🎲 Betting Commands', value:
-						'`/createbet` - Create a new betting event (Admin/Superadmin only)\n' +
-						'`/placebet` - Place a bet on an active event. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
-						'`/viewbet` - View details of a specific bet\n' +
-						'`/listbets` - List all currently open betting events\n' +
-						'`/unresolvedbets` - List all bets that are unresolved (open or closed)\n' +
-						'`/closebet` - Close betting for an event (Admin/Superadmin only)\n' +
-						'`/resolvebet` - Resolve a betting event (Admin/Superadmin only)\n' +
-						'`/cancelbet` - Cancel a bet before any bets are placed (Creator/Admin/Superadmin only)\n' +
-						'`/editbet` - Edit a bet\'s details before any bets are placed (Creator/Admin/Superadmin only)\n' +
-						'`/extendbet` - Extend the duration of an open bet (Creator/Admin/Superadmin only)\n' +
-						'`/betinfo` - Show detailed information about a bet'
-					},
-					{ name: '🎮 Gambling Commands', value:
-						'`/coinflip` - Flip a coin and bet on the outcome. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
-						'`/dice` - Roll dice and bet on the outcome. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
-						'`/slots` - Play the slot machine. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
-						'`/blackjack` - Play blackjack. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
-						'`/roulette` - Play roulette. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
-						'`/jackpot` - View or contribute to the jackpot'
-					},
-					{ name: '💰 Wallet Commands', value:
-						'`/balance` - Check your current balance\n' +
-						'`/daily` - Claim your daily point bonus\n' +
-						'`/gift` - Gift points to another user\n' +
-						'`/transactions` - View your transaction history'
-					},
-					{ name: '📊 Utility Commands', value:
-						'`/leaderboard` - View top users by balance\n' +
-						'`/stats` - View your full betting and gambling statistics\n' +
-						'`/profile` - View your detailed profile'
-					},
-					{
-						name: '📊 Fun & Collection Commands', value:
-						'`/meowbark` - Perform a meow or bark to earn points (5 min cooldown, max 100,000 points)\n' +
-						'`/crime do` - Attempt a crime for a chance to win or lose points, or get jailed\n' +
-						'`/crime stats` - View your crime stats\n' +
-						'`/work do` - Work a job for a chance to earn points and rare bonuses\n' +
-						'`/work stats` - View your work/job stats\n' +
-						'`/bail @user` - Bail a jailed user out (for a fee)\n' +
-						'`/fish` - Go fishing for a chance to catch something valuable!\n' +
-						'`/hunt` - Go hunting for a chance to catch a rare animal!\n' +
-						'`/collection` - View your fishing and hunting collection\n' +
-						'`/collection-leaderboard` - View the top collectors by collection value\n' +
-						'`/sell` - Sell an item from your collection for points\n' +
-						'`/trade` - Gift or trade an item from your collection to another user\n' +
-						'`/beg` - Beg for coins and see what happens!\n' +
-						'`/mysterybox` - Open a mystery box for a random reward!\n' +
-						'Buffs: Obtain temporary buffs from `/mysterybox`! Active buffs are shown in `/collection.`'
-					},
-					{
-						name: '⚔️ Duel Commands', value:
-						'`/duel challenge @user amount` - Challenge another user to a duel for points\n' +
-						'`/duel accept duel_id` - Accept a pending duel (autocomplete duel ID)\n' +
-						'`/duel decline duel_id` - Decline a pending duel (autocomplete duel ID)\n' +
-						'`/duel stats` - View your duel win/loss record'
-					}
-				],
-				timestamp: new Date()
-			};
+            const sub = interaction.options.getSubcommand(false);
+            let embed;
+            if (!sub) {
+                embed = {
+                    color: 0x0099ff,
+                    title: '🤖 Bot Commands',
+                    description: 'Here are all the available commands. Use `/help <section>` for details on a specific category.',
+                    fields: [
+                        { name: '🎲 Betting Commands', value: 'Use `/help betting`' },
+                        { name: '🎮 Gambling Commands', value: 'Use `/help gambling`' },
+                        { name: '💰 Wallet Commands', value: 'Use `/help wallet`' },
+                        { name: '📊 Utility Commands', value: 'Use `/help utility`' },
+                        { name: '📊 Fun & Collection Commands', value: 'Use `/help fun`' },
+                        { name: '⚔️ Duel Commands', value: 'Use `/help duel`' }
+                    ],
+                    timestamp: new Date()
+                };
+            } else if (sub === 'betting') {
+                embed = {
+                    color: 0x0099ff,
+                    title: '🎲 Betting Commands',
+                    description: 'Commands for creating and managing bets.',
+                    fields: [
+                        { name: 'Betting', value:
+                            '`/createbet` - Create a new betting event (Admin/Superadmin only)\n' +
+                            '`/placebet` - Place a bet on an active event. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
+                            '`/viewbet` - View details of a specific bet\n' +
+                            '`/listbets` - List all currently open betting events\n' +
+                            '`/unresolvedbets` - List all bets that are unresolved (open or closed)\n' +
+                            '`/closebet` - Close betting for an event (Admin/Superadmin only)\n' +
+                            '`/resolvebet` - Resolve a betting event (Admin/Superadmin only)\n' +
+                            '`/cancelbet` - Cancel a bet before any bets are placed (Creator/Admin/Superadmin only)\n' +
+                            '`/editbet` - Edit a bet\'s details before any bets are placed (Creator/Admin/Superadmin only)\n' +
+                            '`/extendbet` - Extend the duration of an open bet (Creator/Admin/Superadmin only)\n' +
+                            '`/betinfo` - Show detailed information about a bet'
+                        }
+                    ],
+                    timestamp: new Date()
+                };
+            } else if (sub === 'gambling') {
+                embed = {
+                    color: 0x0099ff,
+                    title: '🎮 Gambling Commands',
+                    description: 'Casino-style games and gambling commands.',
+                    fields: [
+                        { name: 'Gambling', value:
+                            '`/coinflip` - Flip a coin and bet on the outcome. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
+                            '`/dice` - Roll dice and bet on the outcome. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
+                            '`/slots` - Play the slot machine. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
+                            '`/blackjack` - Play blackjack. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
+                            '`/roulette` - Play roulette. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
+                            '`/jackpot` - View or contribute to the jackpot'
+                        }
+                    ],
+                    timestamp: new Date()
+                };
+            } else if (sub === 'wallet') {
+                embed = {
+                    color: 0x0099ff,
+                    title: '💰 Wallet Commands',
+                    description: 'Commands for managing your wallet and points.',
+                    fields: [
+                        { name: 'Wallet', value:
+                            '`/balance` - Check your current balance\n' +
+                            '`/daily` - Claim your daily point bonus\n' +
+                            '`/gift` - Gift points to another user\n' +
+                            '`/transactions` - View your transaction history'
+                        }
+                    ],
+                    timestamp: new Date()
+                };
+            } else if (sub === 'utility') {
+                embed = {
+                    color: 0x0099ff,
+                    title: '📊 Utility Commands',
+                    description: 'Utility and stats commands.',
+                    fields: [
+                        { name: 'Utility', value:
+                            '`/leaderboard` - View top users by balance\n' +
+                            '`/stats` - View your full betting and gambling statistics\n' +
+                            '`/profile` - View your detailed profile'
+                        }
+                    ],
+                    timestamp: new Date()
+                };
+            } else if (sub === 'fun') {
+                embed = {
+                    color: 0x0099ff,
+                    title: '📊 Fun & Collection Commands',
+                    description: 'Fun, collection, and miscellaneous commands.',
+                    fields: [
+                        { name: 'Fun & Collection', value:
+                            '`/meowbark` - Perform a meow or bark to earn points (5 min cooldown, max 100,000 points)\n' +
+                            '`/crime do` - Attempt a crime for a chance to win or lose points, or get jailed\n' +
+                            '`/crime stats` - View your crime stats\n' +
+                            '`/work do` - Work a job for a chance to earn points and rare bonuses\n' +
+                            '`/work stats` - View your work/job stats\n' +
+                            '`/bail @user` - Bail a jailed user out (for a fee)\n' +
+                            '`/fish` - Go fishing for a chance to catch something valuable!\n' +
+                            '`/hunt` - Go hunting for a chance to catch a rare animal!\n' +
+                            '`/collection` - View your fishing and hunting collection\n' +
+                            '`/collection-leaderboard` - View the top collectors by collection value\n' +
+                            '`/sell` - Sell an item from your collection for points\n' +
+                            '`/trade` - Gift or trade an item from your collection to another user\n' +
+                            '`/beg` - Beg for coins and see what happens!\n' +
+                            '`/mysterybox` - Open a mystery box for a random reward!\n' +
+                            'Buffs: Obtain temporary buffs from `/mysterybox`! Active buffs are shown in `/collection.`'
+                        }
+                    ],
+                    timestamp: new Date()
+                };
+            } else if (sub === 'duel') {
+                embed = {
+                    color: 0x0099ff,
+                    title: '⚔️ Duel Commands',
+                    description: 'Challenge other users to duels.',
+                    fields: [
+                        { name: 'Duel', value:
+                            '`/duel challenge @user amount` - Challenge another user to a duel for points\n' +
+                            '`/duel accept duel_id` - Accept a pending duel (autocomplete duel ID)\n' +
+                            '`/duel decline duel_id` - Decline a pending duel (autocomplete duel ID)\n' +
+                            '`/duel stats` - View your duel win/loss record'
+                        }
+                    ],
+                    timestamp: new Date()
+                };
+            } else {
+                embed = {
+                    color: 0xff7675,
+                    title: '❌ Unknown Help Section',
+                    description: 'That help section does not exist. Use `/help` to see available sections.',
+                    timestamp: new Date()
+                };
+            }
 			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
 			console.error('Error in help command:', error);
