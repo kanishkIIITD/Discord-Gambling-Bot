@@ -1212,103 +1212,108 @@ client.on('interactionCreate', async interaction => {
 			}
 			let amount;
 			const action = interaction.options.getString('action')?.toLowerCase();
-			if (rawAmount && rawAmount.toLowerCase() === 'allin') {
-				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
-					params: { guildId: interaction.guildId },
-					headers: { 'x-guild-id': interaction.guildId }
-				});
-				const balance = walletResponse.data.balance;
-				if (!balance || balance <= 0) {
-					const embed = new EmbedBuilder()
-						.setColor(0xff7675)
-						.setTitle('❌ All In Failed')
-						.setDescription('You have no points to go all in with!')
-						.setTimestamp();
-					await interaction.editReply({ embeds: [embed] });
-					return;
-				}
-				amount = balance;
-			} else if (rawAmount && rawAmount.toLowerCase() === 'half') {
-				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
-					params: { guildId: interaction.guildId },
-					headers: { 'x-guild-id': interaction.guildId }
-				});
-				const balance = walletResponse.data.balance;
-				if (!balance || balance <= 0) {
-					const embed = new EmbedBuilder()
-						.setColor(0xff7675)
-						.setTitle('❌ Half Failed')
-						.setDescription('You have no points to bet half!')
-						.setTimestamp();
-					await interaction.editReply({ embeds: [embed] });
-					return;
-				}
-				amount = Math.floor(balance / 2);
-				if (amount < 1) amount = 1;
-			} else if (rawAmount && rawAmount.toLowerCase() === 'quarter') {
-				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
-					params: { guildId: interaction.guildId },
-					headers: { 'x-guild-id': interaction.guildId }
-				});
-				const balance = walletResponse.data.balance;
-				if (!balance || balance <= 0) {
-					const embed = new EmbedBuilder()
-						.setColor(0xff7675)
-						.setTitle('❌ Quarter Failed')
-						.setDescription('You have no points to bet a quarter!')
-						.setTimestamp();
-					await interaction.editReply({ embeds: [embed] });
-					return;
-				}
-				amount = Math.floor(balance / 4);
-				if (amount < 1) amount = 1;
-			} else if (rawAmount && rawAmount.toLowerCase() === 'third') {
-				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
-					params: { guildId: interaction.guildId },
-					headers: { 'x-guild-id': interaction.guildId }
-				});
-				const balance = walletResponse.data.balance;
-				if (!balance || balance <= 0) {
-					const embed = new EmbedBuilder()
-						.setColor(0xff7675)
-						.setTitle('❌ Third Failed')
-						.setDescription('You have no points to bet a third!')
-						.setTimestamp();
-					await interaction.editReply({ embeds: [embed] });
-					return;
-				}
-				amount = Math.floor(balance / 3);
-				if (amount < 1) amount = 1;
-			} else if (rawAmount && rawAmount.toLowerCase() === 'random') {
-				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
-					params: { guildId: interaction.guildId },
-					headers: { 'x-guild-id': interaction.guildId }
-				});
-				const balance = walletResponse.data.balance;
-				if (!balance || balance <= 0) {
-					const embed = new EmbedBuilder()
-						.setColor(0xff7675)
-						.setTitle('❌ Random Failed')
-						.setDescription('You have no points to bet randomly!')
-						.setTimestamp();
-					await interaction.editReply({ embeds: [embed] });
-					return;
-				}
-				amount = Math.floor(Math.random() * balance) + 1;
-			} else {
-				amount = parseInt(rawAmount, 10);
-				if (isNaN(amount) || amount <= 0) {
-					const embed = new EmbedBuilder()
-						.setColor(0xff7675)
-						.setTitle('❌ Invalid Amount')
-						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", or "random".')
-						.setTimestamp();
-					await interaction.editReply({ embeds: [embed] });
-					return;
-				}
-			}
+
+            // Only parse/validate amount if NOT doing an action (i.e., starting a new game)
+            if (!action) {
+                if (rawAmount && rawAmount.toLowerCase() === 'allin') {
+                    const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+                        params: { guildId: interaction.guildId },
+                        headers: { 'x-guild-id': interaction.guildId }
+                    });
+                    const balance = walletResponse.data.balance;
+                    if (!balance || balance <= 0) {
+                        const embed = new EmbedBuilder()
+                            .setColor(0xff7675)
+                            .setTitle('❌ All In Failed')
+                            .setDescription('You have no points to go all in with!')
+                            .setTimestamp();
+                        await interaction.editReply({ embeds: [embed] });
+                        return;
+                    }
+                    amount = balance;
+                } else if (rawAmount && rawAmount.toLowerCase() === 'half') {
+                    const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+                        params: { guildId: interaction.guildId },
+                        headers: { 'x-guild-id': interaction.guildId }
+                    });
+                    const balance = walletResponse.data.balance;
+                    if (!balance || balance <= 0) {
+                        const embed = new EmbedBuilder()
+                            .setColor(0xff7675)
+                            .setTitle('❌ Half Failed')
+                            .setDescription('You have no points to bet half!')
+                            .setTimestamp();
+                        await interaction.editReply({ embeds: [embed] });
+                        return;
+                    }
+                    amount = Math.floor(balance / 2);
+                    if (amount < 1) amount = 1;
+                } else if (rawAmount && rawAmount.toLowerCase() === 'quarter') {
+                    const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+                        params: { guildId: interaction.guildId },
+                        headers: { 'x-guild-id': interaction.guildId }
+                    });
+                    const balance = walletResponse.data.balance;
+                    if (!balance || balance <= 0) {
+                        const embed = new EmbedBuilder()
+                            .setColor(0xff7675)
+                            .setTitle('❌ Quarter Failed')
+                            .setDescription('You have no points to bet a quarter!')
+                            .setTimestamp();
+                        await interaction.editReply({ embeds: [embed] });
+                        return;
+                    }
+                    amount = Math.floor(balance / 4);
+                    if (amount < 1) amount = 1;
+                } else if (rawAmount && rawAmount.toLowerCase() === 'third') {
+                    const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+                        params: { guildId: interaction.guildId },
+                        headers: { 'x-guild-id': interaction.guildId }
+                    });
+                    const balance = walletResponse.data.balance;
+                    if (!balance || balance <= 0) {
+                        const embed = new EmbedBuilder()
+                            .setColor(0xff7675)
+                            .setTitle('❌ Third Failed')
+                            .setDescription('You have no points to bet a third!')
+                            .setTimestamp();
+                        await interaction.editReply({ embeds: [embed] });
+                        return;
+                    }
+                    amount = Math.floor(balance / 3);
+                    if (amount < 1) amount = 1;
+                } else if (rawAmount && rawAmount.toLowerCase() === 'random') {
+                    const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+                        params: { guildId: interaction.guildId },
+                        headers: { 'x-guild-id': interaction.guildId }
+                    });
+                    const balance = walletResponse.data.balance;
+                    if (!balance || balance <= 0) {
+                        const embed = new EmbedBuilder()
+                            .setColor(0xff7675)
+                            .setTitle('❌ Random Failed')
+                            .setDescription('You have no points to bet randomly!')
+                            .setTimestamp();
+                        await interaction.editReply({ embeds: [embed] });
+                        return;
+                    }
+                    amount = Math.floor(Math.random() * balance) + 1;
+                } else {
+                    amount = parseInt(rawAmount, 10);
+                    if (isNaN(amount) || amount <= 0) {
+                        const embed = new EmbedBuilder()
+                            .setColor(0xff7675)
+                            .setTitle('❌ Invalid Amount')
+                            .setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", or "random".')
+                            .setTimestamp();
+                        await interaction.editReply({ embeds: [embed] });
+                        return;
+                    }
+                }
+            }
+            // Build request body
 			const requestBody = {};
-			if (amount !== undefined) requestBody.amount = amount;
+            if (!action && amount !== undefined) requestBody.amount = amount;
 			if (action) requestBody.action = action;
 			const response = await axios.post(`${backendApiUrl}/gambling/${interaction.user.id}/blackjack`, requestBody, {
 				headers: { 'x-guild-id': interaction.guildId }
@@ -1323,7 +1328,7 @@ client.on('interactionCreate', async interaction => {
 			data.playerHands.forEach((hand, i) => {
 				const handValue = hand.reduce((sum, card) => {
 					if (card.value === 'A') return sum + 11;
-					if (['K', 'Q', 'J'].includes(card.value)) return sum + 10;
+					if (["K", "Q", "J"].includes(card.value)) return sum + 10;
 					return sum + parseInt(card.value);
 				}, 0);
 				embed.addFields({
@@ -1333,7 +1338,7 @@ client.on('interactionCreate', async interaction => {
 			});
 			const dealerValue = data.dealerHand.reduce((sum, card) => {
 				if (card.value === 'A') return sum + 11;
-				if (['K', 'Q', 'J'].includes(card.value)) return sum + 10;
+				if (["K", "Q", "J"].includes(card.value)) return sum + 10;
 				return sum + parseInt(card.value);
 			}, 0);
 			embed.addFields({
@@ -1353,7 +1358,7 @@ client.on('interactionCreate', async interaction => {
 				name: 'Your Balance',
 				value: `${data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`
 			});
-            if (amount) {
+            if (!action && amount) {
                 embed.addFields({ name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points` });
             }
 			embed.setTimestamp();
