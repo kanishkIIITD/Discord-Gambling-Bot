@@ -1,62 +1,81 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
 import { useDashboard } from '../contexts/DashboardContext';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import Confetti from 'react-confetti';
 import Modal from 'react-modal';
+import SlotMachine from '../components/SlotMachine';
+import { Howl } from 'howler';
+import { getUserPreferences } from '../services/api';
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 // TODO: Replace with dynamic guild selection for multi-guild support
 const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+const REEL_COUNT = 3;
+const slotSymbols = ['🍒', '🍊', '🍋', '🍇', '💎', '7️⃣'];
+const symbolImages = {
+  '🍒': '/slots_1.png',
+  '🍊': '/slots_2.png',
+  '🍋': '/slots_3.png',
+  '🍇': '/slots_4.png',
+  '💎': '/slots_5.png',
+  '7️⃣': '/slots_6.png',
+};
+const STOP_DELAYS = [0, 0.4, 0.8];
+
+// Sound effects
+const spinSound = new Howl({ src: ['/sounds/slots_spin.mp3'], volume: 0.2 });
+const winSound = new Howl({ src: ['/sounds/slots_win.mp3'], volume: 0.3 });
+const jackpotSound = new Howl({ src: ['/sounds/slots_jackpot.mp3'], volume: 0.5 });
+
+function getRandomSymbols() {
+  return Array(REEL_COUNT)
+    .fill(0)
+    .map(() => slotSymbols[Math.floor(Math.random() * slotSymbols.length)]);
+}
 
 export const Slots = () => {
   const { user } = useAuth();
   const { walletBalance, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance } = useDashboard();
 
-  // Slot symbols (must match backend)
-  const slotSymbols = ['🍒', '🍊', '🍋', '🍇', '💎', '7️⃣'];
-  const symbolImages = {
-    '🍒': '/slots_1.png',
-    '🍊': '/slots_2.png',
-    '🍋': '/slots_3.png',
-    '🍇': '/slots_4.png',
-    '💎': '/slots_5.png',
-    '7️⃣': '/slots_6.png',
-  };
-
-  // Animation config
-  const REEL_COUNT = 3;
-  const VISIBLE_SYMBOLS = 3; // Show 3 symbols per reel (centered)
-  const SPIN_ROUNDS = 12; // How many full rounds each reel spins
-  const REEL_HEIGHT = 60; // px per symbol (adjust to match CSS)
-  const STOP_DELAYS = [0, 0.4, 0.8]; // seconds between each reel stopping
-
   const [betAmount, setBetAmount] = useState('');
   const [isSpinning, setIsSpinning] = useState(false);
   const [resultMessage, setResultMessage] = useState('');
-  const [finalReelSymbols, setFinalReelSymbols] = useState([null, null, null]);
-  const [reelResults, setReelResults] = useState([null, null, null]); // For animation
-  const [spinKey, setSpinKey] = useState(0); // To force rerender of reels
+  const [finalReelSymbols, setFinalReelSymbols] = useState(getRandomSymbols());
+  const [reelResults, setReelResults] = useState([null, null, null]);
+  const [spinKey, setSpinKey] = useState(0);
   const [isJackpot, setIsJackpot] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: undefined, height: undefined });
   const [jackpotPool, setJackpotPool] = useState(0);
   const [freeSpins, setFreeSpins] = useState(0);
   const [showFreeSpinModal, setShowFreeSpinModal] = useState(false);
-  const [prevFreeSpins, setPrevFreeSpins] = useState(0);
-  const [usedFreeSpin, setUsedFreeSpin] = useState(false);
-  const [winType, setWinType] = useState(null);
   const [autoSpinEnabled, setAutoSpinEnabled] = useState(false);
   const [autoSpinCount, setAutoSpinCount] = useState(1);
   const [autoSpinProgress, setAutoSpinProgress] = useState(0);
   const autoSpinRef = useRef({ running: false });
-
-  // Refs to track animation completion, store response data, and the spin promise resolver
-  const completedReels = useRef(new Set()); // Keep this for now, though counter is primary
-  const completedReelCountRef = useRef(0); // Counter for completed reels
   const responseRef = useRef(null);
-  const spinPromiseResolveRef = useRef(null); // Ref to store the spin promise's resolve function
+  const spinPromiseResolveRef = useRef(null);
+
+  // Slot machine settings from user preferences
+  const [slotAutoSpinDelay, setSlotAutoSpinDelay] = useState(300); // ms
+  const [slotAutoSpinDefaultCount, setSlotAutoSpinDefaultCount] = useState(1);
+
+  // Load user preferences for slot machine settings
+  useEffect(() => {
+    async function fetchSlotPrefs() {
+      if (!user?.discordId) return;
+      try {
+        const prefs = await getUserPreferences(user.discordId);
+        setSlotAutoSpinDelay(prefs.slotAutoSpinDelay ?? 300);
+        setSlotAutoSpinDefaultCount(prefs.slotAutoSpinDefaultCount ?? 1);
+        setAutoSpinCount(prefs.slotAutoSpinDefaultCount ?? 1);
+      } catch (e) {
+        // fallback to defaults
+      }
+    }
+    fetchSlotPrefs();
+  }, [user?.discordId]);
 
   useEffect(() => {
     function handleResize() {
@@ -67,7 +86,6 @@ export const Slots = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Fetch jackpot pool on mount
   useEffect(() => {
     async function fetchJackpot() {
       try {
@@ -86,74 +104,48 @@ export const Slots = () => {
     fetchJackpot();
   }, [user?.discordId]);
 
-  // Build a long reel for animation (repeat symbols)
-  const buildReel = (finalSymbol) => {
-    // Repeat the symbols for smooth spinning
-    const repeated = [];
-    for (let i = 0; i < SPIN_ROUNDS; i++) {
-      repeated.push(...slotSymbols);
-    }
-    // Find the index of the final symbol
-    const finalIdx = slotSymbols.indexOf(finalSymbol);
-    // Get the symbol above and below (with wrap-around)
-    const aboveIdx = (finalIdx - 1 + slotSymbols.length) % slotSymbols.length;
-    const belowIdx = (finalIdx + 1) % slotSymbols.length;
-    // Add the last three symbols so that the center is the result
-    repeated.push(slotSymbols[aboveIdx]); // above
-    repeated.push(finalSymbol);           // center
-    repeated.push(slotSymbols[belowIdx]); // below
-    return repeated;
-  };
-
   // Handler for when a single reel's animation completes
-  const handleReelAnimationComplete = () => {
-    // Increment the counter for completed reels
-    completedReelCountRef.current += 1;
-
-    const totalReels = REEL_COUNT;
-
-    // Check if all reels have completed their animation
-    if (completedReelCountRef.current === totalReels) {
-      // Reset the counter for the next spin
-      completedReelCountRef.current = 0;
-
-      // All reels finished animating, now show results and resolve the spin promise
-      // Add a small buffer after animation completes before showing results
-      setTimeout(() => {
-        // Retrieve response data and original bet amount from the ref
-        const { won, winnings, isJackpot, freeSpins, usedFreeSpin, winType, amount: betAmountUsed } = responseRef.current; // Get amount here
-
-        let messageText = '';
-        if (isJackpot) {
-          messageText = `JACKPOT! 🎉 You won ${Math.round(winnings)} points!`;
-        } else if (winType === 'two-sevens') {
-          messageText = `Two 7️⃣! You win 5x your bet: ${Math.round(winnings)} points!`;
-        } else if (winType === 'two-matching') {
-          messageText = `Two matching symbols! You win 2x your bet: ${Math.round(winnings)} points!`;
-        } else if (winType === 'three-of-a-kind') {
-          messageText = `Three of a kind! You win ${Math.round(winnings)} points!`;
-        } else if (won) {
-          messageText = `You won ${Math.round(winnings)} points!`;
-        } else if (usedFreeSpin) {
-          messageText = `You used a free spin!`;
-        } else {
-          messageText = `You lost ${Math.round(betAmountUsed)} points.`; // Use betAmountUsed
-        }
-        setResultMessage(messageText); // This is now hidden, but good to keep for debugging/structure
-        toast[won || isJackpot ? 'success' : 'error'](messageText);
-        // isSpinning is set to false at the end of runAutoSpin for auto spins
-        // For manual spins, it's set to false here
-        if (!autoSpinRef.current.running) {
-          setIsSpinning(false);
-        }
-        setSuppressWalletBalance(false);
-        // Resolve the promise that was created in handleSpin
-        if (spinPromiseResolveRef.current) {
-           spinPromiseResolveRef.current(); // Call the stored resolve function
-           spinPromiseResolveRef.current = null; // Clear the ref
-        }
-
-      }, 1000); // Increased buffer after animation completes to a full second
+  const handleAllReelsAnimationComplete = () => {
+    // Fade out the spin sound over 300ms, then stop it
+    if (spinSound.playing()) {
+      spinSound.fade(spinSound.volume(), 0, 300);
+      setTimeout(() => spinSound.stop(), 300);
+    }
+    console.log('[DEBUG] handleAllReelsAnimationComplete fired');
+    // Retrieve response data and original bet amount from the ref
+    const { won, winnings, isJackpot, freeSpins, usedFreeSpin, winType, amount: betAmountUsed } = responseRef.current || {};
+    let messageText = '';
+    if (isJackpot) {
+      messageText = `JACKPOT! 🎉 You won ${Math.round(winnings)} points!`;
+      jackpotSound.play();
+    } else if (winType === 'two-sevens') {
+      messageText = `Two 7️⃣! You win 5x your bet: ${Math.round(winnings)} points!`;
+      winSound.play();
+    } else if (winType === 'two-matching') {
+      messageText = `Two matching symbols! You win 2x your bet: ${Math.round(winnings)} points!`;
+      winSound.play();
+    } else if (winType === 'three-of-a-kind') {
+      messageText = `Three of a kind! You win ${Math.round(winnings)} points!`;
+      winSound.play();
+    } else if (won) {
+      messageText = `You won ${Math.round(winnings)} points!`;
+      winSound.play();
+    } else if (usedFreeSpin) {
+      messageText = `You used a free spin!`;
+    } else if (betAmountUsed) {
+      messageText = `You lost ${Math.round(betAmountUsed)} points.`;
+    }
+    setResultMessage(messageText);
+    toast[won || isJackpot ? 'success' : 'error'](messageText);
+    setSuppressWalletBalance(false);
+    // If not in auto-spin mode, reset isSpinning after animation completes
+    if (!autoSpinRef.current.running) {
+      setIsSpinning(false);
+    }
+    // Do NOT set isSpinning or autoSpinProgress here for auto-spin; let runAutoSpin handle it
+    if (spinPromiseResolveRef.current) {
+      spinPromiseResolveRef.current();
+      spinPromiseResolveRef.current = null;
     }
   };
 
@@ -164,14 +156,10 @@ export const Slots = () => {
     for (let i = 0; i < count; i++) {
       if (!autoSpinRef.current.running) break;
       setAutoSpinProgress(i + 1);
-      // Add a small delay before starting the next spin's animation
-      await new Promise((resolve) => setTimeout(resolve, 100)); // Small delay
-      // Await handleSpin's animation and UI update
-      await handleSpin({ preventDefault: () => {} }, true);
-      // Pause for 1 second after each spin (except last) before the *next* spin starts (which has its own delay)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await handleSpin(null, true);
       if (i < count - 1) {
-        // This 1-second pause is between the end of the previous spin's results and the start of the next spin's initial delay.
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, slotAutoSpinDelay));
       }
     }
     setAutoSpinProgress(0);
@@ -179,7 +167,7 @@ export const Slots = () => {
     setIsSpinning(false);
   };
 
-  // Modified handleSpin to support auto-spin and return a Promise
+  // Main spin handler
   const handleSpin = (e, isAuto = false) => {
     return new Promise(async (resolve) => {
       if (e && e.preventDefault) e.preventDefault();
@@ -199,135 +187,48 @@ export const Slots = () => {
         resolve();
         return;
       }
-
-      // Store the resolve function to call it from handleReelAnimationComplete
-      spinPromiseResolveRef.current = resolve; // Use the component-level ref
-
+      spinPromiseResolveRef.current = resolve;
       if (!isAuto) setIsSpinning(true);
       setResultMessage('');
-      setFinalReelSymbols([null, null, null]); // Clear previous final results immediately
-      // Do NOT clear reelResults here, it will be updated with new symbols after API call
-      setSpinKey(prev => prev + 1); // Force rerender
+      setSpinKey(prev => prev + 1);
       setIsJackpot(false);
       setPrevWalletBalance(walletBalance);
       setSuppressWalletBalance(true);
-      completedReelCountRef.current = 0; // Reset completed reel count for this spin
-
       try {
+        spinSound.stop();
+        spinSound.volume(0.2);
+        spinSound.seek(0);
+        spinSound.play();
         const response = await axios.post(
           `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/slots`,
           { amount: amount, guildId: MAIN_GUILD_ID },
           { headers: { 'x-guild-id': MAIN_GUILD_ID } }
         );
-        const { reels: finalReels, ...restOfResponse } = response.data; // Extract reels and keep the rest
-
-        // Store ALL response data, including the original amount, in the ref
+        const { reels: finalReels, ...restOfResponse } = response.data;
         responseRef.current = { ...restOfResponse, amount: amount };
-
-        setFinalReelSymbols(finalReels); // Set the final results (hidden during animation)
-        setReelResults(finalReels); // Set the reels for animation calculation *after* getting the response
-
-        // Now, handleReelAnimationComplete will resolve the promise after animations
-
+        setFinalReelSymbols(finalReels);
+        setReelResults(finalReels);
       } catch (error) {
-        console.error('Slots spin error:', error);
         const errorMessage = error.response?.data?.message || 'Failed to spin slots.';
         setTimeout(() => {
           setResultMessage(errorMessage);
           toast.error(errorMessage);
           if (!isAuto) setIsSpinning(false);
           setSuppressWalletBalance(false);
-          resolve(); // Resolve immediately on error
+          resolve();
         }, 0);
       }
     });
   };
 
-  // Symbol image renderer
-  const SymbolImage = ({ symbol }) => {
-    if (!symbol || !symbolImages[symbol]) return null;
-    return (
-      <img
-        src={symbolImages[symbol]}
-        alt={symbol}
-        className="h-12 w-12 object-contain mx-auto"
-      />
-    );
-  };
-
-  // Reel component
-  const Reel = ({ finalSymbol, spinning, stopDelay, spinKey, onComplete }) => {
-    if (!finalSymbol) {
-      // Render a placeholder or a blank symbol
-      return (
-        <div className="w-20 h-[180px] bg-background rounded-md border border-border overflow-hidden flex flex-col items-center justify-center relative">
-          <div className="h-[60px] flex items-center justify-center" />
-          <div className="h-[60px] flex items-center justify-center" />
-          <div className="h-[60px] flex items-center justify-center" />
-        </div>
-      );
-    }
-
-    if (!spinning) {
-      // After spin: show only the result symbol in the center
-      return (
-        <div className="w-20 h-[180px] bg-background rounded-md border border-border overflow-hidden flex flex-col items-center justify-center relative">
-          <div className="h-[60px] flex items-center justify-center" />
-          <div className="h-[60px] flex items-center justify-center">
-            <SymbolImage symbol={finalSymbol} />
-          </div>
-          <div className="h-[60px] flex items-center justify-center" />
-        </div>
-      );
-    }
-
-    // While spinning: show the animated reel
-    const reelArray = buildReel(finalSymbol);
-    const centerIndex = reelArray.length - 2;
-    const finalY = -((centerIndex - 1) * REEL_HEIGHT);
-
-    return (
-      <div className="w-20 h-[180px] bg-background rounded-md border border-border overflow-hidden flex flex-col items-center justify-center relative">
-        <motion.div
-          key={spinKey + (spinning ? '-spin' : '-stop')}
-          initial={{ y: 0 }}
-          animate={spinning && finalSymbol ? { y: finalY } : { y: 0 }}
-          transition={spinning && finalSymbol ? {
-            y: {
-              duration: 1.6 + stopDelay,
-              ease: [0.2, 0.8, 0.4, 1],
-            },
-          } : {
-            y: { duration: 0 }
-          }}
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%' }}
-          onAnimationComplete={() => {
-            if (spinning) {
-              onComplete();
-            }
-          }}
-        >
-          {reelArray.map((symbol, i) => (
-            <div key={i} className="h-[60px] flex items-center justify-center">
-              <SymbolImage symbol={symbol} />
-            </div>
-          ))}
-        </motion.div>
-      </div>
-    );
-  };
-
-  // Stop auto-spin if user leaves page
   useEffect(() => {
     return () => { autoSpinRef.current.running = false; };
   }, []);
 
-  // console.log('isSpinning:', isSpinning, 'reelResults:', reelResults, 'finalReelSymbols:', finalReelSymbols);
-
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] bg-[length:100%_100%] p-0 m-0 relative font-sans" style={{ fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', lineHeight: 1.5 }}>
       <div className="w-full max-w-2xl mx-auto px-2 sm:px-6 lg:px-8 py-8 flex flex-col items-center">
-        <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Slots</h1>
+        <h1 className="text-3xl font-bold text-text-primary mb-2 tracking-tight text-center">Slots</h1>
         {/* Jackpot Pool Display */}
         <div className="flex flex-col items-center my-6 w-full">
           <div className="bg-gradient-to-r from-yellow-300 to-yellow-500 rounded-xl shadow-lg px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 border-2 border-yellow-400 w-full max-w-lg">
@@ -342,18 +243,17 @@ export const Slots = () => {
             <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={180} recycle={false} />
           )}
           {/* Slot Machine Reels Area */}
-          <div className="flex flex-col sm:flex-row justify-center items-center mb-4 gap-2 sm:gap-4 overflow-x-auto w-full">
-            {[...Array(REEL_COUNT)].map((_, index) => (
-              <Reel
-                key={index}
-                finalSymbol={isSpinning ? reelResults[index] : finalReelSymbols[index]}
-                spinning={isSpinning}
-                stopDelay={STOP_DELAYS[index]}
-                spinKey={spinKey}
-                onComplete={handleReelAnimationComplete}
-              />
-            ))}
-          </div>
+          {console.log('[DEBUG] <SlotMachine /> props:', { spinKey, isSpinning, finalReelSymbols })}
+          <SlotMachine
+            reels={finalReelSymbols}
+            spinning={isSpinning}
+            onSpin={(!autoSpinEnabled || autoSpinCount <= 1) ? handleSpin : undefined}
+            onAnimationComplete={handleAllReelsAnimationComplete}
+            visibleRows={3}
+            stopDurations={[0.8, 1, 1.2]}
+            spinKey={spinKey}
+            symbolImages={symbolImages}
+          />
           {/* Free Spin Modal */}
           <Modal
             isOpen={showFreeSpinModal}
@@ -389,9 +289,9 @@ export const Slots = () => {
             <input
               type="number"
               min={1}
-              max={20}
+              max={50}
               value={autoSpinCount}
-              onChange={e => setAutoSpinCount(Math.max(1, Math.min(20, Number(e.target.value))))}
+              onChange={e => setAutoSpinCount(Math.max(1, Math.min(50, Number(e.target.value))))}
               disabled={!autoSpinEnabled || isSpinning || autoSpinProgress > 0}
               className="w-16 px-2 py-1 border border-border rounded-md bg-background text-sm no-spinners text-center"
             />

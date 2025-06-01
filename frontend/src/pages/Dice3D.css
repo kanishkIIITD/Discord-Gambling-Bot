@@ -1,0 +1,36 @@
+/* Dice3D.css */
+.dice3d-perspective {
+  perspective: 600px;
+}
+.dice3d-cube {
+  width: 96px;
+  height: 96px;
+  position: relative;
+  transform-style: preserve-3d;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  transition: box-shadow 0.2s;
+}
+.dice3d-face {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border: 2px solid #e5e7eb;
+}
+.dice3d-face img {
+  width: 80px;
+  height: 80px;
+  user-select: none;
+  pointer-events: none;
+}
+.dice3d-face-front   { transform: rotateY(0deg) translateZ(48px); }
+.dice3d-face-back    { transform: rotateY(180deg) translateZ(48px); }
+.dice3d-face-right   { transform: rotateY(90deg) translateZ(48px); }
+.dice3d-face-left    { transform: rotateY(-90deg) translateZ(48px); }
+.dice3d-face-top     { transform: rotateX(90deg) translateZ(48px); }
+.dice3d-face-bottom  { transform: rotateX(-90deg) translateZ(48px); } 

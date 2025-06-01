@@ -3,11 +3,15 @@ import { useDashboard } from '../contexts/DashboardContext';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import ChipList from '../components/ChipList';
+import { Howl } from 'howler';
 // import ChipSelector from '../components/ChipSelector'; // Placeholder for chip selector
 // import ResultModal from '../components/ResultModal'; // Placeholder for result modal
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
+const coinSound = new Howl({ src: ['/sounds/casino_coins.mp3'], volume: 0.3 });
+const winSound = new Howl({ src: ['/sounds/slots_win.mp3'], volume: 0.4 });
 
 export const Blackjack = () => {
   const { user } = useAuth();
@@ -38,6 +42,8 @@ export const Blackjack = () => {
   const handleAddChip = (value) => {
     if (loading) return;
     if (totalBet + value > walletBalance) return;
+    coinSound.stop();
+    coinSound.play();
     setChipStack((prev) => [...prev, value]);
   };
 
@@ -174,12 +180,26 @@ export const Blackjack = () => {
     const numValue = parseInt(value, 10);
 
     if (!isNaN(numValue) && numValue >= 0) {
+      // Play coin sound if chips are added (amount increases)
+      const prevTotal = chipStack.reduce((sum, v) => sum + v, 0);
+      if (numValue > prevTotal) {
+        coinSound.stop();
+        coinSound.play();
+      }
       setChipStack(amountToChipStack(numValue));
     } else if (value === '') {
        setChipStack([]); // Clear chips if input is empty
     }
     // Note: Invalid number input will just not update the chips
   };
+
+  // Play win sound when player wins
+  useEffect(() => {
+    if (gameState?.gameOver && (gameState?.results?.[0]?.result === 'win' || gameState?.results?.[0]?.result === 'blackjack')) {
+      winSound.stop();
+      winSound.play();
+    }
+  }, [gameState]);
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] p-0 m-0 relative font-sans">

@@ -17,6 +17,19 @@ const userPreferencesSchema = new mongoose.Schema({
     type: Boolean,
     default: true // Default to requiring confirmation for placing bets
   },
+  // Slot machine advanced settings
+  slotAutoSpinDelay: {
+    type: Number,
+    default: 300,
+    min: 0,
+    max: 5000
+  },
+  slotAutoSpinDefaultCount: {
+    type: Number,
+    default: 1,
+    min: 1,
+    max: 50
+  },
   // Add other preferences here as we define them
 });
 

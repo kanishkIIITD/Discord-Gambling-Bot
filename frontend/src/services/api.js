@@ -33,7 +33,7 @@ export const getTransactionHistory = async (discordId, page = 1, limit = 20) => 
     }));
     return response.data;
   } catch (error) {
-    console.error('Error fetching transaction history:', error);
+    // console.error('Error fetching transaction history:', error);
     throw error;
   }
 };
@@ -121,12 +121,12 @@ export const setupWebSocket = (onMessage, discordId) => {
       // console.log('WebSocket message received:', data);
       onMessage(data);
     } catch (error) {
-      console.error('Error parsing WebSocket message:', error);
+      // console.error('Error parsing WebSocket message:', error);
     }
   };
 
   ws.onerror = (error) => {
-    console.error('WebSocket Error:', error);
+    // console.error('WebSocket Error:', error);
   };
 
   ws.onclose = () => {
@@ -181,7 +181,7 @@ export const getMyPlacedBets = async (discordId, page = 1, limit = 20) => {
     }));
     return response.data;
   } catch (error) {
-    console.error('Error fetching my placed bets:', error);
+    // console.error('Error fetching my placed bets:', error);
     throw error;
   }
 };
@@ -211,7 +211,7 @@ export const getBiggestWinsLeaderboard = async (page = 1, limit = 10) => {
     }));
     return response.data;
   } catch (error) {
-    console.error('Error fetching biggest wins leaderboard:', error);
+    // console.error('Error fetching biggest wins leaderboard:', error);
     throw error;
   }
 }; 

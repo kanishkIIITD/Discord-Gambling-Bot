@@ -13,6 +13,9 @@ export const Preferences = () => {
   // State for form inputs
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [confirmBetPlacement, setConfirmBetPlacement] = useState(true);
+  // Slot machine advanced settings
+  const [slotAutoSpinDelay, setSlotAutoSpinDelay] = useState(300); // ms
+  const [slotAutoSpinDefaultCount, setSlotAutoSpinDefaultCount] = useState(1);
 
   useEffect(() => {
     const fetchPreferences = async () => {
@@ -24,6 +27,8 @@ export const Preferences = () => {
         // Set form input states based on fetched preferences
         setItemsPerPage(data.itemsPerPage);
         setConfirmBetPlacement(data.confirmBetPlacement);
+        setSlotAutoSpinDelay(data.slotAutoSpinDelay ?? 300);
+        setSlotAutoSpinDefaultCount(data.slotAutoSpinDefaultCount ?? 1);
       } catch (err) {
         console.error('Error fetching user preferences:', err);
         setError('Failed to load preferences.');
@@ -46,6 +51,8 @@ export const Preferences = () => {
       const updatedPrefs = {
         itemsPerPage,
         confirmBetPlacement,
+        slotAutoSpinDelay,
+        slotAutoSpinDefaultCount,
       };
       const response = await updateUserPreferences(user.discordId, updatedPrefs);
       setPreferences(response.preferences); // Update state with saved preferences
@@ -115,10 +122,50 @@ export const Preferences = () => {
             </div>
           </div>
 
-          <div>
+          {/* Slot Machine Settings - Professional Card Section */}
+          <div className="mt-8">
+            <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl shadow p-6 border border-primary/20">
+              <h2 className="text-xl font-bold text-primary mb-4 tracking-wide flex items-center gap-2">
+                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>
+                Slot Machine Settings
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="slotAutoSpinDelay" className="block text-sm font-medium text-text-secondary mb-1">Auto-Spin Delay (ms)</label>
+                  <input
+                    type="number"
+                    id="slotAutoSpinDelay"
+                    name="slotAutoSpinDelay"
+                    value={slotAutoSpinDelay}
+                    onChange={e => setSlotAutoSpinDelay(Number(e.target.value))}
+                    min={0}
+                    max={5000}
+                    step={50}
+                    className="mt-1 block w-full px-3 py-2 text-base bg-background border border-border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm no-spinners"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="slotAutoSpinDefaultCount" className="block text-sm font-medium text-text-secondary mb-1">Default Auto-Spin Count</label>
+                  <input
+                    type="number"
+                    id="slotAutoSpinDefaultCount"
+                    name="slotAutoSpinDefaultCount"
+                    value={slotAutoSpinDefaultCount}
+                    onChange={e => setSlotAutoSpinDefaultCount(Number(e.target.value))}
+                    min={1}
+                    max={50}
+                    className="mt-1 block w-full px-3 py-2 text-base bg-background border border-border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm no-spinners"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Save button at the bottom */}
+          <div className="mt-8">
             <button
               type="submit"
-              disabled={isSaving || loading} // Disable save button while loading or saving
+              disabled={isSaving || loading}
               className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${isSaving ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
             >
               {isSaving ? 'Saving...' : 'Save Preferences'}

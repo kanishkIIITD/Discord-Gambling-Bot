@@ -4,10 +4,51 @@ import { useDashboard } from '../contexts/DashboardContext';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import Dice from 'react-dice-roll';
+// import Dice from 'react-dice-roll';
+import './Dice3D.css';
+import { Howl } from 'howler';
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+
+// Map dice value to cube rotation (degrees)
+const faceRotations = {
+  1: { x: 0,   y: 0   },    // front
+  2: { x: -90, y: 0   },   // top
+  3: { x: 0,   y: -90 },   // right
+  4: { x: 0,   y: 90  },   // left
+  5: { x: 90,  y: 0   },   // bottom
+  6: { x: 0,   y: 180 },   // back
+};
+
+// Dice roll sound
+const diceSound = new Howl({ src: ['/sounds/dice.mp3'], volume: 0.5 });
+
+function Dice3D({ value, rolling }) {
+  // Animate to the correct face
+  const rotation = faceRotations[value] || faceRotations[1];
+  return (
+    <div className="dice3d-perspective flex justify-center items-center h-32 mb-4">
+      <motion.div
+        className="dice3d-cube"
+        animate={rolling
+          ? { rotateX: [0, 720, rotation.x], rotateY: [0, 720, rotation.y] }
+          : { rotateX: rotation.x, rotateY: rotation.y }
+        }
+        transition={{ duration: rolling ? 1.5 : 0.6, ease: 'easeInOut' }}
+        style={{ width: 96, height: 96 }}
+      >
+        {/* 6 faces */}
+        <div className="dice3d-face dice3d-face-front"><img src="/die-face-1.svg" alt="1" /></div>
+        <div className="dice3d-face dice3d-face-back"><img src="/die-face-6.svg" alt="6" /></div>
+        <div className="dice3d-face dice3d-face-right"><img src="/die-face-3.svg" alt="3" /></div>
+        <div className="dice3d-face dice3d-face-left"><img src="/die-face-4.svg" alt="4" /></div>
+        <div className="dice3d-face dice3d-face-top"><img src="/die-face-2.svg" alt="2" /></div>
+        <div className="dice3d-face dice3d-face-bottom"><img src="/die-face-5.svg" alt="5" /></div>
+      </motion.div>
+    </div>
+  );
+}
 
 export const DiceRoll = () => {
   const { user } = useAuth();
@@ -19,8 +60,8 @@ export const DiceRoll = () => {
   const [isRolling, setIsRolling] = useState(false);
   const [result, setResult] = useState(null); // The rolled number (1-6)
   const [resultMessage, setResultMessage] = useState('');
-  const [diceValue, setDiceValue] = useState(1); // For react-dice-roll
-  const diceRef = useRef();
+  const [diceValue, setDiceValue] = useState(1); // 1-6
+  const [rollingAnim, setRollingAnim] = useState(false);
   const [cheatValue, setCheatValue] = useState(null); // For forcing dice face
   const [pendingResult, setPendingResult] = useState(null); // Store result to roll to
 
@@ -54,6 +95,12 @@ export const DiceRoll = () => {
     setSuppressWalletBalance(true);
     setCheatValue(null); // Reset before roll
     setPendingResult(null);
+    setRollingAnim(true);
+    // --- Play dice sound and sync animation for 1s ---
+    diceSound.stop();
+    diceSound.volume(0.5);
+    diceSound.seek(0);
+    diceSound.play();
     try {
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/dice`,
@@ -64,21 +111,36 @@ export const DiceRoll = () => {
       setResult(roll);
       setPendingResult({ roll, won, winnings, amount });
       setCheatValue(roll); // This will trigger the useEffect below
+      // Animate dice: cycle faces for 1s, then show result
+      let animFrames = 10; // 20 frames at 50ms = 0.5s
+      let frame = 0;
+      const anim = setInterval(() => {
+        setDiceValue(Math.floor(Math.random() * 6) + 1);
+        frame++;
+        if (frame >= animFrames) {
+          clearInterval(anim);
+          setDiceValue(roll);
+          setRollingAnim(false);
+          // Fade out/stop dice sound after 1s
+          if (diceSound.playing()) {
+            diceSound.fade(diceSound.volume(), 0, 200);
+            setTimeout(() => diceSound.stop(), 200);
+          }
+        }
+      }, 50);
     } catch (error) {
       console.error('Dice roll error:', error);
       const errorMessage = error.response?.data?.message || 'Failed to roll dice.';
       toast.error(errorMessage);
       setIsRolling(false);
       setSuppressWalletBalance(false);
+      // Stop sound if error
+      if (diceSound.playing()) {
+        diceSound.fade(diceSound.volume(), 0, 200);
+        setTimeout(() => diceSound.stop(), 200);
+      }
     }
   };
-
-  // Trigger dice roll animation when cheatValue is set
-  useEffect(() => {
-    if (cheatValue && diceRef.current) {
-      diceRef.current.rollDice();
-    }
-  }, [cheatValue]);
 
   // Handle animation end using onRoll
   const handleDiceRollEnd = () => {
@@ -97,25 +159,36 @@ export const DiceRoll = () => {
     }
   };
 
+  // When rollingAnim ends and result is set, finish up
+  useEffect(() => {
+    if (!rollingAnim && isRolling && result) {
+      // Delay to let the final face show
+      setTimeout(() => {
+        setIsRolling(false);
+        setSuppressWalletBalance(false);
+        if (pendingResult) {
+          const { won, winnings, amount } = pendingResult;
+          let messageText = '';
+          if (won) {
+            messageText += `You won ${winnings} points!`;
+          } else {
+            messageText += `You lost ${amount} points.`;
+          }
+          toast[won ? 'success' : 'error'](messageText);
+          setPendingResult(null);
+        }
+      }, 600);
+    }
+  }, [rollingAnim, isRolling, result, pendingResult]);
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] bg-[length:100%_100%] p-0 m-0 relative font-sans" style={{ fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', lineHeight: 1.5 }}>
       <div className="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Dice Roll</h1>
 
         <div className="bg-card rounded-lg shadow-lg p-6 space-y-6 text-center w-full">
-          {/* Dice Animation Area using react-dice-roll */}
-          <div className="flex justify-center items-center h-32 mb-4">
-            <Dice
-              ref={diceRef}
-              defaultValue={1}
-              rollingTime={1000}
-              disabled={isRolling}
-              onRoll={handleDiceRollEnd}
-              size={96}
-              cheatValue={cheatValue}
-              triggers={[]}
-            />
-          </div>
+          {/* Dice Animation Area using Framer Motion */}
+          <Dice3D value={diceValue} rolling={rollingAnim} />
 
           <form onSubmit={handleRoll} className="space-y-4">
             <div>

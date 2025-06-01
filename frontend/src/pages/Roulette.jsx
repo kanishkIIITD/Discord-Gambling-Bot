@@ -11,6 +11,7 @@ import { getUserPreferences } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import Confetti from 'react-confetti';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { Howl } from 'howler';
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
@@ -61,6 +62,9 @@ function useWindowSize() {
   return windowSize;
 }
 
+const coinSound = new Howl({ src: ['/sounds/casino_coins.mp3'], volume: 0.3 });
+const winSound = new Howl({ src: ['/sounds/slots_win.mp3'], volume: 0.4 });
+
 export const Roulette = () => {
   const { user } = useAuth();
   const { walletBalance, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance } = useDashboard();
@@ -104,6 +108,8 @@ export const Roulette = () => {
         toast.error('Insufficient balance for this bet.');
         return prev;
       }
+      coinSound.stop();
+      coinSound.play();
       // Determine payoutScale based on bet type
       let payoutScale = 1;
       if (bet === 'single' && payload && payload.length === 1) {
@@ -192,6 +198,8 @@ export const Roulette = () => {
         setSuppressWalletBalance(false);
         if (totalWinnings > 0) {
           toast.success(`You won ${totalWinnings} points!`);
+          winSound.stop();
+          winSound.play();
         } else {
           toast.error('No win this time!');
         }
@@ -242,6 +250,10 @@ export const Roulette = () => {
   // Store last bets after a spin
   useEffect(() => {
     if (result) {
+      if (result.totalWinnings > 0) {
+        winSound.stop();
+        winSound.play();
+      }
       setLastBets(bets);
     }
     // eslint-disable-next-line

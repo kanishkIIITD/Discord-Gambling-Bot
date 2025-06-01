@@ -2,10 +2,13 @@
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.15",
     "express-session": "^1.18.1",
-    "framer-motion": "^12.12.1",
+    "framer-motion": "^12.15.0",
+    "howler": "^2.2.4",
+    "pixi.js": "^8.9.2",
     "react-confetti": "^6.4.0",
     "react-paginate": "^8.1.5",
-    "react-scrollbars-custom": "^4.1.1"
+    "react-scrollbars-custom": "^4.1.1",
+    "zustand": "^5.0.5"
   },
   "react": "^18.2.0",
   "react-dom": "^18.2.0"
