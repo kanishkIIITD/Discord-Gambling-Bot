@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema({
     {
       type: { type: String, enum: ['fish', 'animal', 'item'], required: true },
       name: { type: String, required: true },
-      rarity: { type: String, enum: ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical'], required: true },
+      rarity: { type: String, enum: ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical', 'transcendent'], required: true },
       value: { type: Number, required: true },
       count: { type: Number, default: 1 }
     }

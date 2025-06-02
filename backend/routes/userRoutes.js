@@ -1153,17 +1153,21 @@ router.post('/:discordId/fish', async (req, res) => {
       // Mythical
       { name: 'Abyssal Serpent', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Timefish of Eternity', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
-      { name: 'Void Whale', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 }
+      { name: 'Void Whale', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+
+      // Transcendent
+      { name: 'Goldfish', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 }
     ];
     
     // Rarity weights
     const rarityRoll = Math.random();
     let rarity = 'common';
-    if (rarityRoll > 0.99) rarity = 'mythical';       // 1%
-    else if (rarityRoll > 0.96) rarity = 'legendary'; // 3%
-    else if (rarityRoll > 0.90) rarity = 'epic';      // 6%
-    else if (rarityRoll > 0.75) rarity = 'rare';      // 15%
-    else if (rarityRoll > 0.50) rarity = 'uncommon';  // 25%
+    if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
+    else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
+    else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
+    else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
+    else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
+    else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%
     // Pick a fish of that rarity
     const options = fishTable.filter(f => f.rarity === rarity);
     const fish = options[Math.floor(Math.random() * options.length)];
@@ -1247,17 +1251,21 @@ router.post('/:discordId/hunt', async (req, res) => {
       // Mythical
       { name: 'Eclipse Dragon', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Spirit of the Forest', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
-      { name: 'Cosmic Thunderbird', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 }
+      { name: 'Cosmic Thunderbird', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+
+      // Transcendent
+      { name: 'Platypus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 }
     ];
     
     // Rarity weights
     const rarityRoll = Math.random();
     let rarity = 'common';
-    if (rarityRoll > 0.99) rarity = 'mythical';       // 1%
-    else if (rarityRoll > 0.96) rarity = 'legendary'; // 3%
-    else if (rarityRoll > 0.90) rarity = 'epic';      // 6%
-    else if (rarityRoll > 0.75) rarity = 'rare';      // 15%
-    else if (rarityRoll > 0.50) rarity = 'uncommon';  // 25%    
+    if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
+    else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
+    else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
+    else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
+    else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
+    else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%   
     // Pick an animal of that rarity
     const options = animalTable.filter(a => a.rarity === rarity);
     const animal = options[Math.floor(Math.random() * options.length)];

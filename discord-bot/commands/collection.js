@@ -9,7 +9,8 @@ const fishRarityEmojis = {
   rare: '🐠',
   epic: '🦑',
   legendary: '🐉',
-  mythical: '🌊'
+  mythical: '🌊',
+  transcendent: '🪙🐟'
 };
 
 const animalRarityEmojis = {
@@ -18,7 +19,8 @@ const animalRarityEmojis = {
   rare: '🦊',
   epic: '🐻',
   legendary: '🦄',
-  mythical: '🌌'
+  mythical: '🌌',
+  transcendent: '🎩🦫'
 };
 
 module.exports = {

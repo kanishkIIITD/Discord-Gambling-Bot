@@ -27,6 +27,9 @@ const flavorTexts = {
   mythical: [
     "🌀 MYTHICAL! You've fished the impossible: a {name}. This moment is historic!",
     "Time stops for a second... The {name} rises from the deep. You are now a legend."
+  ],
+  transcendent: [
+    "✨ Transcendence achieved! You've caught a {name}. The ocean whispers your name."
   ]
 };
 
@@ -37,7 +40,8 @@ const rarityColors = {
   rare: 0x9b59b6,      // Purple
   epic: 0xe67e22,      // Orange (distinct from purple and gold)
   legendary: 0xf1c40f, // Gold
-  mythical: 0x1abc9c   // Turquoise / Cyan for mythical
+  mythical: 0x1abc9c,   // Turquoise / Cyan for mythical
+  transcendent: 0x9c88ff // Light Purple for transcendent
 };
 
 module.exports = {

@@ -27,6 +27,9 @@ const flavorTexts = {
   mythical: [
     "🌀 MYTHICAL! You face the ancient {name} of legend — and win. Tales will be told of this hunt.",
     "Reality blurs... The mythical {name} steps into view. You aim true, and the myth becomes yours."
+  ],
+  transcendent: [
+    "🧬 Scientists debate its existence. Hunters dream of it. You? You caught the {name} with style."
   ]
 };
 
@@ -37,7 +40,8 @@ const rarityColors = {
   rare: 0xe67e22,        // Orange
   epic: 0x9b59b6,        // Purple
   legendary: 0xf1c40f,   // Gold/Yellow
-  mythical: 0x3498db      // Bright Blue (or Cyan-ish for mythical)
+  mythical: 0x3498db,      // Bright Blue (or Cyan-ish for mythical)
+  transcendent: 0x9c88ff // Light Purple for transcendent
 };
 
 module.exports = {
