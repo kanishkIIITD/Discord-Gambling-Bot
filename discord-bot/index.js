@@ -39,6 +39,27 @@ const viewOnlyDuelSubcommands = ['stats'];
 const viewOnlyCrimeSubcommands = ['stats'];
 const viewOnlyWorkSubcommands = ['stats'];
 
+// Parse amount from string to number
+function parseAmount(input) {
+	if (typeof input !== 'string') return NaN;
+
+	const suffixMultipliers = {
+		k: 1_000,
+		m: 1_000_000,
+		b: 1_000_000_000,
+		t: 1_000_000_000_000, // optional for trillions
+	};
+
+	// Updated regex to match numbers with suffixes (k, m, b, t)
+	const match = input.toLowerCase().match(/^(\d+(\.\d+)?)([kmbt])?$/);
+	if (!match) return NaN;
+
+	const number = parseFloat(match[1]);
+	const suffix = match[3];
+
+	return suffix ? number * suffixMultipliers[suffix] : number;
+}
+
 // Add an interaction listener
 client.on('interactionCreate', async interaction => {
 	if (interaction.isAutocomplete()) {
@@ -499,12 +520,12 @@ client.on('interactionCreate', async interaction => {
 				}
 				amount = Math.floor(Math.random() * balance) + 1;
 			} else {
-				amount = parseInt(rawAmount, 10);
+				amount = parseAmount(rawAmount);
 				if (isNaN(amount) || amount <= 0) {
 					const embed = new EmbedBuilder()
 						.setColor(0xff7675)
 						.setTitle('❌ Invalid Amount')
-						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", or "random".')
+						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", "random", or shorthand like "100k", "2.5m", "1b".')
 						.setTimestamp();
 					await interaction.editReply({ embeds: [embed] });
 					return;
@@ -871,12 +892,12 @@ client.on('interactionCreate', async interaction => {
 				}
 				amount = Math.floor(Math.random() * balance) + 1;
 			} else {
-				amount = parseInt(rawAmount, 10);
+				amount = parseAmount(rawAmount);
 				if (isNaN(amount) || amount <= 0) {
 					const embed = new EmbedBuilder()
 						.setColor(0xff7675)
 						.setTitle('❌ Invalid Amount')
-						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", or "random".')
+						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", "random", or shorthand like "100k", "2.5m", "1b".')
 						.setTimestamp();
 					await interaction.editReply({ embeds: [embed] });
 					return;
@@ -1010,12 +1031,12 @@ client.on('interactionCreate', async interaction => {
 				}
 				amount = Math.floor(Math.random() * balance) + 1;
 			} else {
-				amount = parseInt(rawAmount, 10);
+				amount = parseAmount(rawAmount);
 				if (isNaN(amount) || amount <= 0) {
 					const embed = new EmbedBuilder()
 						.setColor(0xff7675)
 						.setTitle('❌ Invalid Amount')
-						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", or "random".')
+						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", "random", or shorthand like "100k", "2.5m", "1b".')
 						.setTimestamp();
 					await interaction.editReply({ embeds: [embed] });
 					return;
@@ -1148,12 +1169,12 @@ client.on('interactionCreate', async interaction => {
 				}
 				amount = Math.floor(Math.random() * balance) + 1;
 			} else {
-				amount = parseInt(rawAmount, 10);
+				amount = parseAmount(rawAmount);
 				if (isNaN(amount) || amount <= 0) {
 					const embed = new EmbedBuilder()
 						.setColor(0xff7675)
 						.setTitle('❌ Invalid Amount')
-						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", or "random".')
+						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", "random", or shorthand like "100k", "2.5m", "1b".')
 						.setTimestamp();
 					await interaction.editReply({ embeds: [embed] });
 					return;
@@ -1299,12 +1320,12 @@ client.on('interactionCreate', async interaction => {
                     }
                     amount = Math.floor(Math.random() * balance) + 1;
                 } else {
-                    amount = parseInt(rawAmount, 10);
+                    amount = parseAmount(rawAmount);
                     if (isNaN(amount) || amount <= 0) {
                         const embed = new EmbedBuilder()
                             .setColor(0xff7675)
                             .setTitle('❌ Invalid Amount')
-                            .setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", or "random".')
+                            .setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", "random", or shorthand like "100k", "2.5m", "1b".')
                             .setTimestamp();
                         await interaction.editReply({ embeds: [embed] });
                         return;
@@ -1470,12 +1491,12 @@ client.on('interactionCreate', async interaction => {
 				}
 				amount = Math.floor(Math.random() * balance) + 1;
 			} else {
-				amount = parseInt(rawAmount, 10);
+				amount = parseAmount(rawAmount);
 				if (isNaN(amount) || amount <= 0) {
 					const embed = new EmbedBuilder()
 						.setColor(0xff7675)
 						.setTitle('❌ Invalid Amount')
-						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", or "random".')
+						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", "random", or shorthand like "100k", "2.5m", "1b".')
 						.setTimestamp();
 					await interaction.editReply({ embeds: [embed] });
 					return;
