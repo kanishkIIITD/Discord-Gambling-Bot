@@ -23,6 +23,12 @@ const animalRarityEmojis = {
   transcendent: '🎩🦫'
 };
 
+const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical', 'transcendent'];
+
+const sortByRarity = (a, b) => {
+  return rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity);
+};
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('collection')
@@ -48,9 +54,9 @@ module.exports = {
         await interaction.editReply({ embeds: [embed] });
         return;
       }
-      // Group by type
-      const fish = inventory.filter(i => i.type === 'fish');
-      const animals = inventory.filter(i => i.type === 'animal');
+      // Group by type and sort by rarity
+      const fish = inventory.filter(i => i.type === 'fish').sort(sortByRarity);
+      const animals = inventory.filter(i => i.type === 'animal').sort(sortByRarity);
       const fields = [];
       // Show buffs if any
       if (buffs.length > 0) {
