@@ -48,9 +48,9 @@ export default function SlotMachine({
 
   function handleReelAnimationComplete(idx) {
     reelDone.current[idx] = true;
-    console.log(`[DEBUG] Reel ${idx + 1} animation complete. reelDone:`, [...reelDone.current]);
+    // console.log(`[DEBUG] Reel ${idx + 1} animation complete. reelDone:`, [...reelDone.current]);
     if (reelDone.current.every(Boolean)) {
-      console.log('[DEBUG] All reels done, calling onAnimationComplete');
+      // console.log('[DEBUG] All reels done, calling onAnimationComplete');
       lastAnimatedSpinKey.current = spinKey;
       setTimeout(() => {
         if (onAnimationComplete) onAnimationComplete();
@@ -80,7 +80,7 @@ export default function SlotMachine({
           const finalY = -((finalIndex - 0) * SYMBOL_HEIGHT);
           // Only animate from top if spinning and spinKey !== lastAnimatedSpinKey.current
           const shouldAnimate = spinning && spinKey !== lastAnimatedSpinKey.current;
-          console.log(`[DEBUG] Reel ${i+1} render: spinKey=${spinKey}, spinning=${spinning}, shouldAnimate=${shouldAnimate}, initial=`, shouldAnimate ? { y: 0 } : { y: finalY }, 'animate=', { y: finalY });
+          {/* console.log(`[DEBUG] Reel ${i+1} render: spinKey=${spinKey}, spinning=${spinning}, shouldAnimate=${shouldAnimate}, initial=`, shouldAnimate ? { y: 0 } : { y: finalY }, 'animate=', { y: finalY }); */}
           return (
             <div
               key={i}

@@ -3,6 +3,24 @@ const axios = require('axios');
 const ResponseHandler = require('../utils/responseHandler');
 const logger = require('../utils/logger');
 
+const fishRarityEmojis = {
+  common: '🐟',
+  uncommon: '🎣',
+  rare: '🐠',
+  epic: '🦑',
+  legendary: '🐉',
+  mythical: '🌊'
+};
+
+const animalRarityEmojis = {
+  common: '🐾',
+  uncommon: '🦃',
+  rare: '🦊',
+  epic: '🐻',
+  legendary: '🦄',
+  mythical: '🌌'
+};
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('collection')
@@ -43,14 +61,14 @@ module.exports = {
       if (fish.length > 0) {
         fields.push({
           name: '🐟 Fish',
-          value: fish.map(f => `**${f.name}** (${f.rarity}, x${f.count}) — ${f.value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`).join('\n'),
+          value: fish.map(f => `**${fishRarityEmojis[f.rarity]} ${f.name}** (${f.rarity}, x${f.count}) — ${f.value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`).join('\n'),
           inline: false
         });
       }
       if (animals.length > 0) {
         fields.push({
           name: '🦌 Animals',
-          value: animals.map(a => `**${a.name}** (${a.rarity}, x${a.count}) — ${a.value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`).join('\n'),
+          value: animals.map(a => `**${animalRarityEmojis[a.rarity]} ${a.name}** (${a.rarity}, x${a.count}) — ${a.value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`).join('\n'),
           inline: false
         });
       }

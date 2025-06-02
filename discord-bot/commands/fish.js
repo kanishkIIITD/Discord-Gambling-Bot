@@ -6,27 +6,38 @@ const logger = require('../utils/logger');
 const flavorTexts = {
   common: [
     "You caught a lively {name}! Not bad for a day's work.",
-    'A wild {name} took the bait. Nice catch!'
+    "A wild {name} took the bait. Nice catch!"
   ],
   uncommon: [
-    'You reel in a feisty {name}! That\'s a good one.',
-    'The water splashes—a {name} is yours!'
+    "You reel in a feisty {name}! That's a good one.",
+    "The water splashes—a {name} is yours!"
   ],
   rare: [
-    'Wow! You landed a rare {name}! Fisherfolk will be jealous.',
-    'A shimmering {name} leaps from the water. What luck!'
+    "Wow! You landed a rare {name}! Fisherfolk will be jealous.",
+    "A shimmering {name} leaps from the water. What luck!"
+  ],
+  epic: [
+    "🌊 EPIC CATCH! The magnificent {name} fights hard but you prevail!",
+    "Your rod bends dangerously... It's an EPIC {name}! Incredible!"
   ],
   legendary: [
-    '🌟 LEGENDARY! The mythical {name} is yours! The whole server is in awe.',
-    'You feel a massive tug... It\'s the legendary {name}! This will be talked about for ages.'
+    "🌟 LEGENDARY! The mythical {name} is yours! The whole server is in awe.",
+    "You feel a massive tug... It's the legendary {name}! This will be talked about for ages."
+  ],
+  mythical: [
+    "🌀 MYTHICAL! You've fished the impossible: a {name}. This moment is historic!",
+    "Time stops for a second... The {name} rises from the deep. You are now a legend."
   ]
 };
 
+
 const rarityColors = {
-  common: 0x3498db,
-  uncommon: 0x27ae60,
-  rare: 0x9b59b6,
-  legendary: 0xf1c40f
+  common: 0x3498db,    // Blue
+  uncommon: 0x27ae60,  // Green
+  rare: 0x9b59b6,      // Purple
+  epic: 0xe67e22,      // Orange (distinct from purple and gold)
+  legendary: 0xf1c40f, // Gold
+  mythical: 0x1abc9c   // Turquoise / Cyan for mythical
 };
 
 module.exports = {

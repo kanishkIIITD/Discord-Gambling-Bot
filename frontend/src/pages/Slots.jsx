@@ -111,7 +111,7 @@ export const Slots = () => {
       spinSound.fade(spinSound.volume(), 0, 300);
       setTimeout(() => spinSound.stop(), 300);
     }
-    console.log('[DEBUG] handleAllReelsAnimationComplete fired');
+    // console.log('[DEBUG] handleAllReelsAnimationComplete fired');
     // Retrieve response data and original bet amount from the ref
     const { won, winnings, isJackpot, freeSpins, usedFreeSpin, winType, amount: betAmountUsed } = responseRef.current || {};
     let messageText = '';
@@ -243,7 +243,7 @@ export const Slots = () => {
             <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={180} recycle={false} />
           )}
           {/* Slot Machine Reels Area */}
-          {console.log('[DEBUG] <SlotMachine /> props:', { spinKey, isSpinning, finalReelSymbols })}
+          {/* {console.log('[DEBUG] <SlotMachine /> props:', { spinKey, isSpinning, finalReelSymbols })} */}
           <SlotMachine
             reels={finalReelSymbols}
             spinning={isSpinning}

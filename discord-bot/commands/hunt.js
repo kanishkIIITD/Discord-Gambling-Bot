@@ -5,28 +5,39 @@ const logger = require('../utils/logger');
 
 const flavorTexts = {
   common: [
-    'You quietly track and catch a {name}. Dinner tonight!',
-    'A {name} crosses your path. Quick and easy.'
+    "You quietly track and catch a {name}. Dinner tonight!",
+    "A {name} crosses your path. Quick and easy."
   ],
   uncommon: [
-    'You spot a clever {name} and manage to catch it. Impressive!',
-    'With patience, you bag a {name}. Nice shot!'
+    "You spot a clever {name} and manage to catch it. Impressive!",
+    "With patience, you bag a {name}. Nice shot!"
   ],
   rare: [
-    'You stalk through the brush and find a rare {name}! What a trophy.',
-    'A {name} appears—rare and beautiful. You claim your prize.'
+    "You stalk through the brush and find a rare {name}! What a trophy.",
+    "A {name} appears—rare and beautiful. You claim your prize."
+  ],
+  epic: [
+    "🦌 EPIC! The elusive {name} emerges from the shadows — a true hunter’s glory.",
+    "The ground trembles as you track the epic {name}. You bring it down with precision!"
   ],
   legendary: [
-    '🌟 LEGENDARY! The fabled {name} stands before you. You succeed where others failed!',
-    'A hush falls as you encounter the legendary {name}. You bring it home in triumph!'
+    "🌟 LEGENDARY! The fabled {name} stands before you. You succeed where others failed!",
+    "A hush falls as you encounter the legendary {name}. You bring it home in triumph!"
+  ],
+  mythical: [
+    "🌀 MYTHICAL! You face the ancient {name} of legend — and win. Tales will be told of this hunt.",
+    "Reality blurs... The mythical {name} steps into view. You aim true, and the myth becomes yours."
   ]
 };
 
+
 const rarityColors = {
-  common: 0x95a5a6,
-  uncommon: 0x27ae60,
-  rare: 0xe67e22,
-  legendary: 0xf1c40f
+  common: 0x95a5a6,      // Grayish
+  uncommon: 0x27ae60,    // Green
+  rare: 0xe67e22,        // Orange
+  epic: 0x9b59b6,        // Purple
+  legendary: 0xf1c40f,   // Gold/Yellow
+  mythical: 0x3498db      // Bright Blue (or Cyan-ish for mythical)
 };
 
 module.exports = {
