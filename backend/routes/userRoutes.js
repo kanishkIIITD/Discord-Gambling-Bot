@@ -1325,6 +1325,7 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'The One Who Hunts', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Spirit of Gaia', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Primal Harmony', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'T-Rex', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
     ];
     
     // Rarity weights

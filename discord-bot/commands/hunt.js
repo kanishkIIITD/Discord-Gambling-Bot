@@ -44,7 +44,9 @@ const flavorTexts = {
     "🧬 Scientists debate its existence. Hunters dream of it. You? You caught the {name} with style.",
     "🌌 The universe holds its breath. The {name} has fallen to you.",
     "You've done the impossible. The {name} was never meant to be caught.",
-    "You hunted a being of pure essence: the {name}. You are no longer just human."
+    "You hunted a being of pure essence: the {name}. You are no longer just human.",
+    "🌍 Time bends. A T-Rex charges through dimensions. You don't run. You win.",
+    "🦖 Transcendence achieved! You hunted a T-Rex. No one will believe this actually happened."
   ]
 };
 

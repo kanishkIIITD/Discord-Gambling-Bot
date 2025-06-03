@@ -64,6 +64,7 @@ function useWindowSize() {
 
 const coinSound = new Howl({ src: ['/sounds/casino_coins.mp3'], volume: 0.3 });
 const winSound = new Howl({ src: ['/sounds/slots_win.mp3'], volume: 0.4 });
+const rouletteSpinSound = new Howl({ src: ['/sounds/roulette_spin.mp3'], volume: 0.5, loop: true });
 
 export const Roulette = () => {
   const { user } = useAuth();
@@ -96,6 +97,20 @@ export const Roulette = () => {
     };
     fetchPrefs();
   }, [user]);
+
+  // Play/stop roulette spin sound when spinning changes
+  useEffect(() => {
+    if (spinning) {
+      rouletteSpinSound.stop(); // Ensure no overlap
+      rouletteSpinSound.play();
+    } else {
+      rouletteSpinSound.stop();
+    }
+    // Cleanup on unmount
+    return () => {
+      rouletteSpinSound.stop();
+    };
+  }, [spinning]);
 
   // Handle placing a chip on the table
   const handleBet = (betData) => {
