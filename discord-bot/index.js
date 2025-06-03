@@ -1856,14 +1856,14 @@ client.on('interactionCreate', async interaction => {
                 embed = {
                     color: 0x0099ff,
                     title: '🎮 Gambling Commands',
-                    description: 'Casino-style games and gambling commands.',
+                    description: 'Casino-style games and gambling commands. **Amount can be a number or one of: allin, half, quarter, third, random**',
                     fields: [
                         { name: 'Gambling', value:
-                            '`/coinflip` - Flip a coin and bet on the outcome. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
-                            '`/dice` - Roll dice and bet on the outcome. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
-                            '`/slots` - Play the slot machine. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
-                            '`/blackjack` - Play blackjack. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
-                            '`/roulette` - Play roulette. **Amount can be a number or one of: allin, half, quarter, third, random**\n' +
+                            '`/coinflip` - Flip a coin and bet on the outcome.\n' +
+                            '`/dice` - Roll dice and bet on the outcome.\n' +
+                            '`/slots` - Play the slot machine.\n' +
+                            '`/blackjack` - Play blackjack.\n' +
+                            '`/roulette` - Play roulette.\n' +
                             '`/jackpot` - View or contribute to the jackpot'
                         }
                     ],
@@ -2175,7 +2175,109 @@ client.on('interactionCreate', async interaction => {
 		try {
 			await interaction.deferReply();
 			const recipient = interaction.options.getUser('user');
-			const amount = interaction.options.getInteger('amount');
+			let rawAmount = interaction.options.getString('amount');
+			if (rawAmount === null || rawAmount === undefined) {
+				const intAmount = interaction.options.getInteger('amount');
+				if (intAmount !== null && intAmount !== undefined) {
+					rawAmount = intAmount.toString();
+				}
+			}
+			let amount;
+			if (rawAmount && rawAmount.toLowerCase() === 'allin') {
+				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const balance = walletResponse.data.balance;
+				if (!balance || balance <= 0) {
+					const embed = new EmbedBuilder()
+						.setColor(0xff7675)
+						.setTitle('❌ All In Failed')
+						.setDescription('You have no points to go all in with!')
+						.setTimestamp();
+					await interaction.editReply({ embeds: [embed] });
+					return;
+				}
+				amount = balance;
+			} else if (rawAmount && rawAmount.toLowerCase() === 'half') {
+				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const balance = walletResponse.data.balance;
+				if (!balance || balance <= 0) {
+					const embed = new EmbedBuilder()
+						.setColor(0xff7675)
+						.setTitle('❌ Half Failed')
+						.setDescription('You have no points to bet half!')
+						.setTimestamp();
+					await interaction.editReply({ embeds: [embed] });
+					return;
+				}
+				amount = Math.floor(balance / 2);
+				if (amount < 1) amount = 1;
+			} else if (rawAmount && rawAmount.toLowerCase() === 'quarter') {
+				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const balance = walletResponse.data.balance;
+				if (!balance || balance <= 0) {
+					const embed = new EmbedBuilder()
+						.setColor(0xff7675)
+						.setTitle('❌ Quarter Failed')
+						.setDescription('You have no points to bet a quarter!')
+						.setTimestamp();
+					await interaction.editReply({ embeds: [embed] });
+					return;
+				}
+				amount = Math.floor(balance / 4);
+				if (amount < 1) amount = 1;
+			} else if (rawAmount && rawAmount.toLowerCase() === 'third') {
+				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const balance = walletResponse.data.balance;
+				if (!balance || balance <= 0) {
+					const embed = new EmbedBuilder()
+						.setColor(0xff7675)
+						.setTitle('❌ Third Failed')
+						.setDescription('You have no points to bet a third!')
+						.setTimestamp();
+					await interaction.editReply({ embeds: [embed] });
+					return;
+				}
+				amount = Math.floor(balance / 3);
+				if (amount < 1) amount = 1;
+			} else if (rawAmount && rawAmount.toLowerCase() === 'random') {
+				const walletResponse = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const balance = walletResponse.data.balance;
+				if (!balance || balance <= 0) {
+					const embed = new EmbedBuilder()
+						.setColor(0xff7675)
+						.setTitle('❌ Random Failed')
+						.setDescription('You have no points to bet randomly!')
+						.setTimestamp();
+					await interaction.editReply({ embeds: [embed] });
+					return;
+				}
+				amount = Math.floor(Math.random() * balance) + 1;
+			} else {
+				amount = parseAmount(rawAmount);
+				if (isNaN(amount) || amount <= 0) {
+					const embed = new EmbedBuilder()
+						.setColor(0xff7675)
+						.setTitle('❌ Invalid Amount')
+						.setDescription('Please enter a valid amount greater than 0, or use "allin", "half", "quarter", "third", "random", or shorthand like "100k", "2.5m", "1b".')
+						.setTimestamp();
+					await interaction.editReply({ embeds: [embed] });
+					return;
+				}
+			}
 			const response = await axios.post(`${backendApiUrl}/users/${userId}/gift`, {
 				recipientDiscordId: recipient.id,
 				amount

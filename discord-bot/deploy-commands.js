@@ -204,7 +204,7 @@ const commands = [
 			{
 				name: 'amount',
 				description: 'The amount of points to gift.',
-				type: ApplicationCommandOptionType.Integer,
+				type: ApplicationCommandOptionType.String,
 				required: true,
 			},
 		],

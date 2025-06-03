@@ -6,42 +6,57 @@ const logger = require('../utils/logger');
 const flavorTexts = {
   common: [
     "You quietly track and catch a {name}. Dinner tonight!",
-    "A {name} crosses your path. Quick and easy."
+    "A {name} crosses your path. Quick and easy.",
+    "Your footsteps are silent… the {name} never saw it coming.",
+    "This {name} was no match for your instincts."
   ],
   uncommon: [
     "You spot a clever {name} and manage to catch it. Impressive!",
-    "With patience, you bag a {name}. Nice shot!"
+    "With patience, you bag a {name}. Nice shot!",
+    "The {name} puts up a chase, but you claim the prize.",
+    "You outwit the wily {name}. Well played!"
   ],
   rare: [
     "You stalk through the brush and find a rare {name}! What a trophy.",
-    "A {name} appears—rare and beautiful. You claim your prize."
+    "A {name} appears—rare and beautiful. You claim your prize.",
+    "A rare {name} crosses your sights. You act with precision.",
+    "Not every hunter gets to see a {name}... but you do."
   ],
   epic: [
     "🦌 EPIC! The elusive {name} emerges from the shadows — a true hunter’s glory.",
-    "The ground trembles as you track the epic {name}. You bring it down with precision!"
+    "The ground trembles as you track the epic {name}. You bring it down with precision!",
+    "An epic hunt ends in triumph. The {name} is yours!",
+    "The {name} stares into your soul before the final clash. You win."
   ],
   legendary: [
     "🌟 LEGENDARY! The fabled {name} stands before you. You succeed where others failed!",
-    "A hush falls as you encounter the legendary {name}. You bring it home in triumph!"
+    "A hush falls as you encounter the legendary {name}. You bring it home in triumph!",
+    "Stories warned of the {name}... You just made one real.",
+    "A once-in-a-lifetime moment: the legendary {name} is down!"
   ],
   mythical: [
     "🌀 MYTHICAL! You face the ancient {name} of legend — and win. Tales will be told of this hunt.",
-    "Reality blurs... The mythical {name} steps into view. You aim true, and the myth becomes yours."
+    "Reality blurs... The mythical {name} steps into view. You aim true, and the myth becomes yours.",
+    "From beyond the veil, the {name} appears. Your name joins the legends.",
+    "A beast of dreams, the {name} yields only to a true hunter."
   ],
   transcendent: [
-    "🧬 Scientists debate its existence. Hunters dream of it. You? You caught the {name} with style."
+    "🧬 Scientists debate its existence. Hunters dream of it. You? You caught the {name} with style.",
+    "🌌 The universe holds its breath. The {name} has fallen to you.",
+    "You've done the impossible. The {name} was never meant to be caught.",
+    "You hunted a being of pure essence: the {name}. You are no longer just human."
   ]
 };
 
 
 const rarityColors = {
-  common: 0x95a5a6,      // Grayish
-  uncommon: 0x27ae60,    // Green
-  rare: 0xe67e22,        // Orange
-  epic: 0x9b59b6,        // Purple
-  legendary: 0xf1c40f,   // Gold/Yellow
-  mythical: 0x3498db,      // Bright Blue (or Cyan-ish for mythical)
-  transcendent: 0x9c88ff // Light Purple for transcendent
+  common: 0x95a5a6,        // Gray
+  uncommon: 0x2ecc71,      // Green
+  rare: 0x3498db,          // Blue
+  epic: 0x9b59b6,          // Purple
+  legendary: 0xf1c40f,     // Gold
+  mythical: 0xe67e22,      // Orange
+  transcendent: 0xFFFFFF   // White
 };
 
 module.exports = {

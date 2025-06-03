@@ -6,42 +6,58 @@ const logger = require('../utils/logger');
 const flavorTexts = {
   common: [
     "You caught a lively {name}! Not bad for a day's work.",
-    "A wild {name} took the bait. Nice catch!"
+    "A wild {name} took the bait. Nice catch!",
+    "You snagged a humble {name}. A decent haul for any angler.",
+    "Nothing fancy, but this {name} will do just fine."
   ],
   uncommon: [
     "You reel in a feisty {name}! That's a good one.",
-    "The water splashes—a {name} is yours!"
+    "The water splashes—a {name} is yours!",
+    "You hooked a spirited {name}. Things are heating up!",
+    "Not rare, but this {name} put up a solid fight."
   ],
   rare: [
     "Wow! You landed a rare {name}! Fisherfolk will be jealous.",
-    "A shimmering {name} leaps from the water. What luck!"
+    "A shimmering {name} leaps from the water. What luck!",
+    "This {name} isn't seen every day — great pull!",
+    "A glint beneath the surface… it's a rare {name}!"
   ],
   epic: [
     "🌊 EPIC CATCH! The magnificent {name} fights hard but you prevail!",
-    "Your rod bends dangerously... It's an EPIC {name}! Incredible!"
+    "Your rod bends dangerously... It's an EPIC {name}! Incredible!",
+    "The sea churns as the epic {name} surfaces. You tame the tides!",
+    "An epic battle ends in your favor. The {name} is yours!"
   ],
   legendary: [
     "🌟 LEGENDARY! The mythical {name} is yours! The whole server is in awe.",
-    "You feel a massive tug... It's the legendary {name}! This will be talked about for ages."
+    "You feel a massive tug... It's the legendary {name}! This will be talked about for ages.",
+    "Old sailors speak of the {name}—and now it's in your hands.",
+    "A timeless tale now belongs to you. The legendary {name} is real!"
   ],
   mythical: [
     "🌀 MYTHICAL! You've fished the impossible: a {name}. This moment is historic!",
-    "Time stops for a second... The {name} rises from the deep. You are now a legend."
+    "Time stops for a second... The {name} rises from the deep. You are now a legend.",
+    "Legends whisper of the {name}. Now it whispers back to *you*.",
+    "Reality flickers as the mythical {name} surfaces. Are you dreaming?"
   ],
   transcendent: [
-    "✨ Transcendence achieved! You've caught a {name}. The ocean whispers your name."
+    "✨ TRANSCENDENCE! You've caught the {name}. The ocean itself bows in reverence.",
+    "Beyond rarity, beyond reason—the {name} is now yours. You are eternal.",
+    "🌌 The stars ripple as you reel in the transcendent {name}. Are you even mortal?",
+    "You didn't just fish. You rewrote destiny with the {name}."
   ]
 };
 
 
+
 const rarityColors = {
-  common: 0x3498db,    // Blue
-  uncommon: 0x27ae60,  // Green
-  rare: 0x9b59b6,      // Purple
-  epic: 0xe67e22,      // Orange (distinct from purple and gold)
-  legendary: 0xf1c40f, // Gold
-  mythical: 0x1abc9c,   // Turquoise / Cyan for mythical
-  transcendent: 0x9c88ff // Light Purple for transcendent
+  common: 0x95a5a6,        // Gray
+  uncommon: 0x2ecc71,      // Green
+  rare: 0x3498db,          // Blue
+  epic: 0x9b59b6,          // Purple
+  legendary: 0xf1c40f,     // Gold
+  mythical: 0xe67e22,      // Orange
+  transcendent: 0xFFFFFF   // White
 };
 
 module.exports = {

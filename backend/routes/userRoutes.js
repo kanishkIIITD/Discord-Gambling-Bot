@@ -1126,37 +1126,73 @@ router.post('/:discordId/fish', async (req, res) => {
       { name: 'Perch', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Bluegill', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Tilapia', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Sardine', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Anchovy', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Goby', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Smelt', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Mudfish', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
     
       // Uncommon
       { name: 'Bass', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Catfish', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Pike', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Trout', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Snapper', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Mullet', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Rockfish', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Grouper', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Drumfish', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
     
       // Rare
       { name: 'Salmon', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Sturgeon', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Eel', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Swordfish', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Wahoo', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Barracuda', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Tarpon', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Halibut', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'King Mackerel', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
     
       // Epic
       { name: 'Mahi-Mahi', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Giant Squid', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Electric Ray', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Blue Marlin', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Opah', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Fire Eel', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Ghost Shark', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Aurora Flounder', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      
     
       // Legendary
       { name: 'Golden Koi', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
       { name: 'Ancient Leviathan', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
       { name: 'Celestial Angelfish', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
       { name: 'Kraken', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Leviathan Pike', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Infernal Barramundi', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Stormscale Tuna', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Shadowfin Orca', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Prism Jellyfish', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
     
       // Mythical
       { name: 'Abyssal Serpent', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Timefish of Eternity', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Void Whale', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Chrono Trout', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Dreamscale Eel', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Aetherfin Serpent', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Starspawn Octopus', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Realityray', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
 
       // Transcendent
-      { name: 'Goldfish', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 }
+        { name: 'Goldfish', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+        { name: 'Infinity Carp', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+        { name: 'Omnifin', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+        { name: 'Godscale Dragonfish', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+        { name: 'Quantum Koi', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+        { name: 'Time-Tide Leviathan', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
     ];
     
     // Rarity weights
@@ -1223,6 +1259,11 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Squirrel', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Pigeon', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Hedgehog', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Chipmunk', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Mole', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Toad', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Crow', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Duck', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
     
       // Uncommon
       { name: 'Fox', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
@@ -1230,31 +1271,60 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Owl', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Skunk', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Coyote', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Badger', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Porcupine', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Weasel', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Hyena', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Falcon', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
     
       // Rare
       { name: 'Deer', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Boar', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Hawk', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Lynx', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Puma', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Jackal', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Red Deer', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Horned Owl', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Panther', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
     
       // Epic
       { name: 'Bear', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Dire Wolf', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Thunder Elk', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Ice Bear', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Shadow Wolf', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Ember Lion', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Iron Boar', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Tempest Owl', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
     
       // Legendary
       { name: 'White Stag', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
       { name: 'Mythic Phoenix', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
       { name: 'Griffin', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
       { name: 'Celestial Tiger', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Ghost Elk', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
+      { name: 'Crimson Griffin', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Eternal Lion', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Storm Raven', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Phantom Jaguar', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
     
       // Mythical
       { name: 'Eclipse Dragon', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Spirit of the Forest', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Cosmic Thunderbird', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Void Stag', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Phoenix Lynx', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Cosmic Chimera', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Aether Drake', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Forest Sentinel', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
 
       // Transcendent
-      { name: 'Platypus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 }
+      { name: 'Platypus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Dimensional Alpaca', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'The One Who Hunts', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Spirit of Gaia', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Primal Harmony', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
     ];
     
     // Rarity weights
