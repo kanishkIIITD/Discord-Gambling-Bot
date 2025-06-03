@@ -67,19 +67,31 @@ module.exports = {
         });
       }
       if (fish.length > 0) {
-        fields.push({
-          name: '🐟 Fish',
-          value: fish.map(f => `**${fishRarityEmojis[f.rarity]} ${f.name}** (${f.rarity}, x${f.count}) — ${f.value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`).join('\n'),
-          inline: false
-        });
+        for (const rarity of rarityOrder) {
+          const filtered = fish.filter(f => f.rarity === rarity);
+          if (filtered.length > 0) {
+            fields.push({
+              name: `🐟 Fish — ${rarity.charAt(0).toUpperCase() + rarity.slice(1)}`,
+              value: filtered.map(f => `**${fishRarityEmojis[rarity]} ${f.name}** (x${f.count}) — ${f.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points`).join('\n'),
+              inline: false
+            });
+          }
+        }
       }
+      
       if (animals.length > 0) {
-        fields.push({
-          name: '🦌 Animals',
-          value: animals.map(a => `**${animalRarityEmojis[a.rarity]} ${a.name}** (${a.rarity}, x${a.count}) — ${a.value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`).join('\n'),
-          inline: false
-        });
+        for (const rarity of rarityOrder) {
+          const filtered = animals.filter(a => a.rarity === rarity);
+          if (filtered.length > 0) {
+            fields.push({
+              name: `🦌 Animals — ${rarity.charAt(0).toUpperCase() + rarity.slice(1)}`,
+              value: filtered.map(a => `**${animalRarityEmojis[rarity]} ${a.name}** (x${a.count}) — ${a.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points`).join('\n'),
+              inline: false
+            });
+          }
+        }
       }
+      
       const embed = {
         color: 0x2ecc71,
         title: '🎒 Your Collection',
