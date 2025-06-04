@@ -588,6 +588,27 @@ client.on('interactionCreate', async interaction => {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const resolvedBet = response.data.bet;
+
+            // Fetch placed bets for this bet
+            let placedBets = [];
+            try {
+                const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`, {
+                    params: { guildId: interaction.guildId },
+                    headers: { 'x-guild-id': interaction.guildId }
+                });
+                placedBets = placedBetsResponse.data.data;
+            } catch (err) {
+                // If this fails, just show no placed bets
+                placedBets = [];
+            }
+            const totalPot = placedBets.reduce((sum, placedBet) => sum + placedBet.amount, 0);
+            const betsByOption = placedBets.reduce((acc, placedBet) => {
+                acc[placedBet.option] = (acc[placedBet.option] || 0) + placedBet.amount;
+                return acc;
+            }, {});
+            const winnerPot = betsByOption[resolvedBet.winningOption] || 0;
+            const payoutRate = winnerPot > 0 ? (totalPot / winnerPot) : 0;
+
 			const embed = new EmbedBuilder()
 				.setColor(0x6c5ce7)
 				.setTitle('🏁 Bet Resolved!')
@@ -595,7 +616,10 @@ client.on('interactionCreate', async interaction => {
 				.addFields(
 					{ name: 'Bet ID', value: resolvedBet._id, inline: true },
 					{ name: 'Winning Option', value: resolvedBet.winningOption, inline: true },
-					{ name: 'Resolved by', value: `${interaction.user.username} (<@${userId}>)`, inline: true }
+					{ name: 'Resolved by', value: `${interaction.user.username} (<@${userId}>)`, inline: true },
+                    { name: 'Total Pot', value: `${totalPot.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: false },
+                    { name: 'Bets Per Option', value: Object.entries(betsByOption).map(([option, amount]) => `**${option}:** ${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`).join('\n') || 'No bets placed yet', inline: false },
+                    { name: 'Payout Rate', value: winnerPot > 0 ? `1 : ${payoutRate.toFixed(2)}` : 'No winners', inline: false }
 				)
 				.setTimestamp();
 
