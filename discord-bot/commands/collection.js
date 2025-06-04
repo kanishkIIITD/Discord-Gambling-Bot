@@ -3,6 +3,18 @@ const axios = require('axios');
 const ResponseHandler = require('../utils/responseHandler');
 const logger = require('../utils/logger');
 
+const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical', 'transcendent'];
+
+const rarityEmojis = {
+  common: '⚪',
+  uncommon: '🟢',
+  rare: '🔵',
+  epic: '🟣',
+  legendary: '🟡',
+  mythical: '🟠',
+  transcendent: '🌟'
+};
+
 const fishRarityEmojis = {
   common: '🐟', uncommon: '🎣', rare: '🐠',
   epic: '🦑', legendary: '🐉', mythical: '🌊', transcendent: '🪙🐟'
@@ -13,27 +25,31 @@ const animalRarityEmojis = {
   epic: '🐻', legendary: '🦄', mythical: '🌌', transcendent: '🎩🦫'
 };
 
-const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical', 'transcendent'];
-const sortByRarity = (a, b) => rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity);
+const rarityColors = {
+  common: 0x95a5a6,
+  uncommon: 0x2ecc71,
+  rare: 0x3498db,
+  epic: 0x9b59b6,
+  legendary: 0xf1c40f,
+  mythical: 0xe67e22,
+  transcendent: 0xffffff
+};
 
-// Helper to split long embed values into multiple fields
 function splitIntoFields(title, fullText) {
   const chunks = [];
   let current = '';
-
-  for (const line of fullText.split('\n')) {
-    if ((current + '\n' + line).length > 1024) {
+  const lines = fullText.split('\n').filter(Boolean);
+  for (const line of lines) {
+    if ((current + '\n' + line).length > 1000) {
       chunks.push({ name: title, value: current.trim(), inline: false });
       current = line;
     } else {
-      current += '\n' + line;
+      current += (current ? '\n' : '') + line;
     }
   }
-
   if (current) {
     chunks.push({ name: title, value: current.trim(), inline: false });
   }
-
   return chunks;
 }
 
@@ -50,48 +66,46 @@ module.exports = {
       const guildId = interaction.guildId;
       const backendUrl = process.env.BACKEND_API_URL;
       const response = await axios.get(`${backendUrl}/users/${userId}/collection`, {
-        params: { guildId }, headers: { 'x-guild-id': guildId }
+        params: { guildId },
+        headers: { 'x-guild-id': guildId }
       });
 
       const inventory = response.data.inventory || [];
       const buffs = response.data.buffs || [];
 
-      const fish = inventory.filter(i => i.type === 'fish').sort(sortByRarity);
-      const animals = inventory.filter(i => i.type === 'animal').sort(sortByRarity);
-
       const pages = [];
 
-      // Page 1 - Fish
-      const fishText = fish.map(f =>
-        `**${fishRarityEmojis[f.rarity]} ${f.name}** (${f.rarity}, x${f.count}) — ${f.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts`
-      ).join('\n') || 'You have no fish. Try `/fish`!';
-      const fishFields = splitIntoFields('🐟 Fish', fishText);
-      pages.push({
-        color: 0x3498db,
-        title: '🎒 Your Collection — Fish',
-        fields: fishFields,
-        footer: { text: `Requested by ${interaction.user.tag}` },
-        timestamp: new Date()
-      });
+      for (const rarity of rarityOrder) {
+        const fish = inventory.filter(i => i.rarity === rarity && i.type === 'fish');
+        const animals = inventory.filter(i => i.rarity === rarity && i.type === 'animal');
 
-      // Page 2 - Animals
-      const animalText = animals.map(a =>
-        `**${animalRarityEmojis[a.rarity]} ${a.name}** (${a.rarity}, x${a.count}) — ${a.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts`
-      ).join('\n') || 'You have no animals. Try `/hunt`!';
-      const animalFields = splitIntoFields('🦌 Animals', animalText);
-      pages.push({
-        color: 0xe67e22,
-        title: '🎒 Your Collection — Animals',
-        fields: animalFields,
-        footer: { text: `Requested by ${interaction.user.tag}` },
-        timestamp: new Date()
-      });
+        if (fish.length === 0 && animals.length === 0) continue;
 
-      // Page 3 - Buffs
+        const fishLines = fish.map(f =>
+          `**${fishRarityEmojis[f.rarity] || ''} ${f.name}** (x${f.count}) — ${f.value.toLocaleString(undefined, { minimumFractionDigits: 2 })} pts`
+        );
+        const animalLines = animals.map(a =>
+          `**${animalRarityEmojis[a.rarity] || ''} ${a.name}** (x${a.count}) — ${a.value.toLocaleString(undefined, { minimumFractionDigits: 2 })} pts`
+        );
+
+        const combinedText = [...fishLines, ...animalLines].sort().join('\n') || 'Nothing collected yet.';
+        const fields = splitIntoFields(`${rarityEmojis[rarity]} ${rarity.charAt(0).toUpperCase() + rarity.slice(1)}`, combinedText);
+
+        pages.push({
+          color: rarityColors[rarity] || 0x0099ff,
+          title: `🎒 Your Collection — ${rarity.charAt(0).toUpperCase() + rarity.slice(1)}`,
+          fields,
+          footer: { text: `Requested by ${interaction.user.tag}` },
+          timestamp: new Date()
+        });
+      }
+
+      // Buffs page (last)
       const buffsText = buffs.map(b =>
         `**${b.description}**${b.expiresAt ? ` (expires <t:${Math.floor(new Date(b.expiresAt).getTime() / 1000)}:R>)` : ''}${b.usesLeft ? ` (uses left: ${b.usesLeft})` : ''}`
       ).join('\n') || 'You have no active buffs.';
       const buffsFields = splitIntoFields('🧪 Active Buffs', buffsText);
+
       pages.push({
         color: 0x9b59b6,
         title: '🎒 Your Collection — Active Buffs',
@@ -155,4 +169,3 @@ module.exports = {
     }
   }
 };
-

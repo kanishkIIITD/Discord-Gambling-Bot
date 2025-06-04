@@ -1916,6 +1916,7 @@ client.on('interactionCreate', async interaction => {
                             '`/hunt` - Go hunting for a chance to catch a rare animal!\n' +
                             '`/collection` - View your fishing and hunting collection\n' +
                             '`/collection-leaderboard` - View the top collectors by collection value\n' +
+														'`/collection-list` - View all possible fish and animal names in the collection\n' +
                             '`/sell` - Sell an item from your collection for points\n' +
                             '`/trade` - Gift or trade an item from your collection to another user\n' +
                             '`/beg` - Beg for coins and see what happens!\n' +
