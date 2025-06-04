@@ -14,6 +14,7 @@ const duelCommand = require('./commands/duel');
 const begCommand = require('./commands/beg');
 const mysteryboxCommand = require('./commands/mysterybox');
 const bailCommand = require('./commands/bail');
+const collectionListCommand = require('./commands/collectionList');
 
 const backendApiUrl = process.env.BACKEND_API_URL;
 
@@ -2301,6 +2302,8 @@ client.on('interactionCreate', async interaction => {
 				.setTimestamp()
 			);
 		}
+	} else if (commandName === 'collection-list') {
+		await collectionListCommand.execute(interaction);
 	}
 
 	// --- Handle duel accept/decline buttons ---

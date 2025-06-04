@@ -518,7 +518,8 @@ const commands = [
 							{ name: 'Barista', value: 'barista' },
 							{ name: 'Construction Worker', value: 'construction worker' },
 							{ name: 'Social Media Influencer', value: 'social media influencer' },
-							{ name: 'Private Investigator', value: 'private investigator' }
+							{ name: 'Private Investigator', value: 'private investigator' },
+							{ name: 'Collector', value: 'collector' }
 						]
 					}
 				]
@@ -701,6 +702,10 @@ const commands = [
 				required: false
 			}
 		]
+	},
+	{
+		name: 'collection-list',
+		description: 'View all possible fish and animal names in the collection.'
 	},
 ];
 
