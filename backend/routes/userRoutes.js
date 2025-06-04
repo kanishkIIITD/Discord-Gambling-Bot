@@ -938,7 +938,8 @@ router.post('/:discordId/work', async (req, res) => {
       'barista',
       'construction worker',
       'social media influencer',
-      'private investigator'
+      'private investigator',
+      'collector'
     ];
     let job = req.body.job;
     if (!job || !jobs.includes(job)) {
@@ -960,6 +961,7 @@ router.post('/:discordId/work', async (req, res) => {
       case 'construction worker': bonusMsg = 'You found a rare artifact!'; break;
       case 'social media influencer': bonusMsg = 'A brand sponsored your post!'; break;
       case 'private investigator': bonusMsg = 'You solved a cold case!'; break;
+      case 'collector': bonusMsg = 'You discovered a priceless relic!'; break;
     }
     let amount = Math.floor(Math.random() * (baseMax - baseMin + 1)) + baseMin;
     let rare = false;
@@ -1287,6 +1289,8 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Red Deer', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Horned Owl', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Panther', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Raven', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Parrot', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
     
       // Epic
       { name: 'Bear', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
@@ -1297,6 +1301,7 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Ember Lion', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Iron Boar', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Tempest Owl', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Peacock', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
     
       // Legendary
       { name: 'White Stag', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
@@ -1318,6 +1323,7 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Cosmic Chimera', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Aether Drake', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Forest Sentinel', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Odins Raven', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
 
       // Transcendent
       { name: 'Platypus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
@@ -1326,6 +1332,8 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Spirit of Gaia', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Primal Harmony', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'T-Rex', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Hammy the Hamster', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Yuri Lotbok', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
     ];
     
     // Rarity weights

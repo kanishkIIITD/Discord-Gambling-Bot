@@ -13,7 +13,8 @@ const jobs = [
   'barista',
   'construction worker',
   'social media influencer',
-  'private investigator'
+  'private investigator',
+  'collector'
 ];
 
 module.exports = {
