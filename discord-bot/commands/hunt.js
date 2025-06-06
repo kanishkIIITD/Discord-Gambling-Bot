@@ -58,7 +58,7 @@ const rarityColors = {
   epic: 0x9b59b6,          // Purple
   legendary: 0xf1c40f,     // Gold
   mythical: 0xe67e22,      // Orange
-  transcendent: 0xFFFFFF   // White
+  transcendent: 0xFF1493   // Pink
 };
 
 module.exports = {

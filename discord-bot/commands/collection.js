@@ -32,7 +32,7 @@ const rarityColors = {
   epic: 0x9b59b6,
   legendary: 0xf1c40f,
   mythical: 0xe67e22,
-  transcendent: 0xffffff
+  transcendent: 0xFF1493
 };
 
 function splitIntoFields(title, fullText) {
