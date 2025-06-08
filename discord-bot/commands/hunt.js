@@ -8,37 +8,67 @@ const flavorTexts = {
     "You quietly track and catch a {name}. Dinner tonight!",
     "A {name} crosses your path. Quick and easy.",
     "Your footsteps are silent… the {name} never saw it coming.",
-    "This {name} was no match for your instincts."
+    "This {name} was no match for your instincts.",
+    // New
+    "Another day, another {name}. The wild provides.",
+    "You pounce with precision — the {name} had no chance.",
+    "A quick catch. The {name} barely noticed your presence.",
+    "The {name} wanders too close. Bad move."
   ],
   uncommon: [
     "You spot a clever {name} and manage to catch it. Impressive!",
     "With patience, you bag a {name}. Nice shot!",
     "The {name} puts up a chase, but you claim the prize.",
-    "You outwit the wily {name}. Well played!"
+    "You outwit the wily {name}. Well played!",
+    // New
+    "The {name} bolts, but you're quicker.",
+    "A tricky one, but the {name} is yours.",
+    "You make the shot — clean and swift. {name} is down.",
+    "The {name} sensed danger, just not fast enough."
   ],
   rare: [
     "You stalk through the brush and find a rare {name}! What a trophy.",
     "A {name} appears—rare and beautiful. You claim your prize.",
     "A rare {name} crosses your sights. You act with precision.",
-    "Not every hunter gets to see a {name}... but you do."
+    "Not every hunter gets to see a {name}... but you do.",
+    // New
+    "Your patience pays off — a rare {name} stands before you.",
+    "The {name} hesitates for a second. That’s all you need.",
+    "They say only the best see a {name}... you're living proof.",
+    "A glint in the trees — it's the elusive {name}. You act instantly."
   ],
   epic: [
     "🦌 EPIC! The elusive {name} emerges from the shadows — a true hunter’s glory.",
     "The ground trembles as you track the epic {name}. You bring it down with precision!",
     "An epic hunt ends in triumph. The {name} is yours!",
-    "The {name} stares into your soul before the final clash. You win."
+    "The {name} stares into your soul before the final clash. You win.",
+    // New
+    "This is what legends are made of — the epic {name} falls to your skill.",
+    "The {name} charges. You don’t flinch.",
+    "A thrilling chase ends in silence. The {name} is yours.",
+    "You're no longer hunting... you're writing history with the {name}."
   ],
   legendary: [
     "🌟 LEGENDARY! The fabled {name} stands before you. You succeed where others failed!",
     "A hush falls as you encounter the legendary {name}. You bring it home in triumph!",
     "Stories warned of the {name}... You just made one real.",
-    "A once-in-a-lifetime moment: the legendary {name} is down!"
+    "A once-in-a-lifetime moment: the legendary {name} is down!",
+    // New
+    "The forest holds its breath. The {name} appears. You take the shot.",
+    "Legends say the {name} cannot be caught. You disagree.",
+    "Time slows. The {name} locks eyes with you. You don’t miss.",
+    "Even the earth whispers your name after the {name} falls."
   ],
   mythical: [
     "🌀 MYTHICAL! You face the ancient {name} of legend — and win. Tales will be told of this hunt.",
     "Reality blurs... The mythical {name} steps into view. You aim true, and the myth becomes yours.",
     "From beyond the veil, the {name} appears. Your name joins the legends.",
-    "A beast of dreams, the {name} yields only to a true hunter."
+    "A beast of dreams, the {name} yields only to a true hunter.",
+    // New
+    "The {name} exists between myths — but you reached into the unknown and pulled it out.",
+    "It was said only fools hunt the {name}. Or legends. Turns out, you're the latter.",
+    "No trail, no prints, no sound — just the {name} and your perfect aim.",
+    "Your arrow flies through dimensions. It finds the {name} — and history changes."
   ],
   transcendent: [
     "🧬 Scientists debate its existence. Hunters dream of it. You? You caught the {name} with style.",
@@ -46,9 +76,15 @@ const flavorTexts = {
     "You've done the impossible. The {name} was never meant to be caught.",
     "You hunted a being of pure essence: the {name}. You are no longer just human.",
     "🌍 Time bends. A T-Rex charges through dimensions. You don't run. You win.",
-    "🦖 Transcendence achieved! You hunted a T-Rex. No one will believe this actually happened."
+    "🦖 Transcendence achieved! You hunted a T-Rex. No one will believe this actually happened.",
+    // New
+    "🌠 The cosmos split for a moment — and you seized the {name} from the stars.",
+    "You crossed into realms unknown. The {name} came back with you.",
+    "You’re not hunting anymore. You’re ascending.",
+    "Even gods would hesitate. But the {name} belongs to you now."
   ]
 };
+
 
 
 const rarityColors = {

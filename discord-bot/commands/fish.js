@@ -8,45 +8,81 @@ const flavorTexts = {
     "You caught a lively {name}! Not bad for a day's work.",
     "A wild {name} took the bait. Nice catch!",
     "You snagged a humble {name}. A decent haul for any angler.",
-    "Nothing fancy, but this {name} will do just fine."
+    "Nothing fancy, but this {name} will do just fine.",
+    // New
+    "Just another {name}, but every little bit counts!",
+    "You scoop up a {name} without breaking a sweat.",
+    "Even the small ones like the {name} have their charm.",
+    "The {name} practically jumped into your hands!"
   ],
   uncommon: [
     "You reel in a feisty {name}! That's a good one.",
     "The water splashes—a {name} is yours!",
     "You hooked a spirited {name}. Things are heating up!",
-    "Not rare, but this {name} put up a solid fight."
+    "Not rare, but this {name} put up a solid fight.",
+    // New
+    "This {name} gave you a little chase—worth it!",
+    "Solid pull! The {name} makes for a good trophy.",
+    "That {name} wasn’t easy, but you earned it!",
+    "The line danced wildly before you landed the {name}."
   ],
   rare: [
     "Wow! You landed a rare {name}! Fisherfolk will be jealous.",
     "A shimmering {name} leaps from the water. What luck!",
     "This {name} isn't seen every day — great pull!",
-    "A glint beneath the surface… it's a rare {name}!"
+    "A glint beneath the surface… it's a rare {name}!",
+    // New
+    "You felt it in your bones—this rare {name} was meant for you.",
+    "Even the winds pause as the rare {name} emerges.",
+    "They'll be telling stories about that {name} at the docks.",
+    "You barely believed it until you held the {name} in your hands."
   ],
   epic: [
     "🌊 EPIC CATCH! The magnificent {name} fights hard but you prevail!",
     "Your rod bends dangerously... It's an EPIC {name}! Incredible!",
     "The sea churns as the epic {name} surfaces. You tame the tides!",
-    "An epic battle ends in your favor. The {name} is yours!"
+    "An epic battle ends in your favor. The {name} is yours!",
+    // New
+    "⚔️ After a fierce struggle, the {name} yields to your skill!",
+    "This isn't just luck—your instincts landed the epic {name}.",
+    "Your name will echo for that catch. The {name} is a prize!",
+    "You clutched the rod like a hero—then came the {name}."
   ],
   legendary: [
     "🌟 LEGENDARY! The mythical {name} is yours! The whole server is in awe.",
     "You feel a massive tug... It's the legendary {name}! This will be talked about for ages.",
     "Old sailors speak of the {name}—and now it's in your hands.",
-    "A timeless tale now belongs to you. The legendary {name} is real!"
+    "A timeless tale now belongs to you. The legendary {name} is real!",
+    // New
+    "You stared into the abyss—and the {name} stared back.",
+    "The legend lives... and it's the {name} in your grasp.",
+    "Even the skies changed color when the {name} appeared.",
+    "A roar of waves and fate itself delivers the {name} to you."
   ],
   mythical: [
     "🌀 MYTHICAL! You've fished the impossible: a {name}. This moment is historic!",
     "Time stops for a second... The {name} rises from the deep. You are now a legend.",
     "Legends whisper of the {name}. Now it whispers back to *you*.",
-    "Reality flickers as the mythical {name} surfaces. Are you dreaming?"
+    "Reality flickers as the mythical {name} surfaces. Are you dreaming?",
+    // New
+    "The {name} comes from forgotten realms—and chose you.",
+    "You feel something ancient stir as you pull in the {name}.",
+    "The world slows down as the {name} breaks the surface.",
+    "You cross into legend as the mythical {name} joins your collection."
   ],
   transcendent: [
     "✨ TRANSCENDENCE! You've caught the {name}. The ocean itself bows in reverence.",
     "Beyond rarity, beyond reason—the {name} is now yours. You are eternal.",
     "🌌 The stars ripple as you reel in the transcendent {name}. Are you even mortal?",
-    "You didn't just fish. You rewrote destiny with the {name}."
+    "You didn't just fish. You rewrote destiny with the {name}.",
+    // New
+    "💫 The cosmos shifts. The {name} now exists in your reality.",
+    "Transcendence achieved—the {name} sings the universe’s song to you.",
+    "The moment you touched the {name}, you left the mortal plane behind.",
+    "The {name} is not just a catch—it's a key to the beyond."
   ]
 };
+
 
 
 

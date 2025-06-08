@@ -25,6 +25,11 @@ const animalRarityEmojis = {
   epic: '🐻', legendary: '🦄', mythical: '🌌', transcendent: '🎩🦫'
 };
 
+const collectibleRarityEmojis = {
+  common: '🎁', uncommon: '🎀', rare: '🎊',
+  epic: '🎉', legendary: '💫', mythical: '✨', transcendent: '🌟'
+};
+
 const rarityColors = {
   common: 0x95a5a6,
   uncommon: 0x2ecc71,
@@ -56,7 +61,7 @@ function splitIntoFields(title, fullText) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('collection')
-    .setDescription('View your fishing and hunting collection!'),
+    .setDescription('View your fishing, hunting, and collectible items collection!'),
 
   async execute(interaction) {
     try {
@@ -73,13 +78,31 @@ module.exports = {
       const inventory = response.data.inventory || [];
       const buffs = response.data.buffs || [];
 
+      // Add debug logging
+      console.log('Collection Response:', {
+        inventory,
+        buffs,
+        itemCount: inventory.filter(i => i.type === 'item').length,
+        fishCount: inventory.filter(i => i.type === 'fish').length,
+        animalCount: inventory.filter(i => i.type === 'animal').length
+      });
+
       const pages = [];
 
       for (const rarity of rarityOrder) {
         const fish = inventory.filter(i => i.rarity === rarity && i.type === 'fish');
         const animals = inventory.filter(i => i.rarity === rarity && i.type === 'animal');
+        const collectibles = inventory.filter(i => i.rarity === rarity && i.type === 'item');
 
-        if (fish.length === 0 && animals.length === 0) continue;
+        // Add debug logging for each rarity
+        console.log(`Rarity ${rarity}:`, {
+          fishCount: fish.length,
+          animalCount: animals.length,
+          collectibleCount: collectibles.length,
+          collectibles
+        });
+
+        if (fish.length === 0 && animals.length === 0 && collectibles.length === 0) continue;
 
         const fishLines = fish.map(f =>
           `**${fishRarityEmojis[f.rarity] || ''} ${f.name}** (x${f.count}) — ${f.value.toLocaleString(undefined, { minimumFractionDigits: 2 })} pts`
@@ -87,8 +110,12 @@ module.exports = {
         const animalLines = animals.map(a =>
           `**${animalRarityEmojis[a.rarity] || ''} ${a.name}** (x${a.count}) — ${a.value.toLocaleString(undefined, { minimumFractionDigits: 2 })} pts`
         );
+        const collectibleLines = collectibles.map(c =>
+          `**${collectibleRarityEmojis[c.rarity] || ''} ${c.name}** (x${c.count})${c.value > 0 ? ` — ${c.value.toLocaleString(undefined, { minimumFractionDigits: 2 })} pts` : ''}`
+        );
 
-        const combinedText = [...fishLines, ...animalLines].sort().join('\n') || 'Nothing collected yet.';
+        // Sort all lines alphabetically
+        const combinedText = [...fishLines, ...animalLines, ...collectibleLines].sort().join('\n') || 'Nothing collected yet.';
         const fields = splitIntoFields(`${rarityEmojis[rarity]} ${rarity.charAt(0).toUpperCase() + rarity.slice(1)}`, combinedText);
 
         pages.push({
