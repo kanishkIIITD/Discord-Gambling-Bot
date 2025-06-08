@@ -23,7 +23,7 @@ const flavorTexts = {
     // New
     "This {name} gave you a little chase—worth it!",
     "Solid pull! The {name} makes for a good trophy.",
-    "That {name} wasn’t easy, but you earned it!",
+    "That {name} wasn't easy, but you earned it!",
     "The line danced wildly before you landed the {name}."
   ],
   rare: [
@@ -77,7 +77,7 @@ const flavorTexts = {
     "You didn't just fish. You rewrote destiny with the {name}.",
     // New
     "💫 The cosmos shifts. The {name} now exists in your reality.",
-    "Transcendence achieved—the {name} sings the universe’s song to you.",
+    "Transcendence achieved—the {name} sings the universe's song to you.",
     "The moment you touched the {name}, you left the mortal plane behind.",
     "The {name} is not just a catch—it's a key to the beyond."
   ]

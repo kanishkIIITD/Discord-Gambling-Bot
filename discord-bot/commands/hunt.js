@@ -33,18 +33,18 @@ const flavorTexts = {
     "Not every hunter gets to see a {name}... but you do.",
     // New
     "Your patience pays off — a rare {name} stands before you.",
-    "The {name} hesitates for a second. That’s all you need.",
+    "The {name} hesitates for a second. That's all you need.",
     "They say only the best see a {name}... you're living proof.",
     "A glint in the trees — it's the elusive {name}. You act instantly."
   ],
   epic: [
-    "🦌 EPIC! The elusive {name} emerges from the shadows — a true hunter’s glory.",
+    "🦌 EPIC! The elusive {name} emerges from the shadows — a true hunter's glory.",
     "The ground trembles as you track the epic {name}. You bring it down with precision!",
     "An epic hunt ends in triumph. The {name} is yours!",
     "The {name} stares into your soul before the final clash. You win.",
     // New
     "This is what legends are made of — the epic {name} falls to your skill.",
-    "The {name} charges. You don’t flinch.",
+    "The {name} charges. You don't flinch.",
     "A thrilling chase ends in silence. The {name} is yours.",
     "You're no longer hunting... you're writing history with the {name}."
   ],
@@ -56,7 +56,7 @@ const flavorTexts = {
     // New
     "The forest holds its breath. The {name} appears. You take the shot.",
     "Legends say the {name} cannot be caught. You disagree.",
-    "Time slows. The {name} locks eyes with you. You don’t miss.",
+    "Time slows. The {name} locks eyes with you. You don't miss.",
     "Even the earth whispers your name after the {name} falls."
   ],
   mythical: [
@@ -75,12 +75,12 @@ const flavorTexts = {
     "🌌 The universe holds its breath. The {name} has fallen to you.",
     "You've done the impossible. The {name} was never meant to be caught.",
     "You hunted a being of pure essence: the {name}. You are no longer just human.",
-    "🌍 Time bends. A T-Rex charges through dimensions. You don't run. You win.",
-    "🦖 Transcendence achieved! You hunted a T-Rex. No one will believe this actually happened.",
+    "🌍 Time bends. A {name} charges through dimensions. You don't run. You win.",
+    "🦖 Transcendence achieved! You hunted a {name}. No one will believe this actually happened.",
     // New
     "🌠 The cosmos split for a moment — and you seized the {name} from the stars.",
     "You crossed into realms unknown. The {name} came back with you.",
-    "You’re not hunting anymore. You’re ascending.",
+    "You're not hunting anymore. You're ascending. {name} is yours.",
     "Even gods would hesitate. But the {name} belongs to you now."
   ]
 };
