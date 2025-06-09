@@ -2157,7 +2157,7 @@ router.post('/:discordId/mysterybox', async (req, res) => {
     const wallet = req.wallet;
     const now = new Date();
     if (!user.mysteryboxCooldown) user.mysteryboxCooldown = null;
-    // Free once per day, or paid (cost: 2500 points)
+    // Free once per day, or paid (cost: 25000 points)
     const paid = req.body.paid === true;
     const cost = 25000;
     if (!paid) {
@@ -2180,7 +2180,7 @@ router.post('/:discordId/mysterybox', async (req, res) => {
     let rewardType, amount = 0, item = null, message, buff = null;
     if (roll < 0.5) {
       // Coins
-      amount = Math.floor(Math.random() * 4000) + 1000;
+      amount = Math.floor(Math.random() * 40000) + 10000; // 10x increase
       wallet.balance += amount;
       rewardType = 'coins';
       message = `You found ${amount.toLocaleString()} points inside the box!`;
@@ -2204,7 +2204,7 @@ router.post('/:discordId/mysterybox', async (req, res) => {
       }
       rewardType = 'item';
       message = `You found a **${item.name}** (${item.rarity}) in the box!`;
-    } else if (roll < 0.97) {
+    } else if (roll < 0.95) {
       // Buff
       rewardType = 'buff';
       const buffs = [
@@ -2235,7 +2235,7 @@ router.post('/:discordId/mysterybox', async (req, res) => {
       message = `You received a buff: **${buff.description}**`;
     } else {
       // Jackpot
-      amount = Math.floor(Math.random() * 20000) + 10000;
+      amount = Math.floor(Math.random() * 200000) + 100000; // 10x increase
       wallet.balance += amount;
       rewardType = 'jackpot';
       message = `JACKPOT! You found ${amount.toLocaleString()} points and a golden ticket!`;

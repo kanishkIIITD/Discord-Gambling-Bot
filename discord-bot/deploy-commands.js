@@ -693,7 +693,7 @@ const commands = [
 	},
 	{
 		name: 'mysterybox',
-		description: 'Open a mystery box for a random reward! Free once per day, or pay 2,500 points for an extra box.',
+		description: 'Open a mystery box for a random reward! Free once per day, or pay 25,000 points for an extra box.',
 		options: [
 			{
 				name: 'paid',
