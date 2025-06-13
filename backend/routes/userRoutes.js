@@ -1023,7 +1023,10 @@ router.post('/:discordId/crime', async (req, res) => {
     let usedBuff = null;
     const crimeSuccessIdx = (user.buffs || []).findIndex(b => b.type === 'crime_success');
     const jailImmunityIdx = (user.buffs || []).findIndex(b => b.type === 'jail_immunity' && (!b.expiresAt || b.expiresAt > now));
-    const earningsBuff = (user.buffs || []).find(b => b.type === 'earnings_x2' && (!b.expiresAt || b.expiresAt > now));
+    const earningsBuff = (user.buffs || []).find(b => 
+      (b.type === 'earnings_x2' || b.type === 'earnings_x3' || b.type === 'earnings_x5') && 
+      (!b.expiresAt || b.expiresAt > now)
+    );
 
     // Determine outcome
     const outcomeRoll = Math.random();
@@ -1068,10 +1071,13 @@ router.post('/:discordId/crime', async (req, res) => {
       if (typeof cleanUserBuffs === 'function') cleanUserBuffs(user);
     }
 
-    // Buff: earnings_x2
+    // Buff: earnings_x2/x3/x5
     if (earningsBuff && outcome === 'success') {
-      amount *= 2;
+      const multiplier = earningsBuff.type === 'earnings_x2' ? 2 : 
+                        earningsBuff.type === 'earnings_x3' ? 3 : 5;
+      amount *= multiplier;
       message = message.replace(/(\d[\d,]*) points/, `${amount.toLocaleString()} points`);
+      message += ` (${earningsBuff.type} buff active: ${multiplier}x POINTS!)`;
     }
 
     // Apply results
@@ -1163,15 +1169,44 @@ router.post('/:discordId/work', async (req, res) => {
       rare = true;
     }
 
-    // Buff: work_double
-    const workDoubleIdx = (user.buffs || []).findIndex(b => b.type === 'work_double' && (b.usesLeft === undefined || b.usesLeft > 0));
-    let usedWorkDouble = false;
-    if (workDoubleIdx >= 0) {
-      amount *= 2;
-      usedWorkDouble = true;
-      user.buffs[workDoubleIdx].usesLeft = (user.buffs[workDoubleIdx].usesLeft || 1) - 1;
-      if (typeof cleanUserBuffs === 'function') cleanUserBuffs(user);
-      await user.save();
+    // Initialize message after amount/bonus are determined
+    let message;
+    if (rare) {
+      message = `You worked as a ${job} and earned ${amount.toLocaleString()} points. ${bonusMsg} +${bonus.toLocaleString()} points!`;
+    } else {
+      message = `You worked as a ${job} and earned ${amount.toLocaleString()} points.`;
+    }
+
+    // Buff: work_double/triple/quintuple
+    const workBuff = (user.buffs || []).find(b => 
+      (b.type === 'work_double' || b.type === 'work_triple' || b.type === 'work_quintuple') && 
+      (b.usesLeft === undefined || b.usesLeft > 0)
+    );
+
+    if (workBuff) {
+      const multiplier = workBuff.type === 'work_double' ? 2 : 
+                        workBuff.type === 'work_triple' ? 3 : 5;
+      amount *= multiplier;
+      // Decrement uses if it's a limited use buff
+      if (workBuff.usesLeft !== undefined) {
+        workBuff.usesLeft--;
+        if (workBuff.usesLeft <= 0) {
+          user.buffs = user.buffs.filter(b => b !== workBuff);
+        }
+      }
+      message += ` (${workBuff.type} buff used: ${multiplier}x POINTS!)`;
+    }
+
+    // Check for earnings buffs
+    const earningsBuff = (user.buffs || []).find(b => 
+      (b.type === 'earnings_x2' || b.type === 'earnings_x3' || b.type === 'earnings_x5') && 
+      (!b.expiresAt || b.expiresAt > now)
+    );
+    if (earningsBuff) {
+      const multiplier = earningsBuff.type === 'earnings_x2' ? 2 : 
+                        earningsBuff.type === 'earnings_x3' ? 3 : 5;
+      amount *= multiplier;
+      message += ` (${earningsBuff.type} buff active: ${multiplier}x POINTS!)`;
     }
 
     // Update wallet and stats ONCE, after all buff logic
@@ -1192,14 +1227,11 @@ router.post('/:discordId/work', async (req, res) => {
     await wallet.save();
     await user.save();
 
-    let message;
-    if (rare) {
-      message = `You worked as a ${job} and earned ${amount.toLocaleString()} points. ${bonusMsg} +${bonus.toLocaleString()} points!`;
-    } else {
-      message = `You worked as a ${job} and earned ${amount.toLocaleString()} points.`;
+    if (workBuff) {
+      message += ` (${workBuff.type} buff used: ${workBuff.usesLeft !== undefined ? workBuff.usesLeft + 1 : 'unlimited'}x POINTS!)`;
     }
-    if (usedWorkDouble) {
-      message += ' (work_double buff used: DOUBLE POINTS!)';
+    if (earningsBuff) {
+      message += ` (${earningsBuff.type} buff active: ${earningsBuff.usesLeft !== undefined ? earningsBuff.usesLeft + 1 : 'unlimited'}x POINTS!)`;
     }
 
     res.json({
@@ -1417,44 +1449,112 @@ router.post('/:discordId/fish', async (req, res) => {
     // Rarity weights
     const rarityRoll = Math.random();
     let rarity = 'common';
-    if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
-    else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
-    else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
-    else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
-    else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
-    else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%
+    
+    // Check for guaranteed legendary/epic buffs first
+    const guaranteedBuff = (user.buffs || []).find(b => 
+      (b.type === 'fishing_legendary' || b.type === 'fishing_epic') && 
+      b.usesLeft > 0
+    );
+
+    let buffMessage = '';
+
+    // Check for drop rate buffs first
+    const rateBuff = (user.buffs || []).find(b => 
+      (b.type === 'fishing_rate_2x' || b.type === 'fishing_rate_3x' || b.type === 'fishing_rate_5x') && 
+      (!b.expiresAt || b.expiresAt > now)
+    );
+    
+    if (rateBuff) {
+      const boostFactor = {
+        fishing_rate_2x: 0.10,  // +10% chance shift
+        fishing_rate_3x: 0.18,  // +18%
+        fishing_rate_5x: 0.30   // +30%
+      }[rateBuff.type];
+
+      const finalRoll = Math.min(rarityRoll + boostFactor, 0.999);
+
+      if (finalRoll > 0.995) rarity = 'transcendent';   // 0.5%
+      else if (finalRoll > 0.985) rarity = 'mythical';  // 1%
+      else if (finalRoll > 0.955) rarity = 'legendary'; // 3%
+      else if (finalRoll > 0.90) rarity = 'epic';       // 5.5%
+      else if (finalRoll > 0.75) rarity = 'rare';       // 15%
+      else if (finalRoll > 0.50) rarity = 'uncommon';   // 25%
+
+      buffMessage += ` (${rateBuff.type} buff active: +${Math.floor(boostFactor * 100)}% chance boost!)`;
+    } else {
+      // Normal rarity weights if no drop rate buff
+      if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
+      else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
+      else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
+      else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
+      else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
+      else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%
+    }
+
+    // Then check for guaranteed buffs, which override the rarity
+    if (guaranteedBuff) {
+      if (guaranteedBuff.type === 'fishing_legendary') {
+        // Force legendary or better
+        if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
+        else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
+        else rarity = 'legendary'; // 98.5%
+        buffMessage += ` (${guaranteedBuff.type} buff used: Guaranteed Legendary or better!)`;
+      } else if (guaranteedBuff.type === 'fishing_epic') {
+        // Force epic or better
+        if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
+        else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
+        else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
+        else rarity = 'epic'; // 95.5%
+        buffMessage += ` (${guaranteedBuff.type} buff used: Guaranteed Epic or better!)`;
+      }
+      
+      // Decrement uses
+      guaranteedBuff.usesLeft--;
+      if (guaranteedBuff.usesLeft <= 0) {
+        user.buffs = user.buffs.filter(b => b !== guaranteedBuff);
+      }
+    }
+
     // Pick a fish of that rarity
     const options = fishTable.filter(f => f.rarity === rarity);
     const fish = options[Math.floor(Math.random() * options.length)];
     let value = fish.value();
-    // Buff: earnings_x2
-    const earningsBuff = (user.buffs || []).find(b => b.type === 'earnings_x2' && (!b.expiresAt || b.expiresAt > now));
-    if (earningsBuff) value *= 2;
-    // Update inventory
-    const inv = user.inventory || [];
-    const idx = inv.findIndex(i => i.type === 'fish' && i.name === fish.name);
-    if (idx >= 0) {
-      const existingItem = inv[idx];
-      const existingTotalValue = existingItem.value * existingItem.count;
-      const newTotalValue = existingTotalValue + value;
-      existingItem.count += 1;
-      existingItem.value = newTotalValue / existingItem.count; // Calculate new average
-      user.markModified('inventory'); // Mark inventory as modified due to nested change
-    } else {
-      // Item is new
-      inv.push({ type: 'fish', name: fish.name, rarity: fish.rarity, value: value, count: 1 });
+
+    // Check for earnings buffs
+    const fishEarningsBuff = (user.buffs || []).find(b => 
+      (b.type === 'earnings_x2' || b.type === 'earnings_x3' || b.type === 'earnings_x5') && 
+      (!b.expiresAt || b.expiresAt > now)
+    );
+    if (fishEarningsBuff) {
+      const multiplier = fishEarningsBuff.type === 'earnings_x2' ? 2 : 
+                        fishEarningsBuff.type === 'earnings_x3' ? 3 : 5;
+      value *= multiplier;
+      buffMessage += ` (${fishEarningsBuff.type} buff active: ${multiplier}x POINTS!)`;
     }
-    user.inventory = inv;
+
+    // Update inventory
+    const fishInv = user.inventory || [];
+    const existingFish = fishInv.find(item => item.name === fish.name);
+    if (existingFish) {
+      existingFish.count += 1;
+      existingFish.value = (existingFish.value * existingFish.count + value) / (existingFish.count + 1);
+    } else {
+      fishInv.push({ type: 'fish', name: fish.name, rarity: fish.rarity, value: value, count: 1 });
+    }
+    user.inventory = fishInv;
+
     // Set cooldown (5-15 min)
     const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
     user.fishCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
     await user.save();
+
     res.json({
       name: fish.name,
       rarity: fish.rarity,
       value,
-      count: idx >= 0 ? inv[idx].count : 1,
-      cooldown: user.fishCooldown
+      count: existingFish ? existingFish.count : 1,
+      cooldown: user.fishCooldown,
+      buffMessage
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error during fishing.' });
@@ -1578,44 +1678,112 @@ router.post('/:discordId/hunt', async (req, res) => {
     // Rarity weights
     const rarityRoll = Math.random();
     let rarity = 'common';
-    if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
-    else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
-    else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
-    else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
-    else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
-    else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%   
+    
+    // Check for guaranteed legendary/epic buffs first
+    const guaranteedBuff = (user.buffs || []).find(b => 
+      (b.type === 'hunting_legendary' || b.type === 'hunting_epic') && 
+      b.usesLeft > 0
+    );
+
+    let buffMessage = '';
+
+    // Check for drop rate buffs first
+    const rateBuff = (user.buffs || []).find(b => 
+      (b.type === 'hunting_rate_2x' || b.type === 'hunting_rate_3x' || b.type === 'hunting_rate_5x') && 
+      (!b.expiresAt || b.expiresAt > now)
+    );
+    
+    if (rateBuff) {
+      const boostFactor = {
+        hunting_rate_2x: 0.10,  // +10% chance shift
+        hunting_rate_3x: 0.18,  // +18%
+        hunting_rate_5x: 0.30   // +30%
+      }[rateBuff.type];
+
+      const finalRoll = Math.min(rarityRoll + boostFactor, 0.999);
+
+      if (finalRoll > 0.995) rarity = 'transcendent';   // 0.5%
+      else if (finalRoll > 0.985) rarity = 'mythical';  // 1%
+      else if (finalRoll > 0.955) rarity = 'legendary'; // 3%
+      else if (finalRoll > 0.90) rarity = 'epic';       // 5.5%
+      else if (finalRoll > 0.75) rarity = 'rare';       // 15%
+      else if (finalRoll > 0.50) rarity = 'uncommon';   // 25%
+
+      buffMessage += ` (${rateBuff.type} buff active: +${Math.floor(boostFactor * 100)}% chance boost!)`;
+    } else {
+      // Normal rarity weights if no drop rate buff
+      if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
+      else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
+      else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
+      else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
+      else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
+      else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%
+    }
+
+    // Then check for guaranteed buffs, which override the rarity
+    if (guaranteedBuff) {
+      if (guaranteedBuff.type === 'hunting_legendary') {
+        // Force legendary or better
+        if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
+        else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
+        else rarity = 'legendary'; // 98.5%
+        buffMessage += ` (${guaranteedBuff.type} buff used: Guaranteed Legendary or better!)`;
+      } else if (guaranteedBuff.type === 'hunting_epic') {
+        // Force epic or better
+        if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
+        else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
+        else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
+        else rarity = 'epic'; // 95.5%
+        buffMessage += ` (${guaranteedBuff.type} buff used: Guaranteed Epic or better!)`;
+      }
+      
+      // Decrement uses
+      guaranteedBuff.usesLeft--;
+      if (guaranteedBuff.usesLeft <= 0) {
+        user.buffs = user.buffs.filter(b => b !== guaranteedBuff);
+      }
+    }
+
     // Pick an animal of that rarity
     const options = animalTable.filter(a => a.rarity === rarity);
     const animal = options[Math.floor(Math.random() * options.length)];
     let value = animal.value();
-    // Buff: earnings_x2
-    const earningsBuff = (user.buffs || []).find(b => b.type === 'earnings_x2' && (!b.expiresAt || b.expiresAt > now));
-    if (earningsBuff) value *= 2;
-    // Update inventory
-    const inv = user.inventory || [];
-    const idx = inv.findIndex(i => i.type === 'animal' && i.name === animal.name);
-    if (idx >= 0) {
-      const existingItem = inv[idx];
-      const existingTotalValue = existingItem.value * existingItem.count;
-      const newTotalValue = existingTotalValue + value;
-      existingItem.count += 1;
-      existingItem.value = newTotalValue / existingItem.count; // Calculate new average
-      user.markModified('inventory'); // Mark inventory as modified due to nested change
-    } else {
-      // Item is new
-      inv.push({ type: 'animal', name: animal.name, rarity: animal.rarity, value, count: 1 });
+
+    // Check for earnings buffs
+    const huntEarningsBuff = (user.buffs || []).find(b => 
+      (b.type === 'earnings_x2' || b.type === 'earnings_x3' || b.type === 'earnings_x5') && 
+      (!b.expiresAt || b.expiresAt > now)
+    );
+    if (huntEarningsBuff) {
+      const multiplier = huntEarningsBuff.type === 'earnings_x2' ? 2 : 
+                        huntEarningsBuff.type === 'earnings_x3' ? 3 : 5;
+      value *= multiplier;
+      buffMessage += ` (${huntEarningsBuff.type} buff active: ${multiplier}x POINTS!)`;
     }
-    user.inventory = inv;
+
+    // Update inventory
+    const huntInv = user.inventory || [];
+    const existingAnimal = huntInv.find(item => item.name === animal.name);
+    if (existingAnimal) {
+      existingAnimal.count += 1;
+      existingAnimal.value = (existingAnimal.value * existingAnimal.count + value) / (existingAnimal.count + 1);
+    } else {
+      huntInv.push({ type: 'animal', name: animal.name, rarity: animal.rarity, value: value, count: 1 });
+    }
+    user.inventory = huntInv;
+
     // Set cooldown (5-15 min)
     const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
     user.huntCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
     await user.save();
+
     res.json({
       name: animal.name,
       rarity: animal.rarity,
       value,
-      count: idx >= 0 ? inv[idx].count : 1,
-      cooldown: user.huntCooldown
+      count: existingAnimal ? existingAnimal.count : 1,
+      cooldown: user.huntCooldown,
+      buffMessage
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error during hunting.' });
@@ -1629,7 +1797,7 @@ router.get('/:discordId/collection', async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found.' });
     if (typeof cleanUserBuffs === 'function') cleanUserBuffs(user);
     await user.save();
-    res.json({ inventory: user.inventory || [], buffs: user.buffs || [] });
+    res.json({ inventory: user.inventory || [] });
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching collection.' });
   }
@@ -2157,44 +2325,201 @@ router.post('/:discordId/mysterybox', async (req, res) => {
     const wallet = req.wallet;
     const now = new Date();
     if (!user.mysteryboxCooldown) user.mysteryboxCooldown = null;
-    // Free once per day, or paid (cost: 25000 points)
-    const paid = req.body.paid === true;
-    const cost = 25000;
+    
+    // Get box type and paid status
+    const { boxType, paid } = req.body;
+    const costs = {
+      basic: 25000,
+      premium: 1000000,
+      ultimate: 10000000
+    };
+    const cost = costs[boxType];
+
     if (!paid) {
-      // Free: check cooldown (once per day)
-      if (user.mysteryboxCooldown && user.mysteryboxCooldown > now) {
+      // Free: check cooldown (once per day) only for basic box
+      if (boxType === 'basic' && user.mysteryboxCooldown && user.mysteryboxCooldown > now) {
         return res.status(429).json({ message: `You already opened your free mystery box today. Try again at ${user.mysteryboxCooldown.toLocaleString()}` });
       }
-      user.mysteryboxCooldown = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      // Only set cooldown for basic box
+      if (boxType === 'basic') {
+        user.mysteryboxCooldown = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      }
     } else {
       // Paid: check balance
       if (wallet.balance < cost) {
-        return res.status(400).json({ message: `You need ${cost.toLocaleString()} points to open a paid mystery box.` });
+        return res.status(400).json({ message: `You need ${cost.toLocaleString()} points to open a ${boxType} mystery box.` });
       }
       wallet.balance -= cost;
     }
+
     // Remove expired buffs
     cleanUserBuffs(user);
-    // Determine reward
+
+    // Determine reward based on box type
     const roll = Math.random();
     let rewardType, amount = 0, item = null, message, buff = null;
-    if (roll < 0.5) {
+
+    // Define reward probabilities and amounts based on box type
+    const rewardConfigs = {
+      basic: {
+        coins: { chance: 0.5, min: 10000, max: 40000 },
+        items: { chance: 0.3, pool: [
+          { name: 'Rubber Duck', rarity: 'common' },
+          { name: 'Golden Mustache', rarity: 'rare' },
+          { name: 'Party Hat', rarity: 'uncommon' },
+          { name: 'Mysterious Key', rarity: 'rare' },
+          { name: 'Tiny Top Hat', rarity: 'common' },
+          { name: 'Epic Sunglasses', rarity: 'legendary' }
+        ]},
+        buffs: { chance: 0.15, pool: [
+          {
+            type: 'earnings_x2',
+            description: '2x earnings for 10 minutes!',
+            expiresAt: new Date(now.getTime() + 10 * 60 * 1000)
+          },
+          {
+            type: 'work_double',
+            description: 'Next /work gives double points!',
+            usesLeft: 1
+          },
+          {
+            type: 'crime_success',
+            description: 'Next /crime is guaranteed success!',
+            usesLeft: 1
+          },
+          {
+            type: 'jail_immunity',
+            description: 'Immunity from jail for 1 hour!',
+            expiresAt: new Date(now.getTime() + 60 * 60 * 1000)
+          }
+        ]},
+        jackpot: { chance: 0.05, min: 100000, max: 300000 }
+      },
+      premium: {
+        coins: { chance: 0.4, min: 50000, max: 200000 },
+        items: { chance: 0.2, pool: [
+          { name: 'Dragon Scale', rarity: 'epic' },
+          { name: 'Phoenix Feather', rarity: 'epic' },
+          { name: 'Ancient Coin', rarity: 'legendary' },
+          { name: 'Mystic Crystal', rarity: 'epic' },
+          { name: 'Enchanted Tome', rarity: 'epic' }
+        ]},
+        buffs: { chance: 0.3, pool: [
+          {
+            type: 'fishing_epic',
+            description: 'Next catch is guaranteed Epic or better!',
+            usesLeft: 1,
+            weight: 25 // 25% chance within buff pool
+          },
+          {
+            type: 'hunting_epic',
+            description: 'Next hunt is guaranteed Epic or better!',
+            usesLeft: 1,
+            weight: 25 // 25% chance within buff pool
+          },
+          {
+            type: 'fishing_rate_2x',
+            description: '2x drop rate for Epic and better fish for 30 minutes!',
+            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            weight: 15 // 15% chance within buff pool
+          },
+          {
+            type: 'hunting_rate_2x',
+            description: '2x drop rate for Epic and better animals for 30 minutes!',
+            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            weight: 15 // 15% chance within buff pool
+          },
+          {
+            type: 'earnings_x3',
+            description: '3x earnings for 30 minutes!',
+            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            weight: 10 // 10% chance within buff pool
+          },
+          {
+            type: 'work_triple',
+            description: 'Next /work gives 3x points!',
+            usesLeft: 1,
+            weight: 10 // 10% chance within buff pool
+          }
+        ]},
+        jackpot: { chance: 0.1, min: 500000, max: 1000000 }
+      },
+      ultimate: {
+        coins: { chance: 0.2, min: 200000, max: 1000000 },
+        items: { chance: 0.1, pool: [
+          { name: 'Celestial Crown', rarity: 'mythical' },
+          { name: 'Dragon Heart', rarity: 'legendary' },
+          { name: 'Phoenix Heart', rarity: 'legendary' },
+          { name: 'Eternal Crystal', rarity: 'mythical' },
+          { name: 'Ancient Tome', rarity: 'legendary' }
+        ]},
+        buffs: { chance: 0.4, pool: [
+          {
+            type: 'fishing_legendary',
+            description: 'Next catch is guaranteed Legendary or better!',
+            usesLeft: 1,
+            weight: 20 // 20% chance within buff pool
+          },
+          {
+            type: 'hunting_legendary',
+            description: 'Next hunt is guaranteed Legendary or better!',
+            usesLeft: 1,
+            weight: 20 // 20% chance within buff pool
+          },
+          {
+            type: 'fishing_rate_3x',
+            description: '3x drop rate for Legendary and better fish for 1 hour!',
+            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+            weight: 10 // 10% chance within buff pool
+          },
+          {
+            type: 'hunting_rate_3x',
+            description: '3x drop rate for Legendary and better animals for 1 hour!',
+            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+            weight: 10 // 10% chance within buff pool
+          },
+          {
+            type: 'fishing_rate_5x',
+            description: '5x drop rate for Mythical fish for 30 minutes!',
+            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            weight: 5 // 5% chance within buff pool
+          },
+          {
+            type: 'hunting_rate_5x',
+            description: '5x drop rate for Mythical animals for 30 minutes!',
+            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            weight: 5 // 5% chance within buff pool
+          },
+          {
+            type: 'earnings_x5',
+            description: '5x earnings for 1 hour!',
+            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+            weight: 15 // 15% chance within buff pool
+          },
+          {
+            type: 'work_quintuple',
+            description: 'Next /work gives 5x points!',
+            usesLeft: 1,
+            weight: 15 // 15% chance within buff pool
+          }
+        ]},
+        jackpot: { chance: 0.3, min: 2000000, max: 5000000 }
+      }
+    };
+
+    const config = rewardConfigs[boxType];
+    let cumulativeChance = 0;
+
+    // Determine reward type
+    if (roll < (cumulativeChance += config.coins.chance)) {
       // Coins
-      amount = Math.floor(Math.random() * 40000) + 10000; // 10x increase
+      amount = Math.floor(Math.random() * (config.coins.max - config.coins.min + 1)) + config.coins.min;
       wallet.balance += amount;
       rewardType = 'coins';
-      message = `You found ${amount.toLocaleString()} points inside the box!`;
-    } else if (roll < 0.8) {
-      // Cosmetic/funny item
-      const items = [
-        { name: 'Rubber Duck', rarity: 'common' },
-        { name: 'Golden Mustache', rarity: 'rare' },
-        { name: 'Party Hat', rarity: 'uncommon' },
-        { name: 'Mysterious Key', rarity: 'rare' },
-        { name: 'Tiny Top Hat', rarity: 'common' },
-        { name: 'Epic Sunglasses', rarity: 'legendary' }
-      ];
-      item = items[Math.floor(Math.random() * items.length)];
+      message = `You found ${amount.toLocaleString()} points inside the ${boxType} box!`;
+    } else if (roll < (cumulativeChance += config.items.chance)) {
+      // Item
+      item = config.items.pool[Math.floor(Math.random() * config.items.pool.length)];
       user.inventory = user.inventory || [];
       const idx = user.inventory.findIndex(i => i.type === 'item' && i.name === item.name);
       if (idx >= 0) {
@@ -2203,43 +2528,40 @@ router.post('/:discordId/mysterybox', async (req, res) => {
         user.inventory.push({ type: 'item', name: item.name, rarity: item.rarity, value: 0, count: 1 });
       }
       rewardType = 'item';
-      message = `You found a **${item.name}** (${item.rarity}) in the box!`;
-    } else if (roll < 0.95) {
-      // Buff
-      rewardType = 'buff';
-      const buffs = [
-        {
-          type: 'earnings_x2',
-          description: '2x earnings for 10 minutes!',
-          expiresAt: new Date(now.getTime() + 10 * 60 * 1000)
-        },
-        {
-          type: 'work_double',
-          description: 'Next /work gives double points!',
-          usesLeft: 1
-        },
-        {
-          type: 'crime_success',
-          description: 'Next /crime is guaranteed success!',
-          usesLeft: 1
-        },
-        {
-          type: 'jail_immunity',
-          description: 'Immunity from jail for 1 hour!',
-          expiresAt: new Date(now.getTime() + 60 * 60 * 1000)
+      message = `You found a **${item.name}** (${item.rarity}) in the ${boxType} box!`;
+    } else if (roll < (cumulativeChance += config.buffs.chance)) {
+      // Buffs
+      const buffPool = config.buffs.pool;
+      const totalWeight = buffPool.reduce((sum, buff) => sum + (buff.weight || 1), 0);
+      let buffRoll = Math.random() * totalWeight;
+      
+      let selectedBuff = null;
+      for (const buff of buffPool) {
+        buffRoll -= (buff.weight || 1);
+        if (buffRoll <= 0) {
+          selectedBuff = { ...buff };
+          delete selectedBuff.weight; // Remove weight from the buff object
+          break;
         }
-      ];
-      buff = buffs[Math.floor(Math.random() * buffs.length)];
+      }
+      
+      if (!selectedBuff) {
+        selectedBuff = { ...buffPool[0] };
+        delete selectedBuff.weight;
+      }
+      
       user.buffs = user.buffs || [];
-      user.buffs.push(buff);
-      message = `You received a buff: **${buff.description}**`;
+      user.buffs.push(selectedBuff);
+      rewardType = 'buffs';
+      message = `You found a buff: ${selectedBuff.description}`;
     } else {
       // Jackpot
-      amount = Math.floor(Math.random() * 200000) + 100000; // 10x increase
+      amount = Math.floor(Math.random() * (config.jackpot.max - config.jackpot.min + 1)) + config.jackpot.min;
       wallet.balance += amount;
       rewardType = 'jackpot';
-      message = `JACKPOT! You found ${amount.toLocaleString()} points and a golden ticket!`;
+      message = `JACKPOT! You found ${amount.toLocaleString()} points and a golden ticket in the ${boxType} box!`;
     }
+
     await wallet.save();
     await user.save();
     res.json({ rewardType, amount, item, message, cooldown: user.mysteryboxCooldown });
@@ -2309,6 +2631,18 @@ router.post('/:discordId/giveaway', require('../middleware/auth').auth, requireG
     res.json({ message: 'Points given successfully.' });
   } catch (error) {
     res.status(500).json({ message: 'Server error during giveaway.' });
+  }
+});
+
+// --- BUFFS COMMAND ---
+router.get('/:discordId/buffs', async (req, res) => {
+  try {
+    const user = req.user;
+    if (typeof cleanUserBuffs === 'function') cleanUserBuffs(user);
+    res.json({ buffs: user.buffs || [] });
+  } catch (error) {
+    console.error('Error in /buffs:', error);
+    res.status(500).json({ message: 'Server error fetching buffs.' });
   }
 });
 

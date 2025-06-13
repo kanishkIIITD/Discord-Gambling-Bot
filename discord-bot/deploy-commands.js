@@ -11,6 +11,10 @@ const commands = [
 		description: 'Checks your current point balance.',
 	},
 	{
+		name: 'buffs',
+		description: 'View your active buffs and their remaining time.',
+	},
+	{
 		name: 'createbet',
 		description: 'Creates a new betting event (Admin/Superadmin only).',
 		options: [
@@ -406,34 +410,19 @@ const commands = [
 		description: 'Shows a help menu with all available commands.',
 		options: [
 			{
-				type: 1,
-				name: 'betting',
-				description: 'Show help for betting commands'
-			},
-			{
-				type: 1,
-				name: 'gambling',
-				description: 'Show help for gambling commands'
-			},
-			{
-				type: 1,
-				name: 'wallet',
-				description: 'Show help for wallet commands'
-			},
-			{
-				type: 1,
-				name: 'utility',
-				description: 'Show help for utility commands'
-			},
-			{
-				type: 1,
-				name: 'fun',
-				description: 'Show help for fun & collection commands'
-			},
-			{
-				type: 1,
-				name: 'duel',
-				description: 'Show help for duel commands'
+				name: 'section',
+				description: 'The section of help to show',
+				type: 3,
+				required: false,
+				choices: [
+					{ name: 'Betting', value: 'betting' },
+					{ name: 'Gambling', value: 'gambling' },
+					{ name: 'Wallet', value: 'wallet' },
+					{ name: 'Utility', value: 'utility' },
+					{ name: 'Fun & Collection', value: 'fun' },
+					{ name: 'Duel', value: 'duel' },
+					{ name: 'Buffs', value: 'buffs' }
+				]
 			}
 		]
 	},
@@ -557,7 +546,8 @@ const commands = [
 	},
 	{
 		name: 'sell',
-		description: 'Sell items from your collection for points (supports comma-separated lists).',
+		description: 'Sell an item from your collection for points!',
+		category: 'Fun',
 		options: [
 			{
 				name: 'type',
@@ -693,8 +683,29 @@ const commands = [
 	},
 	{
 		name: 'mysterybox',
-		description: 'Open a mystery box for a random reward! Free once per day, or pay 25,000 points for an extra box.',
+		description: 'Open a mystery box for random rewards!',
+		category: 'Fun',
 		options: [
+			{
+				name: 'type',
+				description: 'Type of mystery box to open',
+				type: 3,
+				required: true,
+				choices: [
+					{
+						name: 'Basic Box (25,000 points)',
+						value: 'basic'
+					},
+					{
+						name: 'Premium Box (1,000,000 points)',
+						value: 'premium'
+					},
+					{
+						name: 'Ultimate Box (10,000,000 points)',
+						value: 'ultimate'
+					}
+				]
+			},
 			{
 				name: 'paid',
 				description: 'Pay coins to open a box (no cooldown)',
@@ -713,23 +724,23 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
 	try {
-		// console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
+		console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
 
-		// // Deploy to test guild only
-		// const data = await rest.put(
-		// 	Routes.applicationGuildCommands(clientId, guildId1),
-		// 	{ body: commands },
-		// );
-
-		// console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
-
-		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
-		console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
-		const globalData = await rest.put(
-			Routes.applicationCommands(clientId),
+		// Deploy to test guild only
+		const data = await rest.put(
+			Routes.applicationGuildCommands(clientId, guildId1),
 			{ body: commands },
 		);
-		console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
+
+		console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
+
+		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
+		// console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
+		// const globalData = await rest.put(
+		// 	Routes.applicationCommands(clientId),
+		// 	{ body: commands },
+		// );
+		// console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
 	} catch (error) {
 		console.error(error);
 	}

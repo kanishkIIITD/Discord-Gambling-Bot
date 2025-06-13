@@ -6,7 +6,17 @@ const logger = require('../utils/logger');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('mysterybox')
-    .setDescription('Open a mystery box for a random reward!')
+    .setDescription('Open a mystery box for random rewards!')
+    .addStringOption(option =>
+      option.setName('type')
+        .setDescription('Type of mystery box to open')
+        .setRequired(true)
+        .addChoices(
+          { name: 'Basic Box (25,000 points)', value: 'basic' },
+          { name: 'Premium Box (1,000,000 points)', value: 'premium' },
+          { name: 'Ultimate Box (10,000,000 points)', value: 'ultimate' }
+        )
+    )
     .addBooleanOption(option =>
       option.setName('paid')
         .setDescription('Pay coins to open a box (no cooldown)')
@@ -18,18 +28,28 @@ module.exports = {
       await interaction.deferReply();
       const userId = interaction.user.id;
       const guildId = interaction.guildId;
+      const boxType = interaction.options.getString('type');
       const paid = interaction.options.getBoolean('paid') || false;
       const backendUrl = process.env.BACKEND_API_URL;
-      const response = await axios.post(`${backendUrl}/users/${userId}/mysterybox`, { paid, guildId }, { headers: { 'x-guild-id': guildId } });
+      const response = await axios.post(`${backendUrl}/users/${userId}/mysterybox`, { 
+        boxType,
+        paid, 
+        guildId 
+      }, { 
+        headers: { 'x-guild-id': guildId } 
+      });
+
       const { rewardType, amount, item, message, cooldown } = response.data;
       let color = 0x0099ff;
       if (rewardType === 'coins') color = 0x2ecc71;
       else if (rewardType === 'item') color = 0xf1c40f;
       else if (rewardType === 'buff') color = 0x8e44ad;
       else if (rewardType === 'jackpot') color = 0xffd700;
+
       const fields = [
         { name: 'Next Free Box', value: `<t:${Math.floor(new Date(cooldown).getTime()/1000)}:R>`, inline: true }
       ];
+
       if (rewardType === 'coins' || rewardType === 'jackpot') {
         fields.unshift({ name: 'Points', value: `${amount.toLocaleString('en-US')} points`, inline: true });
       }
@@ -39,9 +59,10 @@ module.exports = {
       if (rewardType === 'buff') {
         fields.unshift({ name: 'Buff', value: message.match(/\*\*(.+)\*\*/)?.[1] || message, inline: true });
       }
+
       const embed = {
         color,
-        title: '🎁 Mystery Box',
+        title: `🎁 ${boxType.charAt(0).toUpperCase() + boxType.slice(1)} Mystery Box`,
         description: message,
         fields,
         timestamp: new Date(),
@@ -59,5 +80,5 @@ module.exports = {
         return;
       }
     }
-  },
+  }
 }; 

@@ -109,7 +109,7 @@ module.exports = {
       const guildId = interaction.guildId;
       const backendUrl = process.env.BACKEND_API_URL;
       const response = await axios.post(`${backendUrl}/users/${userId}/hunt`, { guildId }, { headers: { 'x-guild-id': guildId } });
-      const { name, rarity, value, count, cooldown } = response.data;
+      const { name, rarity, value, count, cooldown, buffMessage } = response.data;
       const flavorArr = flavorTexts[rarity] || flavorTexts.common;
       const flavor = flavorArr[Math.floor(Math.random() * flavorArr.length)].replace('{name}', name);
 
@@ -131,7 +131,7 @@ module.exports = {
       const embed = {
         color: rarityColors[rarity] || 0x95a5a6,
         title: `🏹 You caught a${rarity === 'uncommon' ? 'n' : ''} ${rarity.charAt(0).toUpperCase() + rarity.slice(1)} Animal!`,
-        description: flavor,
+        description: flavor + (buffMessage || ''),
         fields: [
           { name: 'Animal', value: name, inline: true },
           { name: 'Rarity', value: rarity.charAt(0).toUpperCase() + rarity.slice(1), inline: true },

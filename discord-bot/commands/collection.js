@@ -76,12 +76,10 @@ module.exports = {
       });
 
       const inventory = response.data.inventory || [];
-      const buffs = response.data.buffs || [];
 
       // Add debug logging
       console.log('Collection Response:', {
         inventory,
-        buffs,
         itemCount: inventory.filter(i => i.type === 'item').length,
         fishCount: inventory.filter(i => i.type === 'fish').length,
         animalCount: inventory.filter(i => i.type === 'animal').length
@@ -126,20 +124,6 @@ module.exports = {
           timestamp: new Date()
         });
       }
-
-      // Buffs page (last)
-      const buffsText = buffs.map(b =>
-        `**${b.description}**${b.expiresAt ? ` (expires <t:${Math.floor(new Date(b.expiresAt).getTime() / 1000)}:R>)` : ''}${b.usesLeft ? ` (uses left: ${b.usesLeft})` : ''}`
-      ).join('\n') || 'You have no active buffs.';
-      const buffsFields = splitIntoFields('🧪 Active Buffs', buffsText);
-
-      pages.push({
-        color: 0x9b59b6,
-        title: '🎒 Your Collection — Active Buffs',
-        fields: buffsFields,
-        footer: { text: `Requested by ${interaction.user.tag}` },
-        timestamp: new Date()
-      });
 
       let currentPage = 0;
 
