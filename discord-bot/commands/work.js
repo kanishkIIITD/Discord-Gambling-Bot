@@ -84,23 +84,48 @@ module.exports = {
       const guildId = interaction.guildId;
       const job = interaction.options.getString('job');
       const response = await axios.post(`${backendUrl}/users/${userId}/work`, job ? { job, guildId } : { guildId }, { headers: { 'x-guild-id': guildId } });
-      const { job: jobResult, amount, bonus, message, cooldown } = response.data;
+      const { job: jobResult, amount, cooldown, message } = response.data;
+
+      // Extract buff messages from the main message
+      let mainMessage = message;
+      let buffMessages = [];
+      
+      // Extract work buff
+      const workMatch = message.match(/\((work_\w+ buff used: (\dx) POINTS!)\)/i);
+      if (workMatch) {
+        buffMessages.push(workMatch[1]);
+        mainMessage = mainMessage.replace(workMatch[0], '').trim();
+      }
+
+      // Extract earnings buff
+      const earningsMatch = message.match(/\((earnings_x\d buff active: (\dx) POINTS!)\)/i);
+      if (earningsMatch) {
+        buffMessages.push(earningsMatch[1]);
+        mainMessage = mainMessage.replace(earningsMatch[0], '').trim();
+      }
 
       const embed = {
-        color: 0x0099ff,
-        title: '🏃 Work Result',
-        description: message,
+        color: 0x00ff00,
+        title: '💼 Work Result',
+        description: mainMessage,
         fields: [
-          { name: 'Job', value: jobResult.charAt(0).toUpperCase() + jobResult.slice(1), inline: true },
-          { name: 'Earned', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+          { name: 'Job', value: jobResult, inline: true },
+          { name: 'Amount', value: `${amount.toLocaleString('en-US')} points`, inline: true },
           { name: 'Next Work Available', value: `<t:${Math.floor(new Date(cooldown).getTime()/1000)}:R>`, inline: true }
         ],
         timestamp: new Date(),
         footer: { text: `Requested by ${interaction.user.tag}` }
       };
-      if (bonus && bonus > 0) {
-        embed.fields.push({ name: 'Bonus!', value: `+${bonus.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true });
+
+      // Add buffs field if there are any buffs
+      if (buffMessages.length > 0) {
+        embed.fields.push({
+          name: '✨ Buffs Used',
+          value: buffMessages.join('\n'),
+          inline: false
+        });
       }
+
       await interaction.editReply({ embeds: [embed] });
       return;
     } catch (error) {

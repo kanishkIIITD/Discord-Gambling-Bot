@@ -59,34 +59,53 @@ module.exports = {
       else if (outcome === 'fail') color = 0xffa500;
       else if (outcome === 'jail') color = 0xff0000;
 
-      // Extract the multiplied value and buff message if present
-      // The backend message already includes the multiplied value, but let's make it explicit in the embed
-      let buffField = null;
-      const buffMatch = message.match(/\((earnings_x\d buff active: (\dx) POINTS!)\)/i);
-      if (buffMatch) {
-        buffField = {
-          name: 'Buff',
-          value: buffMatch[1],
-          inline: false
-        };
+      // Extract buff messages from the main message
+      let mainMessage = message;
+      let buffMessages = [];
+      
+      // Extract earnings buff
+      const earningsMatch = message.match(/\((earnings_x\d buff active: (\dx) POINTS!)\)/i);
+      if (earningsMatch) {
+        buffMessages.push(earningsMatch[1]);
+        mainMessage = mainMessage.replace(earningsMatch[0], '').trim();
+      }
+
+      // Extract crime success buff
+      if (message.includes('Your buff guaranteed a successful crime!')) {
+        buffMessages.push('Crime Success Buff: Guaranteed success!');
+        mainMessage = mainMessage.replace('Your buff guaranteed a successful crime! ', '');
+      }
+
+      // Extract jail immunity buff
+      if (message.includes('Your jail immunity buff saved you from jail!')) {
+        buffMessages.push('Jail Immunity Buff: Saved from jail!');
+        mainMessage = mainMessage.replace('Your jail immunity buff saved you from jail! ', '');
       }
 
       const embed = {
         color,
         title: '🧙 Crime Result',
-        description: message,
+        description: mainMessage,
         fields: [
           { name: 'Next Crime Available', value: `<t:${Math.floor(new Date(cooldown).getTime()/1000)}:R>`, inline: true }
         ],
         timestamp: new Date(),
         footer: { text: `Requested by ${interaction.user.tag}` }
       };
+
       if (outcome === 'jail') {
         embed.fields.push({ name: 'Jailed Until', value: `<t:${Math.floor(new Date(jailedUntil).getTime()/1000)}:R>`, inline: true });
       }
-      if (buffField) {
-        embed.fields.push(buffField);
+
+      // Add buffs field if there are any buffs
+      if (buffMessages.length > 0) {
+        embed.fields.push({
+          name: '✨ Buffs Used',
+          value: buffMessages.join('\n'),
+          inline: false
+        });
       }
+
       await interaction.editReply({ embeds: [embed] });
       return;
     } catch (error) {
