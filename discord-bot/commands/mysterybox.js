@@ -28,10 +28,20 @@ module.exports = {
         headers: { 'x-guild-id': interaction.guildId }
       });
 
-      const { rewardType, amount, item, message, buff } = response.data;
+      const { rewardType, amount, item, message } = response.data;
+
+      let embedColor = 0x8e44ad; // Default purple for normal rewards
+      
+      if (rewardType === 'buffs' || rewardType === 'buff') {
+        embedColor = 0x00FFFF; // Cyan for buffs
+      } else if (rewardType === 'coins' && amount >= 1000000) {
+        embedColor = 0xFFD700; // Gold for jackpot (1M+ points)
+      } else if (rewardType === 'item' && item && ['legendary', 'mythical', 'transcendent'].includes(item.rarity)) {
+        embedColor = 0xFFD700; // Gold for legendary+ items
+      }
 
       const embed = new EmbedBuilder()
-        .setColor(0x8e44ad)
+        .setColor(embedColor)
         .setTitle('🎁 Mystery Box')
         .setDescription(`You opened a ${boxType} mystery box!`)
         .setTimestamp()
@@ -43,20 +53,22 @@ module.exports = {
           value: `**${amount.toLocaleString('en-US')} points**`,
           inline: true 
         });
-      } else if (rewardType === 'item') {
+      } else if (rewardType === 'item' && item) {
         let valueLine = '';
         if (typeof item.value === 'number' && !isNaN(item.value)) {
           valueLine = `\nValue: ${item.value.toLocaleString('en-US')} points`;
         }
         embed.addFields({ 
-          name: 'Reward', 
+          name: '🎁 Reward', 
           value: `**${item.name}**\nRarity: ${item.rarity}${valueLine}`,
           inline: true 
         });
-      } else if (rewardType === 'buff') {
+      } else if ((rewardType === 'buffs' || rewardType === 'buff') && message) {
+        // Extract buff description from message
+        const buffDescription = message.replace('You found a buff: ', '').split(' (')[0];
         embed.addFields({ 
           name: '✨ Reward', 
-          value: `**${buff.description}**`,
+          value: `**${buffDescription}**`,
           inline: true 
         });
       }

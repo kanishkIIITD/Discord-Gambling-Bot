@@ -130,7 +130,7 @@ module.exports = {
       const embed = {
         color: rarityColors[rarity] || 0x95a5a6,
         title: `🎣 You caught a${rarity === 'uncommon' ? 'n' : ''} ${rarity.charAt(0).toUpperCase() + rarity.slice(1)} Fish!`,
-        description: flavor + (buffMessage || ''),
+        description: flavor,
         fields: [
           { name: 'Fish', value: name, inline: true },
           { name: 'Rarity', value: rarity.charAt(0).toUpperCase() + rarity.slice(1), inline: true },
@@ -141,6 +141,22 @@ module.exports = {
         timestamp: new Date(),
         footer: { text: `Requested by ${interaction.user.tag}` }
       };
+
+      // Add buff messages in a separate field if they exist
+      if (buffMessage) {
+        // Split the buff message into individual buffs and format them
+        const buffs = buffMessage.split(') (').map(buff => {
+          // Remove the parentheses and clean up the message
+          return buff.replace(/[()]/g, '').trim();
+        });
+        
+        embed.fields.push({
+          name: '✨ Buffs Used',
+          value: buffs.join('\n'),
+          inline: false
+        });
+      }
+
       await interaction.editReply({ embeds: [embed] });
       return;
     } catch (error) {

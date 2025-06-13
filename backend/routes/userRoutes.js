@@ -1227,13 +1227,6 @@ router.post('/:discordId/work', async (req, res) => {
     await wallet.save();
     await user.save();
 
-    if (workBuff) {
-      message += ` (${workBuff.type} buff used: ${workBuff.usesLeft !== undefined ? workBuff.usesLeft + 1 : 'unlimited'}x POINTS!)`;
-    }
-    if (earningsBuff) {
-      message += ` (${earningsBuff.type} buff active: ${earningsBuff.usesLeft !== undefined ? earningsBuff.usesLeft + 1 : 'unlimited'}x POINTS!)`;
-    }
-
     res.json({
       job,
       amount,
@@ -2373,8 +2366,8 @@ router.post('/:discordId/mysterybox', async (req, res) => {
         buffs: { chance: 0.15, pool: [
           {
             type: 'earnings_x2',
-            description: '2x earnings for 10 minutes!',
-            expiresAt: new Date(now.getTime() + 10 * 60 * 1000)
+            description: '2x earnings for 1 hour!',
+            expiresAt: new Date(now.getTime() + 60 * 60 * 1000)
           },
           {
             type: 'work_double',
@@ -2418,14 +2411,14 @@ router.post('/:discordId/mysterybox', async (req, res) => {
           },
           {
             type: 'fishing_rate_2x',
-            description: '2x drop rate for Epic and better fish for 30 minutes!',
-            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            description: '2x drop rate for Epic and better fish for 1 hour!',
+            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
             weight: 15 // 15% chance within buff pool
           },
           {
             type: 'hunting_rate_2x',
-            description: '2x drop rate for Epic and better animals for 30 minutes!',
-            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            description: '2x drop rate for Epic and better animals for 1 hour!',
+            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
             weight: 15 // 15% chance within buff pool
           },
           {
@@ -2467,32 +2460,32 @@ router.post('/:discordId/mysterybox', async (req, res) => {
           },
           {
             type: 'fishing_rate_3x',
-            description: '3x drop rate for Legendary and better fish for 1 hour!',
-            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+            description: '3x drop rate for Legendary and better fish for 30 minutes!',
+            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
             weight: 10 // 10% chance within buff pool
           },
           {
             type: 'hunting_rate_3x',
-            description: '3x drop rate for Legendary and better animals for 1 hour!',
-            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+            description: '3x drop rate for Legendary and better animals for 30 minutes!',
+            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
             weight: 10 // 10% chance within buff pool
           },
           {
             type: 'fishing_rate_5x',
-            description: '5x drop rate for Mythical fish for 30 minutes!',
-            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            description: '5x drop rate for Mythical fish for 15 minutes!',
+            expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
             weight: 5 // 5% chance within buff pool
           },
           {
             type: 'hunting_rate_5x',
-            description: '5x drop rate for Mythical animals for 30 minutes!',
-            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            description: '5x drop rate for Mythical animals for 15 minutes!',
+            expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
             weight: 5 // 5% chance within buff pool
           },
           {
             type: 'earnings_x5',
-            description: '5x earnings for 1 hour!',
-            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+            description: '5x earnings for 15 minutes!',
+            expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
             weight: 15 // 15% chance within buff pool
           },
           {
