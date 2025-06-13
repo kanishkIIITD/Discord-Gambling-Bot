@@ -142,7 +142,7 @@ export const Transactions = () => {
                          {transaction.description || '---'}
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${amountColorClass} tracking-wide text-right`}>
-                         {transaction.amount.toLocaleString()} points
+                         {transaction.amount.toLocaleString('en-US')} points
                       </td>
                     </tr>
                   );

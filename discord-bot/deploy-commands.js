@@ -688,12 +688,12 @@ const commands = [
 		options: [
 			{
 				name: 'type',
-				description: 'Type of mystery box to open',
+				description: 'The type of mystery box to open',
 				type: 3,
 				required: true,
 				choices: [
 					{
-						name: 'Basic Box (25,000 points)',
+						name: 'Basic Box (Free once per day)',
 						value: 'basic'
 					},
 					{
@@ -705,12 +705,6 @@ const commands = [
 						value: 'ultimate'
 					}
 				]
-			},
-			{
-				name: 'paid',
-				description: 'Pay coins to open a box (no cooldown)',
-				type: 5,
-				required: false
 			}
 		]
 	},
@@ -724,23 +718,23 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
 	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
+		// console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
 
-		// Deploy to test guild only
-		const data = await rest.put(
-			Routes.applicationGuildCommands(clientId, guildId1),
-			{ body: commands },
-		);
-
-		console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
-
-		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
-		// console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
-		// const globalData = await rest.put(
-		// 	Routes.applicationCommands(clientId),
+		// // Deploy to test guild only
+		// const data = await rest.put(
+		// 	Routes.applicationGuildCommands(clientId, guildId1),
 		// 	{ body: commands },
 		// );
-		// console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
+
+		// console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
+
+		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
+		console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
+		const globalData = await rest.put(
+			Routes.applicationCommands(clientId),
+			{ body: commands },
+		);
+		console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
 	} catch (error) {
 		console.error(error);
 	}

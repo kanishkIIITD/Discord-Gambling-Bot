@@ -59,6 +59,18 @@ module.exports = {
       else if (outcome === 'fail') color = 0xffa500;
       else if (outcome === 'jail') color = 0xff0000;
 
+      // Extract the multiplied value and buff message if present
+      // The backend message already includes the multiplied value, but let's make it explicit in the embed
+      let buffField = null;
+      const buffMatch = message.match(/\((earnings_x\d buff active: (\dx) POINTS!)\)/i);
+      if (buffMatch) {
+        buffField = {
+          name: 'Buff',
+          value: buffMatch[1],
+          inline: false
+        };
+      }
+
       const embed = {
         color,
         title: '🧙 Crime Result',
@@ -71,6 +83,9 @@ module.exports = {
       };
       if (outcome === 'jail') {
         embed.fields.push({ name: 'Jailed Until', value: `<t:${Math.floor(new Date(jailedUntil).getTime()/1000)}:R>`, inline: true });
+      }
+      if (buffField) {
+        embed.fields.push(buffField);
       }
       await interaction.editReply({ embeds: [embed] });
       return;

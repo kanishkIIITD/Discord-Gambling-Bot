@@ -1956,7 +1956,7 @@ client.on('interactionCreate', async interaction => {
 							'`/sell` - Sell an item from your collection for points\n' +
 							'`/trade` - Gift or trade an item from your collection to another user\n' +
 							'`/beg` - Beg for coins and see what happens!\n' +
-							'`/mysterybox` - Open a mystery box for a random reward!'
+							'`/mysterybox` - Open a mystery box for random rewards!'
 						}
 					],
 					timestamp: new Date()
@@ -1993,12 +1993,12 @@ client.on('interactionCreate', async interaction => {
 							'`work_quintuple` - Quintuple work earnings (5x)'
 						},
 						{ name: 'Fishing/Hunting Rate Buffs', value:
-							'`fishing_rate_2x` - Double fishing rarity chances (2x)\n' +
-							'`fishing_rate_3x` - Triple fishing rarity chances (3x)\n' +
-							'`fishing_rate_5x` - Quintuple fishing rarity chances (5x)\n' +
-							'`hunting_rate_2x` - Double hunting rarity chances (2x)\n' +
-							'`hunting_rate_3x` - Triple hunting rarity chances (3x)\n' +
-							'`hunting_rate_5x` - Quintuple hunting rarity chances (5x)'
+							'`fishing_rate_2x` - Double fishing rarity chances (+10%)\n' +
+							'`fishing_rate_3x` - Triple fishing rarity chances (+18%)\n' +
+							'`fishing_rate_5x` - Quintuple fishing rarity chances (+30%)\n' +
+							'`hunting_rate_2x` - Double hunting rarity chances (+10%)\n' +
+							'`hunting_rate_3x` - Triple hunting rarity chances (+18%)\n' +
+							'`hunting_rate_5x` - Quintuple hunting rarity chances (+30%)'
 						},
 						{ name: 'Guaranteed Buffs', value:
 							'`fishing_legendary` - Guaranteed legendary or better fish\n' +
@@ -2007,6 +2007,11 @@ client.on('interactionCreate', async interaction => {
 						{ name: 'Other Buffs', value:
 							'`crime_success` - Guaranteed successful crime\n' +
 							'`jail_immunity` - Immune to jail time from failed crimes'
+						},
+						{ name: 'Mystery Box Types', value:
+							'`Basic Box` - Free once per day\n' +
+							'`Premium Box` - 1,000,000 points\n' +
+							'`Ultimate Box` - 10,000,000 points'
 						},
 						{ name: 'Commands', value:
 							'`/mysterybox` - Open a mystery box for a chance to get buffs\n' +

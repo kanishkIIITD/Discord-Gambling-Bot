@@ -1,84 +1,73 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const axios = require('axios');
-const ResponseHandler = require('../utils/responseHandler');
-const logger = require('../utils/logger');
+const { handleError } = require('../utils/responseHandler');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('mysterybox')
-    .setDescription('Open a mystery box for random rewards!')
+    .setDescription('Open a mystery box')
     .addStringOption(option =>
       option.setName('type')
-        .setDescription('Type of mystery box to open')
+        .setDescription('The type of mystery box to open')
         .setRequired(true)
         .addChoices(
-          { name: 'Basic Box (25,000 points)', value: 'basic' },
+          { name: 'Basic Box (Free once per day)', value: 'basic' },
           { name: 'Premium Box (1,000,000 points)', value: 'premium' },
           { name: 'Ultimate Box (10,000,000 points)', value: 'ultimate' }
-        )
-    )
-    .addBooleanOption(option =>
-      option.setName('paid')
-        .setDescription('Pay coins to open a box (no cooldown)')
-        .setRequired(false)
-    ),
+        )),
 
   async execute(interaction) {
     try {
       await interaction.deferReply();
-      const userId = interaction.user.id;
-      const guildId = interaction.guildId;
       const boxType = interaction.options.getString('type');
-      const paid = interaction.options.getBoolean('paid') || false;
-      const backendUrl = process.env.BACKEND_API_URL;
-      const response = await axios.post(`${backendUrl}/users/${userId}/mysterybox`, { 
+
+      const response = await axios.post(`${process.env.BACKEND_API_URL}/users/${interaction.user.id}/mysterybox`, {
         boxType,
-        paid, 
-        guildId 
-      }, { 
-        headers: { 'x-guild-id': guildId } 
+        guildId: interaction.guildId
+      }, {
+        headers: { 'x-guild-id': interaction.guildId }
       });
 
-      const { rewardType, amount, item, message, cooldown } = response.data;
-      let color = 0x0099ff;
-      if (rewardType === 'coins') color = 0x2ecc71;
-      else if (rewardType === 'item') color = 0xf1c40f;
-      else if (rewardType === 'buff') color = 0x8e44ad;
-      else if (rewardType === 'jackpot') color = 0xffd700;
+      const { rewardType, amount, item, message, buff } = response.data;
 
-      const fields = [
-        { name: 'Next Free Box', value: `<t:${Math.floor(new Date(cooldown).getTime()/1000)}:R>`, inline: true }
-      ];
+      const embed = new EmbedBuilder()
+        .setColor(0x8e44ad)
+        .setTitle('🎁 Mystery Box')
+        .setDescription(`You opened a ${boxType} mystery box!`)
+        .setTimestamp()
+        .setFooter({ text: `Requested by ${interaction.user.tag}` });
 
-      if (rewardType === 'coins' || rewardType === 'jackpot') {
-        fields.unshift({ name: 'Points', value: `${amount.toLocaleString('en-US')} points`, inline: true });
-      }
-      if (rewardType === 'item' && item) {
-        fields.unshift({ name: 'Item', value: `**${item.name}** (${item.rarity})`, inline: true });
-      }
-      if (rewardType === 'buff') {
-        fields.unshift({ name: 'Buff', value: message.match(/\*\*(.+)\*\*/)?.[1] || message, inline: true });
+      if (rewardType === 'coins') {
+        embed.addFields({ 
+          name: '💰 Reward', 
+          value: `**${amount.toLocaleString('en-US')} points**`,
+          inline: true 
+        });
+      } else if (rewardType === 'item') {
+        let valueLine = '';
+        if (typeof item.value === 'number' && !isNaN(item.value)) {
+          valueLine = `\nValue: ${item.value.toLocaleString('en-US')} points`;
+        }
+        embed.addFields({ 
+          name: 'Reward', 
+          value: `**${item.name}**\nRarity: ${item.rarity}${valueLine}`,
+          inline: true 
+        });
+      } else if (rewardType === 'buff') {
+        embed.addFields({ 
+          name: '✨ Reward', 
+          value: `**${buff.description}**`,
+          inline: true 
+        });
       }
 
-      const embed = {
-        color,
-        title: `🎁 ${boxType.charAt(0).toUpperCase() + boxType.slice(1)} Mystery Box`,
-        description: message,
-        fields,
-        timestamp: new Date(),
-        footer: { text: `Requested by ${interaction.user.tag}` }
-      };
+      if (message) {
+        embed.addFields({ name: 'Additional Info', value: message, inline: false });
+      }
+
       await interaction.editReply({ embeds: [embed] });
-      return;
     } catch (error) {
-      logger.error('Error in /mysterybox command:', error);
-      if (error.response && error.response.data && error.response.data.message) {
-        await ResponseHandler.handleError(interaction, { message: error.response.data.message }, 'Mystery Box');
-        return;
-      } else {
-        await ResponseHandler.handleError(interaction, error, 'Mystery Box');
-        return;
-      }
+      await handleError(interaction, error, 'Mystery Box');
     }
   }
 }; 

@@ -179,7 +179,7 @@ export const BiggestWinsLeaderboard = () => {
                   <tr key={index} className={`hover:bg-primary/5 ${win.discordId === user?.discordId ? 'bg-primary/20' : ''}`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{(page - 1) * (userPreferences?.itemsPerPage || 10) + index + 1}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{win.username}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary tracking-wide text-center">{win.amount.toLocaleString()} points</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary tracking-wide text-center">{win.amount.toLocaleString('en-US')} points</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary tracking-wide text-center">
                         {displayDesc}
                         {shouldTruncate && (

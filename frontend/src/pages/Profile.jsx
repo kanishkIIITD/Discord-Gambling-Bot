@@ -133,7 +133,7 @@ export const Profile = () => {
           <ul className="list-disc list-inside text-text-secondary">
             {profileBetting.recentBets.map((bet, idx) => (
               <li key={idx}>
-                <span className="font-medium">{bet.description}</span> - {bet.amount.toLocaleString()} points on <span className="font-medium">{bet.option}</span> (<span className={bet.result === 'Won' ? 'text-success' : bet.result === 'Lost' ? 'text-error' : 'text-warning'}>{bet.result}</span>)
+                <span className="font-medium">{bet.description}</span> - {bet.amount.toLocaleString('en-US')} points on <span className="font-medium">{bet.option}</span> (<span className={bet.result === 'Won' ? 'text-success' : bet.result === 'Lost' ? 'text-error' : 'text-warning'}>{bet.result}</span>)
               </li>
             ))}
           </ul>

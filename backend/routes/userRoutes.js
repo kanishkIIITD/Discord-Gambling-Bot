@@ -1038,20 +1038,20 @@ router.post('/:discordId/crime', async (req, res) => {
       usedBuff = user.buffs[crimeSuccessIdx];
       user.buffs[crimeSuccessIdx].usesLeft = (user.buffs[crimeSuccessIdx].usesLeft || 1) - 1;
       if (typeof cleanUserBuffs === 'function') cleanUserBuffs(user);
-      message = `Your buff guaranteed a successful crime! You pulled off the ${crime} and got away with ${amount.toLocaleString()} points! 🤑`;
+      message = `Your buff guaranteed a successful crime! You pulled off the ${crime} and got away with ${amount.toLocaleString('en-US')} points! 🤑`;
       user.crimeStats.success++;
     } else {
       if (outcomeRoll < 0.5) {
         // Success
         outcome = 'success';
         amount = Math.floor(Math.random() * 125000) + 25000; // 25k-150k
-        message = `You pulled off the ${crime} and got away with ${amount.toLocaleString()} points! 🤑`;
+        message = `You pulled off the ${crime} and got away with ${amount.toLocaleString('en-US')} points! 🤑`;
         user.crimeStats.success++;
       } else if (outcomeRoll < 0.85) {
         // Failure
         outcome = 'fail';
         amount = Math.floor(Math.random() * 70000) + 10000; // 10k-80k
-        message = `You tried to ${crime}, but failed. Lost ${amount.toLocaleString()} points.`;
+        message = `You tried to ${crime}, but failed. Lost ${amount.toLocaleString('en-US')} points.`;
         user.crimeStats.fail++;
       } else {
         // Jail
@@ -1076,7 +1076,7 @@ router.post('/:discordId/crime', async (req, res) => {
       const multiplier = earningsBuff.type === 'earnings_x2' ? 2 : 
                         earningsBuff.type === 'earnings_x3' ? 3 : 5;
       amount *= multiplier;
-      message = message.replace(/(\d[\d,]*) points/, `${amount.toLocaleString()} points`);
+      message = message.replace(/(\d[\d,]*) points/, `${amount.toLocaleString('en-US')} points`);
       message += ` (${earningsBuff.type} buff active: ${multiplier}x POINTS!)`;
     }
 
@@ -1172,9 +1172,9 @@ router.post('/:discordId/work', async (req, res) => {
     // Initialize message after amount/bonus are determined
     let message;
     if (rare) {
-      message = `You worked as a ${job} and earned ${amount.toLocaleString()} points. ${bonusMsg} +${bonus.toLocaleString()} points!`;
+      message = `You worked as a ${job} and earned ${amount.toLocaleString('en-US')} points. ${bonusMsg} +${bonus.toLocaleString()} points!`;
     } else {
-      message = `You worked as a ${job} and earned ${amount.toLocaleString()} points.`;
+      message = `You worked as a ${job} and earned ${amount.toLocaleString('en-US')} points.`;
     }
 
     // Buff: work_double/triple/quintuple
@@ -2269,10 +2269,10 @@ router.post('/:discordId/beg', async (req, res) => {
       wallet.balance += amount;
       outcome = 'success';
       const texts = [
-        `A kind stranger gave you ${amount.toLocaleString()} points.`,
-        `You found ${amount.toLocaleString()} points on the ground!`,
-        `Someone took pity and tossed you ${amount.toLocaleString()} points.`,
-        `A passing dog dropped a pouch with ${amount.toLocaleString()} points!`
+        `A kind stranger gave you ${amount.toLocaleString('en-US')} points.`,
+        `You found ${amount.toLocaleString('en-US')} points on the ground!`,
+        `Someone took pity and tossed you ${amount.toLocaleString('en-US')} points.`,
+        `A passing dog dropped a pouch with ${amount.toLocaleString('en-US')} points!`
       ];
       message = texts[Math.floor(Math.random() * texts.length)];
     } else if (roll < 0.85) {
@@ -2291,10 +2291,10 @@ router.post('/:discordId/beg', async (req, res) => {
       amount = Math.floor(Math.random() * 2000) + 500;
       wallet.balance = Math.max(0, wallet.balance - amount);
       const texts = [
-        `A thief snatched ${amount.toLocaleString()} points from you!`,
-        `You tripped and lost ${amount.toLocaleString()} points.`,
-        `A seagull stole your last ${amount.toLocaleString()} points!`,
-        `You dropped your wallet and lost ${amount.toLocaleString()} points.`
+        `A thief snatched ${amount.toLocaleString('en-US')} points from you!`,
+        `You tripped and lost ${amount.toLocaleString('en-US')} points.`,
+        `A seagull stole your last ${amount.toLocaleString('en-US')} points!`,
+        `You dropped your wallet and lost ${amount.toLocaleString('en-US')} points.`
       ];
       message = texts[Math.floor(Math.random() * texts.length)];
     } else {
@@ -2303,9 +2303,9 @@ router.post('/:discordId/beg', async (req, res) => {
       wallet.balance += amount;
       outcome = 'jackpot';
       const texts = [
-        `A mysterious benefactor handed you a briefcase with ${amount.toLocaleString()} points!`,
-        `You won the street lottery: ${amount.toLocaleString()} points!`,
-        `A golden retriever delivered you a bag with ${amount.toLocaleString()} points!` 
+        `A mysterious benefactor handed you a briefcase with ${amount.toLocaleString('en-US')} points!`,
+        `You won the street lottery: ${amount.toLocaleString('en-US')} points!`,
+        `A golden retriever delivered you a bag with ${amount.toLocaleString('en-US')} points!` 
       ];
       message = texts[Math.floor(Math.random() * texts.length)];
     }
@@ -2326,8 +2326,8 @@ router.post('/:discordId/mysterybox', async (req, res) => {
     const now = new Date();
     if (!user.mysteryboxCooldown) user.mysteryboxCooldown = null;
     
-    // Get box type and paid status
-    const { boxType, paid } = req.body;
+    // Get box type
+    const { boxType } = req.body;
     const costs = {
       basic: 25000,
       premium: 1000000,
@@ -2335,21 +2335,20 @@ router.post('/:discordId/mysterybox', async (req, res) => {
     };
     const cost = costs[boxType];
 
-    if (!paid) {
-      // Free: check cooldown (once per day) only for basic box
-      if (boxType === 'basic' && user.mysteryboxCooldown && user.mysteryboxCooldown > now) {
+    // Handle basic box (free once per day)
+    if (boxType === 'basic') {
+      if (user.mysteryboxCooldown && user.mysteryboxCooldown > now) {
         return res.status(429).json({ message: `You already opened your free mystery box today. Try again at ${user.mysteryboxCooldown.toLocaleString()}` });
       }
-      // Only set cooldown for basic box
-      if (boxType === 'basic') {
-        user.mysteryboxCooldown = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      }
+      user.mysteryboxCooldown = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     } else {
-      // Paid: check balance
+      // Premium and Ultimate boxes always cost points
       if (wallet.balance < cost) {
         return res.status(400).json({ message: `You need ${cost.toLocaleString()} points to open a ${boxType} mystery box.` });
       }
+      // Deduct cost immediately
       wallet.balance -= cost;
+      await wallet.save();
     }
 
     // Remove expired buffs
@@ -2407,13 +2406,13 @@ router.post('/:discordId/mysterybox', async (req, res) => {
         buffs: { chance: 0.3, pool: [
           {
             type: 'fishing_epic',
-            description: 'Next catch is guaranteed Epic or better!',
+            description: 'Next fish is guaranteed Epic or better!',
             usesLeft: 1,
             weight: 25 // 25% chance within buff pool
           },
           {
             type: 'hunting_epic',
-            description: 'Next hunt is guaranteed Epic or better!',
+            description: 'Next animal is guaranteed Epic or better!',
             usesLeft: 1,
             weight: 25 // 25% chance within buff pool
           },
@@ -2456,13 +2455,13 @@ router.post('/:discordId/mysterybox', async (req, res) => {
         buffs: { chance: 0.4, pool: [
           {
             type: 'fishing_legendary',
-            description: 'Next catch is guaranteed Legendary or better!',
+            description: 'Next fish is guaranteed Legendary or better!',
             usesLeft: 1,
             weight: 20 // 20% chance within buff pool
           },
           {
             type: 'hunting_legendary',
-            description: 'Next hunt is guaranteed Legendary or better!',
+            description: 'Next animal is guaranteed Legendary or better!',
             usesLeft: 1,
             weight: 20 // 20% chance within buff pool
           },
@@ -2516,7 +2515,7 @@ router.post('/:discordId/mysterybox', async (req, res) => {
       amount = Math.floor(Math.random() * (config.coins.max - config.coins.min + 1)) + config.coins.min;
       wallet.balance += amount;
       rewardType = 'coins';
-      message = `You found ${amount.toLocaleString()} points inside the ${boxType} box!`;
+      message = `You found ${amount.toLocaleString('en-US')} points inside the ${boxType} box!`;
     } else if (roll < (cumulativeChance += config.items.chance)) {
       // Item
       item = config.items.pool[Math.floor(Math.random() * config.items.pool.length)];
@@ -2551,15 +2550,34 @@ router.post('/:discordId/mysterybox', async (req, res) => {
       }
       
       user.buffs = user.buffs || [];
-      user.buffs.push(selectedBuff);
+      
+      // Check for existing buff of same type
+      const existingBuffIdx = user.buffs.findIndex(b => b.type === selectedBuff.type);
+      if (existingBuffIdx >= 0) {
+        const existingBuff = user.buffs[existingBuffIdx];
+        if (selectedBuff.expiresAt) {
+          // For time-based buffs, extend the duration
+          const currentExpiry = existingBuff.expiresAt || new Date(now.getTime());
+          const newExpiry = new Date(currentExpiry.getTime() + (selectedBuff.expiresAt - now.getTime()));
+          existingBuff.expiresAt = newExpiry;
+        } else if (selectedBuff.usesLeft !== undefined) {
+          // For use-based buffs, add the uses
+          existingBuff.usesLeft = (existingBuff.usesLeft || 0) + selectedBuff.usesLeft;
+        }
+        message = `You found a buff: ${selectedBuff.description} (Stacked with existing buff!)`;
+      } else {
+        // Add new buff if none exists
+        user.buffs.push(selectedBuff);
+        message = `You found a buff: ${selectedBuff.description}`;
+      }
+      
       rewardType = 'buffs';
-      message = `You found a buff: ${selectedBuff.description}`;
     } else {
       // Jackpot
       amount = Math.floor(Math.random() * (config.jackpot.max - config.jackpot.min + 1)) + config.jackpot.min;
       wallet.balance += amount;
       rewardType = 'jackpot';
-      message = `JACKPOT! You found ${amount.toLocaleString()} points and a golden ticket in the ${boxType} box!`;
+      message = `JACKPOT! You found ${amount.toLocaleString('en-US')} points and a golden ticket in the ${boxType} box!`;
     }
 
     await wallet.save();

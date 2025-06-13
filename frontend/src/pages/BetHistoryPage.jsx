@@ -269,7 +269,7 @@ const BetHistoryPage = () => {
                       <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{formattedDate}</td>
                       <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center capitalize">{gameType.charAt(0).toUpperCase() + gameType.slice(1)}</td>
                       <td className="px-2 sm:px-6 py-2 sm:py-3 text-sm text-text-primary tracking-wide text-center">{tx.description || '---'}</td>
-                      <td className={`px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm font-medium ${amountColorClass} tracking-wide text-right`}>{tx.amount.toLocaleString()} pts</td>
+                      <td className={`px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm font-medium ${amountColorClass} tracking-wide text-right`}>{tx.amount.toLocaleString('en-US')} pts</td>
                     </tr>
                   );
                 })
