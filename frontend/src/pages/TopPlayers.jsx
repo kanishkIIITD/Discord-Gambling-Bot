@@ -162,7 +162,7 @@ export const TopPlayers = () => {
                   <tr key={player.discordId} className={`hover:bg-primary/5 ${player.discordId === user?.discordId ? 'bg-primary/20' : ''}`}>
                     <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{(page - 1) * (userPreferences?.itemsPerPage || 10) + index + 1}</td>
                     <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{player.username}</td>
-                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm font-medium text-primary tracking-wide text-center">{player.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points</td>
+                    <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm font-medium text-primary tracking-wide text-center">{player.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points</td>
                   </tr>
                 ))
               ) : (

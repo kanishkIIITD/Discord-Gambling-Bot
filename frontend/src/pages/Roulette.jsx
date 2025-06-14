@@ -301,12 +301,12 @@ export const Roulette = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 16v-4m8-4h-4m-8 0H4" />
               </svg>
               <span className="text-lg font-bold tracking-wide text-white">
-                Balance: <span className="text-primary">{walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points</span>
+                Balance: <span className="text-primary">{walletBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points</span>
               </span>
             </div>
             <div className="hidden md:block w-px h-8 bg-border mx-6" />
             <div className="text-lg font-bold mt-2 md:mt-0 flex items-center gap-2" style={{ color: 'var(--color-secondary)' }}>
-              Total Bet: <span className="text-white font-extrabold">{totalBet.toLocaleString()}</span>
+              Total Bet: <span className="text-white font-extrabold">{totalBet.toLocaleString('en-US')}</span>
             </div>
           </div>
           <div className="flex flex-row gap-2 items-center">

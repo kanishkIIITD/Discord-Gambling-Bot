@@ -225,7 +225,7 @@ export const DashboardNavigation = ({ walletBalance, setWalletBalance, onProfile
               {/* Balance Display - Use suppression logic */}
               <div className="flex items-center space-x-2">
                 <span className="text-text-secondary">Balance:</span>
-                <span className="text-lg font-bold text-primary">{(suppressWalletBalance ? prevWalletBalance : walletBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="text-lg font-bold text-primary">{(suppressWalletBalance ? prevWalletBalance : walletBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               {/* Daily Bonus Button */}
               <div className="relative group w-full sm:w-auto">
@@ -370,7 +370,7 @@ export const DashboardNavigation = ({ walletBalance, setWalletBalance, onProfile
                   {/* Balance */}
                   <div className="flex items-center space-x-2">
                     <span className="text-text-secondary">Balance:</span>
-                    <span className="text-lg font-bold text-primary">{(suppressWalletBalance ? prevWalletBalance : walletBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="text-lg font-bold text-primary">{(suppressWalletBalance ? prevWalletBalance : walletBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   {/* Daily Bonus Button */}
                   <button 

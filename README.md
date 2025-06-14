@@ -61,7 +61,7 @@ A comprehensive gambling and economy platform with Discord integration, featurin
   - `/work` - Earn points
   - `/crime` - Risk/reward system
   - `/beg` - Random rewards
-  - `/mysterybox` - Random rewards
+  - `/mysterybox` - Open mystery boxes for rewards
   - `/transactions` - View transaction history
 
 - **Collection System**
@@ -81,6 +81,49 @@ A comprehensive gambling and economy platform with Discord integration, featurin
   - Slots
   - Coinflip
   - Dice games
+
+- **Mystery Box System**
+  - Three tiers of mystery boxes:
+    1. Basic Box (Free once per day)
+       - 50% chance for coins (10,000-40,000 points)
+       - 30% chance for items (common to legendary)
+       - 15% chance for buffs
+       - 5% chance for jackpot (100,000-300,000 points)
+    2. Premium Box (1,000,000 points)
+       - 40% chance for coins (50,000-200,000 points)
+       - 20% chance for items (epic to legendary)
+       - 30% chance for buffs
+       - 10% chance for jackpot (500,000-1,000,000 points)
+    3. Ultimate Box (10,000,000 points)
+       - 20% chance for coins (200,000-1,000,000 points)
+       - 10% chance for items (legendary to mythical)
+       - 40% chance for buffs
+       - 30% chance for jackpot (2,000,000-5,000,000 points)
+
+- **Buff System**
+  - Earnings Buffs:
+    - `earnings_x2` - Double all earnings for 1 hour
+    - `earnings_x3` - Triple all earnings for 30 minutes
+    - `earnings_x5` - Quintuple all earnings for 15 minutes
+  - Work Buffs:
+    - `work_double` - Next work gives double points
+    - `work_triple` - Next work gives triple points
+    - `work_quintuple` - Next work gives 5x points
+  - Fishing/Hunting Rate Buffs:
+    - `fishing_rate_2x` - +10% chance boost for all fish rarities (1 hour)
+    - `fishing_rate_3x` - +18% chance boost for all fish rarities (30 minutes)
+    - `fishing_rate_5x` - +30% chance boost for all fish rarities (15 minutes)
+    - `hunting_rate_2x` - +10% chance boost for all animal rarities (1 hour)
+    - `hunting_rate_3x` - +18% chance boost for all animal rarities (30 minutes)
+    - `hunting_rate_5x` - +30% chance boost for all animal rarities (15 minutes)
+  - Guaranteed Buffs:
+    - `fishing_legendary` - Next fish is guaranteed legendary or better
+    - `hunting_legendary` - Next animal is guaranteed legendary or better
+    - `fishing_epic` - Next fish is guaranteed epic or better
+    - `hunting_epic` - Next animal is guaranteed epic or better
+  - Other Buffs:
+    - `crime_success` - Next crime is guaranteed success
+    - `jail_immunity` - Immune to jail time from failed crimes for 1 hour
 
 ## Frontend
 

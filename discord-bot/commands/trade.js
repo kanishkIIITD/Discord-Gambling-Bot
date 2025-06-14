@@ -14,11 +14,12 @@ module.exports = {
     )
     .addStringOption(option =>
       option.setName('type')
-        .setDescription('Type of item (fish or animal)')
+        .setDescription('Type of item (fish, animal, or item)')
         .setRequired(true)
         .addChoices(
           { name: 'Fish', value: 'fish' },
-          { name: 'Animal', value: 'animal' }
+          { name: 'Animal', value: 'animal' },
+          { name: 'Item', value: 'item' }
         )
     )
     .addStringOption(option =>

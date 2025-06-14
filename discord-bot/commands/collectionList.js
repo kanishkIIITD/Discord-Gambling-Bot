@@ -61,40 +61,53 @@ module.exports = {
       await interaction.deferReply();
       const backendUrl = process.env.BACKEND_API_URL;
       const response = await axios.get(`${backendUrl}/users/collection-list`);
-      const { fish, animals } = response.data;
+      const { fish, animals, items } = response.data;
 
       // Group by rarity
       function groupByRarity(items) {
         const grouped = {};
-        for (const rarity of rarityOrder) grouped[rarity] = [];
-        for (const item of items) {
-          if (grouped[item.rarity]) grouped[item.rarity].push(item.name);
+        for (const rarity of rarityOrder) {
+          const fish = items.filter(i => i.rarity === rarity && i.type === 'fish');
+          const animals = items.filter(i => i.rarity === rarity && i.type === 'animal');
+          const collectibles = items.filter(i => i.rarity === rarity && i.type === 'item');
+          if (fish.length > 0 || animals.length > 0 || collectibles.length > 0) {
+            grouped[rarity] = {
+              fish,
+              animals,
+              collectibles,
+              fields: []
+            };
+          }
         }
         return grouped;
       }
-      const fishByRarity = groupByRarity(fish);
-      const animalsByRarity = groupByRarity(animals);
 
-      // Prepare pages based on rarity
+      // Combine all items into one array
+      const allItems = [...(fish || []), ...(animals || []), ...(items || [])];
+      const groupedItems = groupByRarity(allItems);
+
       const allPages = [];
       for (const rarity of rarityOrder) {
-        const fishNames = fishByRarity[rarity] || [];
-        const animalNames = animalsByRarity[rarity] || [];
-        const combinedNames = [
-          ...(fishNames.length > 0 ? fishNames.map(name => `🐟 ${name}`) : []),
-          ...(animalNames.length > 0 ? animalNames.map(name => `🦌 ${name}`) : [])
-        ].sort(); // Sort combined list alphabetically
+        const group = groupedItems[rarity];
+        if (!group) continue;
 
-        if (combinedNames.length === 0) continue; // Skip if no items for this rarity
+        const fishLines = group.fish.map(f => `🐟 **${f.name}**`);
+        const animalLines = group.animals.map(a => `🦁 **${a.name}**`);
+        const collectibleLines = group.collectibles.map(c => `🎁 **${c.name}**`);
 
-        const header = `__${rarityEmojis[rarity] || ''} ${rarity.charAt(0).toUpperCase() + rarity.slice(1)} (${combinedNames.length})__`;
-        const fullText = combinedNames.join('\n');
+        // Sort all lines alphabetically within their type groups
+        const combinedText = [
+          ...(fishLines.length > 0 ? [...fishLines] : []),
+          ...(animalLines.length > 0 ? [...animalLines] : []),
+          ...(collectibleLines.length > 0 ? [...collectibleLines] : [])
+        ].join('\n') || 'No items in this rarity.';
 
-        // Split potentially long list into multiple fields if needed
-        const rarityFields = splitIntoFields(header, fullText);
+        const fields = splitIntoFields(`${rarityEmojis[rarity]} ${rarity.charAt(0).toUpperCase() + rarity.slice(1)}`, combinedText);
 
-        // Add a page for this rarity (could span multiple fields if split)
-        allPages.push({ rarity, fields: rarityFields });
+        allPages.push({
+          rarity,
+          fields
+        });
       }
 
       if (allPages.length === 0) {
@@ -112,8 +125,17 @@ module.exports = {
       let currentPage = 0;
       const getEmbed = (pageIdx) => {
         const page = allPages[pageIdx];
+        const rarityValueRanges = {
+          common: '100-500',
+          uncommon: '500-2,000',
+          rare: '2,000-5,000',
+          epic: '5,000-20,000',
+          legendary: '20,000-50,000',
+          mythical: '50,000-100,000',
+          transcendent: '100,000-200,000'
+        };
         return {
-          color: rarityColors[page.rarity] || 0x0099ff, // Use rarity color
+          color: rarityColors[page.rarity] || 0x0099ff,
           title: `Collection List — ${page.rarity.charAt(0).toUpperCase() + page.rarity.slice(1)} (${pageIdx + 1}/${allPages.length})`,
           fields: page.fields,
           timestamp: new Date(),

@@ -105,13 +105,13 @@ module.exports = {
         if (fish.length === 0 && animals.length === 0 && collectibles.length === 0) continue;
 
         const fishLines = fish.map(f =>
-          `**${fishRarityEmojis[f.rarity] || ''} ${f.name}** (x${f.count}) — ${f.value.toLocaleString(undefined, { minimumFractionDigits: 2 })} pts`
+          `**${fishRarityEmojis[f.rarity] || ''} ${f.name}** (x${f.count}) — ${f.value.toLocaleString('en-US', { minimumFractionDigits: 2 })} pts`
         );
         const animalLines = animals.map(a =>
-          `**${animalRarityEmojis[a.rarity] || ''} ${a.name}** (x${a.count}) — ${a.value.toLocaleString(undefined, { minimumFractionDigits: 2 })} pts`
+          `**${animalRarityEmojis[a.rarity] || ''} ${a.name}** (x${a.count}) — ${a.value.toLocaleString('en-US', { minimumFractionDigits: 2 })} pts`
         );
         const collectibleLines = collectibles.map(c =>
-          `**${collectibleRarityEmojis[c.rarity] || ''} ${c.name}** (x${c.count})${c.value > 0 ? ` — ${c.value.toLocaleString(undefined, { minimumFractionDigits: 2 })} pts` : ''}`
+          `**${collectibleRarityEmojis[c.rarity] || ''} ${c.name}** (x${c.count})${c.value > 0 ? ` — ${c.value.toLocaleString('en-US', { minimumFractionDigits: 2 })} pts` : ''}`
         );
 
         // Sort all lines alphabetically

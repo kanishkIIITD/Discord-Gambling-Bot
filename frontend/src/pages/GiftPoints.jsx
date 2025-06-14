@@ -118,7 +118,7 @@ export const GiftPoints = () => {
           <span className="text-text-secondary">Your current balance:</span>
           <span className="flex items-center gap-1 font-semibold text-primary text-lg">
             <CurrencyDollarIcon className="h-5 w-5 text-primary" aria-hidden="true" />
-            {walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points
+            {walletBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points
           </span>
         </div>
 

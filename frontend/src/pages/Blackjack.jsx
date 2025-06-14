@@ -216,7 +216,7 @@ export const Blackjack = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 16v-4m8-4h-4m-8 0H4" />
             </svg>
             <span className="text-xl font-bold tracking-wide text-white">
-              Balance: <span className="text-primary">${walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              Balance: <span className="text-primary">${walletBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </span>
           </div>
         </div>
@@ -225,7 +225,7 @@ export const Blackjack = () => {
       {/* Bet Area */}
       {!gameState && (
         <div className="flex flex-col items-center mt-8 w-full max-w-2xl px-2 sm:px-0">
-          <div className="text-2xl font-bold text-white mb-2">Total Bet: <span className="text-yellow-300">${totalBet.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div>
+          <div className="text-2xl font-bold text-white mb-2">Total Bet: <span className="text-yellow-300">${totalBet.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div>
 
           {/* Manual Amount Input */}
           <input
@@ -301,7 +301,7 @@ export const Blackjack = () => {
                     onClick={() => handleStartGame(lastBetAmount)}
                     disabled={loading}
                   >
-                    Repeat Bet (${lastBetAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
+                    Repeat Bet (${lastBetAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
                   </button>
                 )}
               </div>
@@ -362,7 +362,7 @@ export const Blackjack = () => {
                   onClick={() => handleStartGame(lastBetAmount)}
                   disabled={loading}
                 >
-                  Repeat Bet (${lastBetAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
+                  Repeat Bet (${lastBetAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
                 </button>
               )}
             </div>

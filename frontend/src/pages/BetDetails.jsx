@@ -336,7 +336,7 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
           <div className="mt-4 bg-surface rounded-lg p-6 shadow flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="text-lg font-semibold text-text-primary">Total Pot</div>
-              <div className="text-2xl font-bold text-primary font-mono">{totalPot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-base font-medium text-text-secondary">points</span></div>
+              <div className="text-2xl font-bold text-primary font-mono">{totalPot.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-base font-medium text-text-secondary">points</span></div>
             </div>
             <div className="divide-y divide-border">
               {bet.options.map(option => {
@@ -349,7 +349,7 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
                   <div key={option} className="py-3 flex flex-col gap-1">
                     <div className="flex items-center justify-between">
                       <span className={`font-medium text-sm ${isLeading ? 'text-primary' : 'text-text-secondary'}`}>{option}</span>
-                      <span className={`font-mono text-base ${isLeading ? 'text-primary font-bold' : 'text-text-primary'}`}>{amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts</span>
+                      <span className={`font-mono text-base ${isLeading ? 'text-primary font-bold' : 'text-text-primary'}`}>{amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts</span>
                       <span className="ml-2 text-xs text-text-secondary">({percent.toFixed(1)}%)</span>
                     </div>
                     <div className="w-full h-2 bg-border rounded overflow-hidden">

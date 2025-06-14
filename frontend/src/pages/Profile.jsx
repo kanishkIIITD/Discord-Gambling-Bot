@@ -92,7 +92,7 @@ export const Profile = () => {
       <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 mb-8 space-y-4">
         <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Wallet</h2>
         <div className="text-text-secondary leading-relaxed tracking-wide">
-          <p><strong>Current Balance:</strong> <span className="font-semibold text-primary">{wallet.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points</span></p>
+          <p><strong>Current Balance:</strong> <span className="font-semibold text-primary">{wallet.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points</span></p>
         </div>
       </div>
 
@@ -102,12 +102,12 @@ export const Profile = () => {
           <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Betting</h2>
           <div className="text-text-secondary leading-relaxed tracking-wide space-y-2">
             <p><strong>Total Bets:</strong> {betting.totalBets}</p>
-            <p><strong>Total Wagered:</strong> {betting.totalWagered.toLocaleString()} points</p>
-            <p><strong>Total Won:</strong> {betting.totalWon.toLocaleString()} points</p>
-            <p><strong>Total Lost:</strong> {betting.totalLost.toLocaleString()} points</p>
+            <p><strong>Total Wagered:</strong> {betting.totalWagered.toLocaleString('en-US')} points</p>
+            <p><strong>Total Won:</strong> {betting.totalWon.toLocaleString('en-US')} points</p>
+            <p><strong>Total Lost:</strong> {betting.totalLost.toLocaleString('en-US')} points</p>
             <p><strong>Win Rate:</strong> {betting.winRate}%</p>
-            <p><strong>Biggest Win:</strong> {betting.biggestWin.toLocaleString()} points</p>
-            <p><strong>Biggest Loss:</strong> {betting.biggestLoss.toLocaleString()} points</p>
+            <p><strong>Biggest Win:</strong> {betting.biggestWin.toLocaleString('en-US')} points</p>
+            <p><strong>Biggest Loss:</strong> {betting.biggestLoss.toLocaleString('en-US')} points</p>
           </div>
         </div>
         {/* Gambling Section */}
@@ -115,12 +115,12 @@ export const Profile = () => {
           <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Gambling</h2>
           <div className="text-text-secondary leading-relaxed tracking-wide space-y-2">
             <p><strong>Total Games Played:</strong> {gambling.totalGamesPlayed}</p>
-            <p><strong>Total Gambled:</strong> {gambling.totalGambled.toLocaleString()} points</p>
-            <p><strong>Total Won:</strong> {gambling.totalWon.toLocaleString()} points</p>
-            <p><strong>Total Lost:</strong> {gambling.totalLost.toLocaleString()} points</p>
+            <p><strong>Total Gambled:</strong> {gambling.totalGambled.toLocaleString('en-US')} points</p>
+            <p><strong>Total Won:</strong> {gambling.totalWon.toLocaleString('en-US')} points</p>
+            <p><strong>Total Lost:</strong> {gambling.totalLost.toLocaleString('en-US')} points</p>
             <p><strong>Win Rate:</strong> {gambling.winRate}%</p>
-            <p><strong>Biggest Win:</strong> {gambling.biggestWin.toLocaleString()} points</p>
-            <p><strong>Biggest Loss:</strong> {gambling.biggestLoss.toLocaleString()} points</p>
+            <p><strong>Biggest Win:</strong> {gambling.biggestWin.toLocaleString('en-US')} points</p>
+            <p><strong>Biggest Loss:</strong> {gambling.biggestLoss.toLocaleString('en-US')} points</p>
             <p><strong>Favorite Game:</strong> {gambling.favoriteGame}</p>
           </div>
         </div>

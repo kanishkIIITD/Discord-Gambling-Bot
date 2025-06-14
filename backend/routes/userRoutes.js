@@ -26,6 +26,8 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Mudfish', rarity: 'common' },
       { name: 'Minnow', rarity: 'common' },
       { name: 'Sunfish', rarity: 'common' },
+      { name: 'Dace', rarity: 'common' },
+      { name: 'Rudd', rarity: 'common' },
       { name: 'Bass', rarity: 'uncommon' },
       { name: 'Catfish', rarity: 'uncommon' },
       { name: 'Pike', rarity: 'uncommon' },
@@ -39,6 +41,8 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Bream', rarity: 'uncommon' },
       { name: 'Chub', rarity: 'uncommon' },
       { name: 'Bullhead Catfish', rarity: 'uncommon' },
+      { name: 'Blue Catfish', rarity: 'uncommon' },
+      { name: 'Burbot', rarity: 'uncommon' },
       { name: 'Salmon', rarity: 'rare' },
       { name: 'Sturgeon', rarity: 'rare' },
       { name: 'Eel', rarity: 'rare' },
@@ -52,6 +56,8 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Anglerfish', rarity: 'rare' },
       { name: 'Sea Devil', rarity: 'rare' },
       { name: 'Flying Fish', rarity: 'rare' },
+      { name: 'Tilefish ', rarity: 'rare' },
+      { name: 'Queen Angelfish', rarity: 'rare' },
       { name: 'Mahi-Mahi', rarity: 'epic' },
       { name: 'Giant Squid', rarity: 'epic' },
       { name: 'Electric Ray', rarity: 'epic' },
@@ -70,6 +76,8 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Blue Tang', rarity: 'epic' },
       { name: 'Rainbow Parrotfish', rarity: 'epic' },
       { name: 'Lionfish', rarity: 'epic' },
+      { name: 'Swordtail Shark', rarity: 'epic' },
+      { name: 'Silver Salmon', rarity: 'epic' },
       { name: 'Golden Koi', rarity: 'legendary' },
       { name: 'Ancient Leviathan', rarity: 'legendary' },
       { name: 'Celestial Angelfish', rarity: 'legendary' },
@@ -113,6 +121,8 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Duck', rarity: 'common' },
       { name: 'Quokka', rarity: 'common' },
       { name: 'Field Mouse', rarity: 'common' },
+      { name: 'Frog ', rarity: 'common' },
+      { name: 'Lizard', rarity: 'common' },
       { name: 'Fox', rarity: 'uncommon' },
       { name: 'Raccoon', rarity: 'uncommon' },
       { name: 'Owl', rarity: 'uncommon' },
@@ -125,6 +135,7 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Falcon', rarity: 'uncommon' },
       { name: 'Woodpecker', rarity: 'uncommon' },
       { name: 'Gopher', rarity: 'uncommon' },
+      { name: 'Opossum', rarity: 'uncommon' },
       { name: 'Deer', rarity: 'rare' },
       { name: 'Boar', rarity: 'rare' },
       { name: 'Hawk', rarity: 'rare' },
@@ -141,6 +152,8 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Gazelle', rarity: 'rare' },
       { name: 'Meerkat', rarity: 'rare' },
       { name: 'Caracal', rarity: 'rare' },
+      { name: 'Moose', rarity: 'rare' },
+      { name: 'Elk', rarity: 'rare' },
       { name: 'Bear', rarity: 'epic' },
       { name: 'Dire Wolf', rarity: 'epic' },
       { name: 'Thunder Elk', rarity: 'epic' },
@@ -159,6 +172,8 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Snowy Owl', rarity: 'epic' },
       { name: 'Wolverine', rarity: 'epic' },
       { name: 'Ice Lynx', rarity: 'epic' },
+      { name: 'Bison', rarity: 'epic' },
+      { name: 'Iron Stag', rarity: 'epic' },
       { name: 'White Stag', rarity: 'legendary' },
       { name: 'Mythic Phoenix', rarity: 'legendary' },
       { name: 'Griffin', rarity: 'legendary' },
@@ -168,6 +183,8 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Eternal Lion', rarity: 'legendary' },
       { name: 'Storm Raven', rarity: 'legendary' },
       { name: 'Phantom Jaguar', rarity: 'legendary' },
+      { name: 'Divine Stag', rarity: 'legendary' },
+      { name: 'Celestial Bear', rarity: 'legendary' },
       { name: 'Eclipse Dragon', rarity: 'mythical' },
       { name: 'Spirit of the Forest', rarity: 'mythical' },
       { name: 'Cosmic Thunderbird', rarity: 'mythical' },
@@ -181,6 +198,8 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Lunar Fox', rarity: 'mythical' },
       { name: 'Arcane Owlbear', rarity: 'mythical' },
       { name: 'Forest Djinn', rarity: 'mythical' },
+      { name: 'Celestial Wolf', rarity: 'mythical' },
+      { name: 'Titan Boar', rarity: 'mythical' },
       { name: 'Platypus', rarity: 'transcendent' },
       { name: 'Dimensional Alpaca', rarity: 'transcendent' },
       { name: 'The One Who Hunts', rarity: 'transcendent' },
@@ -191,11 +210,32 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Yuri Lothbrok', rarity: 'transcendent' },
       { name: 'Mycelium Moose', rarity: 'transcendent' },
       { name: 'Chronobeast', rarity: 'transcendent' },
+      { name: 'Galactic Elephant', rarity: 'transcendent' },
+      { name: 'Cosmic Rhino', rarity: 'transcendent' },
+    ];
+    const itemTable = [
+      { name: 'Rubber Duck', rarity: 'common' },
+      { name: 'Party Hat', rarity: 'uncommon' },
+      { name: 'Golden Mustache', rarity: 'rare' },
+      { name: 'Mysterious Key', rarity: 'rare' },
+      { name: 'Tiny Top Hat', rarity: 'common' },
+      { name: 'Epic Sunglasses', rarity: 'legendary' },
+      { name: 'Dragon Scale', rarity: 'epic' },
+      { name: 'Phoenix Feather', rarity: 'epic' },
+      { name: 'Ancient Coin', rarity: 'legendary' },
+      { name: 'Mystic Crystal', rarity: 'epic' },
+      { name: 'Enchanted Tome', rarity: 'epic' },
+      { name: 'Celestial Crown', rarity: 'mythical' },
+      { name: 'Dragon Heart', rarity: 'legendary' },
+      { name: 'Phoenix Heart', rarity: 'legendary' },
+      { name: 'Eternal Crystal', rarity: 'mythical' },
+      { name: 'Ancient Tome', rarity: 'legendary' },
     ];
     // Add type field
     const fishList = fishTable.map(f => ({ ...f, type: 'fish' }));
     const animalList = animalTable.map(a => ({ ...a, type: 'animal' }));
-    res.json({ fish: fishList, animals: animalList });
+    const itemList = itemTable.map(i => ({ ...i, type: 'item' }));
+    res.json({ fish: fishList, animals: animalList, items: itemList });
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching collection list.' });
   }
@@ -1172,7 +1212,7 @@ router.post('/:discordId/work', async (req, res) => {
     // Initialize message after amount/bonus are determined
     let message;
     if (rare) {
-      message = `You worked as a ${job} and earned ${amount.toLocaleString('en-US')} points. ${bonusMsg} +${bonus.toLocaleString()} points!`;
+      message = `You worked as a ${job} and earned ${amount.toLocaleString('en-US')} points. ${bonusMsg} +${bonus.toLocaleString('en-US')} points!`;
     } else {
       message = `You worked as a ${job} and earned ${amount.toLocaleString('en-US')} points.`;
     }
@@ -1298,7 +1338,7 @@ router.post('/:discordId/bail', async (req, res) => {
     const payerWallet = await Wallet.findOne({ user: payer._id, guildId: req.guildId });
     console.log('[BAIL] payerWallet balance:', payerWallet && payerWallet.balance, 'bailCost:', bailCost);
     if (!payerWallet || payerWallet.balance < bailCost) {
-      return res.status(400).json({ message: `You need ${bailCost.toLocaleString()} points to bail this user out.` });
+      return res.status(400).json({ message: `You need ${bailCost.toLocaleString('en-US')} points to bail this user out.` });
     }
     // Deduct from payer, free target
     payerWallet.balance -= bailCost;
@@ -1318,7 +1358,7 @@ router.post('/:discordId/bail', async (req, res) => {
     await targetUser.save();
     console.log('[BAIL] Bail successful.');
     res.json({
-      message: `You bailed out <@${targetDiscordId}> for ${bailCost.toLocaleString()} points!`,
+      message: `You bailed out <@${targetDiscordId}> for ${bailCost.toLocaleString('en-US')} points!`,
       bailCost,
       minutesLeft
     });
@@ -1352,6 +1392,8 @@ router.post('/:discordId/fish', async (req, res) => {
       { name: 'Mudfish', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Minnow', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Sunfish', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Dace', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Rudd', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
     
       // Uncommon
       { name: 'Bass', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
@@ -1367,6 +1409,8 @@ router.post('/:discordId/fish', async (req, res) => {
       { name: 'Bream', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Chub', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Bullhead Catfish', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Blue Catfish', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Burbot', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       // Rare
       { name: 'Salmon', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Sturgeon', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
@@ -1381,7 +1425,8 @@ router.post('/:discordId/fish', async (req, res) => {
       { name: 'Anglerfish', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Sea Devil', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Flying Fish', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
-    
+      { name: 'Tilefish', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Queen Angelfish', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       // Epic
       { name: 'Mahi-Mahi', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Giant Squid', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
@@ -1401,7 +1446,8 @@ router.post('/:discordId/fish', async (req, res) => {
       { name: 'Blue Tang', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Rainbow Parrotfish', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Lionfish', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
-    
+      { name: 'Silver Salmon', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Swordtail Shark', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       // Legendary
       { name: 'Golden Koi', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
       { name: 'Ancient Leviathan', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
@@ -1578,6 +1624,8 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Duck', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Quokka', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Field Mouse', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Frog', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Lizard', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
     
       // Uncommon
       { name: 'Fox', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
@@ -1592,7 +1640,7 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Falcon', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Woodpecker', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Gopher', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
-    
+      { name: 'Opossum', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       // Rare
       { name: 'Deer', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Boar', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
@@ -1610,6 +1658,8 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Gazelle', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Meerkat', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Caracal', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Moose', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Elk', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       // Epic
       { name: 'Bear', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Dire Wolf', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
@@ -1629,6 +1679,8 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Snowy Owl', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Wolverine', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Ice Lynx', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Bison', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Iron Stag', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       // Legendary
       { name: 'White Stag', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
       { name: 'Mythic Phoenix', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
@@ -1639,7 +1691,8 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Eternal Lion', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
       { name: 'Storm Raven', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
       { name: 'Phantom Jaguar', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
-    
+      { name: 'Divine Stag', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
+      { name: 'Celestial Bear', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
       // Mythical
       { name: 'Eclipse Dragon', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Spirit of the Forest', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
@@ -1654,7 +1707,8 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Lunar Fox', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Arcane Owlbear', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Forest Djinn', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
-
+      { name: 'Celestial Wolf', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Titan Boar', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       // Transcendent
       { name: 'Platypus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Dimensional Alpaca', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
@@ -1666,6 +1720,8 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Yuri Lothbrok', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Mycelium Moose', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Chronobeast', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Cosmic Rhino', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Galactic Elephant', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
     ];
     
     // Rarity weights
@@ -1887,7 +1943,7 @@ router.post('/:discordId/sell', async (req, res) => {
     await transaction.save();
     broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction });
     broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
-    res.json({ message: `Sold ${count}x ${item.name} for ${totalValue.toLocaleString()} points.`, newBalance: wallet.balance });
+    res.json({ message: `Sold ${count}x ${item.name} for ${totalValue.toLocaleString('en-US')} points.`, newBalance: wallet.balance });
   } catch (error) {
     console.error('Error selling inventory item:', error);
     res.status(500).json({ message: 'Server error during sell.' });
@@ -2337,7 +2393,7 @@ router.post('/:discordId/mysterybox', async (req, res) => {
     } else {
       // Premium and Ultimate boxes always cost points
       if (wallet.balance < cost) {
-        return res.status(400).json({ message: `You need ${cost.toLocaleString()} points to open a ${boxType} mystery box.` });
+        return res.status(400).json({ message: `You need ${cost.toLocaleString('en-US')} points to open a ${boxType} mystery box.` });
       }
       // Deduct cost immediately
       wallet.balance -= cost;
@@ -2356,12 +2412,12 @@ router.post('/:discordId/mysterybox', async (req, res) => {
       basic: {
         coins: { chance: 0.5, min: 10000, max: 40000 },
         items: { chance: 0.3, pool: [
-          { name: 'Rubber Duck', rarity: 'common' },
-          { name: 'Golden Mustache', rarity: 'rare' },
-          { name: 'Party Hat', rarity: 'uncommon' },
-          { name: 'Mysterious Key', rarity: 'rare' },
-          { name: 'Tiny Top Hat', rarity: 'common' },
-          { name: 'Epic Sunglasses', rarity: 'legendary' }
+          { name: 'Rubber Duck', rarity: 'common', value: () => Math.floor(Math.random() * 400) + 100 },
+          { name: 'Golden Mustache', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 2000 },
+          { name: 'Party Hat', rarity: 'uncommon', value: () => Math.floor(Math.random() * 1500) + 500 },
+          { name: 'Mysterious Key', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 2000 },
+          { name: 'Tiny Top Hat', rarity: 'common', value: () => Math.floor(Math.random() * 400) + 100 },
+          { name: 'Epic Sunglasses', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 20000 }
         ]},
         buffs: { chance: 0.15, pool: [
           {
@@ -2390,11 +2446,11 @@ router.post('/:discordId/mysterybox', async (req, res) => {
       premium: {
         coins: { chance: 0.4, min: 50000, max: 200000 },
         items: { chance: 0.2, pool: [
-          { name: 'Dragon Scale', rarity: 'epic' },
-          { name: 'Phoenix Feather', rarity: 'epic' },
-          { name: 'Ancient Coin', rarity: 'legendary' },
-          { name: 'Mystic Crystal', rarity: 'epic' },
-          { name: 'Enchanted Tome', rarity: 'epic' }
+          { name: 'Dragon Scale', rarity: 'epic', value: () => Math.floor(Math.random() * 15000) + 5000 },
+          { name: 'Phoenix Feather', rarity: 'epic', value: () => Math.floor(Math.random() * 15000) + 5000 },
+          { name: 'Ancient Coin', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 20000 },
+          { name: 'Mystic Crystal', rarity: 'epic', value: () => Math.floor(Math.random() * 15000) + 5000 },
+          { name: 'Enchanted Tome', rarity: 'epic', value: () => Math.floor(Math.random() * 15000) + 5000 }
         ]},
         buffs: { chance: 0.3, pool: [
           {
@@ -2439,11 +2495,11 @@ router.post('/:discordId/mysterybox', async (req, res) => {
       ultimate: {
         coins: { chance: 0.2, min: 200000, max: 1000000 },
         items: { chance: 0.1, pool: [
-          { name: 'Celestial Crown', rarity: 'mythical' },
-          { name: 'Dragon Heart', rarity: 'legendary' },
-          { name: 'Phoenix Heart', rarity: 'legendary' },
-          { name: 'Eternal Crystal', rarity: 'mythical' },
-          { name: 'Ancient Tome', rarity: 'legendary' }
+          { name: 'Celestial Crown', rarity: 'mythical', value: () => Math.floor(Math.random() * 50000) + 50000 },
+          { name: 'Dragon Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 20000 },
+          { name: 'Phoenix Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 20000 },
+          { name: 'Eternal Crystal', rarity: 'mythical', value: () => Math.floor(Math.random() * 50000) + 50000 },
+          { name: 'Ancient Tome', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 20000 }
         ]},
         buffs: { chance: 0.4, pool: [
           {
@@ -2511,16 +2567,23 @@ router.post('/:discordId/mysterybox', async (req, res) => {
       message = `You found ${amount.toLocaleString('en-US')} points inside the ${boxType} box!`;
     } else if (roll < (cumulativeChance += config.items.chance)) {
       // Item
-      item = config.items.pool[Math.floor(Math.random() * config.items.pool.length)];
+      const selectedItem = config.items.pool[Math.floor(Math.random() * config.items.pool.length)];
+      const itemValue = selectedItem.value();
       user.inventory = user.inventory || [];
-      const idx = user.inventory.findIndex(i => i.type === 'item' && i.name === item.name);
+      const idx = user.inventory.findIndex(i => i.type === 'item' && i.name === selectedItem.name);
       if (idx >= 0) {
         user.inventory[idx].count += 1;
       } else {
-        user.inventory.push({ type: 'item', name: item.name, rarity: item.rarity, value: 0, count: 1 });
+        user.inventory.push({ 
+          type: 'item', 
+          name: selectedItem.name, 
+          rarity: selectedItem.rarity, 
+          value: itemValue, 
+          count: 1 
+        });
       }
       rewardType = 'item';
-      message = `You found a **${item.name}** (${item.rarity}) in the ${boxType} box!`;
+      message = `You found a **${selectedItem.name}** (${selectedItem.rarity}) worth ${itemValue.toLocaleString('en-US')} points in the ${boxType} box!`;
     } else if (roll < (cumulativeChance += config.buffs.chance)) {
       // Buffs
       const buffPool = config.buffs.pool;
