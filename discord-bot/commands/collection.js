@@ -44,16 +44,18 @@ function splitIntoFields(title, fullText) {
   const chunks = [];
   let current = '';
   const lines = fullText.split('\n').filter(Boolean);
+  let first = true;
   for (const line of lines) {
     if ((current + '\n' + line).length > 1000) {
-      chunks.push({ name: title, value: current.trim(), inline: false });
+      chunks.push({ name: first ? title : '\u200B', value: current.trim(), inline: false });
       current = line;
+      first = false;
     } else {
       current += (current ? '\n' : '') + line;
     }
   }
   if (current) {
-    chunks.push({ name: title, value: current.trim(), inline: false });
+    chunks.push({ name: first ? title : '\u200B', value: current.trim(), inline: false });
   }
   return chunks;
 }

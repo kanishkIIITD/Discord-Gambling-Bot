@@ -2411,13 +2411,13 @@ router.post('/:discordId/mysterybox', async (req, res) => {
           },
           {
             type: 'fishing_rate_2x',
-            description: '2x drop rate for Epic and better fish for 1 hour!',
+            description: '+10% chance boost for all fish rarities for 1 hour!',
             expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
             weight: 15 // 15% chance within buff pool
           },
           {
             type: 'hunting_rate_2x',
-            description: '2x drop rate for Epic and better animals for 1 hour!',
+            description: '+10% chance boost for all animal rarities for 1 hour!',
             expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
             weight: 15 // 15% chance within buff pool
           },
@@ -2460,25 +2460,25 @@ router.post('/:discordId/mysterybox', async (req, res) => {
           },
           {
             type: 'fishing_rate_3x',
-            description: '3x drop rate for Legendary and better fish for 30 minutes!',
+            description: '+18% chance boost for all fish rarities for 30 minutes!',
             expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
             weight: 10 // 10% chance within buff pool
           },
           {
             type: 'hunting_rate_3x',
-            description: '3x drop rate for Legendary and better animals for 30 minutes!',
+            description: '+18% chance boost for all animal rarities for 30 minutes!',
             expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
             weight: 10 // 10% chance within buff pool
           },
           {
             type: 'fishing_rate_5x',
-            description: '5x drop rate for Mythical fish for 15 minutes!',
+            description: '+30% chance boost for all fish rarities for 15 minutes!',
             expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
             weight: 5 // 5% chance within buff pool
           },
           {
             type: 'hunting_rate_5x',
-            description: '5x drop rate for Mythical animals for 15 minutes!',
+            description: '+30% chance boost for all animal rarities for 15 minutes!',
             expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
             weight: 5 // 5% chance within buff pool
           },

@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const axios = require('axios');
 const { handleError } = require('../utils/responseHandler');
+const logger = require('../utils/logger');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -17,8 +18,14 @@ module.exports = {
         )),
 
   async execute(interaction) {
+    let deferred = false;
     try {
-      await interaction.deferReply();
+      // Only defer if not already deferred
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply();
+        deferred = true;
+      }
+
       const boxType = interaction.options.getString('type');
 
       const response = await axios.post(`${process.env.BACKEND_API_URL}/users/${interaction.user.id}/mysterybox`, {
@@ -77,9 +84,40 @@ module.exports = {
         embed.addFields({ name: 'Additional Info', value: message, inline: false });
       }
 
-      await interaction.editReply({ embeds: [embed] });
+      if (deferred) {
+        await interaction.editReply({ embeds: [embed] });
+      } else {
+        await interaction.reply({ embeds: [embed] });
+      }
     } catch (error) {
-      await handleError(interaction, error, 'Mystery Box');
+      logger.error('Error in Mystery Box:', error);
+      // If we deferred, use editReply, otherwise use reply
+      if (deferred) {
+        await interaction.editReply({ 
+          embeds: [new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('Error')
+            .setDescription('An error occurred while processing your request.')
+            .addFields(
+              { name: 'Context', value: 'Mystery Box' },
+              { name: 'Error', value: error.message || 'Unknown error' }
+            )
+            .setTimestamp()]
+        });
+      } else {
+        await interaction.reply({ 
+          embeds: [new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('Error')
+            .setDescription('An error occurred while processing your request.')
+            .addFields(
+              { name: 'Context', value: 'Mystery Box' },
+              { name: 'Error', value: error.message || 'Unknown error' }
+            )
+            .setTimestamp()],
+          ephemeral: true 
+        });
+      }
     }
   }
 }; 
