@@ -421,7 +421,8 @@ const commands = [
 					{ name: 'Utility', value: 'utility' },
 					{ name: 'Fun & Collection', value: 'fun' },
 					{ name: 'Duel', value: 'duel' },
-					{ name: 'Buffs', value: 'buffs' }
+					{ name: 'Buffs', value: 'buffs' },
+					{ name: 'Moderation', value: 'moderation' }
 				]
 			}
 		]
@@ -718,29 +719,68 @@ const commands = [
 		name: 'collection-list',
 		description: 'View all possible fish and animal names in the collection.'
 	},
+	{
+		name: 'timeout',
+		description: 'Timeout a user for a specified duration (costs points)',
+		options: [
+			{
+				name: 'user',
+				description: 'The user to timeout',
+				type: 6,
+				required: true
+			},
+			{
+				name: 'duration',
+				description: 'Duration in minutes (1-5)',
+				type: 4,
+				required: true,
+				min_value: 1,
+				max_value: 5
+			},
+			{
+				name: 'reason',
+				description: 'Reason for the timeout (optional)',
+				type: 3,
+				required: false
+			}
+		]
+	},
+	{
+		name: 'setlogchannel',
+		description: 'Set the channel where moderation logs will be sent',
+		options: [
+			{
+				name: 'channel',
+				description: 'The channel to send logs to',
+				type: 7,
+				required: true
+			}
+		],
+		defaultMemberPermissions: '8'
+	}
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
 	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
+		// console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
 
-		// Deploy to test guild only
-		const data = await rest.put(
-			Routes.applicationGuildCommands(clientId, guildId1),
-			{ body: commands },
-		);
-
-		console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
-
-		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
-		// console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
-		// const globalData = await rest.put(
-		// 	Routes.applicationCommands(clientId),
+		// // Deploy to test guild only
+		// const data = await rest.put(
+		// 	Routes.applicationGuildCommands(clientId, guildId1),
 		// 	{ body: commands },
 		// );
-		// console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
+
+		// console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
+
+		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
+		console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
+		const globalData = await rest.put(
+			Routes.applicationCommands(clientId),
+			{ body: commands },
+		);
+		console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
 	} catch (error) {
 		console.error(error);
 	}

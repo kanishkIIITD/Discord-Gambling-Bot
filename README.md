@@ -73,6 +73,14 @@ A comprehensive gambling and economy platform with Discord integration, featurin
   - `/trade` - Gift items to other users
   - `/sell` - Convert items to points
 
+- **Moderation Commands**
+  - `/timeout` - Timeout users (costs points)
+    - Cost: 10,000 points per minute + 5% of your balance
+    - Duration: 1-5 minutes
+    - Cooldown: 5 minutes between uses
+    - Required Permission: Timeout Members
+  - `/bail` - Bail jailed users
+
 - **Gambling Features**
   - Betting system
   - Duels

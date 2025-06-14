@@ -17,6 +17,8 @@ const bailCommand = require('./commands/bail');
 const collectionListCommand = require('./commands/collectionList');
 const buffsCommand = require('./commands/buffs');
 const cooldownsCommand = require('./commands/cooldowns');
+const timeoutCommand = require('./commands/timeout');
+const setlogchannelCommand = require('./commands/setlogchannel');
 
 const backendApiUrl = process.env.BACKEND_API_URL;
 
@@ -35,7 +37,7 @@ client.once('ready', () => {
 // List of commands blocked for jailed users
 const jailedBlockedCommands = [
 	'createbet', 'placebet', 'resolvebet', 'listbets', 'viewbet', 'closebet', 'cancelbet', 'editbet', 'extendbet', 'betinfo',
-	'coinflip', 'dice', 'slots', 'blackjack', 'roulette', 'jackpot', 'duel', 'work', 'beg', 'daily', 'meowbark', 'crime', 'fish', 'hunt', 'sell', 'trade', 'mysterybox', 'gift', 'buffs'
+	'coinflip', 'dice', 'slots', 'blackjack', 'roulette', 'jackpot', 'duel', 'work', 'beg', 'daily', 'meowbark', 'crime', 'fish', 'hunt', 'sell', 'trade', 'mysterybox', 'gift', 'buffs', 'timeout'
 ];
 // List of view-only subcommands for duel, crime, work
 const viewOnlyDuelSubcommands = ['stats'];
@@ -1871,7 +1873,8 @@ client.on('interactionCreate', async interaction => {
 						{ name: '📊 Utility', value: 'Use `/help section:utility`' },
 						{ name: '🎮 Fun & Collection', value: 'Use `/help section:fun`' },
 						{ name: '⚔️ Duel', value: 'Use `/help section:duel`' },
-						{ name: '✨ Buffs', value: 'Use `/help section:buffs`' }
+						{ name: '✨ Buffs', value: 'Use `/help section:buffs`' },
+						{ name: '🛡️ Moderation', value: 'Use `/help section:moderation`' }
 					],
 					timestamp: new Date()
 				};
@@ -2031,12 +2034,29 @@ client.on('interactionCreate', async interaction => {
 					],
 					timestamp: new Date()
 				};
+			} else if (sub === 'moderation') {
+				embed = {
+					color: 0x0099ff,
+					title: '🛡️ Moderation Commands',
+					description: 'Commands for server moderation.',
+					fields: [
+						{ name: 'Moderation', value:
+							'`/timeout @user duration [reason]` - Timeout a user for a specified duration\n' +
+							'Cost: 10,000 points per minute + 5% of your balance\n' +
+							'Duration: 1-5 minutes\n' +
+							'Cooldown: 15 minutes between uses\n\n' +
+							'`/setlogchannel #channel` - Set the channel where moderation logs will be sent\n' +
+							'Required Permission: Administrator'
+						}
+					],
+					timestamp: new Date()
+				};
 			} else {
 				embed = {
 					color: 0xff7675,
 					title: '❌ Unknown Help Section',
 					description: 'That help section does not exist. Use `/help` to see available sections.',
-					timestamp: new Date()
+						timestamp: new Date()
 				};
 			}
 			await interaction.editReply({ embeds: [embed] });
@@ -2395,6 +2415,10 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'collection-list') {
 		await collectionListCommand.execute(interaction);
+	} else if (commandName === 'timeout') {
+		await timeoutCommand.execute(interaction);
+	} else if (commandName === 'setlogchannel') {
+		await setlogchannelCommand.execute(interaction);
 	}
 
 	// --- Handle duel accept/decline buttons ---

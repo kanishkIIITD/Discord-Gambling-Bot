@@ -8,6 +8,141 @@ const { broadcastToUser } = require('../utils/websocketService'); // Import WebS
 const UserPreferences = require('../models/UserPreferences');
 const Duel = require('../models/Duel');
 const { requireGuildId } = require('../middleware/auth');
+const { calculateTimeoutCost, isValidTimeoutDuration, isOnTimeoutCooldown, getRemainingCooldown, BASE_COST_PER_MINUTE, BALANCE_PERCENTAGE } = require('../utils/timeoutUtils');
+
+// --- TIMEOUT ENDPOINT ---
+router.post('/:userId/timeout', requireGuildId, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { targetDiscordId, duration, reason } = req.body;
+    const guildId = req.headers['x-guild-id'];
+
+    // Validate duration
+    if (!isValidTimeoutDuration(duration)) {
+      return res.status(400).json({ message: 'Invalid duration. Must be between 1 and 5 minutes.' });
+    }
+
+    // Get attacker's user and wallet
+    let attacker = await User.findOne({ discordId: userId, guildId });
+    if (!attacker) {
+      // Create user if it doesn't exist
+      attacker = new User({
+        discordId: userId,
+        guildId,
+        username: userId, // Use Discord ID as username initially
+        role: 'user',
+        timeoutStats: { totalTimeouts: 0, totalCost: 0 }
+      });
+      await attacker.save();
+    }
+
+    // Get attacker's wallet
+    let attackerWallet = await Wallet.findOne({ user: attacker._id, guildId });
+    if (!attackerWallet) {
+      // Create wallet if it doesn't exist
+      attackerWallet = new Wallet({
+        user: attacker._id, // Set the user reference
+        discordId: userId,
+        guildId,
+        balance: 100000 // Initial balance
+      });
+      await attackerWallet.save();
+    }
+
+    // Check cooldown
+    if (isOnTimeoutCooldown(attacker.lastTimeoutAt)) {
+      const { minutes, seconds } = getRemainingCooldown(attacker.lastTimeoutAt);
+      return res.status(429).json({ 
+        message: `You must wait ${minutes}m ${seconds}s before using timeout again.`,
+        cooldown: attacker.lastTimeoutAt
+      });
+    }
+
+    // Calculate cost
+    const cost = calculateTimeoutCost(duration, attackerWallet.balance);
+    if (attackerWallet.balance < cost) {
+      return res.status(400).json({ 
+        message: `Insufficient balance. You need ${cost.toLocaleString('en-US')} points (${BASE_COST_PER_MINUTE} * ${duration} + ${BALANCE_PERCENTAGE * 100}% of balance).`
+      });
+    }
+
+    // Get or create target user
+    let target = await User.findOne({ discordId: targetDiscordId, guildId });
+    if (!target) {
+      // Create target user if they don't exist
+      target = new User({
+        discordId: targetDiscordId,
+        guildId,
+        username: targetDiscordId, // Use Discord ID as username initially
+        role: 'user',
+        timeoutStats: { totalTimeouts: 0, totalCost: 0 }
+      });
+      await target.save();
+
+      // Create wallet for target user
+      const targetWallet = new Wallet({
+        user: target._id,
+        discordId: targetDiscordId,
+        guildId,
+        balance: 100000 // Initial balance
+      });
+      await targetWallet.save();
+    }
+
+    // Prevent self-timeout
+    if (userId === targetDiscordId) {
+      return res.status(400).json({ message: 'You cannot timeout yourself.' });
+    }
+
+    // Prevent timeout of users with higher roles
+    // if (target.role === 'admin' || target.role === 'superadmin') {
+    //   return res.status(403).json({ message: 'You cannot timeout an admin or superadmin.' });
+    // }
+
+    // Update attacker's wallet and stats
+    attackerWallet.balance -= cost;
+    await attackerWallet.save();
+
+    // Update attacker's timeout stats
+    attacker.lastTimeoutAt = new Date();
+    attacker.timeoutHistory.push({
+      targetDiscordId,
+      duration,
+      cost,
+      reason,
+      timestamp: new Date()
+    });
+    attacker.timeoutStats.totalTimeouts += 1;
+    attacker.timeoutStats.totalCost += cost;
+    await attacker.save();
+
+    // Create transaction record
+    await Transaction.create({
+      user: attacker._id, // Set the user reference
+      guildId,
+      type: 'bail', // Use 'bail' as the transaction type since it's similar to timeout
+      amount: -cost,
+      description: `Timeout user ${targetDiscordId} for ${duration} minutes${reason ? `: ${reason}` : ''}`,
+      metadata: {
+        targetDiscordId,
+        duration,
+        reason
+      }
+    });
+
+    // Return success response
+    res.json({
+      message: `Successfully timed out user ${targetDiscordId} for ${duration} minutes.`,
+      cost,
+      remainingBalance: attackerWallet.balance,
+      cooldownTime: attacker.lastTimeoutAt
+    });
+
+  } catch (error) {
+    console.error('Error in timeout endpoint:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
 
 // --- COLLECTION LIST (all possible fish and animal names) ---
 router.get('/collection-list', async (req, res) => {

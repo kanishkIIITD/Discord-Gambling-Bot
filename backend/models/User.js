@@ -46,6 +46,18 @@ const userSchema = new mongoose.Schema({
   duelWins: { type: Number, default: 0 },
   duelLosses: { type: Number, default: 0 },
   mysteryboxCooldown: { type: Date, default: null },
+  lastTimeoutAt: { type: Date, default: null },
+  timeoutHistory: [{
+    targetDiscordId: { type: String, required: true },
+    duration: { type: Number, required: true },
+    cost: { type: Number, required: true },
+    reason: { type: String },
+    timestamp: { type: Date, default: Date.now }
+  }],
+  timeoutStats: {
+    totalTimeouts: { type: Number, default: 0 },
+    totalCost: { type: Number, default: 0 }
+  }
 });
 
 userSchema.index({ discordId: 1, guildId: 1 }, { unique: true });

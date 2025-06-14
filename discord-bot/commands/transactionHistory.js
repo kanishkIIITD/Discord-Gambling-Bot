@@ -20,7 +20,9 @@ module.exports = {
                     { name: 'All', value: 'all' },
                     { name: 'Bets', value: 'bet' },
                     { name: 'Daily Bonus', value: 'daily' },
-                    { name: 'Gifts', value: 'gift' }
+                    { name: 'Gifts', value: 'gift' },
+                    { name: 'Timeouts', value: 'timeout' },
+                    { name: 'Mystery Boxes', value: 'mystery_box' }
                 )),
 
     async execute(interaction) {

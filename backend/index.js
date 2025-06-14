@@ -22,6 +22,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const serverless = require('serverless-http');
 const Duel = require('./models/Duel');
 const Wallet = require('./models/Wallet');
+const serverRoutes = require('./routes/serverRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -119,6 +120,7 @@ app.use('/api/bets', betRouter);
 app.use('/api/gambling', gamblingRoutes);
 app.use('/api/misc', miscRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/servers', serverRoutes);
 
 app.get('/', (req, res) => {
   res.send('Hello from the backend!');
