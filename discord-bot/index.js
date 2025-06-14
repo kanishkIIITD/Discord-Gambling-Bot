@@ -2044,7 +2044,8 @@ client.on('interactionCreate', async interaction => {
 							'`/timeout @user duration [reason]` - Timeout a user for a specified duration\n' +
 							'Cost: 10,000 points per minute + 5% of your balance\n' +
 							'Duration: 1-5 minutes\n' +
-							'Cooldown: 15 minutes between uses\n\n' +
+							'Cooldown: 15 minutes between uses\n' +
+							'Requires Permission: Timeout Members\n\n' +
 							'`/setlogchannel #channel` - Set the channel where moderation logs will be sent\n' +
 							'Required Permission: Administrator'
 						}

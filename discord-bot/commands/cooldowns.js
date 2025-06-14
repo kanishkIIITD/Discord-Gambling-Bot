@@ -26,14 +26,20 @@ module.exports = {
         .setTimestamp();
 
       // Helper function to format cooldown time
-      const formatCooldown = (cooldownDate, isDaily = false) => {
+      const formatCooldown = (cooldownDate, isDaily = false, cooldownMinutes = 0) => {
         if (!cooldownDate) return 'Ready';
         const cooldownTime = new Date(cooldownDate).getTime();
-        // For daily claim, add 24 hours to the last claim time
-        const effectiveCooldownTime = isDaily ? cooldownTime + (24 * 60 * 60 * 1000) : cooldownTime;
-        if (effectiveCooldownTime <= now.getTime()) return 'Ready';
+        const now = new Date().getTime();
         
-        const timeRemaining = effectiveCooldownTime - now.getTime();
+        // For daily claim, add 24 hours to the last claim time
+        // For timeout, add the cooldown minutes to the last timeout time
+        const effectiveCooldownTime = isDaily 
+          ? cooldownTime + (24 * 60 * 60 * 1000) 
+          : cooldownTime + (cooldownMinutes * 60 * 1000);
+        
+        if (effectiveCooldownTime <= now) return 'Ready';
+        
+        const timeRemaining = effectiveCooldownTime - now;
         const minutes = Math.floor(timeRemaining / 60000);
         const seconds = Math.floor((timeRemaining % 60000) / 1000);
         return `${minutes}m ${seconds}s`;
@@ -47,7 +53,8 @@ module.exports = {
         { name: `${formatCooldown(cooldowns.huntCooldown)}`, value: '🏹 Hunt', inline: false },
         { name: `${formatCooldown(cooldowns.begCooldown)}`, value: '🙏 Beg', inline: false },
         { name: `${formatCooldown(cooldowns.mysteryboxCooldown)}`, value: '🎁 Free Mystery Box', inline: false },
-        { name: `${formatCooldown(cooldowns.lastDailyClaim, true)}`, value: '💰 Daily Bonus', inline: false }
+        { name: `${formatCooldown(cooldowns.lastDailyClaim, true)}`, value: '💰 Daily Bonus', inline: false },
+        { name: `${formatCooldown(cooldowns.cooldownTime, false, 15)}`, value: '⏰ Timeout', inline: false }
       ];
 
       // Add jail status if applicable

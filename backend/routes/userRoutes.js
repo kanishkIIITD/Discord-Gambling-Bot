@@ -75,7 +75,8 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
         guildId,
         username: targetDiscordId, // Use Discord ID as username initially
         role: 'user',
-        timeoutStats: { totalTimeouts: 0, totalCost: 0 }
+        timeoutStats: { totalTimeouts: 0, totalCost: 0 },
+        currentTimeoutDuration: 0 // Add this field to track current timeout duration
       });
       await target.save();
 
@@ -94,10 +95,10 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
       return res.status(400).json({ message: 'You cannot timeout yourself.' });
     }
 
-    // Prevent timeout of users with higher roles
-    // if (target.role === 'admin' || target.role === 'superadmin') {
-    //   return res.status(403).json({ message: 'You cannot timeout an admin or superadmin.' });
-    // }
+    // Calculate total timeout duration (stack with existing timeout)
+    const totalDuration = (target.currentTimeoutDuration || 0) + duration;
+    target.currentTimeoutDuration = totalDuration;
+    await target.save();
 
     // Update attacker's wallet and stats
     attackerWallet.balance -= cost;
@@ -132,10 +133,11 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
 
     // Return success response
     res.json({
-      message: `Successfully timed out user ${targetDiscordId} for ${duration} minutes.`,
+      message: `Successfully timed out user ${targetDiscordId} for ${duration} minutes. Total timeout duration: ${totalDuration} minutes.`,
       cost,
       remainingBalance: attackerWallet.balance,
-      cooldownTime: attacker.lastTimeoutAt
+      cooldownTime: attacker.lastTimeoutAt,
+      totalDuration
     });
 
   } catch (error) {
@@ -2873,7 +2875,8 @@ router.get('/:discordId/cooldowns', async (req, res) => {
       duelCooldown,
       meowbarkCooldown: user.meowbarkCooldown || null,
       jailedUntil: user.jailedUntil || null,
-      lastDailyClaim: wallet ? wallet.lastDailyClaim || null : null
+      lastDailyClaim: wallet ? wallet.lastDailyClaim || null : null,
+      cooldownTime: user.lastTimeoutAt || null
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching cooldowns.' });

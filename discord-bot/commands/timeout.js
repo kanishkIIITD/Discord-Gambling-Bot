@@ -60,7 +60,7 @@ module.exports = {
             );
 
             // Apply timeout in Discord
-            await timeoutUser(interaction.guild, targetUser.id, duration * 60, reason);
+            await timeoutUser(interaction.guild, targetUser.id, response.data.totalDuration * 60, reason);
 
             // Calculate cooldown time from cooldownTime
             const lastTimeoutAt = new Date(response.data.cooldownTime);
@@ -75,7 +75,8 @@ module.exports = {
             const embed = createSuccessEmbed('Timeout Executed')
                 .addFields(
                     { name: 'Target User', value: `<@${targetUser.id}>`, inline: true },
-                    { name: 'Duration', value: `${duration} minute(s)`, inline: true },
+                    { name: 'Duration Added', value: `${duration} minute(s)`, inline: true },
+                    { name: 'Total Duration', value: `${response.data.totalDuration} minute(s)`, inline: true },
                     { name: 'Cost', value: `${response.data.cost.toLocaleString()} points`, inline: true },
                     { name: 'Remaining Balance', value: `${response.data.remainingBalance.toLocaleString()} points`, inline: true },
                     { name: 'Cooldown', value: cooldownString, inline: true }
@@ -95,7 +96,8 @@ module.exports = {
                 fields: [
                     { name: 'User', value: `<@${interaction.user.id}>`, inline: true },
                     { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
-                    { name: 'Duration', value: `${duration} minute(s)`, inline: true },
+                    { name: 'Duration Added', value: `${duration} minute(s)`, inline: true },
+                    { name: 'Total Duration', value: `${response.data.totalDuration} minute(s)`, inline: true },
                     { name: 'Points Spent', value: `${response.data.cost.toLocaleString()} points`, inline: true }
                 ],
                 footer: { text: `Reason: ${reason}` }
