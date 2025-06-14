@@ -2657,4 +2657,29 @@ router.get('/:discordId/buffs', async (req, res) => {
   }
 });
 
+// Get all cooldowns for a user
+router.get('/:discordId/cooldowns', async (req, res) => {
+  try {
+    const user = await User.findOne({ discordId: req.params.discordId, guildId: req.guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    const wallet = await Wallet.findOne({ user: user._id, guildId: req.guildId });
+    // duelCooldown may not exist on all users
+    const duelCooldown = user.duelCooldown || null;
+    res.json({
+      crimeCooldown: user.crimeCooldown || null,
+      workCooldown: user.workCooldown || null,
+      fishCooldown: user.fishCooldown || null,
+      huntCooldown: user.huntCooldown || null,
+      begCooldown: user.begCooldown || null,
+      mysteryboxCooldown: user.mysteryboxCooldown || null,
+      duelCooldown,
+      meowbarkCooldown: user.meowbarkCooldown || null,
+      jailedUntil: user.jailedUntil || null,
+      lastDailyClaim: wallet ? wallet.lastDailyClaim || null : null
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error fetching cooldowns.' });
+  }
+});
+
 module.exports = router; 

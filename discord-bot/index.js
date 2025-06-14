@@ -16,6 +16,7 @@ const mysteryboxCommand = require('./commands/mysterybox');
 const bailCommand = require('./commands/bail');
 const collectionListCommand = require('./commands/collectionList');
 const buffsCommand = require('./commands/buffs');
+const cooldownsCommand = require('./commands/cooldowns');
 
 const backendApiUrl = process.env.BACKEND_API_URL;
 
@@ -1850,6 +1851,8 @@ client.on('interactionCreate', async interaction => {
 		await mysteryboxCommand.execute(interaction);
 	} else if (commandName === 'bail') {
 		await bailCommand.execute(interaction);
+	} else if (commandName === 'cooldowns') {
+		await cooldownsCommand.execute(interaction);
 	} else if (commandName === 'help') {
 		try {
 			await interaction.deferReply();
@@ -1866,7 +1869,7 @@ client.on('interactionCreate', async interaction => {
 						{ name: '🎮 Gambling', value: 'Use `/help section:gambling`' },
 						{ name: '💰 Wallet', value: 'Use `/help section:wallet`' },
 						{ name: '📊 Utility', value: 'Use `/help section:utility`' },
-						{ name: '📊 Fun & Collection', value: 'Use `/help section:fun`' },
+						{ name: '🎮 Fun & Collection', value: 'Use `/help section:fun`' },
 						{ name: '⚔️ Duel', value: 'Use `/help section:duel`' },
 						{ name: '✨ Buffs', value: 'Use `/help section:buffs`' }
 					],
@@ -1884,7 +1887,11 @@ client.on('interactionCreate', async interaction => {
 							'`/cancelbet` - Cancel a bet you created\n' +
 							'`/editbet` - Edit a bet you created\n' +
 							'`/extendbet` - Extend the duration of a bet\n' +
-							'`/resolvebet` - Resolve a bet and determine winners'
+							'`/resolvebet` - Resolve a bet and determine winners\n' +
+							'`/listbets` - View all open bets\n' +
+							'`/viewbet` - View details of a specific bet\n' +
+							'`/closebet` - Close betting for an event\n' +
+							'`/unresolvedbets` - View all unresolved bets'
 						}
 					],
 					timestamp: new Date()
@@ -1901,7 +1908,8 @@ client.on('interactionCreate', async interaction => {
 							'`/slots` - Play the slot machine\n' +
 							'`/blackjack` - Play blackjack\n' +
 							'`/roulette` - Play roulette\n' +
-							'`/jackpot` - View or contribute to the jackpot'
+							'`/jackpot` - View or contribute to the jackpot\n' +
+							'`/duel` - Challenge another user to a duel for points'
 						}
 					],
 					timestamp: new Date()
@@ -1916,7 +1924,8 @@ client.on('interactionCreate', async interaction => {
 							'`/balance` - Check your current balance\n' +
 							'`/daily` - Claim your daily point bonus\n' +
 							'`/gift` - Gift points to another user\n' +
-							'`/transactions` - View your transaction history'
+							'`/transactions` - View your transaction history\n' +
+							'`/profile` - View your detailed profile'
 						}
 					],
 					timestamp: new Date()
@@ -1930,7 +1939,8 @@ client.on('interactionCreate', async interaction => {
 						{ name: 'Utility', value:
 							'`/leaderboard` - View top users by balance\n' +
 							'`/stats` - View your full betting and gambling statistics\n' +
-							'`/profile` - View your detailed profile'
+							'`/cooldowns` - View all your current cooldowns\n' +
+							'`/help` - View this help menu'
 						}
 					],
 					timestamp: new Date()
@@ -1938,7 +1948,7 @@ client.on('interactionCreate', async interaction => {
 			} else if (sub === 'fun') {
 				embed = {
 					color: 0x0099ff,
-					title: '📊 Fun & Collection Commands',
+					title: '🎮 Fun & Collection Commands',
 					description: 'Fun, collection, and miscellaneous commands.',
 					fields: [
 						{ name: 'Fun & Collection', value:

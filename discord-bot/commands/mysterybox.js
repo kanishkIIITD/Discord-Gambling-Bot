@@ -91,16 +91,17 @@ module.exports = {
       }
     } catch (error) {
       logger.error('Error in Mystery Box:', error);
-      // If we deferred, use editReply, otherwise use reply
+      // Prefer backend error message if available
+      const backendMsg = error?.response?.data?.message;
+      const errorMsg = backendMsg || error.message || 'Unknown error';
       if (deferred) {
         await interaction.editReply({ 
           embeds: [new EmbedBuilder()
             .setColor('#FF0000')
             .setTitle('Error')
-            .setDescription('An error occurred while processing your request.')
+            .setDescription(errorMsg)
             .addFields(
-              { name: 'Context', value: 'Mystery Box' },
-              { name: 'Error', value: error.message || 'Unknown error' }
+              { name: 'Context', value: 'Mystery Box' }
             )
             .setTimestamp()]
         });
@@ -109,10 +110,9 @@ module.exports = {
           embeds: [new EmbedBuilder()
             .setColor('#FF0000')
             .setTitle('Error')
-            .setDescription('An error occurred while processing your request.')
+            .setDescription(errorMsg)
             .addFields(
-              { name: 'Context', value: 'Mystery Box' },
-              { name: 'Error', value: error.message || 'Unknown error' }
+              { name: 'Context', value: 'Mystery Box' }
             )
             .setTimestamp()],
           ephemeral: true 

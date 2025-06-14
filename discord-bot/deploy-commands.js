@@ -468,6 +468,10 @@ const commands = [
 		]
 	},
 	{
+		name: 'cooldowns',
+		description: 'View all your current cooldowns'
+	},
+	{
 		name: 'crime',
 		description: 'Attempt a crime for a chance to win or lose points, or get jailed!',
 		options: [
