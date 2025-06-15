@@ -5,9 +5,9 @@
 // Constants
 const MIN_DURATION = 1; // minutes
 const MAX_DURATION = 5; // minutes
-const BASE_COST_PER_MINUTE = 10000; // points
-const BALANCE_PERCENTAGE = 0.05; // 5% of balance
-const COOLDOWN_MINUTES = 5;
+const BASE_COST_PER_MINUTE = 100000; // points (100k per minute)
+const BALANCE_PERCENTAGE = 0.02; // 2% of balance
+const COOLDOWN_MINUTES = 5; // 5 minutes cooldown
 
 /**
  * Calculate the cost of a timeout based on duration and user's balance
@@ -37,7 +37,7 @@ const isValidTimeoutDuration = (duration) => {
  */
 const isOnTimeoutCooldown = (lastTimeoutAt) => {
   if (!lastTimeoutAt) return false;
-  const cooldownTime = 15 * 60 * 1000; // 15 minutes in milliseconds
+  const cooldownTime = COOLDOWN_MINUTES * 60 * 1000; // Convert minutes to milliseconds
   return Date.now() - new Date(lastTimeoutAt).getTime() < cooldownTime;
 };
 
@@ -48,7 +48,7 @@ const isOnTimeoutCooldown = (lastTimeoutAt) => {
  */
 const getRemainingCooldown = (lastTimeoutAt) => {
   if (!lastTimeoutAt) return { minutes: 0, seconds: 0 };
-  const cooldownTime = 15 * 60 * 1000; // 15 minutes in milliseconds
+  const cooldownTime = COOLDOWN_MINUTES * 60 * 1000; // Convert minutes to milliseconds
   const timeElapsed = Date.now() - new Date(lastTimeoutAt).getTime();
   const remainingTime = Math.max(0, cooldownTime - timeElapsed);
   const minutes = Math.floor(remainingTime / 60000);

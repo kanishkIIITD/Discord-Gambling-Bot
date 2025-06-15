@@ -65,7 +65,7 @@ module.exports = {
             // Calculate cooldown time from cooldownTime
             const lastTimeoutAt = new Date(response.data.cooldownTime);
             const now = new Date();
-            const cooldownEndTime = new Date(lastTimeoutAt.getTime() + (15 * 60 * 1000)); // 15 minutes cooldown
+            const cooldownEndTime = new Date(lastTimeoutAt.getTime() + (5 * 60 * 1000)); // 5 minutes cooldown
             const timeRemaining = Math.max(0, cooldownEndTime - now);
             const minutes = Math.floor(timeRemaining / 60000);
             const seconds = Math.floor((timeRemaining % 60000) / 1000);

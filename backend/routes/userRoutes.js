@@ -1634,54 +1634,87 @@ router.post('/:discordId/fish', async (req, res) => {
 
     let buffMessage = '';
 
-    // Check for drop rate buffs first
+    // Check for drop rate buffs
     const rateBuff = (user.buffs || []).find(b => 
       (b.type === 'fishing_rate_2x' || b.type === 'fishing_rate_3x' || b.type === 'fishing_rate_5x') && 
       (!b.expiresAt || b.expiresAt > now)
     );
-    
+
+    let boostFactor = 0;
     if (rateBuff) {
-      const boostFactor = {
+      boostFactor = {
         fishing_rate_2x: 0.10,  // +10% chance shift
         fishing_rate_3x: 0.18,  // +18%
         fishing_rate_5x: 0.30   // +30%
       }[rateBuff.type];
-
-      const finalRoll = Math.min(rarityRoll + boostFactor, 0.999);
-
-      if (finalRoll > 0.995) rarity = 'transcendent';   // 0.5%
-      else if (finalRoll > 0.985) rarity = 'mythical';  // 1%
-      else if (finalRoll > 0.955) rarity = 'legendary'; // 3%
-      else if (finalRoll > 0.90) rarity = 'epic';       // 5.5%
-      else if (finalRoll > 0.75) rarity = 'rare';       // 15%
-      else if (finalRoll > 0.50) rarity = 'uncommon';   // 25%
-
-      buffMessage += ` (${rateBuff.type} buff active: +${Math.floor(boostFactor * 100)}% chance boost!)`;
-    } else {
-      // Normal rarity weights if no drop rate buff
-      if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
-      else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
-      else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
-      else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
-      else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
-      else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%
+      buffMessage += `${rateBuff.type} buff active: +${Math.floor(boostFactor * 100)}% chance boost!`;
     }
 
-    // Then check for guaranteed buffs, which override the rarity
+    // Apply guaranteed buffs with rate buff redistribution
     if (guaranteedBuff) {
       if (guaranteedBuff.type === 'fishing_legendary') {
-        // Force legendary or better
-        if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
-        else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
-        else rarity = 'legendary'; // 98.5%
-        buffMessage += ` (${guaranteedBuff.type} buff used: Guaranteed Legendary or better!)`;
+        // Base probabilities
+        const baseLegendary = 0.985;      // 98.5%
+        const baseMythical = 0.01;        // 1%
+        const baseTranscendent = 0.005;   // 0.5%
+
+        if (boostFactor > 0) {
+          // Redistribution target: mythical + transcendent
+          const totalAbove = baseMythical + baseTranscendent;
+          const mythicalRatio = baseMythical / totalAbove;
+          const transcendentRatio = baseTranscendent / totalAbove;
+
+          const mythicalBoost = boostFactor * mythicalRatio;
+          const transcendentBoost = boostFactor * transcendentRatio;
+
+          const adjustedLegendary = baseLegendary - boostFactor;
+
+          // Apply shifted thresholds
+          if (rarityRoll > 0.995 - transcendentBoost) rarity = 'transcendent';
+          else if (rarityRoll > 0.985 - mythicalBoost) rarity = 'mythical';
+          else rarity = 'legendary';
+        } else {
+          if (rarityRoll > 0.995) rarity = 'transcendent';
+          else if (rarityRoll > 0.985) rarity = 'mythical';
+          else rarity = 'legendary';
+        }
+
+        if (buffMessage) buffMessage += '\n';
+        buffMessage += `${guaranteedBuff.type} buff used: Guaranteed Legendary or better!`;
       } else if (guaranteedBuff.type === 'fishing_epic') {
-        // Force epic or better
-        if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
-        else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
-        else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
-        else rarity = 'epic'; // 95.5%
-        buffMessage += ` (${guaranteedBuff.type} buff used: Guaranteed Epic or better!)`;
+        // Base probabilities
+        const baseEpic = 0.955;           // 95.5%
+        const baseLegendary = 0.03;       // 3%
+        const baseMythical = 0.01;        // 1%
+        const baseTranscendent = 0.005;   // 0.5%
+
+        if (boostFactor > 0) {
+          // Redistribute from epic to higher
+          const totalAbove = baseLegendary + baseMythical + baseTranscendent;
+          const legendaryRatio = baseLegendary / totalAbove;
+          const mythicalRatio = baseMythical / totalAbove;
+          const transcendentRatio = baseTranscendent / totalAbove;
+
+          const legendaryBoost = boostFactor * legendaryRatio;
+          const mythicalBoost = boostFactor * mythicalRatio;
+          const transcendentBoost = boostFactor * transcendentRatio;
+
+          const adjustedEpic = baseEpic - boostFactor;
+
+          // Apply shifted thresholds
+          if (rarityRoll > 0.995 - transcendentBoost) rarity = 'transcendent';
+          else if (rarityRoll > 0.985 - mythicalBoost) rarity = 'mythical';
+          else if (rarityRoll > 0.955 - legendaryBoost) rarity = 'legendary';
+          else rarity = 'epic';
+        } else {
+          if (rarityRoll > 0.995) rarity = 'transcendent';
+          else if (rarityRoll > 0.985) rarity = 'mythical';
+          else if (rarityRoll > 0.955) rarity = 'legendary';
+          else rarity = 'epic';
+        }
+
+        if (buffMessage) buffMessage += '\n';
+        buffMessage += `${guaranteedBuff.type} buff used: Guaranteed Epic or better!`;
       }
       
       // Decrement uses
@@ -1689,6 +1722,24 @@ router.post('/:discordId/fish', async (req, res) => {
       if (guaranteedBuff.usesLeft <= 0) {
         user.buffs = user.buffs.filter(b => b !== guaranteedBuff);
       }
+    } else if (rateBuff) {
+      // Only rate buff, no guaranteed buff
+      const finalRoll = Math.min(rarityRoll + boostFactor, 0.999);
+      
+      if (finalRoll > 0.995) rarity = 'transcendent';   // 0.5%
+      else if (finalRoll > 0.985) rarity = 'mythical';  // 1%
+      else if (finalRoll > 0.955) rarity = 'legendary'; // 3%
+      else if (finalRoll > 0.90) rarity = 'epic';       // 5.5%
+      else if (finalRoll > 0.75) rarity = 'rare';       // 15%
+      else if (finalRoll > 0.50) rarity = 'uncommon';   // 25%
+    } else {
+      // No buffs, use normal rarity weights
+      if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
+      else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
+      else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
+      else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
+      else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
+      else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%
     }
 
     // Pick a fish of that rarity
@@ -1705,7 +1756,8 @@ router.post('/:discordId/fish', async (req, res) => {
       const multiplier = fishEarningsBuff.type === 'earnings_x2' ? 2 : 
                         fishEarningsBuff.type === 'earnings_x3' ? 3 : 5;
       value *= multiplier;
-      buffMessage += ` (${fishEarningsBuff.type} buff active: ${multiplier}x POINTS!)`;
+      if (buffMessage) buffMessage += '\n';
+      buffMessage += `${fishEarningsBuff.type} buff active: ${multiplier}x POINTS!`;
     }
 
     // Update inventory
@@ -1720,9 +1772,9 @@ router.post('/:discordId/fish', async (req, res) => {
     user.inventory = fishInv;
 
     // Set cooldown (5-15 min)
-    const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
-    user.fishCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
-    await user.save();
+    // const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
+    // user.fishCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
+    // await user.save();
 
     res.json({
       name: fish.name,
@@ -1873,54 +1925,87 @@ router.post('/:discordId/hunt', async (req, res) => {
 
     let buffMessage = '';
 
-    // Check for drop rate buffs first
+    // Check for drop rate buffs
     const rateBuff = (user.buffs || []).find(b => 
       (b.type === 'hunting_rate_2x' || b.type === 'hunting_rate_3x' || b.type === 'hunting_rate_5x') && 
       (!b.expiresAt || b.expiresAt > now)
     );
-    
+
+    let boostFactor = 0;
     if (rateBuff) {
-      const boostFactor = {
+      boostFactor = {
         hunting_rate_2x: 0.10,  // +10% chance shift
         hunting_rate_3x: 0.18,  // +18%
         hunting_rate_5x: 0.30   // +30%
       }[rateBuff.type];
-
-      const finalRoll = Math.min(rarityRoll + boostFactor, 0.999);
-
-      if (finalRoll > 0.995) rarity = 'transcendent';   // 0.5%
-      else if (finalRoll > 0.985) rarity = 'mythical';  // 1%
-      else if (finalRoll > 0.955) rarity = 'legendary'; // 3%
-      else if (finalRoll > 0.90) rarity = 'epic';       // 5.5%
-      else if (finalRoll > 0.75) rarity = 'rare';       // 15%
-      else if (finalRoll > 0.50) rarity = 'uncommon';   // 25%
-
-      buffMessage += ` (${rateBuff.type} buff active: +${Math.floor(boostFactor * 100)}% chance boost!)`;
-    } else {
-      // Normal rarity weights if no drop rate buff
-      if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
-      else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
-      else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
-      else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
-      else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
-      else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%
+      buffMessage += `${rateBuff.type} buff active: +${Math.floor(boostFactor * 100)}% chance boost!`;
     }
 
-    // Then check for guaranteed buffs, which override the rarity
+    // Apply guaranteed buffs with rate buff redistribution
     if (guaranteedBuff) {
       if (guaranteedBuff.type === 'hunting_legendary') {
-        // Force legendary or better
-        if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
-        else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
-        else rarity = 'legendary'; // 98.5%
-        buffMessage += ` (${guaranteedBuff.type} buff used: Guaranteed Legendary or better!)`;
+        // Base probabilities
+        const baseLegendary = 0.985;      // 98.5%
+        const baseMythical = 0.01;        // 1%
+        const baseTranscendent = 0.005;   // 0.5%
+
+        if (boostFactor > 0) {
+          // Redistribution target: mythical + transcendent
+          const totalAbove = baseMythical + baseTranscendent;
+          const mythicalRatio = baseMythical / totalAbove;
+          const transcendentRatio = baseTranscendent / totalAbove;
+
+          const mythicalBoost = boostFactor * mythicalRatio;
+          const transcendentBoost = boostFactor * transcendentRatio;
+
+          const adjustedLegendary = baseLegendary - boostFactor;
+
+          // Apply shifted thresholds
+          if (rarityRoll > 0.995 - transcendentBoost) rarity = 'transcendent';
+          else if (rarityRoll > 0.985 - mythicalBoost) rarity = 'mythical';
+          else rarity = 'legendary';
+        } else {
+          if (rarityRoll > 0.995) rarity = 'transcendent';
+          else if (rarityRoll > 0.985) rarity = 'mythical';
+          else rarity = 'legendary';
+        }
+
+        if (buffMessage) buffMessage += '\n';
+        buffMessage += `${guaranteedBuff.type} buff used: Guaranteed Legendary or better!`;
       } else if (guaranteedBuff.type === 'hunting_epic') {
-        // Force epic or better
-        if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
-        else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
-        else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
-        else rarity = 'epic'; // 95.5%
-        buffMessage += ` (${guaranteedBuff.type} buff used: Guaranteed Epic or better!)`;
+        // Base probabilities
+        const baseEpic = 0.955;           // 95.5%
+        const baseLegendary = 0.03;       // 3%
+        const baseMythical = 0.01;        // 1%
+        const baseTranscendent = 0.005;   // 0.5%
+
+        if (boostFactor > 0) {
+          // Redistribute from epic to higher
+          const totalAbove = baseLegendary + baseMythical + baseTranscendent;
+          const legendaryRatio = baseLegendary / totalAbove;
+          const mythicalRatio = baseMythical / totalAbove;
+          const transcendentRatio = baseTranscendent / totalAbove;
+
+          const legendaryBoost = boostFactor * legendaryRatio;
+          const mythicalBoost = boostFactor * mythicalRatio;
+          const transcendentBoost = boostFactor * transcendentRatio;
+
+          const adjustedEpic = baseEpic - boostFactor;
+
+          // Apply shifted thresholds
+          if (rarityRoll > 0.995 - transcendentBoost) rarity = 'transcendent';
+          else if (rarityRoll > 0.985 - mythicalBoost) rarity = 'mythical';
+          else if (rarityRoll > 0.955 - legendaryBoost) rarity = 'legendary';
+          else rarity = 'epic';
+        } else {
+          if (rarityRoll > 0.995) rarity = 'transcendent';
+          else if (rarityRoll > 0.985) rarity = 'mythical';
+          else if (rarityRoll > 0.955) rarity = 'legendary';
+          else rarity = 'epic';
+        }
+
+        if (buffMessage) buffMessage += '\n';
+        buffMessage += `${guaranteedBuff.type} buff used: Guaranteed Epic or better!`;
       }
       
       // Decrement uses
@@ -1928,6 +2013,24 @@ router.post('/:discordId/hunt', async (req, res) => {
       if (guaranteedBuff.usesLeft <= 0) {
         user.buffs = user.buffs.filter(b => b !== guaranteedBuff);
       }
+    } else if (rateBuff) {
+      // Only rate buff, no guaranteed buff
+      const finalRoll = Math.min(rarityRoll + boostFactor, 0.999);
+      
+      if (finalRoll > 0.995) rarity = 'transcendent';   // 0.5%
+      else if (finalRoll > 0.985) rarity = 'mythical';  // 1%
+      else if (finalRoll > 0.955) rarity = 'legendary'; // 3%
+      else if (finalRoll > 0.90) rarity = 'epic';       // 5.5%
+      else if (finalRoll > 0.75) rarity = 'rare';       // 15%
+      else if (finalRoll > 0.50) rarity = 'uncommon';   // 25%
+    } else {
+      // No buffs, use normal rarity weights
+      if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
+      else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
+      else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
+      else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
+      else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
+      else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%
     }
 
     // Pick an animal of that rarity
@@ -1944,7 +2047,8 @@ router.post('/:discordId/hunt', async (req, res) => {
       const multiplier = huntEarningsBuff.type === 'earnings_x2' ? 2 : 
                         huntEarningsBuff.type === 'earnings_x3' ? 3 : 5;
       value *= multiplier;
-      buffMessage += ` (${huntEarningsBuff.type} buff active: ${multiplier}x POINTS!)`;
+      if (buffMessage) buffMessage += '\n';
+      buffMessage += `${huntEarningsBuff.type} buff active: ${multiplier}x POINTS!`;
     }
 
     // Update inventory
@@ -1959,9 +2063,9 @@ router.post('/:discordId/hunt', async (req, res) => {
     user.inventory = huntInv;
 
     // Set cooldown (5-15 min)
-    const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
-    user.huntCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
-    await user.save();
+    // const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
+    // user.huntCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
+    // await user.save();
 
     res.json({
       name: animal.name,
