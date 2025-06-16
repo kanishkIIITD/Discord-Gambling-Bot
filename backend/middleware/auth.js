@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Bet = require('../models/Bet');
 
 const auth = async (req, res, next) => {
   try {
@@ -54,9 +55,41 @@ const requireGuildId = (req, res, next) => {
   next();
 };
 
+const requireBetCreatorOrAdmin = async (req, res, next) => {
+  try {
+    const { betId } = req.params;
+    const { creatorDiscordId } = req.body;
+    
+    // Find the bet
+    const bet = await Bet.findById(betId).populate('creator', 'discordId');
+    if (!bet) {
+      return res.status(404).json({ message: 'Bet not found.' });
+    }
+
+    // Check if user is creator
+    const isCreator = bet.creator.discordId === creatorDiscordId;
+    
+    // Check if user is admin
+    const user = await User.findOne({ discordId: creatorDiscordId });
+    const isAdmin = user && (user.role === 'admin' || user.role === 'superadmin');
+
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({ 
+        message: 'You must be the bet creator or an admin to perform this action.' 
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Error in requireBetCreatorOrAdmin middleware:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
 module.exports = {
   auth,
   requireAdmin,
   requireSuperAdmin,
-  requireGuildId
+  requireGuildId,
+  requireBetCreatorOrAdmin
 }; 

@@ -757,6 +757,30 @@ const commands = [
 			}
 		],
 		defaultMemberPermissions: '8'
+	},
+	{
+		name: 'changerole',
+		description: 'Change a user\'s role (Superadmin only)',
+		options: [
+			{
+				name: 'user',
+				description: 'The user whose role to change',
+				type: 6,
+				required: true
+			},
+			{
+				name: 'role',
+				description: 'The new role to assign',
+				type: 3,
+				required: true,
+				choices: [
+					{ name: 'User', value: 'user' },
+					{ name: 'Admin', value: 'admin' },
+					{ name: 'Superadmin', value: 'superadmin' }
+				]
+			}
+		],
+		defaultMemberPermissions: '0'
 	}
 ];
 
@@ -764,23 +788,23 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
 	try {
-		// console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
+		console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
 
-		// // Deploy to test guild only
-		// const data = await rest.put(
-		// 	Routes.applicationGuildCommands(clientId, guildId1),
-		// 	{ body: commands },
-		// );
-
-		// console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
-
-		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
-		console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
-		const globalData = await rest.put(
-			Routes.applicationCommands(clientId),
+		// Deploy to test guild only
+		const data = await rest.put(
+			Routes.applicationGuildCommands(clientId, guildId1),
 			{ body: commands },
 		);
-		console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
+
+		console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
+
+		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
+		// console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
+		// const globalData = await rest.put(
+		// 	Routes.applicationCommands(clientId),
+		// 	{ body: commands },
+		// );
+		// console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
 	} catch (error) {
 		console.error(error);
 	}

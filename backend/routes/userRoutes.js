@@ -9,6 +9,7 @@ const UserPreferences = require('../models/UserPreferences');
 const Duel = require('../models/Duel');
 const { requireGuildId } = require('../middleware/auth');
 const { calculateTimeoutCost, isValidTimeoutDuration, isOnTimeoutCooldown, getRemainingCooldown, BASE_COST_PER_MINUTE, BALANCE_PERCENTAGE } = require('../utils/timeoutUtils');
+const { auth, requireSuperAdmin } = require('../middleware/auth');
 
 // --- TIMEOUT ENDPOINT ---
 router.post('/:userId/timeout', requireGuildId, async (req, res) => {
@@ -671,7 +672,8 @@ router.get('/:userId/profile', async (req, res) => {
         username: user.username,
         createdAt: user.createdAt,
         isJailed,
-        jailedUntil: user.jailedUntil
+        jailedUntil: user.jailedUntil,
+        role: user.role || 'user'
       },
       wallet: {
         balance: roundedBalance
@@ -2984,6 +2986,65 @@ router.get('/:discordId/cooldowns', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching cooldowns.' });
+  }
+});
+
+// Change user role (Superadmin only)
+router.put('/discord/:discordId/role', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const { role, guildId } = req.body;
+
+    // Get the user making the request
+    const requestingUser = await User.findOne({ 
+      discordId: req.headers['x-user-id'], 
+      guildId: req.guildId 
+    });
+
+    // Check if requesting user is a superadmin
+    if (!requestingUser || requestingUser.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Only superadmins can change roles' });
+    }
+
+    // Validate role
+    if (!['user', 'admin', 'superadmin'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be one of: user, admin, superadmin' });
+    }
+
+    // Find and update user
+    const user = await User.findOneAndUpdate(
+      { discordId, guildId },
+      { role },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ message: 'Role updated successfully', user });
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get user by Discord ID
+router.get('/discord/:discordId', requireGuildId, async (req, res) => {
+  try {
+    const user = await User.findOne({ 
+      discordId: req.params.discordId, 
+      guildId: req.guildId 
+    });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

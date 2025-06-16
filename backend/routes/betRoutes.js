@@ -7,7 +7,7 @@ const Wallet = require('../models/Wallet');
 const Transaction = require('../models/Transaction');
 const WebSocket = require('ws');
 const { updateUserWinStreak } = require('../utils/gamblingUtils');
-const { requireAdmin, auth, requireGuildId } = require('../middleware/auth');
+const { requireAdmin, auth, requireGuildId, requireBetCreatorOrAdmin } = require('../middleware/auth');
 
 // Get the WebSocket server instance
 let wss;
@@ -186,7 +186,7 @@ router.post('/:betId/place', async (req, res) => {
     }
 
     // Check if user has enough balance (requires wallet access)
-    const wallet = await Wallet.findOne({ user: bettor._id });
+    const wallet = await Wallet.findOne({ user: bettor._id, guildId: req.guildId });
     if (!wallet || wallet.balance < amount) {
         return res.status(400).json({ message: 'Insufficient balance.' });
     }
@@ -273,11 +273,9 @@ router.get('/:betId/placed', async (req, res) => {
 });
 
 // Close betting for a specific event
-router.put('/:betId/close', async (req, res) => {
+router.put('/:betId/close', requireBetCreatorOrAdmin, async (req, res) => {
     try {
       const betId = req.params.betId;
-      // Optional: Add logic here to verify if the user closing the bet has permissions (e.g., is the creator)
-
       const bet = await Bet.findById(betId).where({ guildId: req.guildId });
 
       if (!bet) {
@@ -302,10 +300,10 @@ router.put('/:betId/close', async (req, res) => {
       console.error('Error closing bet:', error);
       res.status(500).json({ message: 'Server error.' });
     }
-  });
+});
 
-// Cancel a bet (creator only)
-router.delete('/:betId', async (req, res) => {
+// Cancel a bet (creator or admin only)
+router.delete('/:betId', requireBetCreatorOrAdmin, async (req, res) => {
   try {
     const betId = req.params.betId;
     const { creatorDiscordId } = req.body;
@@ -313,11 +311,6 @@ router.delete('/:betId', async (req, res) => {
     const bet = await Bet.findById(betId).populate('creator', 'discordId').where({ guildId: req.guildId });
     if (!bet) {
       return res.status(404).json({ message: 'Bet not found.' });
-    }
-
-    // Verify the user is the creator
-    if (bet.creator.discordId !== creatorDiscordId) {
-      return res.status(403).json({ message: 'Only the bet creator can cancel this bet.' });
     }
 
     // Check if any bets have been placed
@@ -336,8 +329,8 @@ router.delete('/:betId', async (req, res) => {
   }
 });
 
-// Edit a bet (creator only)
-router.put('/:betId/edit', async (req, res) => {
+// Edit a bet (creator or admin only)
+router.put('/:betId/edit', requireBetCreatorOrAdmin, async (req, res) => {
   try {
     const betId = req.params.betId;
     const { creatorDiscordId, description, options, durationMinutes } = req.body;
@@ -345,11 +338,6 @@ router.put('/:betId/edit', async (req, res) => {
     const bet = await Bet.findById(betId).populate('creator', 'discordId').where({ guildId: req.guildId });
     if (!bet) {
       return res.status(404).json({ message: 'Bet not found.' });
-    }
-
-    // Verify the user is the creator
-    if (bet.creator.discordId !== creatorDiscordId) {
-      return res.status(403).json({ message: 'Only the bet creator can edit this bet.' });
     }
 
     // Check if any bets have been placed
@@ -374,8 +362,8 @@ router.put('/:betId/edit', async (req, res) => {
   }
 });
 
-// Extend a bet's duration (creator only)
-router.put('/:betId/extend', async (req, res) => {
+// Extend a bet's duration (creator or admin only)
+router.put('/:betId/extend', requireBetCreatorOrAdmin, async (req, res) => {
   try {
     const betId = req.params.betId;
     const { creatorDiscordId, additionalMinutes } = req.body;
@@ -383,11 +371,6 @@ router.put('/:betId/extend', async (req, res) => {
     const bet = await Bet.findById(betId).populate('creator', 'discordId').where({ guildId: req.guildId });
     if (!bet) {
       return res.status(404).json({ message: 'Bet not found.' });
-    }
-
-    // Verify the user is the creator
-    if (bet.creator.discordId !== creatorDiscordId) {
-      return res.status(403).json({ message: 'Only the bet creator can extend this bet.' });
     }
 
     // Check if bet is still open
@@ -417,8 +400,8 @@ router.put('/:betId/extend', async (req, res) => {
   }
 });
 
-// Resolve a betting event
-router.put('/:betId/resolve', async (req, res) => {
+// Resolve a betting event (creator or admin only)
+router.put('/:betId/resolve', requireBetCreatorOrAdmin, async (req, res) => {
     try {
       const betId = req.params.betId;
       const { winningOption, resolverDiscordId } = req.body;
@@ -432,9 +415,9 @@ router.put('/:betId/resolve', async (req, res) => {
       if (bet.status === 'resolved') {
           return res.status(400).json({ message: 'Bet has already been resolved.' });
       }
-       if (!bet.options.includes(winningOption)) {
+      if (!bet.options.includes(winningOption)) {
         return res.status(400).json({ message: 'Winning option is not valid for this bet.' });
-    }
+      }
 
       bet.status = 'resolved';
       bet.winningOption = winningOption;
@@ -450,7 +433,7 @@ router.put('/:betId/resolve', async (req, res) => {
 
       for (const placedBet of placedBets) {
         if (placedBet.option === winningOption) {
-          const bettorWallet = await Wallet.findOne({ user: placedBet.bettor._id });
+          const bettorWallet = await Wallet.findOne({ user: placedBet.bettor._id, guildId: req.guildId });
           if (bettorWallet) {
             const winnings = Math.floor((placedBet.amount / totalBetOnWinningOption) * totalPot);
             bettorWallet.balance += winnings;
@@ -501,7 +484,7 @@ router.put('/:betId/resolve', async (req, res) => {
       console.error('Error resolving bet:', error);
       res.status(500).json({ message: 'Server error.' });
     }
-  });
+});
 
 // Refund a bet (admin/superadmin only)
 router.post('/:betId/refund', auth, requireAdmin, async (req, res) => {
@@ -516,7 +499,7 @@ router.post('/:betId/refund', auth, requireAdmin, async (req, res) => {
     const placedBets = await PlacedBet.find({ bet: betId });
     for (const placedBet of placedBets) {
       // Fetch the bettor's wallet
-      const wallet = await Wallet.findOne({ user: placedBet.bettor });
+      const wallet = await Wallet.findOne({ user: placedBet.bettor, guildId: req.guildId });
       if (wallet) {
         // Refund points
         wallet.balance += placedBet.amount;

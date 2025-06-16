@@ -588,6 +588,8 @@ client.on('interactionCreate', async interaction => {
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/resolve`, {
 				winningOption: winningOption,
 				resolverDiscordId: userId,
+				creatorDiscordId: userId,
+				guildId: interaction.guildId
 			}, {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
@@ -652,7 +654,8 @@ client.on('interactionCreate', async interaction => {
 			await interaction.deferReply();
 			const betId = interaction.options.getString('bet_id');
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/close`, {
-				guildId: interaction.guildId
+				guildId: interaction.guildId,
+				creatorDiscordId: userId
 			}, {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
@@ -789,6 +792,7 @@ client.on('interactionCreate', async interaction => {
 				title: `👤 ${targetUser.username}'s Profile`,
 				fields: [
 					{ name: 'Balance', value: `${wallet.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'Role', value: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User', inline: true },
 					{ name: '🎲 Betting', value:
 						`Total Bets: ${betting.totalBets.toLocaleString('en-US')}\n` +
 						`Total Wagered: ${betting.totalWagered.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\n` +
@@ -2079,7 +2083,9 @@ client.on('interactionCreate', async interaction => {
 							'Cooldown: 5 minutes between uses\n' +
 							'Requires Permission: Timeout Members\n\n' +
 							'`/setlogchannel #channel` - Set the channel where moderation logs will be sent\n' +
-							'Required Permission: Administrator'
+							'Required Permission: Administrator\n\n' +
+							'`/changerole @user role` - Change a user\'s role (user/admin/superadmin)\n' +
+							'Required Permission: Superadmin'
 						}
 					],
 					timestamp: new Date()
@@ -2109,7 +2115,10 @@ client.on('interactionCreate', async interaction => {
 			await interaction.deferReply();
 			const betId = interaction.options.getString('bet_id');
 			await axios.delete(`${backendApiUrl}/bets/${betId}`, {
-				data: { creatorDiscordId: userId },
+				data: { 
+					creatorDiscordId: userId,
+					guildId: interaction.guildId 
+				},
 				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const embed = new EmbedBuilder()
@@ -2135,33 +2144,15 @@ client.on('interactionCreate', async interaction => {
 			const betId = interaction.options.getString('bet_id');
 			const description = interaction.options.getString('description');
 			const optionsString = interaction.options.getString('options');
+			const options = optionsString.split(',').map(option => option.trim());
 			const durationMinutes = interaction.options.getInteger('duration_minutes');
-			if (!description && !optionsString && !durationMinutes) {
-				const embed = new EmbedBuilder()
-					.setColor(0xffbe76)
-					.setTitle('⚠️ Nothing to Update')
-					.setDescription('Please provide at least one field to update (description, options, or duration).')
-					.setTimestamp();
-				await interaction.editReply({ embeds: [embed] });
-				return;
-			}
-			if (optionsString) {
-				const options = optionsString.split(',').map(option => option.trim());
-				if (options.length < 2) {
-					const embed = new EmbedBuilder()
-						.setColor(0xffbe76)
-						.setTitle('⚠️ Invalid Options')
-						.setDescription('Please provide at least two comma-separated options for the bet.')
-						.setTimestamp();
-					await interaction.editReply({ embeds: [embed] });
-					return;
-				}
-			}
+
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/edit`, {
-				creatorDiscordId: userId,
 				description,
-				options: optionsString,
-				durationMinutes
+				options,
+				durationMinutes,
+				creatorDiscordId: userId,
+				guildId: interaction.guildId
 			}, {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
@@ -2194,8 +2185,9 @@ client.on('interactionCreate', async interaction => {
 			const betId = interaction.options.getString('bet_id');
 			const additionalMinutes = interaction.options.getInteger('additional_minutes');
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/extend`, {
+				additionalMinutes,
 				creatorDiscordId: userId,
-				additionalMinutes
+				guildId: interaction.guildId
 			}, {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
@@ -2452,6 +2444,76 @@ client.on('interactionCreate', async interaction => {
 		await timeoutCommand.execute(interaction);
 	} else if (commandName === 'setlogchannel') {
 		await setlogchannelCommand.execute(interaction);
+	} else if (commandName === 'changerole') {
+		try {
+			await interaction.deferReply();
+			const targetUser = interaction.options.getUser('user');
+			const newRole = interaction.options.getString('role');
+			const userId = interaction.user.id;
+
+			// First verify the user is a superadmin
+			const userResponse = await axios.get(`${backendApiUrl}/users/discord/${userId}`, {
+				headers: { 
+					'x-guild-id': interaction.guildId,
+					'x-user-id': userId
+				}
+			});
+
+			if (userResponse.data.role !== 'superadmin') {
+				return interaction.editReply({
+					embeds: [{
+						color: 0xff0000,
+						description: '❌ You do not have permission to use this command. Only Superadmins can change roles.'
+					}]
+				});
+			}
+
+			// Validate role
+			const validRoles = ['user', 'admin', 'superadmin'];
+			if (!validRoles.includes(newRole)) {
+				return interaction.editReply({
+					embeds: [{
+						color: 0xff0000,
+						description: '❌ Invalid role. Must be one of: user, admin, superadmin'
+					}]
+				});
+			}
+
+			// Update the user's role
+			const response = await axios.put(`${backendApiUrl}/users/discord/${targetUser.id}/role`, {
+				role: newRole,
+				guildId: interaction.guildId
+			}, {
+				headers: { 
+					'x-guild-id': interaction.guildId,
+					'x-user-id': userId
+				}
+			});
+
+			await interaction.editReply({
+				embeds: [{
+					color: 0x00ff00,
+					description: `✅ Successfully changed ${targetUser.username}'s role to ${newRole}`
+				}]
+			});
+		} catch (error) {
+			console.error('Error in changerole command:', error);
+			if (error.message === 'Backend URL is not configured') {
+				await interaction.editReply({
+					embeds: [{
+						color: 0xff0000,
+						description: '❌ Backend URL is not configured. Please contact an administrator.'
+					}]
+				});
+			} else {
+				await interaction.editReply({
+					embeds: [{
+						color: 0xff0000,
+						description: error.response?.data?.message || error.message || 'An error occurred while changing the role.'
+					}]
+				});
+			}
+		}
 	}
 
 	// --- Handle duel accept/decline buttons ---
