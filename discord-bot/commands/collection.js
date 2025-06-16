@@ -79,13 +79,18 @@ module.exports = {
 
       const inventory = response.data.inventory || [];
 
-      // Add debug logging
-      console.log('Collection Response:', {
-        inventory,
-        itemCount: inventory.filter(i => i.type === 'item').length,
-        fishCount: inventory.filter(i => i.type === 'fish').length,
-        animalCount: inventory.filter(i => i.type === 'animal').length
-      });
+      // Check if inventory is empty
+      if (inventory.length === 0) {
+        const emptyEmbed = {
+          color: 0x95a5a6,
+          title: '🎒 Your Collection',
+          description: 'Your collection is empty! Try `/fish` or `/hunt` to start collecting items.',
+          timestamp: new Date(),
+          footer: { text: `Requested by ${interaction.user.tag}` }
+        };
+        await interaction.editReply({ embeds: [emptyEmbed] });
+        return;
+      }
 
       const pages = [];
 
@@ -93,14 +98,6 @@ module.exports = {
         const fish = inventory.filter(i => i.rarity === rarity && i.type === 'fish');
         const animals = inventory.filter(i => i.rarity === rarity && i.type === 'animal');
         const collectibles = inventory.filter(i => i.rarity === rarity && i.type === 'item');
-
-        // Add debug logging for each rarity
-        console.log(`Rarity ${rarity}:`, {
-          fishCount: fish.length,
-          animalCount: animals.length,
-          collectibleCount: collectibles.length,
-          collectibles
-        });
 
         if (fish.length === 0 && animals.length === 0 && collectibles.length === 0) continue;
 

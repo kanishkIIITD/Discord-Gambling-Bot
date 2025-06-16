@@ -1570,10 +1570,8 @@ client.on('interactionCreate', async interaction => {
 						value: bet.won ? `🎉 Won ${bet.winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points!` : '😢 Lost',
 						inline: true
 					})),
-					{ name: '\u200B', value: '\u200B' },
-					{ name: 'Total Winnings', value: `${totalWinnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-                    { name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+					{ name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
 				)
 				.setTimestamp();
 			await interaction.editReply({ embeds: [embed] });
@@ -1882,19 +1880,27 @@ client.on('interactionCreate', async interaction => {
 				embed = {
 					color: 0x0099ff,
 					title: '🎲 Betting Commands',
-					description: 'Commands for creating and managing bets.',
+					description: 'Commands for creating and managing bets. Use these commands to create exciting betting events and participate in them!',
 					fields: [
-						{ name: 'Betting', value:
-							'`/createbet` - Create a new betting event\n' +
-							'`/placebet` - Place a bet on an existing event\n' +
-							'`/cancelbet` - Cancel a bet you created\n' +
-							'`/editbet` - Edit a bet you created\n' +
-							'`/extendbet` - Extend the duration of a bet\n' +
-							'`/resolvebet` - Resolve a bet and determine winners\n' +
-							'`/listbets` - View all open bets\n' +
-							'`/viewbet` - View details of a specific bet\n' +
-							'`/closebet` - Close betting for an event\n' +
+						{ name: '📝 Creating & Managing Bets', value:
+							'`/createbet` - Start a new betting event with custom options & timer (auto-pings Gamblers)\n' +
+							'`/editbet` - Edit your bet (only before bets are placed)\n' +
+							'`/extendbet` - Add more time to an open bet'
+						},
+						{ name: '💰 Placing & Viewing Bets', value:
+							'`/placebet` - Bet on an event (supports allin, half, 100k, 1m, etc.)\n' +
+							'`/listbets` - See recent open bets (max 10)\n' +
+							'`/viewbet` - View details of a specific bet'
+						},
+						{ name: '📊 Info & Resolution', value:
+							'`/betinfo` - Full stats: pot, percentages, placed bets\n' +
+							'`/resolvebet` - End a bet and pay out winners (auto-pings Gamblers)\n' +
+							'`/closebet` - Lock the bet early (no new bets)\n' +
 							'`/unresolvedbets` - View all unresolved bets'
+						},
+						{ name: '🛠️ QoL Features', value:
+							'• Auto-complete for bet IDs and options\n' +
+							'• Smart shortcuts (allin, half, 100k, 2m)'
 						}
 					],
 					timestamp: new Date()
@@ -1903,16 +1909,24 @@ client.on('interactionCreate', async interaction => {
 				embed = {
 					color: 0x0099ff,
 					title: '🎮 Gambling Commands',
-					description: 'Commands for gambling games.',
+					description: 'Commands for various gambling games. Try your luck and win big!',
 					fields: [
-						{ name: 'Gambling', value:
-							'`/coinflip` - Flip a coin and bet on the outcome\n' +
+						{ name: '🎲 Classic Games', value:
+							'`/coinflip` - Flip a coin and bet on heads or tails\n' +
 							'`/dice` - Roll dice and bet on the outcome\n' +
-							'`/slots` - Play the slot machine\n' +
-							'`/blackjack` - Play blackjack\n' +
-							'`/roulette` - Play roulette\n' +
-							'`/jackpot` - View or contribute to the jackpot\n' +
+							'`/slots` - Play the slot machine for big wins'
+						},
+						{ name: '🃏 Card Games', value:
+							'`/blackjack` - Play blackjack against the dealer\n' +
+							'`/roulette` - Place bets on the roulette wheel'
+						},
+						{ name: '💰 Special Games', value:
+							'`/jackpot` - View or contribute to the growing jackpot\n' +
 							'`/duel` - Challenge another user to a duel for points'
+						},
+						{ name: '🛠️ QoL Features', value:
+							'• Smart shortcuts (allin, half, 100k, 2m)\n' +
+							'• Auto-complete for duel IDs'
 						}
 					],
 					timestamp: new Date()
@@ -1921,14 +1935,18 @@ client.on('interactionCreate', async interaction => {
 				embed = {
 					color: 0x0099ff,
 					title: '💰 Wallet Commands',
-					description: 'Commands for managing your wallet and points.',
+					description: 'Commands for managing your wallet, points, and rewards.',
 					fields: [
-						{ name: 'Wallet', value:
-							'`/balance` - Check your current balance\n' +
-							'`/daily` - Claim your daily point bonus\n' +
-							'`/gift` - Gift points to another user\n' +
-							'`/transactions` - View your transaction history\n' +
-							'`/profile` - View your detailed profile'
+						{ name: '💳 Balance & Rewards', value:
+							'`/balance` - Check your current points balance\n' +
+							'`/daily` - Claim your daily point bonus'
+						},
+						{ name: '📊 Profile & History', value:
+							'`/profile` - View your detailed profile and stats\n' +
+							'`/transactions` - View your transaction history'
+						},
+						{ name: '🎁 Gifts', value:
+							'`/gift` - Gift points to another user'
 						}
 					],
 					timestamp: new Date()
@@ -1937,12 +1955,17 @@ client.on('interactionCreate', async interaction => {
 				embed = {
 					color: 0x0099ff,
 					title: '📊 Utility Commands',
-					description: 'Utility and stats commands.',
+					description: 'Commands for viewing statistics, leaderboards, and managing cooldowns.',
 					fields: [
-						{ name: 'Utility', value:
+						{ name: '🏆 Leaderboards', value:
 							'`/leaderboard` - View top users by balance\n' +
+							'`/collection-leaderboard` - View top collectors by value'
+						},
+						{ name: '📈 Statistics', value:
 							'`/stats` - View your full betting and gambling statistics\n' +
-							'`/cooldowns` - View all your current cooldowns\n' +
+							'`/cooldowns` - View all your current cooldowns'
+						},
+						{ name: '⚙️ Settings', value:
 							'`/help` - View this help menu'
 						}
 					],
@@ -1952,24 +1975,34 @@ client.on('interactionCreate', async interaction => {
 				embed = {
 					color: 0x0099ff,
 					title: '🎮 Fun & Collection Commands',
-					description: 'Fun, collection, and miscellaneous commands.',
+					description: 'Commands for fun activities, collection, and earning points.',
 					fields: [
-						{ name: 'Fun & Collection', value:
-							'`/meowbark` - Perform a meow or bark to earn points (5 min cooldown, max 100,000 points)\n' +
-							'`/crime do` - Attempt a crime for a chance to win or lose points, or get jailed\n' +
-							'`/crime stats` - View your crime stats\n' +
+						{ name: '🎣 Collection', value:
+							'`/fish` - Go fishing for a chance to catch something valuable\n' +
+							'`/hunt` - Go hunting for a chance to catch a rare animal\n' +
+							'`/collection` - View your fishing, hunting, and collectible items\n' +
+							'`/collection-list` - View all possible fish and animal names\n' +
+							'`/collection-leaderboard` - View top collectors by value'
+						},
+						{ name: '💼 Jobs & Activities', value:
 							'`/work do` - Work a job for a chance to earn points and rare bonuses\n' +
-							'`/work stats` - View your work/job stats\n' +
-							'`/bail @user` - Bail a jailed user out (for a fee)\n' +
-							'`/fish` - Go fishing for a chance to catch something valuable!\n' +
-							'`/hunt` - Go hunting for a chance to catch a rare animal!\n' +
-							'`/collection` - View your fishing and hunting collection\n' +
-							'`/collection-leaderboard` - View the top collectors by collection value\n' +
-							'`/collection-list` - View all possible fish and animal names in the collection\n' +
-							'`/sell` - Sell an item from your collection for points\n' +
-							'`/trade` - Gift or trade an item from your collection to another user\n' +
-							'`/beg` - Beg for coins and see what happens!\n' +
-							'`/mysterybox` - Open a mystery box for random rewards!'
+							'`/crime do` - Attempt a crime for a chance to win or lose points\n' +
+							'`/meowbark` - Perform a meow or bark to earn points\n' +
+							'`/beg` - Beg for coins and see what happens\n' +
+							'`/mysterybox` - Open a mystery box for random rewards'
+						},
+						{ name: '🚔 Jail System', value:
+							'`/bail` - Bail a jailed user out (for a fee)\n' +
+							'`/timeout` - Timeout a user'
+						},
+						{ name: '📊 Stats & Info', value:
+							'`/work stats` - View your work/job statistics\n' +
+							'`/crime stats` - View your crime statistics\n' +
+							'`/cooldowns` - View all your current cooldowns'
+						},
+						{ name: '🔄 Trading & Selling', value:
+							'`/trade` - Gift or trade items with another user\n' +
+							'`/sell` - Sell items from your collection for points'
 						}
 					],
 					timestamp: new Date()
@@ -2028,8 +2061,7 @@ client.on('interactionCreate', async interaction => {
 						},
 						{ name: 'Commands', value:
 							'`/mysterybox` - Open a mystery box for a chance to get buffs\n' +
-							'`/buffs` - View your active buffs and their remaining time\n' +
-							'`/collection` - View your collection and active buffs'
+							'`/buffs` - View your active buffs and their remaining time'
 						}
 					],
 					timestamp: new Date()

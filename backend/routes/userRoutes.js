@@ -1772,9 +1772,9 @@ router.post('/:discordId/fish', async (req, res) => {
     user.inventory = fishInv;
 
     // Set cooldown (5-15 min)
-    // const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
-    // user.fishCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
-    // await user.save();
+    const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
+    user.fishCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
+    await user.save();
 
     res.json({
       name: fish.name,
@@ -2063,9 +2063,9 @@ router.post('/:discordId/hunt', async (req, res) => {
     user.inventory = huntInv;
 
     // Set cooldown (5-15 min)
-    // const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
-    // user.huntCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
-    // await user.save();
+    const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
+    user.huntCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
+    await user.save();
 
     res.json({
       name: animal.name,
