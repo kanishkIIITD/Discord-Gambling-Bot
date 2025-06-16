@@ -781,6 +781,10 @@ const commands = [
 			}
 		],
 		defaultMemberPermissions: '0'
+	},
+	{
+		name: 'question',
+		description: 'Answer a question about a cat for a chance to win or lose points!'
 	}
 ];
 

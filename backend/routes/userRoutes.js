@@ -3048,4 +3048,43 @@ router.get('/discord/:discordId', requireGuildId, async (req, res) => {
   }
 });
 
+// Question reward endpoint
+router.post('/:discordId/question', async (req, res) => {
+  try {
+    const user = req.user;
+    const wallet = req.wallet;
+    const { amount } = req.body;
+    
+    if (!amount || typeof amount !== 'number') {
+      return res.status(400).json({ message: 'Invalid amount.' });
+    }
+
+    // Check if user has enough balance for negative amount
+    if (amount < 0 && Math.abs(amount) > wallet.balance) {
+      return res.status(400).json({ message: 'Insufficient balance.' });
+    }
+
+    wallet.balance += amount;
+    await wallet.save();
+
+    // Record transaction
+    const transaction = new Transaction({
+      user: user._id,
+      type: 'question',
+      amount,
+      description: amount > 0 ? 'Question reward' : 'Question penalty',
+      guildId: req.guildId
+    });
+    await transaction.save();
+
+    res.json({ 
+      message: amount > 0 ? `Added ${amount} points.` : `Deducted ${Math.abs(amount)} points.`,
+      newBalance: wallet.balance 
+    });
+  } catch (error) {
+    console.error('Error in question endpoint:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
 module.exports = router; 

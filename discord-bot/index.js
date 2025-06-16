@@ -19,6 +19,7 @@ const buffsCommand = require('./commands/buffs');
 const cooldownsCommand = require('./commands/cooldowns');
 const timeoutCommand = require('./commands/timeout');
 const setlogchannelCommand = require('./commands/setlogchannel');
+const questionCommand = require('./commands/question');
 
 const backendApiUrl = process.env.BACKEND_API_URL;
 
@@ -37,7 +38,7 @@ client.once('ready', () => {
 // List of commands blocked for jailed users
 const jailedBlockedCommands = [
 	'createbet', 'placebet', 'resolvebet', 'listbets', 'viewbet', 'closebet', 'cancelbet', 'editbet', 'extendbet', 'betinfo',
-	'coinflip', 'dice', 'slots', 'blackjack', 'roulette', 'jackpot', 'duel', 'work', 'beg', 'daily', 'meowbark', 'crime', 'fish', 'hunt', 'sell', 'trade', 'mysterybox', 'gift', 'buffs', 'timeout'
+	'coinflip', 'dice', 'slots', 'blackjack', 'roulette', 'jackpot', 'duel', 'work', 'beg', 'daily', 'meowbark', 'crime', 'fish', 'hunt', 'sell', 'trade', 'mysterybox', 'gift', 'buffs', 'timeout', 'question'
 ];
 // List of view-only subcommands for duel, crime, work
 const viewOnlyDuelSubcommands = ['stats'];
@@ -1857,6 +1858,8 @@ client.on('interactionCreate', async interaction => {
 		await bailCommand.execute(interaction);
 	} else if (commandName === 'cooldowns') {
 		await cooldownsCommand.execute(interaction);
+	} else if (commandName === 'question') {
+		await questionCommand.execute(interaction);
 	} else if (commandName === 'help') {
 		try {
 			await interaction.deferReply();
