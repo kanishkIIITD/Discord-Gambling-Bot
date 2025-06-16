@@ -32,6 +32,8 @@ import ActiveBetsPage from './pages/ActiveBetsPage';
 import MyBetsPage from './pages/MyBetsPage';
 import BetHistoryPage from './pages/BetHistoryPage';
 import { Toaster } from 'react-hot-toast';
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 function AppRoutes() {
   useScrollToTop();
@@ -88,6 +90,8 @@ function App() {
           <AppRoutes />
         </AuthProvider>
       </Router>
+      <Analytics />
+      <SpeedInsights />
     </>
   );
 }
