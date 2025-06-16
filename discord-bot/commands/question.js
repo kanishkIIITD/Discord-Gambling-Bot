@@ -18,6 +18,18 @@ module.exports = {
       const lastUsed = questionCooldowns.get(userId) || 0;
       const cooldown = 5 * 60 * 1000; // 5 minutes
 
+      // Check cooldown
+      if (now - lastUsed < cooldown) {
+        const remaining = Math.ceil((cooldown - (now - lastUsed)) / 1000);
+        const embed = new EmbedBuilder()
+          .setColor(0xffbe76)
+          .setTitle('⏳ Cooldown')
+          .setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again.`)
+          .setTimestamp();
+        await interaction.editReply({ embeds: [embed] });
+        return;
+      }
+
       const promptEmbed = new EmbedBuilder()
         .setColor(0x0099ff)
         .setTitle('🐱 Question Time!')
@@ -33,7 +45,7 @@ module.exports = {
           .setTitle('❌ Error')
           .setDescription('This command requires being run in a channel where the bot can read messages.')
           .setTimestamp();
-        await interaction.followUp({ embeds: [errorEmbed] });
+        await safeErrorReply(interaction, errorEmbed);
         return;
       }
 
@@ -75,14 +87,12 @@ module.exports = {
         }
         
         // Make API call to update balance
-        const response = await axios.post(`${backendUrl}/users/${userId}/question`, {
+        await axios.post(`${backendUrl}/users/${userId}/question`, {
           amount: finalAmount,
           guildId: interaction.guildId
         }, {
           headers: { 'x-guild-id': interaction.guildId }
         });
-
-        logger.info(`[QUESTION] API response received for user ${userId}:`, response.data);
 
         const resultEmbed = new EmbedBuilder()
           .setColor(isYes ? 0x00ff00 : 0xff0000)
@@ -95,8 +105,6 @@ module.exports = {
         await interaction.followUp({ embeds: [resultEmbed] });
         return;
       } catch (err) {
-        logger.error('[QUESTION] Error in message collection or API call:', err);
-        
         if (err instanceof Collection || (err && err.code === 'COLLECTION_MAX_TIME') || (err instanceof Error && err.message === 'time')) {
           const timeoutEmbed = new EmbedBuilder()
             .setColor(0xffbe76)
@@ -107,11 +115,6 @@ module.exports = {
           return;
         } else if (err.response) {
           // Handle API error response
-          logger.error('[QUESTION] API Error:', {
-            status: err.response.status,
-            data: err.response.data
-          });
-          
           const errorEmbed = new EmbedBuilder()
             .setColor(0xff7675)
             .setTitle('❌ Error')
@@ -130,9 +133,13 @@ module.exports = {
         }
       }
     } catch (error) {
-      logger.error('[QUESTION] Unexpected error:', error);
       if (!interaction.replied) {
-        await ResponseHandler.handleError(interaction, error, 'Question');
+        await safeErrorReply(interaction, new EmbedBuilder()
+          .setColor(0xff7675)
+          .setTitle('❌ Error')
+          .setDescription('Something went wrong. Please try again later.')
+          .setTimestamp()
+        );
       }
     }
   },
