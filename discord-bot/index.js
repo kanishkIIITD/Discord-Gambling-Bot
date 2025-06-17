@@ -1107,7 +1107,7 @@ client.on('interactionCreate', async interaction => {
 				.setDescription(`You rolled a **${roll}**!`)
 				.addFields(
 					{ name: 'Bet Type', value: betType, inline: true },
-					{ name: 'Your Bet', value: betType === 'specific' ? number?.toString() : betType, inline: true },
+					{ name: 'Your Bet', value: betType === 'specific' ? number?.toString() : '—', inline: true },
 					{ name: 'Outcome', value: won ? '🎉 You won!' : '😢 You lost!', inline: true },
 					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },

@@ -2702,7 +2702,7 @@ router.post('/:discordId/mysterybox', async (req, res) => {
         jackpot: { chance: 0.05, min: 300000, max: 500000 } // Increased from 100k-300k to 300k-500k
       },
       premium: {
-        coins: { chance: 0.4, min: 500000, max: 750000 }, // Increased from 50k-200k to 200k-500k
+        coins: { chance: 0.45, min: 500000, max: 750000 }, // Increased from 50k-200k to 200k-500k
         items: { chance: 0.2, pool: [
           { name: 'Dragon Scale', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 }, // 20k-50k
           { name: 'Phoenix Feather', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 }, // 20k-50k
@@ -2748,10 +2748,10 @@ router.post('/:discordId/mysterybox', async (req, res) => {
             weight: 10
           }
         ]},
-        jackpot: { chance: 0.1, min: 1000000, max: 2000000 } // Increased from 500k-1M to 1M-2M
+        jackpot: { chance: 0.05, min: 10000000, max: 20000000 } // Increased from 500k-1M to 1M-2M
       },
       ultimate: {
-        coins: { chance: 0.2, min: 5000000, max: 7500000 }, // Increased from 200k-1M to 500k-2M
+        coins: { chance: 0.45, min: 5000000, max: 7500000 }, // Increased from 200k-1M to 500k-2M
         items: { chance: 0.1, pool: [
           { name: 'Celestial Crown', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 }, // 100k-200k
           { name: 'Dragon Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 }, // 50k-130k
@@ -2809,7 +2809,7 @@ router.post('/:discordId/mysterybox', async (req, res) => {
             weight: 15
           }
         ]},
-        jackpot: { chance: 0.3, min: 10000000, max: 20000000 } // Increased from 2M-5M to 5M-10M
+        jackpot: { chance: 0.05, min: 50000000, max: 100000000 } // Increased from 2M-5M to 5M-10M
       }
     };
 

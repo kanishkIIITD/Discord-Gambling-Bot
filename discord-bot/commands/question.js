@@ -7,34 +7,36 @@ const questionCooldowns = new Map();
 
 // List of cute cat images
 const catImages = [
-  'https://cdn.discordapp.com/attachments/1383875172850733106/1384202315573231736/IMG_4396.jpg?ex=6851925d&is=685040dd&hm=3c13c2ae06a792608a0963b694f90a25441c7a949c7c5dd4d8369a97d905706f&'
+  'https://cdn.discordapp.com/attachments/1383875172850733106/1384202315573231736/IMG_4396.jpg?ex=6851925d&is=685040dd&hm=3c13c2ae06a792608a0963b694f90a25441c7a949c7c5dd4d8369a97d905706f&',
+  'https://cdn.discordapp.com/attachments/1383875172850733106/1384622604555653300/IMG_4409.png?ex=685319c9&is=6851c849&hm=433d585a106eb376736d176508cecc73293afa00166495bf4482847820531d43&',
+  'https://cdn.discordapp.com/attachments/1383789634001309717/1383790021504667758/IMG_2932.png?ex=6852b562&is=685163e2&hm=92a5fc618d3000d012b2c07d231bdb01b9b1c5df88de91925a8bea03783b2be3&',
+  'https://cdn.discordapp.com/attachments/1383875172850733106/1384227808208752761/IMG_6737.jpg?ex=6852fb9b&is=6851aa1b&hm=d816c57b555c063900f9fb24cbc66fefd4f0da9c5e9ee4be67a60b3fc6556263&'
 ];
 
 // List of questions
 const questions = [
-  'Is this cat ugly?',
-  'Would you say this cat is unattractive?',
-  'Does this cat look bad?',
-  'Is this cat not cute?',
-  'Would you call this cat hideous?'
+  'Is this thing ugly?',
+  'Would you say this thing is unattractive?',
+  'Does this thing look bad?',
+  'Would you call this thing hideous?'
 ];
 
 // List of funny responses for correct answers (saying no)
 const correctResponses = [
-  'You have a heart of gold! This cat is absolutely adorable!',
-  'Your kindness knows no bounds! This cat is a perfect angel!',
-  'You\'re a true cat lover! This cat is the cutest thing ever!',
-  'Your good taste in cats is rewarded! This cat is a beauty!',
-  'You\'re a cat whisperer! This cat is absolutely precious!'
+  'You have a heart of gold! This thing is absolutely adorable!',
+  'Your kindness knows no bounds! This thing is a perfect angel!',
+  'You\'re a true thing lover! This thing is the cutest thing ever!',
+  'Your good taste in things is rewarded! This thing is a beauty!',
+  'You\'re a thing whisperer! This thing is absolutely precious!'
 ];
 
 // List of funny responses for incorrect answers (saying yes)
 const incorrectResponses = [
-  'How dare you! This cat is a perfect angel!',
-  'Your lack of cat appreciation is concerning!',
-  'The cat community is disappointed in you!',
-  'This cat is crying because of your comment!',
-  'The cat council will hear about this!'
+  'How dare you! This thing is a perfect angel!',
+  'Your lack of thing appreciation is concerning!',
+  'The thing community is disappointed in you!',
+  'This thing is crying because of your comment!',
+  'The thing council will hear about this!'
 ];
 
 module.exports = {
