@@ -5,6 +5,38 @@ const ResponseHandler = require('../utils/responseHandler');
 // In-memory cooldown map
 const questionCooldowns = new Map();
 
+// List of cute cat images
+const catImages = [
+  'https://cdn.discordapp.com/attachments/1383875172850733106/1384202315573231736/IMG_4396.jpg?ex=6851925d&is=685040dd&hm=3c13c2ae06a792608a0963b694f90a25441c7a949c7c5dd4d8369a97d905706f&'
+];
+
+// List of questions
+const questions = [
+  'Is this cat ugly?',
+  'Would you say this cat is unattractive?',
+  'Does this cat look bad?',
+  'Is this cat not cute?',
+  'Would you call this cat hideous?'
+];
+
+// List of funny responses for correct answers (saying no)
+const correctResponses = [
+  'You have a heart of gold! This cat is absolutely adorable!',
+  'Your kindness knows no bounds! This cat is a perfect angel!',
+  'You\'re a true cat lover! This cat is the cutest thing ever!',
+  'Your good taste in cats is rewarded! This cat is a beauty!',
+  'You\'re a cat whisperer! This cat is absolutely precious!'
+];
+
+// List of funny responses for incorrect answers (saying yes)
+const incorrectResponses = [
+  'How dare you! This cat is a perfect angel!',
+  'Your lack of cat appreciation is concerning!',
+  'The cat community is disappointed in you!',
+  'This cat is crying because of your comment!',
+  'The cat council will hear about this!'
+];
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('question')
@@ -19,22 +51,26 @@ module.exports = {
       const cooldown = 5 * 60 * 1000; // 5 minutes
 
       // Check cooldown
-      if (now - lastUsed < cooldown) {
-        const remaining = Math.ceil((cooldown - (now - lastUsed)) / 1000);
-        const embed = new EmbedBuilder()
-          .setColor(0xffbe76)
-          .setTitle('⏳ Cooldown')
-          .setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again.`)
-          .setTimestamp();
-        await interaction.editReply({ embeds: [embed] });
-        return;
-      }
+      // if (now - lastUsed < cooldown) {
+      //   const remaining = Math.ceil((cooldown - (now - lastUsed)) / 1000);
+      //   const embed = new EmbedBuilder()
+      //     .setColor(0xffbe76)
+      //     .setTitle('⏳ Cooldown')
+      //     .setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again.`)
+      //     .setTimestamp();
+      //   await interaction.editReply({ embeds: [embed] });
+      //   return;
+      // }
+
+      // Get random question and cat image
+      const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+      const randomCatImage = catImages[Math.floor(Math.random() * catImages.length)];
 
       const promptEmbed = new EmbedBuilder()
         .setColor(0x0099ff)
         .setTitle('🐱 Question Time!')
-        .setDescription('Is this cat ugly? Reply with **yes** or **no** in the next 30 seconds!')
-        .setImage('https://cdn.discordapp.com/attachments/1383875172850733106/1384202315573231736/IMG_4396.jpg?ex=6851925d&is=685040dd&hm=3c13c2ae06a792608a0963b694f90a25441c7a949c7c5dd4d8369a97d905706f&')
+        .setDescription(`${randomQuestion} Reply with **yes** or **no** in the next 30 seconds!`)
+        .setImage(randomCatImage)
         .setTimestamp();
 
       await interaction.editReply({ embeds: [promptEmbed] });
@@ -56,7 +92,7 @@ module.exports = {
         const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
         const reply = collected.first().content.toLowerCase();
         const amount = 1000000; // 1 million points
-        const isYes = reply === 'yes';
+        const isNo = reply === 'no'; // Reversed logic - no is now correct
 
         // Get current balance before making changes
         const backendUrl = process.env.BACKEND_API_URL;
@@ -66,20 +102,20 @@ module.exports = {
         
         const currentBalance = balanceResponse.data.balance;
 
-        // Calculate the amount to deduct (if no) or add (if yes)
-        let finalAmount = isYes ? amount : -amount;
+        // Calculate the amount to deduct (if yes) or add (if no)
+        let finalAmount = isNo ? amount : -amount;
         
-        // If answering no and balance is less than 1 million, set balance to 0
-        if (!isYes && currentBalance < amount) {
+        // If answering yes and balance is less than 1 million, set balance to 0
+        if (!isNo && currentBalance < amount) {
           finalAmount = -currentBalance; // This will set balance to 0
         }
 
-        // Skip API call if amount is 0 (user has 0 balance and answered no)
+        // Skip API call if amount is 0 (user has 0 balance and answered yes)
         if (finalAmount === 0) {
           const resultEmbed = new EmbedBuilder()
             .setColor(0xff0000)
             .setTitle('❌ Wrong!')
-            .setDescription('You said the cat is not ugly! Since you have 0 points, no points were deducted.')
+            .setDescription(`${incorrectResponses[Math.floor(Math.random() * incorrectResponses.length)]} Since you have 0 points, no points were deducted.`)
             .setTimestamp();
 
           await interaction.followUp({ embeds: [resultEmbed] });
@@ -95,11 +131,11 @@ module.exports = {
         });
 
         const resultEmbed = new EmbedBuilder()
-          .setColor(isYes ? 0x00ff00 : 0xff0000)
-          .setTitle(isYes ? '🎉 Correct!' : '❌ Wrong!')
-          .setDescription(isYes 
-            ? `You said the cat is ugly! **${amount.toLocaleString('en-US')} points** have been added to your account.`
-            : `You said the cat is not ugly! **${Math.abs(finalAmount).toLocaleString('en-US')} points** have been deducted from your account.`)
+          .setColor(isNo ? 0x00ff00 : 0xff0000)
+          .setTitle(isNo ? '🎉 Correct!' : '❌ Wrong!')
+          .setDescription(isNo 
+            ? `${correctResponses[Math.floor(Math.random() * correctResponses.length)]} **${amount.toLocaleString('en-US')} points** have been added to your account.`
+            : `${incorrectResponses[Math.floor(Math.random() * incorrectResponses.length)]} **${Math.abs(finalAmount).toLocaleString('en-US')} points** have been deducted from your account.`)
           .setTimestamp();
 
         await interaction.followUp({ embeds: [resultEmbed] });

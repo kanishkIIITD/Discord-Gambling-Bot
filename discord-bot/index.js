@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, EmbedBuilder, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder } = require('discord.js');
 const axios = require('axios');
 const crimeCommand = require('./commands/crime');
 const workCommand = require('./commands/work');
@@ -20,6 +20,9 @@ const cooldownsCommand = require('./commands/cooldowns');
 const timeoutCommand = require('./commands/timeout');
 const setlogchannelCommand = require('./commands/setlogchannel');
 const questionCommand = require('./commands/question');
+const fs = require('fs');
+const path = require('path');
+const { timeoutUser, handleTimeoutRemoval } = require('./utils/discordUtils');
 
 const backendApiUrl = process.env.BACKEND_API_URL;
 
@@ -1995,6 +1998,7 @@ client.on('interactionCreate', async interaction => {
 							'`/work do` - Work a job for a chance to earn points and rare bonuses\n' +
 							'`/crime do` - Attempt a crime for a chance to win or lose points\n' +
 							'`/meowbark` - Perform a meow or bark to earn points\n' +
+							'`/question` - Answer a question about a cat for a chance to win or lose points\n' +
 							'`/beg` - Beg for coins and see what happens\n' +
 							'`/mysterybox` - Open a mystery box for random rewards'
 						},
@@ -2646,3 +2650,15 @@ setInterval(async () => {
     console.error('Error polling for expired duels:', err.message);
   }
 }, 10000); // every 10 seconds
+
+// Add event listener for manual timeout removals
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    // Check if timeout was removed
+    if (oldMember.communicationDisabledUntil && !newMember.communicationDisabledUntil) {
+        try {
+            await handleTimeoutRemoval(newMember.guild, newMember.id);
+        } catch (error) {
+            console.error('Error handling manual timeout removal:', error);
+        }
+    }
+});

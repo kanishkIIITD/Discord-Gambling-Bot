@@ -306,8 +306,21 @@ router.post('/:discordId/blackjack', async (req, res) => {
       guildId: req.guildId
     });
 
-    // // console.log('Current game state:', gameState);
-    // // console.log('Request body:', { amount, action });
+    // --- PATCH: Remove any unfinished games if gameOver is true (cleanup) ---
+    if (gameState) {
+      // Clean up if game is over or if game is older than 1 hour
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      if (gameState.gameOver || gameState.createdAt < oneHourAgo) {
+        try {
+          await BlackjackGame.deleteOne({ _id: gameState._id });
+          gameState = null;
+        } catch (error) {
+          console.error('Error cleaning up old game:', error);
+          // Continue execution even if cleanup fails
+        }
+      }
+    }
+    // --- END PATCH ---
 
     // If no game state and no amount provided, return error
     if (!gameState && amount === undefined) {
@@ -319,7 +332,7 @@ router.post('/:discordId/blackjack', async (req, res) => {
       return res.status(400).json({ message: 'No active game found. Start a new game first with /blackjack amount:100' });
     }
 
-    // Validate amount only for new games
+    // --- PATCH: Strict balance check for new games ---
     if (!gameState && amount !== undefined) {
       if (amount < 10) {
         return res.status(400).json({ message: 'Minimum bet is 10 points.' });
@@ -327,7 +340,12 @@ router.post('/:discordId/blackjack', async (req, res) => {
       if (wallet.balance < amount) {
         return res.status(400).json({ message: 'Insufficient balance.' });
       }
+      // Prevent negative balances
+      if (wallet.balance - amount < 0) {
+        return res.status(400).json({ message: 'Insufficient balance.' });
+      }
     }
+    // --- END PATCH ---
 
     // Create or use existing deck
     let deck;
@@ -503,7 +521,7 @@ router.post('/:discordId/blackjack', async (req, res) => {
       // Update the deck in the game state
       gameState.deck = deck;
     } else if (amount !== undefined) {
-      // New game
+      // --- PATCH: Always create a fresh game state for new games ---
       gameState = new BlackjackGame({
         user: req.user._id,
         deck,
@@ -515,7 +533,8 @@ router.post('/:discordId/blackjack', async (req, res) => {
         guildId: req.guildId
       });
       wallet.balance -= amount;
-
+      // Prevent negative balances
+      if (wallet.balance < 0) wallet.balance = 0;
       // Record initial bet transaction
       const betTransaction = new Transaction({
         user: req.user._id,
@@ -584,8 +603,9 @@ router.post('/:discordId/blackjack', async (req, res) => {
         }
       }
 
-      // Delete the game state
+      // --- PATCH: Always delete the game state after game over ---
       await BlackjackGame.deleteOne({ _id: gameState._id });
+      // --- END PATCH ---
 
       // Update win streak: win if any hand is 'win' or 'blackjack', lose if all are 'lose' or 'bust'
       const anyWin = results.some(r => r.result === 'win' || r.result === 'blackjack');

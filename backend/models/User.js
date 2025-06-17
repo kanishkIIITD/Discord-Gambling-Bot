@@ -17,6 +17,8 @@ const userSchema = new mongoose.Schema({
   jailedUntil: { type: Date, default: null },
   begCooldown: { type: Date, default: null },
   lastBegged: { type: Date, default: null },
+  currentTimeoutDuration: { type: Number, default: 0 },
+  timeoutEndsAt: { type: Date, default: null },
   crimeStats: {
     success: { type: Number, default: 0 },
     fail: { type: Number, default: 0 },

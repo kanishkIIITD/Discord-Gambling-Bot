@@ -15,10 +15,61 @@ async function timeoutUser(guild, userId, durationSeconds, reason) {
         if (!member) {
             throw new Error('Member not found');
         }
+
+        // Apply the timeout duration directly from the backend
+        // The backend has already calculated the correct total duration
         await member.timeout(durationSeconds * 1000, reason);
     } catch (error) {
         console.error('Error timing out user:', error);
         throw error;
+    }
+}
+
+/**
+ * Handle manual timeout removal and update backend
+ * @param {Guild} guild - The Discord guild
+ * @param {string} userId - The ID of the user whose timeout was removed
+ * @returns {Promise<void>}
+ */
+async function handleTimeoutRemoval(guild, userId) {
+    try {
+        // Call backend to reset timeout duration
+        const response = await axios.post(
+            `${process.env.BACKEND_API_URL}/users/${userId}/reset-timeout`,
+            {},
+            {
+                headers: {
+                    'x-guild-id': guild.id
+                }
+            }
+        );
+
+        if (response.status !== 200) {
+            throw new Error('Failed to reset timeout in backend');
+        }
+
+        // Log the manual timeout removal
+        await sendLogToChannel(guild.client, guild.id, {
+            color: 0xffa500,
+            title: '⏰ Timeout Removed',
+            description: `A user's timeout was manually removed`,
+            fields: [
+                { name: 'Target', value: `<@${userId}>`, inline: true }
+            ],
+            footer: { text: 'Removed by Discord moderator' }
+        });
+    } catch (error) {
+        console.error('Error handling timeout removal:', error);
+        // Log the error to the log channel
+        await sendLogToChannel(guild.client, guild.id, {
+            color: 0xff0000,
+            title: '❌ Timeout Reset Failed',
+            description: `Failed to reset timeout in backend`,
+            fields: [
+                { name: 'Target', value: `<@${userId}>`, inline: true },
+                { name: 'Error', value: error.message }
+            ]
+        });
     }
 }
 
@@ -101,6 +152,7 @@ async function sendLogToChannel(client, guildId, logData) {
 
 module.exports = {
     timeoutUser,
+    handleTimeoutRemoval,
     createErrorEmbed,
     createSuccessEmbed,
     sendLogToChannel

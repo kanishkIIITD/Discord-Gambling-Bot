@@ -51,13 +51,13 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
     }
 
     // Check cooldown
-    if (isOnTimeoutCooldown(attacker.lastTimeoutAt)) {
-      const { minutes, seconds } = getRemainingCooldown(attacker.lastTimeoutAt);
-      return res.status(429).json({ 
-        message: `You must wait ${minutes}m ${seconds}s before using timeout again.`,
-        cooldown: attacker.lastTimeoutAt
-      });
-    }
+    // if (isOnTimeoutCooldown(attacker.lastTimeoutAt)) {
+    //   const { minutes, seconds } = getRemainingCooldown(attacker.lastTimeoutAt);
+    //   return res.status(429).json({ 
+    //     message: `You must wait ${minutes}m ${seconds}s before using timeout again.`,
+    //     cooldown: attacker.lastTimeoutAt
+    //   });
+    // }
 
     // Calculate cost
     const cost = calculateTimeoutCost(duration, attackerWallet.balance);
@@ -97,16 +97,29 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
     }
 
     // Calculate total timeout duration (stack with existing timeout)
-    const totalDuration = (target.currentTimeoutDuration || 0) + duration;
+    const now = new Date();
+    const timeoutEndsAt = new Date(target.timeoutEndsAt || 0);
+    let totalDuration;
+
+    if (timeoutEndsAt <= now) {
+      // Timeout expired — reset
+      totalDuration = duration;
+    } else {
+      // Timeout active — add to existing remaining
+      const remaining = Math.ceil((timeoutEndsAt - now) / (60 * 1000)); // in minutes
+      totalDuration = remaining + duration;
+    }
+
+    // Update the new timeout end timestamp and duration
     target.currentTimeoutDuration = totalDuration;
+    target.timeoutEndsAt = new Date(now.getTime() + totalDuration * 60 * 1000);
     await target.save();
 
     // Update attacker's wallet and stats
     attackerWallet.balance -= cost;
     await attackerWallet.save();
 
-    // Update attacker's timeout stats
-    attacker.lastTimeoutAt = new Date();
+    // Update attacker's timeout history and stats
     attacker.timeoutHistory.push({
       targetDiscordId,
       duration,
@@ -120,9 +133,9 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
 
     // Create transaction record
     await Transaction.create({
-      user: attacker._id, // Set the user reference
+      user: attacker._id,
       guildId,
-      type: 'bail', // Use 'bail' as the transaction type since it's similar to timeout
+      type: 'bail',
       amount: -cost,
       description: `Timeout user ${targetDiscordId} for ${duration} minutes${reason ? `: ${reason}` : ''}`,
       metadata: {
@@ -1351,7 +1364,8 @@ router.post('/:discordId/work', async (req, res) => {
     // Initialize message after amount/bonus are determined
     let message;
     if (rare) {
-      message = `You worked as a ${job} and earned ${amount.toLocaleString('en-US')} points. ${bonusMsg} +${bonus.toLocaleString('en-US')} points!`;
+      let amountWithBonus = amount - bonus;
+      message = `You worked as a ${job} and earned ${amountWithBonus.toLocaleString('en-US')} points. ${bonusMsg} +${bonus.toLocaleString('en-US')} points!`;
     } else {
       message = `You worked as a ${job} and earned ${amount.toLocaleString('en-US')} points.`;
     }
@@ -2653,20 +2667,20 @@ router.post('/:discordId/mysterybox', async (req, res) => {
     // Define reward probabilities and amounts based on box type
     const rewardConfigs = {
       basic: {
-        coins: { chance: 0.5, min: 10000, max: 40000 },
+        coins: { chance: 0.5, min: 50000, max: 150000 }, // Increased from 10k-40k to 50k-150k
         items: { chance: 0.3, pool: [
-          { name: 'Rubber Duck', rarity: 'common', value: () => Math.floor(Math.random() * 400) + 100 },
-          { name: 'Golden Mustache', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 2000 },
-          { name: 'Party Hat', rarity: 'uncommon', value: () => Math.floor(Math.random() * 1500) + 500 },
-          { name: 'Mysterious Key', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 2000 },
-          { name: 'Tiny Top Hat', rarity: 'common', value: () => Math.floor(Math.random() * 400) + 100 },
-          { name: 'Epic Sunglasses', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 20000 }
+          { name: 'Rubber Duck', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 }, // 500-1500
+          { name: 'Golden Mustache', rarity: 'rare', value: () => Math.floor(Math.random() * 5000) + 3000 }, // 3000-8000
+          { name: 'Party Hat', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1000 }, // 1000-3000
+          { name: 'Mysterious Key', rarity: 'rare', value: () => Math.floor(Math.random() * 5000) + 3000 }, // 3000-8000
+          { name: 'Tiny Top Hat', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 }, // 500-1500
+          { name: 'Epic Sunglasses', rarity: 'legendary', value: () => Math.floor(Math.random() * 50000) + 30000 } // 30k-80k
         ]},
         buffs: { chance: 0.15, pool: [
           {
             type: 'earnings_x2',
-            description: '2x earnings for 1 hour!',
-            expiresAt: new Date(now.getTime() + 60 * 60 * 1000)
+            description: '2x earnings for 2 hours!', // Increased from 1 hour
+            expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000)
           },
           {
             type: 'work_double',
@@ -2680,121 +2694,121 @@ router.post('/:discordId/mysterybox', async (req, res) => {
           },
           {
             type: 'jail_immunity',
-            description: 'Immunity from jail for 1 hour!',
-            expiresAt: new Date(now.getTime() + 60 * 60 * 1000)
+            description: 'Immunity from jail for 2 hours!', // Increased from 1 hour
+            expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000)
           }
         ]},
-        jackpot: { chance: 0.05, min: 100000, max: 300000 }
+        jackpot: { chance: 0.05, min: 300000, max: 500000 } // Increased from 100k-300k to 300k-500k
       },
       premium: {
-        coins: { chance: 0.4, min: 50000, max: 200000 },
+        coins: { chance: 0.4, min: 500000, max: 750000 }, // Increased from 50k-200k to 200k-500k
         items: { chance: 0.2, pool: [
-          { name: 'Dragon Scale', rarity: 'epic', value: () => Math.floor(Math.random() * 15000) + 5000 },
-          { name: 'Phoenix Feather', rarity: 'epic', value: () => Math.floor(Math.random() * 15000) + 5000 },
-          { name: 'Ancient Coin', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 20000 },
-          { name: 'Mystic Crystal', rarity: 'epic', value: () => Math.floor(Math.random() * 15000) + 5000 },
-          { name: 'Enchanted Tome', rarity: 'epic', value: () => Math.floor(Math.random() * 15000) + 5000 }
+          { name: 'Dragon Scale', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 }, // 20k-50k
+          { name: 'Phoenix Feather', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 }, // 20k-50k
+          { name: 'Ancient Coin', rarity: 'legendary', value: () => Math.floor(Math.random() * 500000) + 300000 }, // 30k-80k
+          { name: 'Mystic Crystal', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 }, // 20k-50k
+          { name: 'Enchanted Tome', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 } // 20k-50k
         ]},
         buffs: { chance: 0.3, pool: [
           {
             type: 'fishing_epic',
             description: 'Next fish is guaranteed Epic or better!',
             usesLeft: 1,
-            weight: 25 // 25% chance within buff pool
+            weight: 25
           },
           {
             type: 'hunting_epic',
             description: 'Next animal is guaranteed Epic or better!',
             usesLeft: 1,
-            weight: 25 // 25% chance within buff pool
+            weight: 25
           },
           {
             type: 'fishing_rate_2x',
-            description: '+10% chance boost for all fish rarities for 1 hour!',
-            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
-            weight: 15 // 15% chance within buff pool
+            description: '+10% chance boost for all fish rarities for 2 hours!', // Increased from 10% and 1 hour
+            expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
+            weight: 15
           },
           {
             type: 'hunting_rate_2x',
-            description: '+10% chance boost for all animal rarities for 1 hour!',
-            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
-            weight: 15 // 15% chance within buff pool
+            description: '+10% chance boost for all animal rarities for 2 hours!', // Increased from 10% and 1 hour
+            expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
+            weight: 15
           },
           {
             type: 'earnings_x3',
-            description: '3x earnings for 30 minutes!',
-            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
-            weight: 10 // 10% chance within buff pool
+            description: '3x earnings for 1 hour!', // Increased from 30 minutes
+            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+            weight: 10
           },
           {
             type: 'work_triple',
             description: 'Next /work gives 3x points!',
             usesLeft: 1,
-            weight: 10 // 10% chance within buff pool
+            weight: 10
           }
         ]},
-        jackpot: { chance: 0.1, min: 500000, max: 1000000 }
+        jackpot: { chance: 0.1, min: 1000000, max: 2000000 } // Increased from 500k-1M to 1M-2M
       },
       ultimate: {
-        coins: { chance: 0.2, min: 200000, max: 1000000 },
+        coins: { chance: 0.2, min: 5000000, max: 7500000 }, // Increased from 200k-1M to 500k-2M
         items: { chance: 0.1, pool: [
-          { name: 'Celestial Crown', rarity: 'mythical', value: () => Math.floor(Math.random() * 50000) + 50000 },
-          { name: 'Dragon Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 20000 },
-          { name: 'Phoenix Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 20000 },
-          { name: 'Eternal Crystal', rarity: 'mythical', value: () => Math.floor(Math.random() * 50000) + 50000 },
-          { name: 'Ancient Tome', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 20000 }
+          { name: 'Celestial Crown', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 }, // 100k-200k
+          { name: 'Dragon Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 }, // 50k-130k
+          { name: 'Phoenix Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 }, // 50k-130k
+          { name: 'Eternal Crystal', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 }, // 100k-200k
+          { name: 'Ancient Tome', rarity: 'legendary', value: () => Math.floor(Math.random() * 8000000) + 5000000 } // 50k-130k
         ]},
         buffs: { chance: 0.4, pool: [
           {
             type: 'fishing_legendary',
             description: 'Next fish is guaranteed Legendary or better!',
             usesLeft: 1,
-            weight: 20 // 20% chance within buff pool
+            weight: 20
           },
           {
             type: 'hunting_legendary',
             description: 'Next animal is guaranteed Legendary or better!',
             usesLeft: 1,
-            weight: 20 // 20% chance within buff pool
+            weight: 20
           },
           {
             type: 'fishing_rate_3x',
-            description: '+18% chance boost for all fish rarities for 30 minutes!',
-            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
-            weight: 10 // 10% chance within buff pool
+            description: '+18% chance boost for all fish rarities for 1 hour!', // Increased from 18% and 30 minutes
+            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+            weight: 10
           },
           {
             type: 'hunting_rate_3x',
-            description: '+18% chance boost for all animal rarities for 30 minutes!',
-            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
-            weight: 10 // 10% chance within buff pool
+            description: '+18% chance boost for all animal rarities for 1 hour!', // Increased from 18% and 30 minutes
+            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+            weight: 10
           },
           {
             type: 'fishing_rate_5x',
-            description: '+30% chance boost for all fish rarities for 15 minutes!',
-            expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
-            weight: 5 // 5% chance within buff pool
+            description: '+30% chance boost for all fish rarities for 30 minutes!', // Increased from 30% and 15 minutes
+            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            weight: 5
           },
           {
             type: 'hunting_rate_5x',
-            description: '+30% chance boost for all animal rarities for 15 minutes!',
-            expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
-            weight: 5 // 5% chance within buff pool
+            description: '+30% chance boost for all animal rarities for 30 minutes!', // Increased from 30% and 15 minutes
+            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            weight: 5
           },
           {
             type: 'earnings_x5',
-            description: '5x earnings for 15 minutes!',
-            expiresAt: new Date(now.getTime() + 15 * 60 * 1000),
-            weight: 15 // 15% chance within buff pool
+            description: '5x earnings for 30 minutes!', // Increased from 15 minutes
+            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+            weight: 15
           },
           {
             type: 'work_quintuple',
             description: 'Next /work gives 5x points!',
             usesLeft: 1,
-            weight: 15 // 15% chance within buff pool
+            weight: 15
           }
         ]},
-        jackpot: { chance: 0.3, min: 2000000, max: 5000000 }
+        jackpot: { chance: 0.3, min: 10000000, max: 20000000 } // Increased from 2M-5M to 5M-10M
       }
     };
 
@@ -3085,6 +3099,38 @@ router.post('/:discordId/question', async (req, res) => {
     console.error('Error in question endpoint:', error);
     res.status(500).json({ message: 'Server error.' });
   }
+});
+
+// Reset timeout duration (called when timeout is manually removed in Discord)
+router.post('/:userId/reset-timeout', requireGuildId, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { guildId } = req;
+
+        // Find the user
+        const user = await User.findOne({ discordId: userId, guildId });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Reset all timeout-related fields
+        user.currentTimeoutDuration = 0;
+        user.timeoutEndsAt = null;
+        user.lastTimeoutAt = null; // Also reset the last timeout timestamp
+        await user.save();
+
+        // Log the timeout reset
+        console.log(`Timeout reset for user ${userId} in guild ${guildId}`);
+
+        res.json({ 
+            message: 'Timeout duration reset successfully',
+            currentTimeoutDuration: 0,
+            timeoutEndsAt: null
+        });
+    } catch (error) {
+        console.error('Error resetting timeout:', error);
+        res.status(500).json({ message: 'Error resetting timeout duration' });
+    }
 });
 
 module.exports = router; 

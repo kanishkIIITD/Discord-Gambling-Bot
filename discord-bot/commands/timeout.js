@@ -59,7 +59,7 @@ module.exports = {
                 }
             );
 
-            // Apply timeout in Discord
+            // Apply timeout in Discord using the total duration from the backend
             await timeoutUser(interaction.guild, targetUser.id, response.data.totalDuration * 60, reason);
 
             // Calculate cooldown time from cooldownTime
@@ -90,7 +90,7 @@ module.exports = {
 
             // Send log to log channel
             await sendLogToChannel(interaction.client, interaction.guildId, {
-                color: 0xff0000,
+                color: 0x00ff00,
                 title: '⏰ Timeout Executed',
                 description: `A user has been timed out`,
                 fields: [
