@@ -44,12 +44,12 @@ const correctResponses = {
     'You\'re a cat whisperer! This cat is absolutely precious!'
   ],
   gecko: [
-    'You\'re a true gecko appreciator! 🦎',
-    'You see the charm in tiny toes and sticky feet!',
-    'That gecko is grateful for your kind words!',
-    'You clearly understand reptile beauty!',
-    'Gecko nation salutes you!'
-  ]
+  'Exactly! Geckos are gloriously gross and we love them for it! 🦎',
+  'Yes! That weird little face is pure magic.',
+  'You truly appreciate the beauty of bizarre reptiles!',
+  'It\'s ugly-cute and we all know it. You pass!',
+  'Gross? Yes. Majestic? Also yes.'
+]
 };
 
 // List of funny responses for incorrect answers (saying yes)
@@ -62,12 +62,12 @@ const incorrectResponses = {
     'The cat council will hear about this!'
   ],
   gecko: [
-    'Unacceptable! That gecko has feelings too!',
-    'Geckos deserve better than this!',
-    'This gecko just dropped its tail in shock.',
-    'The reptile realm is deeply hurt.',
-    'Even lizards need love, you know!'
-  ]
+  'Oh come on, don\'t pretend it\'s not weird!',
+  'You deny the gecko\'s funky glory?',
+  'This gecko worked hard on being unpleasant!',
+  'Too kind. Geckos thrive on chaos, not compliments.',
+  'Wrong answer — this gecko is weird and proud!'
+]
 };
 
 module.exports = {
