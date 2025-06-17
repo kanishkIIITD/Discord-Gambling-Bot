@@ -51,13 +51,13 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
     }
 
     // Check cooldown
-    // if (isOnTimeoutCooldown(attacker.lastTimeoutAt)) {
-    //   const { minutes, seconds } = getRemainingCooldown(attacker.lastTimeoutAt);
-    //   return res.status(429).json({ 
-    //     message: `You must wait ${minutes}m ${seconds}s before using timeout again.`,
-    //     cooldown: attacker.lastTimeoutAt
-    //   });
-    // }
+    if (isOnTimeoutCooldown(attacker.lastTimeoutAt)) {
+      const { minutes, seconds } = getRemainingCooldown(attacker.lastTimeoutAt);
+      return res.status(429).json({ 
+        message: `You must wait ${minutes}m ${seconds}s before using timeout again.`,
+        cooldown: attacker.lastTimeoutAt
+      });
+    }
 
     // Calculate cost
     const cost = calculateTimeoutCost(duration, attackerWallet.balance);
@@ -129,6 +129,7 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
     });
     attacker.timeoutStats.totalTimeouts += 1;
     attacker.timeoutStats.totalCost += cost;
+    attacker.lastTimeoutAt = new Date(); // Set the last timeout timestamp
     await attacker.save();
 
     // Create transaction record

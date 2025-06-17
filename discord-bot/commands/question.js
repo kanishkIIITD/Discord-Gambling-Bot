@@ -51,16 +51,16 @@ module.exports = {
       const cooldown = 5 * 60 * 1000; // 5 minutes
 
       // Check cooldown
-      // if (now - lastUsed < cooldown) {
-      //   const remaining = Math.ceil((cooldown - (now - lastUsed)) / 1000);
-      //   const embed = new EmbedBuilder()
-      //     .setColor(0xffbe76)
-      //     .setTitle('⏳ Cooldown')
-      //     .setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again.`)
-      //     .setTimestamp();
-      //   await interaction.editReply({ embeds: [embed] });
-      //   return;
-      // }
+      if (now - lastUsed < cooldown) {
+        const remaining = Math.ceil((cooldown - (now - lastUsed)) / 1000);
+        const embed = new EmbedBuilder()
+          .setColor(0xffbe76)
+          .setTitle('⏳ Cooldown')
+          .setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again.`)
+          .setTimestamp();
+        await interaction.editReply({ embeds: [embed] });
+        return;
+      }
 
       // Get random question and cat image
       const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
