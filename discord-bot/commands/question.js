@@ -1,19 +1,20 @@
-const { SlashCommandBuilder, EmbedBuilder, Collection } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, Collection, AttachmentBuilder } = require('discord.js');
 const axios = require('axios');
 const ResponseHandler = require('../utils/responseHandler');
+const path = require('path');
 
 // In-memory cooldown map
 const questionCooldowns = new Map();
 
 // List of cute cat images
 const catImages = [
-  './images/cat1.png',
-  './images/cat2.jpg',
-  './images/cat3.jpg'
+  path.join(__dirname, '../images/cat1.png'),
+  path.join(__dirname, '../images/cat2.jpg'),
+  path.join(__dirname, '../images/cat3.jpg')
 ];
 
 const geckoImages = [
-  './images/frog1.png'
+  path.join(__dirname, '../images/frog1.png')
 ];
 
 // List of questions
@@ -105,14 +106,15 @@ module.exports = {
         randomQuestion = questions.gecko[Math.floor(Math.random() * questions.gecko.length)];
       }
 
+      const imageAttachment = new AttachmentBuilder(randomImage);
       const promptEmbed = new EmbedBuilder()
         .setColor(0x0099ff)
         .setTitle(animalType === 'cat' ? '🐱 Question Time!' : '🦎 Question Time!')
         .setDescription(`${randomQuestion} Reply with **yes** or **no** in the next 30 seconds!`)
-        .setImage(randomImage)
+        .setImage(`attachment://${path.basename(randomImage)}`)
         .setTimestamp();
 
-      await interaction.editReply({ embeds: [promptEmbed] });
+      await interaction.editReply({ embeds: [promptEmbed], files: [imageAttachment] });
 
       if (!interaction.channel) {
         const errorEmbed = new EmbedBuilder()
