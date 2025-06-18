@@ -746,6 +746,30 @@ const commands = [
 		]
 	},
 	{
+		name: 'steal',
+		description: 'Attempt to steal points from another user (30% success rate, 2-hour cooldown)',
+		options: [
+			{
+				name: 'do',
+				description: 'Attempt to steal points from another user',
+				type: 1,
+				options: [
+					{
+						name: 'target',
+						description: 'The user to steal from',
+						type: 6,
+						required: true
+					}
+				]
+			},
+			{
+				name: 'stats',
+				description: 'View your steal statistics',
+				type: 1
+			}
+		]
+	},
+	{
 		name: 'setlogchannel',
 		description: 'Set the channel where moderation logs will be sent',
 		options: [

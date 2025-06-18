@@ -17,12 +17,19 @@ const userSchema = new mongoose.Schema({
   jailedUntil: { type: Date, default: null },
   begCooldown: { type: Date, default: null },
   lastBegged: { type: Date, default: null },
+  stealCooldown: { type: Date, default: null },
   currentTimeoutDuration: { type: Number, default: 0 },
   timeoutEndsAt: { type: Date, default: null },
   crimeStats: {
     success: { type: Number, default: 0 },
     fail: { type: Number, default: 0 },
     jail: { type: Number, default: 0 }
+  },
+  stealStats: {
+    success: { type: Number, default: 0 },
+    fail: { type: Number, default: 0 },
+    jail: { type: Number, default: 0 },
+    totalStolen: { type: Number, default: 0 }
   },
   workStats: {
     type: Object,

@@ -20,6 +20,7 @@ const cooldownsCommand = require('./commands/cooldowns');
 const timeoutCommand = require('./commands/timeout');
 const setlogchannelCommand = require('./commands/setlogchannel');
 const questionCommand = require('./commands/question');
+const stealCommand = require('./commands/steal');
 const fs = require('fs');
 const path = require('path');
 const { timeoutUser, handleTimeoutRemoval } = require('./utils/discordUtils');
@@ -41,12 +42,13 @@ client.once('ready', () => {
 // List of commands blocked for jailed users
 const jailedBlockedCommands = [
 	'createbet', 'placebet', 'resolvebet', 'listbets', 'viewbet', 'closebet', 'cancelbet', 'editbet', 'extendbet', 'betinfo',
-	'coinflip', 'dice', 'slots', 'blackjack', 'roulette', 'jackpot', 'duel', 'work', 'beg', 'daily', 'meowbark', 'crime', 'fish', 'hunt', 'sell', 'trade', 'mysterybox', 'gift', 'buffs', 'timeout', 'question'
+	'coinflip', 'dice', 'slots', 'blackjack', 'roulette', 'jackpot', 'duel', 'work', 'beg', 'daily', 'meowbark', 'crime', 'fish', 'hunt', 'sell', 'trade', 'mysterybox', 'gift', 'buffs', 'timeout', 'question', 'steal'
 ];
 // List of view-only subcommands for duel, crime, work
 const viewOnlyDuelSubcommands = ['stats'];
 const viewOnlyCrimeSubcommands = ['stats'];
 const viewOnlyWorkSubcommands = ['stats'];
+const viewOnlyStealSubcommands = ['stats'];
 
 // Parse amount from string to number
 function parseAmount(input) {
@@ -182,6 +184,10 @@ client.on('interactionCreate', async interaction => {
 		} else if (commandName === 'work') {
 			const sub = interaction.options.getSubcommand(false);
 			if (viewOnlyWorkSubcommands.includes(sub)) blockForJail = false;
+			else blockForJail = true;
+		} else if (commandName === 'steal') {
+			const sub = interaction.options.getSubcommand(false);
+			if (viewOnlyStealSubcommands.includes(sub)) blockForJail = false;
 			else blockForJail = true;
 		} else {
 			blockForJail = true;
@@ -1997,6 +2003,7 @@ client.on('interactionCreate', async interaction => {
 						{ name: '💼 Jobs & Activities', value:
 							'`/work do` - Work a job for a chance to earn points and rare bonuses\n' +
 							'`/crime do` - Attempt a crime for a chance to win or lose points\n' +
+							'`/steal do @user` - Attempt to steal points from another user (30% success rate, 2-hour cooldown)\n' +
 							'`/meowbark` - Perform a meow or bark to earn points\n' +
 							'`/question` - Answer a question about a cat for a chance to win or lose points\n' +
 							'`/beg` - Beg for coins and see what happens\n' +
@@ -2009,6 +2016,7 @@ client.on('interactionCreate', async interaction => {
 						{ name: '📊 Stats & Info', value:
 							'`/work stats` - View your work/job statistics\n' +
 							'`/crime stats` - View your crime statistics\n' +
+							'`/steal stats` - View your steal statistics\n' +
 							'`/cooldowns` - View all your current cooldowns'
 						},
 						{ name: '🔄 Trading & Selling', value:
@@ -2449,6 +2457,8 @@ client.on('interactionCreate', async interaction => {
 		await collectionListCommand.execute(interaction);
 	} else if (commandName === 'timeout') {
 		await timeoutCommand.execute(interaction);
+	} else if (commandName === 'steal') {
+		await stealCommand.execute(interaction);
 	} else if (commandName === 'setlogchannel') {
 		await setlogchannelCommand.execute(interaction);
 	} else if (commandName === 'changerole') {

@@ -59,12 +59,13 @@ module.exports = {
                 }
             );
 
-            // Apply timeout in Discord using the total duration from the backend
-            await timeoutUser(interaction.guild, targetUser.id, response.data.totalDuration * 60, reason);
+            // Apply timeout in Discord using the additional duration from the backend
+            // The timeoutUser function will handle adding to existing timeouts
+            const timeoutResult = await timeoutUser(interaction.guild, targetUser.id, response.data.additionalDuration * 60, reason);
 
             // Calculate cooldown time from cooldownTime
+            const now = Date.now();
             const lastTimeoutAt = new Date(response.data.cooldownTime);
-            const now = new Date();
             const cooldownEndTime = new Date(lastTimeoutAt.getTime() + (5 * 60 * 1000)); // 5 minutes cooldown
             const timeRemaining = Math.max(0, cooldownEndTime - now);
             const minutes = Math.floor(timeRemaining / 60000);
@@ -82,6 +83,15 @@ module.exports = {
                     { name: 'Cooldown', value: cooldownString, inline: true }
                 );
 
+            // Add note if Discord timeout was extended from existing timeout
+            if (timeoutResult.existingTimeout) {
+                embed.addFields({ 
+                    name: '⏰ Timeout Extended', 
+                    value: `User already had ${timeoutResult.existingTimeout} minute(s) remaining. Total Discord timeout is now ${timeoutResult.totalTimeout} minute(s).`,
+                    inline: false 
+                });
+            }
+
             if (reason !== 'No reason provided') {
                 embed.addFields({ name: 'Reason', value: reason });
             }
@@ -90,15 +100,19 @@ module.exports = {
 
             // Send log to log channel
             await sendLogToChannel(interaction.client, interaction.guildId, {
-                color: 0x00ff00,
-                title: '⏰ Timeout Executed',
-                description: `A user has been timed out`,
+                color: 0x00ff00, // Always green since timeout is always applied
+                title: timeoutResult.existingTimeout ? '⏰ Timeout Extended' : '⏰ Timeout Executed',
+                description: timeoutResult.existingTimeout ? 'A user\'s timeout has been extended' : 'A user has been timed out',
                 fields: [
                     { name: 'User', value: `<@${interaction.user.id}>`, inline: true },
                     { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
                     { name: 'Duration Added', value: `${duration} minute(s)`, inline: true },
                     { name: 'Total Duration', value: `${response.data.totalDuration} minute(s)`, inline: true },
-                    { name: 'Points Spent', value: `${response.data.cost.toLocaleString()} points`, inline: true }
+                    { name: 'Points Spent', value: `${response.data.cost.toLocaleString()} points`, inline: true },
+                    ...(timeoutResult.existingTimeout ? [
+                        { name: 'Previous Timeout', value: `${timeoutResult.existingTimeout} minute(s) remaining`, inline: true },
+                        { name: 'New Total Timeout', value: `${timeoutResult.totalTimeout} minute(s)`, inline: true }
+                    ] : [])
                 ],
                 footer: { text: `Reason: ${reason}` }
             });

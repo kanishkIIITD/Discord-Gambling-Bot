@@ -54,7 +54,8 @@ module.exports = {
         { name: `${formatCooldown(cooldowns.begCooldown)}`, value: '🙏 Beg', inline: false },
         { name: `${formatCooldown(cooldowns.mysteryboxCooldown)}`, value: '🎁 Free Mystery Box', inline: false },
         { name: `${formatCooldown(cooldowns.lastDailyClaim, true)}`, value: '💰 Daily Bonus', inline: false },
-        { name: `${formatCooldown(cooldowns.cooldownTime, false, 5)}`, value: '⏰ Timeout', inline: false }
+        { name: `${formatCooldown(cooldowns.cooldownTime, false, 5)}`, value: '⏰ Timeout', inline: false },
+        { name: `${formatCooldown(cooldowns.stealCooldown, false, 120)}`, value: '🦹 Steal', inline: false }
       ];
 
       // Add jail status if applicable

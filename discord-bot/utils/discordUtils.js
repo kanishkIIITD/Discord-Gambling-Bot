@@ -7,7 +7,7 @@ const axios = require('axios');
  * @param {string} userId - The ID of the user to timeout
  * @param {number} durationSeconds - Duration of timeout in seconds
  * @param {string} reason - Reason for the timeout
- * @returns {Promise<void>}
+ * @returns {Promise<{applied: boolean, existingTimeout?: number, totalTimeout?: number}>} Whether the timeout was applied and timeout info
  */
 async function timeoutUser(guild, userId, durationSeconds, reason) {
     try {
@@ -16,9 +16,29 @@ async function timeoutUser(guild, userId, durationSeconds, reason) {
             throw new Error('Member not found');
         }
 
-        // Apply the timeout duration directly from the backend
-        // The backend has already calculated the correct total duration
-        await member.timeout(durationSeconds * 1000, reason);
+        const now = Date.now();
+        let totalTimeoutDuration;
+
+        // Check if user is already timed out
+        if (member.communicationDisabledUntil && member.communicationDisabledUntil.getTime() > now) {
+            const existingTimeoutEnd = member.communicationDisabledUntil.getTime();
+            const existingTimeoutRemaining = Math.ceil((existingTimeoutEnd - now) / (60 * 1000)); // in minutes
+            
+            // Add the new timeout duration to the existing timeout
+            const newTimeoutEnd = existingTimeoutEnd + (durationSeconds * 1000);
+            totalTimeoutDuration = Math.ceil((newTimeoutEnd - now) / (60 * 1000)); // total in minutes
+            
+            // Apply the extended timeout
+            await member.timeout(newTimeoutEnd - now, reason);
+            console.log(`User ${userId} timeout extended: ${existingTimeoutRemaining} + ${Math.ceil(durationSeconds / 60)} = ${totalTimeoutDuration} minutes total`);
+            return { applied: true, existingTimeout: existingTimeoutRemaining, totalTimeout: totalTimeoutDuration };
+        } else {
+            // No existing timeout, apply the new one
+            await member.timeout(durationSeconds * 1000, reason);
+            totalTimeoutDuration = Math.ceil(durationSeconds / 60);
+            console.log(`User ${userId} new timeout applied: ${totalTimeoutDuration} minutes`);
+            return { applied: true, totalTimeout: totalTimeoutDuration };
+        }
     } catch (error) {
         console.error('Error timing out user:', error);
         throw error;

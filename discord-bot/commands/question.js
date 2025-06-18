@@ -29,7 +29,6 @@ const questions = {
     'Is this gecko gross?',
     'Would you say this gecko is ugly?',
     'Does this gecko look weird?',
-    'Is this gecko not adorable?',
     'Would you call this gecko unpleasant?'
   ]
 };

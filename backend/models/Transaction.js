@@ -28,7 +28,9 @@ const transactionSchema = new mongoose.Schema({
       'giveaway',
       'timeout',
       'mystery_box',
-      'question'
+      'question',
+      'steal',
+      'stolen'
     ],
     required: true
   },

@@ -100,14 +100,17 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
     const now = new Date();
     const timeoutEndsAt = new Date(target.timeoutEndsAt || 0);
     let totalDuration;
+    let additionalDuration;
 
     if (timeoutEndsAt <= now) {
       // Timeout expired — reset
       totalDuration = duration;
+      additionalDuration = duration;
     } else {
       // Timeout active — add to existing remaining
       const remaining = Math.ceil((timeoutEndsAt - now) / (60 * 1000)); // in minutes
       totalDuration = remaining + duration;
+      additionalDuration = duration; // Only add the new duration to Discord
     }
 
     // Update the new timeout end timestamp and duration
@@ -152,11 +155,192 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
       cost,
       remainingBalance: attackerWallet.balance,
       cooldownTime: attacker.lastTimeoutAt,
-      totalDuration
+      totalDuration,
+      additionalDuration // Add this field for Discord to use
     });
 
   } catch (error) {
     console.error('Error in timeout endpoint:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// --- STEAL ENDPOINT ---
+router.post('/:userId/steal', requireGuildId, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { targetDiscordId } = req.body;
+    const guildId = req.headers['x-guild-id'];
+
+    // Get attacker's user and wallet
+    let attacker = await User.findOne({ discordId: userId, guildId });
+    if (!attacker) {
+      // Create user if it doesn't exist
+      attacker = new User({
+        discordId: userId,
+        guildId,
+        username: userId,
+        role: 'user',
+        stealStats: { success: 0, fail: 0, jail: 0, totalStolen: 0 }
+      });
+      await attacker.save();
+    }
+
+    // Get attacker's wallet
+    let attackerWallet = await Wallet.findOne({ user: attacker._id, guildId });
+    if (!attackerWallet) {
+      // Create wallet if it doesn't exist
+      attackerWallet = new Wallet({
+        user: attacker._id,
+        discordId: userId,
+        guildId,
+        balance: 100000
+      });
+      await attackerWallet.save();
+    }
+
+    // Check if attacker is jailed
+    if (attacker.jailedUntil && attacker.jailedUntil > new Date()) {
+      const remainingJailTime = Math.ceil((attacker.jailedUntil - new Date()) / (60 * 1000));
+      return res.status(400).json({ 
+        message: `You are currently jailed for ${remainingJailTime} more minutes.`
+      });
+    }
+
+    // Check cooldown (2 hours)
+    const now = new Date();
+    const cooldownTime = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+    if (attacker.stealCooldown && (now - attacker.stealCooldown) < cooldownTime) {
+      const remainingTime = cooldownTime - (now - attacker.stealCooldown);
+      const remainingHours = Math.floor(remainingTime / (60 * 60 * 1000));
+      const remainingMinutes = Math.floor((remainingTime % (60 * 60 * 1000)) / (60 * 1000));
+      return res.status(429).json({ 
+        message: `You must wait ${remainingHours}h ${remainingMinutes}m before stealing again.`
+      });
+    }
+
+    // Prevent self-steal
+    if (userId === targetDiscordId) {
+      return res.status(400).json({ message: 'You cannot steal from yourself.' });
+    }
+
+    // Get target user and wallet
+    let target = await User.findOne({ discordId: targetDiscordId, guildId });
+    if (!target) {
+      return res.status(404).json({ message: 'Target user not found.' });
+    }
+
+    let targetWallet = await Wallet.findOne({ user: target._id, guildId });
+    if (!targetWallet) {
+      // Create wallet for target user
+      targetWallet = new Wallet({
+        user: target._id,
+        discordId: targetDiscordId,
+        guildId,
+        balance: 100000
+      });
+      await targetWallet.save();
+    }
+
+    // Check if target has enough balance to steal from
+    if (targetWallet.balance < 1000) {
+      return res.status(400).json({ message: 'Target user has insufficient balance to steal from.' });
+    }
+
+    // Determine success/failure (30% success rate)
+    const isSuccess = Math.random() < 0.3;
+    
+    if (isSuccess) {
+      // Success: steal 5-20% of target's balance
+      const stealPercentage = (Math.random() * 0.15) + 0.05; // 5% to 20%
+      const stolenAmount = Math.floor(targetWallet.balance * stealPercentage);
+      
+      // Transfer points
+      targetWallet.balance -= stolenAmount;
+      attackerWallet.balance += stolenAmount;
+      
+      await targetWallet.save();
+      await attackerWallet.save();
+      
+      // Update attacker stats
+      attacker.stealStats.success += 1;
+      attacker.stealStats.totalStolen += stolenAmount;
+      attacker.stealCooldown = now;
+      await attacker.save();
+      
+      // Create transaction records
+      await Transaction.create({
+        user: attacker._id,
+        guildId,
+        type: 'steal',
+        amount: stolenAmount,
+        description: `Successfully stole ${stolenAmount.toLocaleString('en-US')} points from ${targetDiscordId}`,
+        metadata: {
+          targetDiscordId,
+          stolenAmount,
+          success: true
+        }
+      });
+      
+      await Transaction.create({
+        user: target._id,
+        guildId,
+        type: 'stolen',
+        amount: -stolenAmount,
+        description: `Had ${stolenAmount.toLocaleString('en-US')} points stolen by ${userId}`,
+        metadata: {
+          attackerDiscordId: userId,
+          stolenAmount,
+          success: true
+        }
+      });
+      
+      res.json({
+        message: `Successfully stole ${stolenAmount.toLocaleString('en-US')} points from ${targetDiscordId}!`,
+        success: true,
+        stolenAmount,
+        newBalance: attackerWallet.balance,
+        cooldownTime: attacker.stealCooldown
+      });
+      
+    } else {
+      // Failure: jail time based on what would have been stolen
+      const potentialStealPercentage = (Math.random() * 0.15) + 0.05; // 5% to 20%
+      const potentialStolenAmount = Math.floor(targetWallet.balance * potentialStealPercentage);
+      const jailTimeMinutes = Math.ceil(potentialStolenAmount / 1000); // Jail time = amount/1000
+      
+      // Jail the attacker
+      attacker.jailedUntil = new Date(now.getTime() + jailTimeMinutes * 60 * 1000);
+      attacker.stealStats.fail += 1;
+      attacker.stealStats.jail += 1;
+      attacker.stealCooldown = now;
+      await attacker.save();
+      
+      // Create transaction record
+      await Transaction.create({
+        user: attacker._id,
+        guildId,
+        type: 'steal',
+        amount: 0,
+        description: `Failed to steal from ${targetDiscordId} and got jailed for ${jailTimeMinutes} minutes`,
+        metadata: {
+          targetDiscordId,
+          potentialStolenAmount,
+          jailTimeMinutes,
+          success: false
+        }
+      });
+      
+      res.json({
+        message: `Steal attempt failed! You got caught and are jailed for ${jailTimeMinutes} minutes.`,
+        success: false,
+        jailTimeMinutes,
+        cooldownTime: attacker.stealCooldown
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error in steal endpoint:', error);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
@@ -2995,12 +3179,36 @@ router.get('/:discordId/cooldowns', async (req, res) => {
       mysteryboxCooldown: user.mysteryboxCooldown || null,
       duelCooldown,
       meowbarkCooldown: user.meowbarkCooldown || null,
+      stealCooldown: user.stealCooldown || null,
       jailedUntil: user.jailedUntil || null,
       lastDailyClaim: wallet ? wallet.lastDailyClaim || null : null,
       cooldownTime: user.lastTimeoutAt || null
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching cooldowns.' });
+  }
+});
+
+// Get steal stats for a user
+router.get('/:discordId/steal-stats', async (req, res) => {
+  try {
+    const user = await User.findOne({ discordId: req.params.discordId, guildId: req.guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    
+    const stealStats = user.stealStats || { success: 0, fail: 0, jail: 0, totalStolen: 0 };
+    const totalAttempts = stealStats.success + stealStats.fail + stealStats.jail;
+    const successRate = totalAttempts > 0 ? ((stealStats.success / totalAttempts) * 100).toFixed(1) : 0;
+    
+    res.json({
+      stealStats: {
+        ...stealStats,
+        totalAttempts,
+        successRate: parseFloat(successRate)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching steal stats:', error);
+    res.status(500).json({ message: 'Server error fetching steal stats.' });
   }
 });
 
