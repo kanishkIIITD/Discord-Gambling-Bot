@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const axios = require('axios');
 const ResponseHandler = require('../utils/responseHandler');
 const logger = require('../utils/logger');
@@ -6,11 +6,26 @@ const logger = require('../utils/logger');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('sell')
-    .setDescription('Sell an item from your collection for points!')
+    .setDescription('Sell items from your collection for points!')
+    .addStringOption(option =>
+      option.setName('action')
+        .setDescription('What to sell')
+        .setRequired(true)
+        .addChoices(
+          { name: 'Specific Item', value: 'specific' },
+          { name: 'All Fish', value: 'all_fish' },
+          { name: 'All Animals', value: 'all_animals' },
+          { name: 'All Items', value: 'all_items' },
+          { name: 'All Common', value: 'all_common' },
+          { name: 'All Uncommon', value: 'all_uncommon' },
+          { name: 'All Rare+', value: 'all_rare_plus' },
+          { name: 'Everything', value: 'everything' }
+        )
+    )
     .addStringOption(option =>
       option.setName('type')
-        .setDescription('Type of item (fish, animal, or item)')
-        .setRequired(true)
+        .setDescription('Type of item (fish, animal, or item) - only for specific items')
+        .setRequired(false)
         .addChoices(
           { name: 'Fish', value: 'fish' },
           { name: 'Animal', value: 'animal' },
@@ -19,111 +34,111 @@ module.exports = {
     )
     .addStringOption(option =>
       option.setName('name')
-        .setDescription('Name of the item to sell')
-        .setRequired(true)
+        .setDescription('Name of the item to sell - only for specific items')
+        .setRequired(false)
     )
-    .addStringOption(option =>
+    .addIntegerOption(option =>
       option.setName('count')
-        .setDescription('How many to sell')
-        .setRequired(true)
+        .setDescription('How many to sell - only for specific items')
+        .setRequired(false)
+        .setMinValue(1)
     ),
 
   async execute(interaction) {
     try {
-      await interaction.deferReply();
+      await interaction.deferReply({ ephemeral: true });
       const userId = interaction.user.id;
+      const action = interaction.options.getString('action');
       const type = interaction.options.getString('type');
-      const nameRaw = interaction.options.getString('name');
-      const countRaw = interaction.options.getString('count');
-      const backendUrl = process.env.BACKEND_API_URL;
+      const name = interaction.options.getString('name');
+      const count = interaction.options.getInteger('count');
       const guildId = interaction.guildId;
 
-      // Support comma-separated lists for bulk sell
-      const nameList = nameRaw.split(',').map(s => s.trim()).filter(Boolean);
-      const countList = countRaw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
-      let typeList = [type];
-      if (type.includes(',')) {
-        typeList = type.split(',').map(s => s.trim());
-      }
-      // If multiple names/counts, build items array
-      let items = [];
-      if (nameList.length > 1 || countList.length > 1 || typeList.length > 1) {
-        // If only one type, repeat it for all names
-        if (typeList.length === 1) {
-          typeList = Array(nameList.length).fill(typeList[0]);
-        }
-        for (let i = 0; i < nameList.length; i++) {
-          items.push({
-            type: typeList[i] || typeList[0],
-            name: nameList[i],
-            count: countList[i] || countList[0] || 1
+      // For specific items, validate required parameters
+      if (action === 'specific') {
+        if (!type || !name || !count) {
+          return interaction.editReply({
+            content: '❌ For specific items, you must provide type, name, and count.',
+            ephemeral: true
           });
         }
       }
 
-      if (items.length > 0) {
-        // Bulk sell
-        console.log('[SELL] Payload to backend:', { items, guildId });
-        const response = await axios.post(`${backendUrl}/users/${userId}/sell`, { items, guildId }, { headers: { 'x-guild-id': guildId } });
-        const { results, newBalance } = response.data;
-        const fields = results.map(r => {
-          if (r.success) {
-            return {
-              name: `✅ Sold ${r.count}x ${r.name} (${r.type})`,
-              value: `+${r.value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`,
-              inline: false
-            };
-          } else {
-            return {
-              name: `❌ ${r.name} (${r.type})`,
-              value: r.error || 'Unknown error',
-              inline: false
-            };
-          }
+      // Get preview from backend
+      const previewResponse = await axios.post(`${process.env.BACKEND_API_URL}/users/${userId}/sell-preview`, {
+        action,
+        type,
+        name,
+        count,
+        guildId
+      }, {
+        headers: { 'x-guild-id': guildId }
+      });
+
+      const { itemsToPreview, totalValue, actionDescription, needsConfirmation } = previewResponse.data;
+
+      if (itemsToPreview.length === 0) {
+        return interaction.editReply({
+          content: '❌ No items found to sell with the selected criteria.',
+          ephemeral: true
         });
-        const embed = {
-          color: 0x27ae60,
-          title: '🪙 Sell Result',
-          description: 'Bulk sell summary:',
-          fields: fields.length > 0 ? fields : [{ name: 'No items processed', value: 'Nothing was sold.' }],
-          footer: { text: `New Balance: ${newBalance?.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points` },
-          timestamp: new Date()
-        };
-        await interaction.editReply({ embeds: [embed] });
-        return;
       }
 
-      // Fallback: single item logic
-      // Fetch inventory to validate (case-insensitive name check)
-      const invRes = await axios.get(`${backendUrl}/users/${userId}/collection`, { params: { guildId }, headers: { 'x-guild-id': guildId } });
-      const inventory = invRes.data.inventory || [];
-      const item = inventory.find(i => i.type === type && i.name.toLowerCase() === nameRaw.toLowerCase()); // Case-insensitive check
+      // Create preview embed
+      const previewEmbed = new EmbedBuilder()
+        .setColor(needsConfirmation ? 0xff6b6b : 0xffa500)
+        .setTitle(needsConfirmation ? '⚠️ High-Value Sale Preview' : '📋 Sale Preview')
+        .setDescription(actionDescription)
+        .addFields(
+          { name: 'Total Value', value: `${totalValue.toLocaleString()} points`, inline: true },
+          { name: 'Items to Sell', value: itemsToPreview.slice(0, 10).map(item => `${item.count}x ${item.name} (${item.value.toLocaleString()} pts)`).join('\n'), inline: false }
+        )
+        .setTimestamp();
 
-      if (!item) {
-        await ResponseHandler.handleError(interaction, { message: 'You do not own this item.' }, 'Sell');
-        return;
+      if (itemsToPreview.length > 10) {
+        previewEmbed.addFields({
+          name: 'And more...',
+          value: `...and ${itemsToPreview.length - 10} more items`,
+          inline: false
+        });
       }
-      if (item.count < (countList[0] || 1)) {
-        await ResponseHandler.handleError(interaction, { message: `You only own ${item.count} of this item.` }, 'Sell');
-        return;
+
+      if (needsConfirmation) {
+        previewEmbed.setDescription(`**WARNING:** This sale includes high-value items totaling **${totalValue.toLocaleString()}** points.\n\n${actionDescription}`);
       }
 
-      // Call backend to sell
-      console.log('[SELL] Payload to backend:', { type, name: item.name, count: countList[0] || 1, guildId });
-      const response = await axios.post(`${backendUrl}/users/${userId}/sell`, { type, name: item.name, count: countList[0] || 1, guildId }, { headers: { 'x-guild-id': guildId } });
-      const { message, newBalance } = response.data;
+      // Create confirmation buttons
+      const confirmButton = new ButtonBuilder()
+        .setCustomId(`sell_confirm_${action}`)
+        .setLabel('✅ Accept')
+        .setStyle(ButtonStyle.Success);
 
-      const embed = {
-        color: 0x27ae60,
-        title: '🪙 Sell Result',
-        description: message,
-        fields: [
-          { name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
-        ],
-        timestamp: new Date(),
-        footer: { text: `Requested by ${interaction.user.tag}` }
-      };
-      await interaction.editReply({ embeds: [embed] });
+      const cancelButton = new ButtonBuilder()
+        .setCustomId('sell_cancel')
+        .setLabel('❌ Deny')
+        .setStyle(ButtonStyle.Danger);
+
+      const row = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
+
+      // Store the preview data for the confirmation
+      interaction.client.sellPreviews = interaction.client.sellPreviews || new Map();
+      interaction.client.sellPreviews.set(interaction.user.id, {
+        action,
+        type,
+        name,
+        count,
+        guildId,
+        userId,
+        totalValue,
+        itemsToPreview
+      });
+
+      return interaction.editReply({
+        embeds: [previewEmbed],
+        components: [row],
+        ephemeral: true
+      });
+
     } catch (error) {
       logger.error('Error in /sell command:', error);
       if (error.response && error.response.data && error.response.data.message) {
@@ -134,5 +149,5 @@ module.exports = {
         return;
       }
     }
-  },
+  }
 }; 

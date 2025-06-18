@@ -551,14 +551,29 @@ const commands = [
 	},
 	{
 		name: 'sell',
-		description: 'Sell an item from your collection for points!',
-		category: 'Fun',
+		description: 'Sell items from your collection for points!',
 		options: [
 			{
-				name: 'type',
-				description: 'Type(s) of item(s) (fish, animal, or item, comma-separated)',
-				type: 3,
+				name: 'action',
+				description: 'What to sell',
+				type: ApplicationCommandOptionType.String,
 				required: true,
+				choices: [
+					{ name: 'Specific Item', value: 'specific' },
+					{ name: 'All Fish', value: 'all_fish' },
+					{ name: 'All Animals', value: 'all_animals' },
+					{ name: 'All Items', value: 'all_items' },
+					{ name: 'All Common', value: 'all_common' },
+					{ name: 'All Uncommon', value: 'all_uncommon' },
+					{ name: 'All Rare+', value: 'all_rare_plus' },
+					{ name: 'Everything', value: 'everything' }
+				]
+			},
+			{
+				name: 'type',
+				description: 'Type of item (fish, animal, or item) - only for specific items',
+				type: ApplicationCommandOptionType.String,
+				required: false,
 				choices: [
 					{ name: 'Fish', value: 'fish' },
 					{ name: 'Animal', value: 'animal' },
@@ -567,15 +582,16 @@ const commands = [
 			},
 			{
 				name: 'name',
-				description: 'Item names (comma-separated, e.g. Carp,Bass)',
-				type: 3,
-				required: true
+				description: 'Name of the item to sell - only for specific items',
+				type: ApplicationCommandOptionType.String,
+				required: false
 			},
 			{
 				name: 'count',
-				description: 'Counts (comma-separated numbers, e.g. 2,1)',
-				type: 3,
-				required: true
+				description: 'How many to sell - only for specific items',
+				type: ApplicationCommandOptionType.Integer,
+				required: false,
+				min_value: 1
 			}
 		]
 	},
@@ -593,19 +609,35 @@ const commands = [
 	},
 	{
 		name: 'trade',
-		description: 'Trade items from your collection to another user (comma-separated lists allowed).',
+		description: 'Trade items with another user!',
 		options: [
 			{
-				name: 'user',
-				description: 'The user to trade with',
-				type: 6,
+				name: 'action',
+				description: 'What to trade',
+				type: ApplicationCommandOptionType.String,
+				required: true,
+				choices: [
+					{ name: 'Specific Item', value: 'specific' },
+					{ name: 'All Fish', value: 'all_fish' },
+					{ name: 'All Animals', value: 'all_animals' },
+					{ name: 'All Items', value: 'all_items' },
+					{ name: 'All Common', value: 'all_common' },
+					{ name: 'All Uncommon', value: 'all_uncommon' },
+					{ name: 'All Rare+', value: 'all_rare_plus' },
+					{ name: 'Everything', value: 'everything' }
+				]
+			},
+			{
+				name: 'target',
+				description: 'User to trade with',
+				type: ApplicationCommandOptionType.User,
 				required: true
 			},
 			{
 				name: 'type',
-				description: 'Type(s) of item(s) (fish, animal, or item, comma-separated)',
-				type: 3,
-				required: true,
+				description: 'Type of item (fish, animal, or item) - only for specific items',
+				type: ApplicationCommandOptionType.String,
+				required: false,
 				choices: [
 					{ name: 'Fish', value: 'fish' },
 					{ name: 'Animal', value: 'animal' },
@@ -614,15 +646,16 @@ const commands = [
 			},
 			{
 				name: 'name',
-				description: 'Item names (comma-separated, e.g. Carp,Bass)',
-				type: 3,
-				required: true
+				description: 'Name of the item to trade - only for specific items',
+				type: ApplicationCommandOptionType.String,
+				required: false
 			},
 			{
 				name: 'count',
-				description: 'Counts (comma-separated numbers, e.g. 2,1)',
-				type: 3,
-				required: true
+				description: 'How many to trade - only for specific items',
+				type: ApplicationCommandOptionType.Integer,
+				required: false,
+				min_value: 1
 			}
 		]
 	},

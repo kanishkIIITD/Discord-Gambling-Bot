@@ -2315,40 +2315,131 @@ router.post('/:discordId/sell', async (req, res) => {
   try {
     const user = req.user;
     const wallet = req.wallet;
-    const { items, type, name, count } = req.body;
-    // Bulk sell if items array is provided
-    if (Array.isArray(items) && items.length > 0) {
+    const { items, type, name, count, action, confirmation } = req.body;
+    
+    // Handle new action-based selling
+    if (action) {
+      let itemsToSell = [];
       let totalValue = 0;
+
+      // Determine what to sell based on action
+      switch (action) {
+        case 'specific':
+          if (!type || !name || !count) {
+            return res.status(400).json({ message: 'For specific items, you must provide type, name, and count.' });
+          }
+          
+          const item = (user.inventory || []).find(i => i.type === type && i.name === name);
+          if (!item) {
+            return res.status(404).json({ message: 'Item not found in inventory.' });
+          }
+          if (item.count < count) {
+            return res.status(400).json({ message: `You only have ${item.count} of this item.` });
+          }
+          itemsToSell = [{ type, name, count, value: item.value }];
+          totalValue = item.value * count;
+          break;
+
+        case 'all_fish':
+          const fishItems = (user.inventory || []).filter(i => i.type === 'fish');
+          itemsToSell = fishItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = fishItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'all_animals':
+          const animalItems = (user.inventory || []).filter(i => i.type === 'animal');
+          itemsToSell = animalItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = animalItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'all_items':
+          const itemItems = (user.inventory || []).filter(i => i.type === 'item');
+          itemsToSell = itemItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = itemItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'all_common':
+          const commonItems = (user.inventory || []).filter(i => i.rarity === 'common');
+          itemsToSell = commonItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = commonItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'all_uncommon':
+          const uncommonItems = (user.inventory || []).filter(i => i.rarity === 'uncommon');
+          itemsToSell = uncommonItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = uncommonItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'all_rare_plus':
+          const rarePlusItems = (user.inventory || []).filter(i => 
+            ['rare', 'epic', 'legendary', 'mythical', 'transcendent'].includes(i.rarity)
+          );
+          itemsToSell = rarePlusItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = rarePlusItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'everything':
+          itemsToSell = (user.inventory || []).map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = (user.inventory || []).reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        default:
+          return res.status(400).json({ message: 'Invalid action specified.' });
+      }
+
+      if (itemsToSell.length === 0) {
+        return res.status(404).json({ message: `No items found to sell for action: ${action}` });
+      }
+
+      // Check if this is a preview request (no confirmation provided)
+      if (!confirmation) {
+        // Check if any high-value items are being sold
+        const highValueItems = itemsToSell.filter(item => item.value * item.count >= 10000); // 10k+ points
+        const requiresConfirmation = highValueItems.length > 0 || totalValue >= 50000; // 50k+ total value
+
+        return res.json({
+          itemsToSell,
+          totalValue,
+          requiresConfirmation,
+          action
+        });
+      }
+
+      // Process the actual sale (confirmation provided)
+      let actualValue = 0;
       const results = [];
-      for (const itemReq of items) {
+      
+      for (const itemReq of itemsToSell) {
         const { type: typeSell, name: nameSell, count: countSell } = itemReq;
-        if (!typeSell || !nameSell || !countSell || countSell < 1) {
-          results.push({ type: typeSell, name: nameSell, count: countSell, error: 'Invalid sell request.', success: false });
-          continue;
-        }
+        
         // Find item in inventory
         const idxSell = (user.inventory || []).findIndex(i => i.type === typeSell && i.name === nameSell);
         if (idxSell === -1) {
           results.push({ type: typeSell, name: nameSell, count: countSell, error: 'Item not found in inventory.', success: false });
           continue;
         }
+        
         const itemSell = user.inventory[idxSell];
         if (itemSell.count < countSell) {
           results.push({ type: typeSell, name: nameSell, count: countSell, error: `You only have ${itemSell.count} of this item.`, success: false });
           continue;
         }
-        // Calculate total value
+        
+        // Calculate value and process sale
         const valueSell = itemSell.value * countSell;
-        // Remove/sell items
         itemSell.count -= countSell;
+        
         if (itemSell.count === 0) {
           user.inventory.splice(idxSell, 1);
         } else {
           user.inventory[idxSell] = itemSell;
         }
+        
         wallet.balance += valueSell;
-        totalValue += valueSell;
+        actualValue += valueSell;
+        
         results.push({ type: typeSell, name: nameSell, count: countSell, value: valueSell, success: true });
+        
         // Record transaction for each item
         const transactionSell = new Transaction({
           user: user._id,
@@ -2360,51 +2451,236 @@ router.post('/:discordId/sell', async (req, res) => {
         await transactionSell.save();
         broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: transactionSell });
       }
+      
       await user.save();
       await wallet.save();
       broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
+      
+      return res.json({ 
+        results, 
+        newBalance: wallet.balance,
+        totalValue: actualValue,
+        soldItems: results.filter(r => r.success).map(r => ({ name: r.name, count: r.count })),
+        action: action
+      });
+    }
+
+    // --- EXISTING BULK SELL LOGIC (for backward compatibility) ---
+    if (Array.isArray(items) && items.length > 0) {
+      let totalValue = 0;
+      const results = [];
+      
+      for (const itemReq of items) {
+        const { type: typeSell, name: nameSell, count: countSell } = itemReq;
+        
+        // Find item in inventory
+        const idxSell = (user.inventory || []).findIndex(i => i.type === typeSell && i.name === nameSell);
+        if (idxSell === -1) {
+          results.push({ type: typeSell, name: nameSell, count: countSell, error: 'Item not found in inventory.', success: false });
+          continue;
+        }
+        
+        const itemSell = user.inventory[idxSell];
+        if (itemSell.count < countSell) {
+          results.push({ type: typeSell, name: nameSell, count: countSell, error: `You only have ${itemSell.count} of this item.`, success: false });
+          continue;
+        }
+        
+        // Calculate value and process sale
+        const valueSell = itemSell.value * countSell;
+        itemSell.count -= countSell;
+        
+        if (itemSell.count === 0) {
+          user.inventory.splice(idxSell, 1);
+        } else {
+          user.inventory[idxSell] = itemSell;
+        }
+        
+        wallet.balance += valueSell;
+        totalValue += valueSell;
+        
+        results.push({ type: typeSell, name: nameSell, count: countSell, value: valueSell, success: true });
+        
+        // Record transaction for each item
+        const transactionSell = new Transaction({
+          user: user._id,
+          type: 'sell',
+          amount: valueSell,
+          description: `Sold ${countSell}x ${itemSell.name} (${itemSell.rarity})`,
+          guildId: req.guildId
+        });
+        await transactionSell.save();
+        broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: transactionSell });
+      }
+      
+      await user.save();
+      await wallet.save();
+      broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
+      
       return res.json({ results, newBalance: wallet.balance });
     }
-    // Fallback: single item logic
+
+    // --- EXISTING SINGLE ITEM LOGIC (for backward compatibility) ---
     if (!type || !name || !count || count < 1) {
       return res.status(400).json({ message: 'Invalid sell request.' });
     }
+
     // Find item in inventory
     const idx = (user.inventory || []).findIndex(i => i.type === type && i.name === name);
     if (idx === -1) {
       return res.status(404).json({ message: 'Item not found in inventory.' });
     }
+
     const item = user.inventory[idx];
     if (item.count < count) {
       return res.status(400).json({ message: `You only have ${item.count} of this item.` });
     }
-    // Calculate total value
-    const totalValue = item.value * count;
-    // Remove/sell items
+
+    // Calculate value and process sale
+    const value = item.value * count;
     item.count -= count;
+    
     if (item.count === 0) {
       user.inventory.splice(idx, 1);
     } else {
       user.inventory[idx] = item;
     }
-    wallet.balance += totalValue;
+    
+    wallet.balance += value;
     await user.save();
     await wallet.save();
+
     // Record transaction
     const transaction = new Transaction({
       user: user._id,
       type: 'sell',
-      amount: totalValue,
+      amount: value,
       description: `Sold ${count}x ${item.name} (${item.rarity})`,
       guildId: req.guildId
     });
     await transaction.save();
+
     broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction });
     broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
-    res.json({ message: `Sold ${count}x ${item.name} for ${totalValue.toLocaleString('en-US')} points.`, newBalance: wallet.balance });
+
+    res.json({ 
+      message: `Successfully sold ${count}x ${item.name} for ${value.toLocaleString()} points!`,
+      newBalance: wallet.balance 
+    });
   } catch (error) {
     console.error('Error selling inventory item:', error);
-    res.status(500).json({ message: 'Server error during sell.' });
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// --- SELL PREVIEW (NEW) ---
+router.post('/:discordId/sell-preview', async (req, res) => {
+  try {
+    const user = req.user;
+    const { items, action, type, name, count } = req.body;
+    
+    let itemsToPreview = [];
+    let totalValue = 0;
+    let actionDescription = '';
+
+    // Determine what to preview based on action
+    switch (action) {
+      case 'specific':
+        if (!type || !name || !count) {
+          return res.status(400).json({ message: 'For specific items, you must provide type, name, and count.' });
+        }
+        
+        const item = (user.inventory || []).find(i => i.type === type && i.name === name);
+        if (!item) {
+          return res.status(404).json({ message: 'Item not found in inventory.' });
+        }
+        if (item.count < count) {
+          return res.status(400).json({ message: `You only have ${item.count} of this item.` });
+        }
+        itemsToPreview = [{ type, name, count, value: item.value }];
+        totalValue = item.value * count;
+        actionDescription = `Selling specific item: ${name}`;
+        break;
+
+      case 'all_fish':
+        const fishItems = (user.inventory || []).filter(i => i.type === 'fish');
+        itemsToPreview = fishItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = fishItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Selling all fish (${fishItems.length} types)`;
+        break;
+
+      case 'all_animals':
+        const animalItems = (user.inventory || []).filter(i => i.type === 'animal');
+        itemsToPreview = animalItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = animalItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Selling all animals (${animalItems.length} types)`;
+        break;
+
+      case 'all_items':
+        const itemItems = (user.inventory || []).filter(i => i.type === 'item');
+        itemsToPreview = itemItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = itemItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Selling all items (${itemItems.length} types)`;
+        break;
+
+      case 'all_common':
+        const commonItems = (user.inventory || []).filter(i => i.rarity === 'common');
+        itemsToPreview = commonItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = commonItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Selling all common items (${commonItems.length} types)`;
+        break;
+
+      case 'all_uncommon':
+        const uncommonItems = (user.inventory || []).filter(i => i.rarity === 'uncommon');
+        itemsToPreview = uncommonItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = uncommonItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Selling all uncommon items (${uncommonItems.length} types)`;
+        break;
+
+      case 'all_rare_plus':
+        const rarePlusItems = (user.inventory || []).filter(i => 
+          ['rare', 'epic', 'legendary', 'mythical', 'transcendent'].includes(i.rarity)
+        );
+        itemsToPreview = rarePlusItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = rarePlusItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Selling all rare+ items (${rarePlusItems.length} types)`;
+        break;
+
+      case 'everything':
+        itemsToPreview = (user.inventory || []).map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = (user.inventory || []).reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Selling everything (${user.inventory?.length || 0} types)`;
+        break;
+
+      default:
+        return res.status(400).json({ message: 'Invalid action specified.' });
+    }
+
+    if (itemsToPreview.length === 0) {
+      return res.status(404).json({ message: `No items found to sell for action: ${action}` });
+    }
+
+    // Check for high-value items
+    const highValueItems = itemsToPreview.filter(item => {
+      const inventoryItem = (user.inventory || []).find(i => i.type === item.type && i.name === item.name);
+      return inventoryItem && (inventoryItem.rarity === 'legendary' || inventoryItem.rarity === 'mythical' || inventoryItem.rarity === 'transcendent');
+    });
+
+    const needsConfirmation = totalValue > 10000 || highValueItems.length > 0 || itemsToPreview.length > 10;
+
+    res.json({
+      actionDescription,
+      itemsToPreview,
+      totalValue,
+      totalItems: itemsToPreview.reduce((sum, item) => sum + item.count, 0),
+      highValueItems: highValueItems.slice(0, 10), // Limit to first 10
+      needsConfirmation,
+      preview: true
+    });
+
+  } catch (error) {
+    console.error('Error in sell preview:', error);
+    res.status(500).json({ message: 'Server error during sell preview.' });
   }
 });
 
@@ -2434,7 +2710,7 @@ router.get('/collection-leaderboard', async (req, res) => {
 router.post('/:discordId/trade', async (req, res) => {
   try {
     const sender = req.user;
-    const { targetDiscordId, items, type, name, count } = req.body;
+    const { targetDiscordId, items, type, name, count, action, confirmation } = req.body;
     if (!targetDiscordId) {
       return res.status(400).json({ message: 'Invalid trade request: missing target.' });
     }
@@ -2443,80 +2719,264 @@ router.post('/:discordId/trade', async (req, res) => {
     }
     const receiver = await User.findOne({ discordId: targetDiscordId, guildId: req.guildId });
     if (!receiver) return res.status(404).json({ message: 'Target user not found.' });
-    // Bulk trade if items array is provided
-    if (Array.isArray(items) && items.length > 0) {
+
+    // Handle new action-based trading
+    if (action) {
+      let itemsToTrade = [];
+      let totalValue = 0;
+
+      // Determine what to trade based on action
+      switch (action) {
+        case 'specific':
+          if (!type || !name || !count) {
+            return res.status(400).json({ message: 'For specific items, you must provide type, name, and count.' });
+          }
+          
+          const item = (sender.inventory || []).find(i => i.type === type && i.name === name);
+          if (!item) {
+            return res.status(404).json({ message: 'Item not found in your inventory.' });
+          }
+          if (item.count < count) {
+            return res.status(400).json({ message: `You only have ${item.count} of this item.` });
+          }
+          itemsToTrade = [{ type, name, count, value: item.value }];
+          totalValue = item.value * count;
+          break;
+
+        case 'all_fish':
+          const fishItems = (sender.inventory || []).filter(i => i.type === 'fish');
+          itemsToTrade = fishItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = fishItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'all_animals':
+          const animalItems = (sender.inventory || []).filter(i => i.type === 'animal');
+          itemsToTrade = animalItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = animalItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'all_items':
+          const itemItems = (sender.inventory || []).filter(i => i.type === 'item');
+          itemsToTrade = itemItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = itemItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'all_common':
+          const commonItems = (sender.inventory || []).filter(i => i.rarity === 'common');
+          itemsToTrade = commonItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = commonItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'all_uncommon':
+          const uncommonItems = (sender.inventory || []).filter(i => i.rarity === 'uncommon');
+          itemsToTrade = uncommonItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = uncommonItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'all_rare_plus':
+          const rarePlusItems = (sender.inventory || []).filter(i => 
+            ['rare', 'epic', 'legendary', 'mythical', 'transcendent'].includes(i.rarity)
+          );
+          itemsToTrade = rarePlusItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = rarePlusItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'everything':
+          itemsToTrade = (sender.inventory || []).map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+          totalValue = (sender.inventory || []).reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        default:
+          return res.status(400).json({ message: 'Invalid action specified.' });
+      }
+
+      if (itemsToTrade.length === 0) {
+        return res.status(404).json({ message: `No items found to trade for action: ${action}` });
+      }
+
+      // Check if this is a preview request (no confirmation provided)
+      if (!confirmation) {
+        // Check if any high-value items are being traded
+        const highValueItems = itemsToTrade.filter(item => item.value * item.count >= 10000); // 10k+ points
+        const requiresConfirmation = highValueItems.length > 0 || totalValue >= 50000; // 50k+ total value
+
+        return res.json({
+          itemsToTrade,
+          totalValue,
+          requiresConfirmation,
+          action
+        });
+      }
+
+      // Process the actual trade (confirmation provided)
       const results = [];
-      for (const itemReq of items) {
+      
+      for (const itemReq of itemsToTrade) {
         const { type: typeTrade, name: nameTrade, count: countTrade } = itemReq;
-        if (!typeTrade || !nameTrade || !countTrade || countTrade < 1) {
-          results.push({ type: typeTrade, name: nameTrade, count: countTrade, error: 'Invalid trade request.', success: false });
-          continue;
-        }
+        
         // Find item in sender inventory
-        const idxTrade = (sender.inventory || []).findIndex(i => i.type === typeTrade && i.name === nameTrade);
-        if (idxTrade === -1) {
+        const idx = (sender.inventory || []).findIndex(i => i.type === typeTrade && i.name === nameTrade);
+        if (idx === -1) {
           results.push({ type: typeTrade, name: nameTrade, count: countTrade, error: 'Item not found in your inventory.', success: false });
           continue;
         }
-        const itemTrade = sender.inventory[idxTrade];
+        
+        const itemTrade = sender.inventory[idx];
         if (itemTrade.count < countTrade) {
           results.push({ type: typeTrade, name: nameTrade, count: countTrade, error: `You only have ${itemTrade.count} of this item.`, success: false });
           continue;
         }
+        
         // Store original item properties before mutating
-        const itemToTransferTrade = {
+        const itemToTransfer = {
           type: itemTrade.type,
           name: itemTrade.name,
           rarity: itemTrade.rarity,
           value: itemTrade.value,
           count: countTrade
         };
+        
         // Remove from sender
         itemTrade.count -= countTrade;
         if (itemTrade.count === 0) {
-          sender.inventory.splice(idxTrade, 1);
+          sender.inventory.splice(idx, 1);
         } else {
-          sender.inventory[idxTrade] = itemTrade;
+          sender.inventory[idx] = itemTrade;
         }
+        
         // Add to receiver
-        const rIdxTrade = (receiver.inventory || []).findIndex(i => i.type === typeTrade && i.name === nameTrade);
-        if (rIdxTrade === -1) {
-          receiver.inventory.push(itemToTransferTrade);
+        const rIdx = (receiver.inventory || []).findIndex(i => i.type === typeTrade && i.name === nameTrade);
+        if (rIdx === -1) {
+          receiver.inventory.push(itemToTransfer);
         } else {
           // Recalculate average value for receiver
-          const receiverItem = receiver.inventory[rIdxTrade];
-          const totalValue = (receiverItem.value * receiverItem.count) + (itemToTransferTrade.value * countTrade);
+          const receiverItem = receiver.inventory[rIdx];
+          const totalValue = (receiverItem.value * receiverItem.count) + (itemToTransfer.value * countTrade);
           receiverItem.count += countTrade;
           receiverItem.value = totalValue / receiverItem.count;
-          receiver.inventory[rIdxTrade] = receiverItem;
+          receiver.inventory[rIdx] = receiverItem;
         }
+        
         results.push({ type: typeTrade, name: nameTrade, count: countTrade, success: true });
+        
         // Record transaction for sender
-        const transactionTrade = new Transaction({
+        const transaction = new Transaction({
           user: sender._id,
           type: 'trade_sent',
           amount: 0,
           description: `Traded ${countTrade}x ${itemTrade.name} to ${targetDiscordId}`,
           guildId: req.guildId
         });
-        await transactionTrade.save();
+        await transaction.save();
+        
         // Record transaction for receiver
-        const transaction2Trade = new Transaction({
+        const transaction2 = new Transaction({
           user: receiver._id,
           type: 'trade_received',
           amount: 0,
           description: `Received ${countTrade}x ${itemTrade.name} from ${sender.discordId}`,
           guildId: req.guildId
         });
-        await transaction2Trade.save();
-        broadcastToUser(sender.discordId, { type: 'TRANSACTION', transaction: transactionTrade });
-        broadcastToUser(receiver.discordId, { type: 'TRANSACTION', transaction: transaction2Trade });
+        await transaction2.save();
+        
+        broadcastToUser(sender.discordId, { type: 'TRANSACTION', transaction });
+        broadcastToUser(receiver.discordId, { type: 'TRANSACTION', transaction: transaction2 });
       }
+      
       await sender.save();
       await receiver.save();
+      
+      return res.json({ 
+        results, 
+        tradedItems: results.filter(r => r.success).map(r => ({ name: r.name, count: r.count })),
+        message: `Successfully traded ${results.filter(r => r.success).length} items to <@${targetDiscordId}>.`,
+        action: action
+      });
+    }
+
+    // --- EXISTING BULK TRADE LOGIC (for backward compatibility) ---
+    if (Array.isArray(items) && items.length > 0) {
+      const results = [];
+      
+      for (const itemReq of items) {
+        const { type: typeTrade, name: nameTrade, count: countTrade } = itemReq;
+        
+        // Find item in sender inventory
+        const idx = (sender.inventory || []).findIndex(i => i.type === typeTrade && i.name === nameTrade);
+        if (idx === -1) {
+          results.push({ type: typeTrade, name: nameTrade, count: countTrade, error: 'Item not found in your inventory.', success: false });
+          continue;
+        }
+        
+        const itemTrade = sender.inventory[idx];
+        if (itemTrade.count < countTrade) {
+          results.push({ type: typeTrade, name: nameTrade, count: countTrade, error: `You only have ${itemTrade.count} of this item.`, success: false });
+          continue;
+        }
+        
+        // Store original item properties before mutating
+        const itemToTransfer = {
+          type: itemTrade.type,
+          name: itemTrade.name,
+          rarity: itemTrade.rarity,
+          value: itemTrade.value,
+          count: countTrade
+        };
+        
+        // Remove from sender
+        itemTrade.count -= countTrade;
+        if (itemTrade.count === 0) {
+          sender.inventory.splice(idx, 1);
+        } else {
+          sender.inventory[idx] = itemTrade;
+        }
+        
+        // Add to receiver
+        const rIdx = (receiver.inventory || []).findIndex(i => i.type === typeTrade && i.name === nameTrade);
+        if (rIdx === -1) {
+          receiver.inventory.push(itemToTransfer);
+        } else {
+          // Recalculate average value for receiver
+          const receiverItem = receiver.inventory[rIdx];
+          const totalValue = (receiverItem.value * receiverItem.count) + (itemToTransfer.value * countTrade);
+          receiverItem.count += countTrade;
+          receiverItem.value = totalValue / receiverItem.count;
+          receiver.inventory[rIdx] = receiverItem;
+        }
+        
+        results.push({ type: typeTrade, name: nameTrade, count: countTrade, success: true });
+        
+        // Record transaction for sender
+        const transaction = new Transaction({
+          user: sender._id,
+          type: 'trade_sent',
+          amount: 0,
+          description: `Traded ${countTrade}x ${itemTrade.name} to ${targetDiscordId}`,
+          guildId: req.guildId
+        });
+        await transaction.save();
+        
+        // Record transaction for receiver
+        const transaction2 = new Transaction({
+          user: receiver._id,
+          type: 'trade_received',
+          amount: 0,
+          description: `Received ${countTrade}x ${itemTrade.name} from ${sender.discordId}`,
+          guildId: req.guildId
+        });
+        await transaction2.save();
+        
+        broadcastToUser(sender.discordId, { type: 'TRANSACTION', transaction });
+        broadcastToUser(receiver.discordId, { type: 'TRANSACTION', transaction: transaction2 });
+      }
+      
+      await sender.save();
+      await receiver.save();
+      
       return res.json({ results });
     }
-    // Fallback: single item logic
+
+    // --- EXISTING SINGLE ITEM LOGIC (for backward compatibility) ---
     if (!type || !name || !count || count < 1) {
       return res.status(400).json({ message: 'Invalid trade request.' });
     }
@@ -2584,7 +3044,127 @@ router.post('/:discordId/trade', async (req, res) => {
     res.json({ message: `Traded ${count}x ${item.name} to <@${targetDiscordId}>.` });
   } catch (error) {
     console.error('Error trading inventory item:', error);
-    res.status(500).json({ message: 'Server error during trade.' });
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// --- TRADE PREVIEW (NEW) ---
+router.post('/:discordId/trade-preview', async (req, res) => {
+  try {
+    const sender = req.user;
+    const { targetDiscordId, items, action, type, name, count } = req.body;
+    
+    if (!targetDiscordId) {
+      return res.status(400).json({ message: 'Invalid trade request: missing target.' });
+    }
+    if (targetDiscordId === sender.discordId) {
+      return res.status(400).json({ message: 'Cannot trade with yourself.' });
+    }
+    const receiver = await User.findOne({ discordId: targetDiscordId, guildId: req.guildId });
+    if (!receiver) return res.status(404).json({ message: 'Target user not found.' });
+    
+    let itemsToPreview = [];
+    let totalValue = 0;
+    let actionDescription = '';
+
+    // Determine what to preview based on action
+    switch (action) {
+      case 'specific':
+        if (!type || !name || !count) {
+          return res.status(400).json({ message: 'For specific items, you must provide type, name, and count.' });
+        }
+        
+        const item = (sender.inventory || []).find(i => i.type === type && i.name === name);
+        if (!item) {
+          return res.status(404).json({ message: 'Item not found in your inventory.' });
+        }
+        if (item.count < count) {
+          return res.status(400).json({ message: `You only have ${item.count} of this item.` });
+        }
+        itemsToPreview = [{ type, name, count, value: item.value }];
+        totalValue = item.value * count;
+        actionDescription = `Trading specific item: ${name} to <@${targetDiscordId}>`;
+        break;
+
+      case 'all_fish':
+        const fishItems = (sender.inventory || []).filter(i => i.type === 'fish');
+        itemsToPreview = fishItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = fishItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Trading all fish (${fishItems.length} types) to <@${targetDiscordId}>`;
+        break;
+
+      case 'all_animals':
+        const animalItems = (sender.inventory || []).filter(i => i.type === 'animal');
+        itemsToPreview = animalItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = animalItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Trading all animals (${animalItems.length} types) to <@${targetDiscordId}>`;
+        break;
+
+      case 'all_items':
+        const itemItems = (sender.inventory || []).filter(i => i.type === 'item');
+        itemsToPreview = itemItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = itemItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Trading all items (${itemItems.length} types) to <@${targetDiscordId}>`;
+        break;
+
+      case 'all_common':
+        const commonItems = (sender.inventory || []).filter(i => i.rarity === 'common');
+        itemsToPreview = commonItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = commonItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Trading all common items (${commonItems.length} types) to <@${targetDiscordId}>`;
+        break;
+
+      case 'all_uncommon':
+        const uncommonItems = (sender.inventory || []).filter(i => i.rarity === 'uncommon');
+        itemsToPreview = uncommonItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = uncommonItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Trading all uncommon items (${uncommonItems.length} types) to <@${targetDiscordId}>`;
+        break;
+
+      case 'all_rare_plus':
+        const rarePlusItems = (sender.inventory || []).filter(i => 
+          ['rare', 'epic', 'legendary', 'mythical', 'transcendent'].includes(i.rarity)
+        );
+        itemsToPreview = rarePlusItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = rarePlusItems.reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Trading all rare+ items (${rarePlusItems.length} types) to <@${targetDiscordId}>`;
+        break;
+
+      case 'everything':
+        itemsToPreview = (sender.inventory || []).map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
+        totalValue = (sender.inventory || []).reduce((sum, item) => sum + (item.value * item.count), 0);
+        actionDescription = `Trading everything (${sender.inventory?.length || 0} types) to <@${targetDiscordId}>`;
+        break;
+
+      default:
+        return res.status(400).json({ message: 'Invalid action specified.' });
+    }
+
+    if (itemsToPreview.length === 0) {
+      return res.status(404).json({ message: `No items found to trade for action: ${action}` });
+    }
+
+    // Check for high-value items
+    const highValueItems = itemsToPreview.filter(item => {
+      const inventoryItem = (sender.inventory || []).find(i => i.type === item.type && i.name === item.name);
+      return inventoryItem && (inventoryItem.rarity === 'legendary' || inventoryItem.rarity === 'mythical' || inventoryItem.rarity === 'transcendent');
+    });
+
+    const needsConfirmation = totalValue > 10000 || highValueItems.length > 0 || itemsToPreview.length > 10;
+
+    res.json({
+      actionDescription,
+      itemsToPreview,
+      totalValue,
+      totalItems: itemsToPreview.reduce((sum, item) => sum + item.count, 0),
+      highValueItems: highValueItems.slice(0, 10), // Limit to first 10
+      needsConfirmation,
+      preview: true
+    });
+
+  } catch (error) {
+    console.error('Error in trade preview:', error);
+    res.status(500).json({ message: 'Server error during trade preview.' });
   }
 });
 

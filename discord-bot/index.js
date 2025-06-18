@@ -164,6 +164,232 @@ client.on('interactionCreate', async interaction => {
 	// TODO: Implement WebSocket connection to backend for real-time balance updates
 	// This will replace fetching balance via HTTP after certain commands (like placebet)
 	// and allow real-time updates for commands like resolvebet.
+	
+	// Handle button interactions first (before command check)
+	if (interaction.isButton()) {
+		// --- Handle sell buttons ---
+		if (interaction.customId === 'sell_cancel') {
+			try {
+				interaction.client.sellPreviews?.delete(interaction.user.id);
+				await interaction.update({
+					content: '❌ Sale cancelled.',
+					embeds: [],
+					components: [],
+					ephemeral: true
+				});
+			} catch (error) {
+				console.error('Error handling sell cancel:', error);
+			}
+			return;
+		}
+		if (interaction.customId.startsWith('sell_confirm_')) {
+			try {
+				// console.log('Handling sell confirm');
+				const previewData = interaction.client.sellPreviews?.get(interaction.user.id);
+				if (!previewData) {
+					// console.log('No preview data found for user:', interaction.user.id);
+					await interaction.update({
+						content: '❌ Sale preview expired. Please try again.',
+						embeds: [],
+						components: [],
+						ephemeral: true
+					});
+					return;
+				}
+
+				// console.log('Executing sale with preview data:', previewData);
+				// Execute the actual sale
+				const response = await axios.post(`${backendApiUrl}/users/${previewData.userId}/sell`, {
+					action: previewData.action,
+					type: previewData.type,
+					name: previewData.name,
+					count: previewData.count,
+					confirmation: true,
+					guildId: previewData.guildId
+				}, {
+					headers: { 'x-guild-id': previewData.guildId }
+				});
+
+				// console.log('Sale response:', response.data);
+				const { totalValue, soldItems, newBalance } = response.data;
+
+				// Remove stored preview data
+				interaction.client.sellPreviews.delete(interaction.user.id);
+
+				const successEmbed = new EmbedBuilder()
+					.setColor(0x00b894)
+					.setTitle('💰 Sale Completed!')
+					.setDescription(`Successfully sold **${soldItems.length}** items for **${totalValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points!`)
+					.addFields(
+						{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+						{ name: 'Items Sold', value: soldItems.slice(0, 10).map(item => `${item.count}x ${item.name}`).join('\n'), inline: false }
+					)
+					.setTimestamp();
+
+				if (soldItems.length > 10) {
+					successEmbed.addFields({
+						name: 'And more...',
+						value: `...and ${soldItems.length - 10} more items`,
+						inline: false
+					});
+				}
+
+				// Update the original message to show processing complete first
+				await interaction.update({
+					content: '✅ Sale completed!',
+					embeds: [],
+					components: [],
+					ephemeral: true
+				});
+
+				// Then send public result (ephemeral: false)
+				await interaction.followUp({
+					embeds: [successEmbed],
+					components: [],
+					ephemeral: false
+				});
+			} catch (error) {
+				console.error('Error handling sell confirm:', error);
+				const errorMessage = error.response?.data?.message || error.message || 'An error occurred while processing the sale.';
+				
+				// Remove stored preview data on error
+				interaction.client.sellPreviews?.delete(interaction.user.id);
+				
+				try {
+					// Update original message first
+					await interaction.update({
+						content: '❌ Sale failed.',
+						embeds: [],
+						components: [],
+						ephemeral: true
+					});
+
+					// Then send public error message
+					await interaction.followUp({
+						content: `❌ ${errorMessage}`,
+						embeds: [],
+						components: [],
+						ephemeral: false
+					});
+				} catch (updateError) {
+					console.error('Failed to send error messages:', updateError);
+				}
+			}
+			return;
+		}
+
+		// --- Handle trade buttons ---
+		if (interaction.customId === 'trade_cancel') {
+			try {
+				interaction.client.tradePreviews?.delete(interaction.user.id);
+				await interaction.update({
+					content: '❌ Trade cancelled.',
+					embeds: [],
+					components: [],
+					ephemeral: true
+				});
+			} catch (error) {
+				console.error('Error handling trade cancel:', error);
+			}
+			return;
+		}
+		if (interaction.customId.startsWith('trade_confirm_')) {
+			try {
+				// console.log('Handling trade confirm');
+				const previewData = interaction.client.tradePreviews?.get(interaction.user.id);
+				if (!previewData) {
+					// console.log('No preview data found for user:', interaction.user.id);
+					await interaction.update({
+						content: '❌ Trade preview expired. Please try again.',
+						embeds: [],
+						components: [],
+						ephemeral: true
+					});
+					return;
+				}
+
+				// console.log('Executing trade with preview data:', previewData);
+				// Execute the actual trade
+				const response = await axios.post(`${backendApiUrl}/users/${previewData.userId}/trade`, {
+					action: previewData.action,
+					type: previewData.type,
+					name: previewData.name,
+					count: previewData.count,
+					targetDiscordId: previewData.targetDiscordId,
+					confirmation: true,
+					guildId: previewData.guildId
+				}, {
+					headers: { 'x-guild-id': previewData.guildId }
+				});
+
+				// console.log('Trade response:', response.data);
+				const { tradedItems, message } = response.data;
+
+				// Remove stored preview data
+				interaction.client.tradePreviews.delete(interaction.user.id);
+
+				const successEmbed = new EmbedBuilder()
+					.setColor(0x00b894)
+					.setTitle('🤝 Trade Completed!')
+					.setDescription(message)
+					.addFields(
+						{ name: 'Items Traded', value: tradedItems.slice(0, 10).map(item => `${item.count}x ${item.name}`).join('\n'), inline: false }
+					)
+					.setTimestamp();
+
+				if (tradedItems.length > 10) {
+					successEmbed.addFields({
+						name: 'And more...',
+						value: `...and ${tradedItems.length - 10} more items`,
+						inline: false
+					});
+				}
+
+				// Update the original message to show processing complete first
+				await interaction.update({
+					content: '✅ Trade completed!',
+					embeds: [],
+					components: [],
+					ephemeral: true
+				});
+
+				// Then send public result (ephemeral: false)
+				await interaction.followUp({
+					embeds: [successEmbed],
+					components: [],
+					ephemeral: false
+				});
+			} catch (error) {
+				console.error('Error handling trade confirm:', error);
+				const errorMessage = error.response?.data?.message || error.message || 'An error occurred while processing the trade.';
+				
+				// Remove stored preview data on error
+				interaction.client.tradePreviews?.delete(interaction.user.id);
+				
+				try {
+					// Update original message first
+					await interaction.update({
+						content: '❌ Trade failed.',
+						embeds: [],
+						components: [],
+						ephemeral: true
+					});
+
+					// Then send public error message
+					await interaction.followUp({
+						content: `❌ ${errorMessage}`,
+						embeds: [],
+						components: [],
+						ephemeral: false
+					});
+				} catch (updateError) {
+					console.error('Failed to send error messages:', updateError);
+				}
+			}
+			return;
+		}
+	}
+	
 	if (!interaction.isCommand()) return;
 
 	const { commandName } = interaction;
@@ -2598,7 +2824,6 @@ client.on('interactionCreate', async interaction => {
 
 // Log in to Discord with your client's token
 client.login(process.env.DISCORD_TOKEN); 
-
 // In-memory cooldown map for /meowbark
 const meowbarkCooldowns = new Map(); 
 
@@ -2611,10 +2836,10 @@ async function safeErrorReply(interaction, embed) {
     try {
         if (interaction.deferred && !interaction.replied) {
             await interaction.editReply({ embeds: [embed] });
-        } else {
+		} else {
             await interaction.followUp({ embeds: [embed], ephemeral: true });
-        }
-    } catch (err) {
+			}
+		} catch (err) {
         console.error('Failed to send error reply:', err);
     }
 } 
@@ -2629,12 +2854,12 @@ setInterval(async () => {
       // Notify challenger
       try {
         const challengerUser = await client.users.fetch(duel.challengerDiscordId);
-        const embed = new EmbedBuilder()
-          .setColor(0xff7675)
+				const embed = new EmbedBuilder()
+					.setColor(0xff7675)
           .setTitle('⏰ Duel Cancelled')
           .setDescription(`Your duel with <@${duel.opponentDiscordId}> was cancelled as time ran out. Both players have been refunded their stakes (**${duel.amount.toLocaleString('en-US')} points** each).`)
           .setFooter({ text: `Duel ID: ${duel._id}` })
-          .setTimestamp();
+					.setTimestamp();
         await challengerUser.send({ embeds: [embed] });
       } catch (err) {
         console.warn('Failed to notify challenger:', duel.challengerDiscordId, err.message);
@@ -2642,21 +2867,21 @@ setInterval(async () => {
       // Notify opponent
       try {
         const opponentUser = await client.users.fetch(duel.opponentDiscordId);
-        const embed = new EmbedBuilder()
+				const embed = new EmbedBuilder()
           .setColor(0xff7675)
           .setTitle('⏰ Duel Cancelled')
           .setDescription(`Your duel with <@${duel.challengerDiscordId}> was cancelled as time ran out. Both players have been refunded their stakes (**${duel.amount.toLocaleString('en-US')} points** each).`)
           .setFooter({ text: `Duel ID: ${duel._id}` })
-          .setTimestamp();
+					.setTimestamp();
         await opponentUser.send({ embeds: [embed] });
-      } catch (err) {
+		} catch (err) {
         console.warn('Failed to notify opponent:', duel.opponentDiscordId, err.message);
       }
     }
     // Mark as notified
     const duelIds = duels.map(d => d._id);
     await axios.post(`${backendApiUrl}/duels/mark-notified`, { duelIds });
-  } catch (err) {
+		} catch (err) {
     console.error('Error polling for expired duels:', err.message);
   }
 }, 10000); // every 10 seconds
@@ -2667,8 +2892,9 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
     if (oldMember.communicationDisabledUntil && !newMember.communicationDisabledUntil) {
         try {
             await handleTimeoutRemoval(newMember.guild, newMember.id);
-        } catch (error) {
+		} catch (error) {
             console.error('Error handling manual timeout removal:', error);
         }
     }
 });
+
