@@ -41,10 +41,21 @@ client.once('ready', () => {
 
 // List of commands blocked for jailed users
 const jailedBlockedCommands = [
+	// Gambling & Betting
+	'coinflip', 'dice', 'slots', 'blackjack', 'roulette', 'jackpot',
 	'createbet', 'placebet', 'resolvebet', 'listbets', 'viewbet', 'closebet', 'cancelbet', 'editbet', 'extendbet', 'betinfo',
-	'coinflip', 'dice', 'slots', 'blackjack', 'roulette', 'jackpot', 'duel', 'work', 'beg', 'daily', 'meowbark', 'crime', 'fish', 'hunt', 'sell', 'trade', 'mysterybox', 'gift', 'buffs', 'timeout', 'question', 'steal'
+	
+	// Money-Earning Activities
+	'work', 'beg', 'daily', 'meowbark', 'crime', 'fish', 'hunt', 'steal',
+	
+	// Trading & Economy
+	'sell', 'trade', 'gift', 'mysterybox',
+	
+	// Social Activities
+	'duel', 'timeout'
 ];
-// List of view-only subcommands for duel, crime, work
+
+// List of view-only subcommands (allowed even when jailed)
 const viewOnlyDuelSubcommands = ['stats'];
 const viewOnlyCrimeSubcommands = ['stats'];
 const viewOnlyWorkSubcommands = ['stats'];

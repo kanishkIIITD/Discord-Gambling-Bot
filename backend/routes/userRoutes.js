@@ -307,7 +307,7 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       // Failure: jail time based on what would have been stolen
       const potentialStealPercentage = (Math.random() * 0.15) + 0.05; // 5% to 20%
       const potentialStolenAmount = Math.floor(targetWallet.balance * potentialStealPercentage);
-      const jailTimeMinutes = Math.min(14400000000, Math.max(1, Math.ceil(potentialStolenAmount / 1000))); // Cap at ~27 years (8,640,000,000,000,000 ms), minimum 1 minute
+      const jailTimeMinutes = Math.min(14400000000, Math.max(1, Math.ceil(potentialStolenAmount / 10000))); // Cap at ~27 years (8,640,000,000,000,000 ms), minimum 1 minute
       
       // Jail the attacker with proper date validation
       const jailEndTime = new Date(now.getTime() + (jailTimeMinutes * 60 * 1000));
