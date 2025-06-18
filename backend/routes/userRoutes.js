@@ -307,10 +307,26 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       // Failure: jail time based on what would have been stolen
       const potentialStealPercentage = (Math.random() * 0.15) + 0.05; // 5% to 20%
       const potentialStolenAmount = Math.floor(targetWallet.balance * potentialStealPercentage);
-      const jailTimeMinutes = Math.ceil(potentialStolenAmount / 1000); // Jail time = amount/1000
+      const jailTimeMinutes = Math.min(14400000000, Math.max(1, Math.ceil(potentialStolenAmount / 1000))); // Cap at ~27 years (8,640,000,000,000,000 ms), minimum 1 minute
       
-      // Jail the attacker
-      attacker.jailedUntil = new Date(now.getTime() + jailTimeMinutes * 60 * 1000);
+      // Jail the attacker with proper date validation
+      const jailEndTime = new Date(now.getTime() + (jailTimeMinutes * 60 * 1000));
+      
+      // Validate the date before assigning
+      if (isNaN(jailEndTime.getTime())) {
+        console.error('Invalid jail end time calculated:', {
+          now: now.toISOString(),
+          jailTimeMinutes,
+          jailEndTime: 'Invalid Date',
+          userId: req.params.userId,
+          targetDiscordId: req.body.targetDiscordId
+        });
+        return res.status(500).json({ 
+          message: 'Error calculating jail time. Please try again.' 
+        });
+      }
+      
+      attacker.jailedUntil = jailEndTime;
       attacker.stealStats.fail += 1;
       attacker.stealStats.jail += 1;
       attacker.stealCooldown = now;
@@ -3190,7 +3206,7 @@ router.get('/:discordId/cooldowns', async (req, res) => {
 });
 
 // Get steal stats for a user
-router.get('/:discordId/steal-stats', async (req, res) => {
+router.get('/:discordId/steal-stats', requireGuildId, async (req, res) => {
   try {
     const user = await User.findOne({ discordId: req.params.discordId, guildId: req.guildId });
     if (!user) return res.status(404).json({ message: 'User not found.' });

@@ -13,6 +13,15 @@ const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
 const coinSound = new Howl({ src: ['/sounds/casino_coins.mp3'], volume: 0.3 });
 const winSound = new Howl({ src: ['/sounds/slots_win.mp3'], volume: 0.4 });
 
+// Debounce utility
+function debounce(fn, delay) {
+  let timer = null;
+  return (...args) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
 export const Blackjack = () => {
   const { user } = useAuth();
   const { walletBalance, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance } = useDashboard();
@@ -37,6 +46,9 @@ export const Blackjack = () => {
   // Chip stack state: array of chip values (e.g., [10, 10, 25])
   const [chipStack, setChipStack] = useState([]);
   const totalBet = chipStack.reduce((sum, v) => sum + v, 0);
+
+  // --- PATCH: Add a ref to block rapid repeat requests ---
+  const lastStartTimeRef = useRef(0);
 
   // Add chip to stack
   const handleAddChip = (value) => {
@@ -63,14 +75,14 @@ export const Blackjack = () => {
     handleStartGame(totalBet);
   };
 
-  // Generalized function to start a game with a given bet amount
-  const handleStartGame = async (amount) => {
-    if (loading || amount < 10 || amount > walletBalance) return;
+  // --- PATCH: Robust handleStartGame with debounce and error handling ---
+  const handleStartGame = React.useCallback(debounce(async (amount) => {
+    if (loading || amount < 10 || amount > walletBalance || error) return;
     setLoading(true);
     setError('');
     setPrevWalletBalance(walletBalance);
     setSuppressWalletBalance(true);
-
+    lastStartTimeRef.current = Date.now();
     try {
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/blackjack`,
@@ -84,10 +96,11 @@ export const Blackjack = () => {
       setSuppressWalletBalance(false);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to start game.');
+      setLastBetAmount(0); // Clear last bet after failed repeat
       setLoading(false);
       setSuppressWalletBalance(false);
     }
-  };
+  }, 400), [loading, walletBalance, error, user, setPrevWalletBalance, setSuppressWalletBalance]);
 
   const handleAction = async (action) => {
     setLoading(true);
@@ -109,11 +122,19 @@ export const Blackjack = () => {
     }
   };
 
+  // --- PATCH: Disable Repeat Bet and Play Again if loading, error, or insufficient balance ---
+  const canRepeatBet = !loading && !error && lastBetAmount > 0 && lastBetAmount <= walletBalance;
+  const canPlayAgain = !loading && !error;
+
+  // PATCH: After error, require user to reset before further actions
   const handlePlayAgain = () => {
     setGameState(null);
     setShowResultModal(false);
     setBetAmount('');
     setError('');
+    setLastBetAmount(0); // Require new bet after error
+    setManualBetAmount(''); // Clear the manual amount input
+    setChipStack([]); // Clear the chip stack
   };
 
   // Improved Card component to match preview images and new requirements
@@ -293,13 +314,16 @@ export const Blackjack = () => {
               </div>
               {/* Container for Play Again and Repeat Bet buttons */}
               <div className="flex flex-row items-center justify-center gap-4">
-                <button className="mt-2 px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', fontSize: '1rem' }} onClick={handlePlayAgain}>Play Again</button>
-                 {/* Repeat Bet button */}
-                {lastBetAmount > 0 && lastBetAmount <= walletBalance && (
+                <button className="mt-2 px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', fontSize: '1rem' }} onClick={handlePlayAgain} disabled={!canPlayAgain}>Play Again</button>
+                {canRepeatBet && (
                   <button
                     className="mt-2 px-6 py-2 rounded-xl bg-green-600 text-white font-bold text-lg shadow-lg hover:bg-green-500 transition"
-                    onClick={() => handleStartGame(lastBetAmount)}
-                    disabled={loading}
+                    onClick={() => {
+                      setShowResultModal(false);
+                      setGameState(null); // Clear previous game state immediately
+                      handleStartGame(lastBetAmount);
+                    }}
+                    disabled={!canRepeatBet}
                   >
                     Repeat Bet (${lastBetAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
                   </button>
@@ -354,13 +378,16 @@ export const Blackjack = () => {
             <div className={`mb-4 text-xl font-bold ${gameState?.results?.[0]?.result === 'win' || gameState?.results?.[0]?.result === 'blackjack' ? 'text-green-400' : 'text-red-400'}`} style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif' }}>Winnings: <span className="text-yellow-300">${gameState?.results?.[0]?.winnings}</span></div>
             {/* Container for Play Again and Repeat Bet buttons in Modal */}
             <div className="flex flex-row items-center justify-center gap-4 mt-2">
-              <button className="px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', fontSize: '1rem' }} onClick={handlePlayAgain}>Play Again</button>
-              {/* Repeat Bet button in Modal */}
-              {lastBetAmount > 0 && lastBetAmount <= walletBalance && (
+              <button className="px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', fontSize: '1rem' }} onClick={handlePlayAgain} disabled={!canPlayAgain}>Play Again</button>
+              {canRepeatBet && (
                 <button
                   className="px-6 py-2 rounded-xl bg-green-600 text-white font-bold text-lg shadow-lg hover:bg-green-500 transition"
-                  onClick={() => handleStartGame(lastBetAmount)}
-                  disabled={loading}
+                  onClick={() => {
+                    setShowResultModal(false);
+                    setGameState(null); // Clear previous game state immediately
+                    handleStartGame(lastBetAmount);
+                  }}
+                  disabled={!canRepeatBet}
                 >
                   Repeat Bet (${lastBetAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
                 </button>
