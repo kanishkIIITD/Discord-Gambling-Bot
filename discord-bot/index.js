@@ -2306,8 +2306,8 @@ client.on('interactionCreate', async interaction => {
 							'\n*If stacked with guaranteed buffs, the multiplier applies to legendary+ or mythical+ as appropriate.*'
 						},
 						{ name: 'Guaranteed Buffs', value:
-							'`fishing_legendary` - Guaranteed legendary or better fish\n' +
-							'`hunting_legendary` - Guaranteed legendary or better animal\n' +
+							'`fishing_rare` - Guaranteed rare or better fish\n' +
+							'`hunting_rare` - Guaranteed rare or better animal\n' +
 							'`fishing_epic` - Guaranteed epic or better fish\n' +
 							'`hunting_epic` - Guaranteed epic or better animal'
 						},

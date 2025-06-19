@@ -2078,7 +2078,7 @@ router.post('/:discordId/fish', async (req, res) => {
     
     // Check for guaranteed legendary/epic buffs first
     const guaranteedBuff = (user.buffs || []).find(b => 
-      (b.type === 'fishing_legendary' || b.type === 'fishing_epic') && 
+      (b.type === 'fishing_rare' || b.type === 'fishing_epic') && 
       b.usesLeft > 0
     );
 
@@ -2106,30 +2106,34 @@ router.post('/:discordId/fish', async (req, res) => {
     // Calculate rarity weights based on buffs
     let weights = { ...baseWeights };
     if (guaranteedBuff) {
-      // Guaranteed Legendary or Epic logic
-      if (guaranteedBuff.type === 'fishing_legendary') {
-        // Only legendary, mythical, transcendent possible
+      // Guaranteed Rare or Epic logic
+      if (guaranteedBuff.type === 'fishing_rare') {
+        // Only rare, epic, legendary, mythical, transcendent possible
         // If rate buff, multiply mythical+ and assign remainder to legendary
+        const baseRare = baseWeights.rare;
+        const baseEpic = baseWeights.epic;
         const baseLegendary = baseWeights.legendary;
         const baseMythical = baseWeights.mythical;
         const baseTranscendent = baseWeights.transcendent;
-        const mythicalPlusBase = baseMythical + baseTranscendent;
-        let mythicalPlus = mythicalPlusBase * rateMultiplier;
-        if (mythicalPlus > 100) mythicalPlus = 100;
-        let legendary = baseLegendary + (mythicalPlusBase - mythicalPlus);
-        if (legendary < 0) legendary = 0;
-        // Distribute mythical/transcendent in original ratio
-        let mythical = 0, transcendent = 0;
-        if (mythicalPlus > 0) {
-          mythical = (baseMythical / mythicalPlusBase) * mythicalPlus;
-          transcendent = (baseTranscendent / mythicalPlusBase) * mythicalPlus;
+        const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent;
+        let epicPlus = epicPlusBase * rateMultiplier;
+        if (epicPlus > 100) epicPlus = 100;
+        let rare = baseRare + (epicPlusBase - epicPlus);
+        if (rare < 0) rare = 0;
+        // Distribute rare/epic/legendary/mythical/transcendent in original ratio
+        let epic = 0, legendary = 0, mythical = 0, transcendent = 0;
+        if (epicPlus > 0) {
+          epic = (baseEpic / epicPlusBase) * epicPlus;
+          legendary = (baseLegendary / epicPlusBase) * epicPlus;
+          mythical = (baseMythical / epicPlusBase) * epicPlus;
+          transcendent = (baseTranscendent / epicPlusBase) * epicPlus;
         }
         weights = {
           transcendent,
           mythical,
           legendary,
-          epic: 0,
-          rare: 0,
+          epic,
+          rare,
           uncommon: 0,
           common: 0
         };
@@ -2168,7 +2172,7 @@ router.post('/:discordId/fish', async (req, res) => {
         user.buffs = user.buffs.filter(b => b !== guaranteedBuff);
       }
       if (buffMessage) buffMessage += '\n';
-      buffMessage += `${guaranteedBuff.type} buff used: Guaranteed ${guaranteedBuff.type === 'fishing_legendary' ? 'Legendary' : 'Epic'} or better!`;
+      buffMessage += `${guaranteedBuff.type} buff used: Guaranteed ${guaranteedBuff.type === 'fishing_rare' ? 'Rare' : 'Epic'} or better!`;
     } else if (rateBuff) {
       // Only rate buff, no guaranteed buff
       // Multiply epic+ by rateMultiplier, distribute rest among rare/uncommon/common
@@ -2457,7 +2461,7 @@ router.post('/:discordId/hunt', async (req, res) => {
     
     // Check for guaranteed legendary/epic buffs first
     const guaranteedBuff = (user.buffs || []).find(b => 
-      (b.type === 'hunting_legendary' || b.type === 'hunting_epic') && 
+      (b.type === 'hunting_rare' || b.type === 'hunting_epic') && 
       b.usesLeft > 0
     );
 
@@ -2485,30 +2489,34 @@ router.post('/:discordId/hunt', async (req, res) => {
     // Calculate rarity weights based on buffs
     let weights = { ...baseWeights };
     if (guaranteedBuff) {
-      // Guaranteed Legendary or Epic logic
-      if (guaranteedBuff.type === 'hunting_legendary') {
-        // Only legendary, mythical, transcendent possible
+      // Guaranteed Rare or Epic logic
+      if (guaranteedBuff.type === 'hunting_rare') {
+        // Only rare, epic, legendary, mythical, transcendent possible
         // If rate buff, multiply mythical+ and assign remainder to legendary
+        const baseRare = baseWeights.rare;
+        const baseEpic = baseWeights.epic;
         const baseLegendary = baseWeights.legendary;
         const baseMythical = baseWeights.mythical;
         const baseTranscendent = baseWeights.transcendent;
-        const mythicalPlusBase = baseMythical + baseTranscendent;
-        let mythicalPlus = mythicalPlusBase * rateMultiplier;
-        if (mythicalPlus > 100) mythicalPlus = 100;
-        let legendary = baseLegendary + (mythicalPlusBase - mythicalPlus);
-        if (legendary < 0) legendary = 0;
-        // Distribute mythical/transcendent in original ratio
-        let mythical = 0, transcendent = 0;
-        if (mythicalPlus > 0) {
-          mythical = (baseMythical / mythicalPlusBase) * mythicalPlus;
-          transcendent = (baseTranscendent / mythicalPlusBase) * mythicalPlus;
+        const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent;
+        let epicPlus = epicPlusBase * rateMultiplier;
+        if (epicPlus > 100) epicPlus = 100;
+        let rare = baseRare + (epicPlusBase - epicPlus);
+        if (rare < 0) rare = 0;
+        // Distribute rare/epic/legendary/mythical/transcendent in original ratio
+        let epic = 0, legendary = 0, mythical = 0, transcendent = 0;
+        if (epicPlus > 0) {
+          epic = (baseEpic / epicPlusBase) * epicPlus;
+          legendary = (baseLegendary / epicPlusBase) * epicPlus;
+          mythical = (baseMythical / epicPlusBase) * epicPlus;
+          transcendent = (baseTranscendent / epicPlusBase) * epicPlus;
         }
         weights = {
           transcendent,
           mythical,
           legendary,
-          epic: 0,
-          rare: 0,
+          epic,
+          rare,
           uncommon: 0,
           common: 0
         };
@@ -2547,7 +2555,7 @@ router.post('/:discordId/hunt', async (req, res) => {
         user.buffs = user.buffs.filter(b => b !== guaranteedBuff);
       }
       if (buffMessage) buffMessage += '\n';
-      buffMessage += `${guaranteedBuff.type} buff used: Guaranteed ${guaranteedBuff.type === 'hunting_legendary' ? 'Legendary' : 'Epic'} or better!`;
+      buffMessage += `${guaranteedBuff.type} buff used: Guaranteed ${guaranteedBuff.type === 'hunting_rare' ? 'Rare' : 'Epic'} or better!`;
     } else if (rateBuff) {
       // Only rate buff, no guaranteed buff
       // Multiply epic+ by rateMultiplier, distribute rest among rare/uncommon/common
@@ -3846,14 +3854,14 @@ router.post('/:discordId/mysterybox', async (req, res) => {
         ]},
         buffs: { chance: 0.3, pool: [
           {
-            type: 'fishing_epic',
-            description: 'Next fish is guaranteed Epic or better!',
+            type: 'fishing_rare',
+            description: 'Next fish is guaranteed Rare or better!',
             usesLeft: 1,
             weight: 25
           },
           {
-            type: 'hunting_epic',
-            description: 'Next animal is guaranteed Epic or better!',
+            type: 'hunting_rare',
+            description: 'Next animal is guaranteed Rare or better!',
             usesLeft: 1,
             weight: 25
           },
@@ -3895,14 +3903,14 @@ router.post('/:discordId/mysterybox', async (req, res) => {
         ]},
         buffs: { chance: 0.4, pool: [
           {
-            type: 'fishing_legendary',
-            description: 'Next fish is guaranteed Legendary or better!',
+            type: 'fishing_epic',
+            description: 'Next fish is guaranteed Epic or better!',
             usesLeft: 1,
             weight: 20
           },
           {
-            type: 'hunting_legendary',
-            description: 'Next animal is guaranteed Legendary or better!',
+            type: 'hunting_epic',
+            description: 'Next animal is guaranteed Epic or better!',
             usesLeft: 1,
             weight: 20
           },
