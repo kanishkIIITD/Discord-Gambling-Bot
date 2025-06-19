@@ -11,6 +11,27 @@ const { requireGuildId } = require('../middleware/auth');
 const { calculateTimeoutCost, isValidTimeoutDuration, isOnTimeoutCooldown, getRemainingCooldown, BASE_COST_PER_MINUTE, BALANCE_PERCENTAGE } = require('../utils/timeoutUtils');
 const { auth, requireSuperAdmin } = require('../middleware/auth');
 
+// Rarity weights for buffs
+const baseWeights = {
+  transcendent: 0.5,
+  mythical: 1,
+  legendary: 3,
+  epic: 5.5,
+  rare: 15,
+  uncommon: 25,
+  common: 50
+};
+// Rarity order for buffs
+const rarityOrder = [
+  'transcendent',
+  'mythical',
+  'legendary',
+  'epic',
+  'rare',
+  'uncommon',
+  'common'
+];
+
 // --- TIMEOUT ENDPOINT ---
 router.post('/:userId/timeout', requireGuildId, async (req, res) => {
   try {
@@ -308,10 +329,53 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       const potentialStealPercentage = (Math.random() * 0.15) + 0.05; // 5% to 20%
       const potentialStolenAmount = Math.floor(targetWallet.balance * potentialStealPercentage);
       const jailTimeMinutes = Math.min(14400000000, Math.max(1, Math.ceil(potentialStolenAmount / 10000))); // Cap at ~27 years (8,640,000,000,000,000 ms), minimum 1 minute
-      
+      // Jail Immunity Buff logic
+      const now = new Date();
+      let jailImmunityIdx = -1;
+      if (attacker.buffs && Array.isArray(attacker.buffs)) {
+        jailImmunityIdx = attacker.buffs.findIndex(b => b.type === 'jail_immunity' && (!b.expiresAt || b.expiresAt > now) && (b.usesLeft === undefined || b.usesLeft > 0));
+      }
+      if (jailImmunityIdx >= 0) {
+        // Use the buff, do not jail
+        if (attacker.buffs[jailImmunityIdx].usesLeft !== undefined) {
+          attacker.buffs[jailImmunityIdx].usesLeft--;
+        }
+        // Remove expired/used up buffs
+        attacker.buffs = (attacker.buffs || []).filter(b => {
+          if (b.type !== 'jail_immunity') return true;
+          if (b.expiresAt && b.expiresAt < now) return false;
+          if (b.usesLeft !== undefined && b.usesLeft <= 0) return false;
+          return true;
+        });
+        attacker.stealStats.fail += 1;
+        attacker.stealCooldown = now;
+        await attacker.save();
+        // Create transaction record (no jail)
+        await Transaction.create({
+          user: attacker._id,
+          guildId,
+          type: 'steal',
+          amount: 0,
+          description: `Failed to steal from ${targetDiscordId} but jail immunity buff saved them from jail`,
+          metadata: {
+            targetDiscordId,
+            potentialStolenAmount,
+            jailTimeMinutes,
+            success: false,
+            buffUsed: 'jail_immunity'
+          }
+        });
+        return res.json({
+          message: `Steal attempt failed! Your jail immunity buff saved you from jail!`,
+          success: false,
+          jailTimeMinutes: 0,
+          cooldownTime: attacker.stealCooldown,
+          buffUsed: 'jail_immunity',
+          buffMessage: 'Your jail immunity buff saved you from jail!'
+        });
+      }
       // Jail the attacker with proper date validation
       const jailEndTime = new Date(now.getTime() + (jailTimeMinutes * 60 * 1000));
-      
       // Validate the date before assigning
       if (isNaN(jailEndTime.getTime())) {
         console.error('Invalid jail end time calculated:', {
@@ -325,13 +389,11 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
           message: 'Error calculating jail time. Please try again.' 
         });
       }
-      
       attacker.jailedUntil = jailEndTime;
       attacker.stealStats.fail += 1;
       attacker.stealStats.jail += 1;
       attacker.stealCooldown = now;
       await attacker.save();
-      
       // Create transaction record
       await Transaction.create({
         user: attacker._id,
@@ -346,7 +408,6 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
           success: false
         }
       });
-      
       res.json({
         message: `Steal attempt failed! You got caught and are jailed for ${jailTimeMinutes} minutes.`,
         success: false,
@@ -380,6 +441,16 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Sunfish', rarity: 'common' },
       { name: 'Dace', rarity: 'common' },
       { name: 'Rudd', rarity: 'common' },
+      { name: 'Herring', rarity: 'common' },
+      { name: 'Roach', rarity: 'common' },
+      { name: 'Whitefish', rarity: 'common' },
+      { name: 'Crucian Carp', rarity: 'common' },
+      { name: 'Bleak', rarity: 'common' },
+      { name: 'Shiner', rarity: 'common' },
+      { name: 'Loach', rarity: 'common' },
+      { name: 'Grunt Fish', rarity: 'common' },
+      { name: 'Silver Biddy', rarity: 'common' },
+      { name: 'Sculpin', rarity: 'common' },
       { name: 'Bass', rarity: 'uncommon' },
       { name: 'Catfish', rarity: 'uncommon' },
       { name: 'Pike', rarity: 'uncommon' },
@@ -395,6 +466,16 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Bullhead Catfish', rarity: 'uncommon' },
       { name: 'Blue Catfish', rarity: 'uncommon' },
       { name: 'Burbot', rarity: 'uncommon' },
+      { name: 'Sheepshead', rarity: 'uncommon' },
+      { name: 'White Bass', rarity: 'uncommon' },
+      { name: 'Golden Perch', rarity: 'uncommon' },
+      { name: 'Spotted Seatrout', rarity: 'uncommon' },
+      { name: 'Striped Bass', rarity: 'uncommon' },
+      { name: 'Weakfish', rarity: 'uncommon' },
+      { name: 'Silver Carp', rarity: 'uncommon' },
+      { name: 'Lake Whitefish', rarity: 'uncommon' },
+      { name: 'Longnose Gar', rarity: 'uncommon' },
+      { name: 'Black Crappie', rarity: 'uncommon' },
       { name: 'Salmon', rarity: 'rare' },
       { name: 'Sturgeon', rarity: 'rare' },
       { name: 'Eel', rarity: 'rare' },
@@ -410,6 +491,16 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Flying Fish', rarity: 'rare' },
       { name: 'Tilefish ', rarity: 'rare' },
       { name: 'Queen Angelfish', rarity: 'rare' },
+      { name: 'Red Drum', rarity: 'rare' },
+      { name: 'Bluefin Tuna', rarity: 'rare' },
+      { name: 'Atlantic Bonito', rarity: 'rare' },
+      { name: 'Deep Sea Smelt', rarity: 'rare' },
+      { name: 'Dusky Grouper', rarity: 'rare' },
+      { name: 'Bigeye Trevally', rarity: 'rare' },
+      { name: 'Ghost Catfish', rarity: 'rare' },
+      { name: 'Ocean Sunfish', rarity: 'rare' },
+      { name: 'Spotted Eagle Ray', rarity: 'rare' },
+      { name: 'Threadfin Bream', rarity: 'rare' },
       { name: 'Mahi-Mahi', rarity: 'epic' },
       { name: 'Giant Squid', rarity: 'epic' },
       { name: 'Electric Ray', rarity: 'epic' },
@@ -430,6 +521,16 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Lionfish', rarity: 'epic' },
       { name: 'Swordtail Shark', rarity: 'epic' },
       { name: 'Silver Salmon', rarity: 'epic' },
+      { name: 'Dragon Eel', rarity: 'epic' },
+      { name: 'Thunderfin', rarity: 'epic' },
+      { name: 'Starlight Ray', rarity: 'epic' },
+      { name: 'Crystal Piranha', rarity: 'epic' },
+      { name: 'Twilight Lanternfish', rarity: 'epic' },
+      { name: 'Ghostfin Barracuda', rarity: 'epic' },
+      { name: 'Frostjaw Pike', rarity: 'epic' },
+      { name: 'Ironscale Tuna', rarity: 'epic' },
+      { name: 'Blazetail Salmon', rarity: 'epic' },
+      { name: 'Volcanic Grouper', rarity: 'epic' },
       { name: 'Golden Koi', rarity: 'legendary' },
       { name: 'Ancient Leviathan', rarity: 'legendary' },
       { name: 'Celestial Angelfish', rarity: 'legendary' },
@@ -439,6 +540,12 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Stormscale Tuna', rarity: 'legendary' },
       { name: 'Shadowfin Orca', rarity: 'legendary' },
       { name: 'Prism Jellyfish', rarity: 'legendary' },
+      { name: 'Frostfin Leviathan', rarity: 'legendary' },
+      { name: 'Titan Bass', rarity: 'legendary' },
+      { name: 'Hellmaw Eel', rarity: 'legendary' },
+      { name: 'Thundercrash Ray', rarity: 'legendary' },
+      { name: 'Gilded Marlin', rarity: 'legendary' },
+      { name: 'Stormray Manta', rarity: 'legendary' },
       { name: 'Abyssal Serpent', rarity: 'mythical' },
       { name: 'Timefish of Eternity', rarity: 'mythical' },
       { name: 'Void Whale', rarity: 'mythical' },
@@ -451,6 +558,11 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Moonlit Tuna', rarity: 'mythical' },
       { name: 'Astral Barracuda', rarity: 'mythical' },
       { name: 'Cosmic Lanternfish', rarity: 'mythical' },
+      { name: 'Chronoshark', rarity: 'mythical' },
+      { name: 'Aurora Abyssfish', rarity: 'mythical' },
+      { name: 'Wyrmfin', rarity: 'mythical' },
+      { name: 'Reality Pike', rarity: 'mythical' },
+      { name: 'Sunborn Leviathan', rarity: 'mythical' },
       { name: 'Goldfish', rarity: 'transcendent' },
       { name: 'Infinity Carp', rarity: 'transcendent' },
       { name: 'Omnifin', rarity: 'transcendent' },
@@ -460,6 +572,10 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Etherfin Leviathan', rarity: 'transcendent' },
       { name: 'Galactic Jellyray', rarity: 'transcendent' },
       { name: 'The Kraken', rarity: 'transcendent' },
+      { name: 'Eternafish', rarity: 'transcendent' },
+      { name: 'Omnisquid', rarity: 'transcendent' },
+      { name: 'Celestine Ray', rarity: 'transcendent' },
+      { name: 'Godfin Eternatus', rarity: 'transcendent' },
     ];
     const animalTable = [
       { name: 'Rabbit', rarity: 'common' },
@@ -475,6 +591,16 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Field Mouse', rarity: 'common' },
       { name: 'Frog ', rarity: 'common' },
       { name: 'Lizard', rarity: 'common' },
+      { name: 'Beaver', rarity: 'common' },
+      { name: 'Mallard', rarity: 'common' },
+      { name: 'Turtle', rarity: 'common' },
+      { name: 'Snail', rarity: 'common' },
+      { name: 'Rat', rarity: 'common' },
+      { name: 'Magpie', rarity: 'common' },
+      { name: 'Bat', rarity: 'common' },
+      { name: 'Finch', rarity: 'common' },
+      { name: 'Newt', rarity: 'common' },
+      { name: 'Shrew', rarity: 'common' },
       { name: 'Fox', rarity: 'uncommon' },
       { name: 'Raccoon', rarity: 'uncommon' },
       { name: 'Owl', rarity: 'uncommon' },
@@ -488,6 +614,16 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Woodpecker', rarity: 'uncommon' },
       { name: 'Gopher', rarity: 'uncommon' },
       { name: 'Opossum', rarity: 'uncommon' },
+      { name: 'Ferret', rarity: 'uncommon' },
+      { name: 'Tasmanian Devil', rarity: 'uncommon' },
+      { name: 'Armadillo', rarity: 'uncommon' },
+      { name: 'Monitor Lizard', rarity: 'uncommon' },
+      { name: 'Snapping Turtle', rarity: 'uncommon' },
+      { name: 'Jackrabbit', rarity: 'uncommon' },
+      { name: 'Kookaburra', rarity: 'uncommon' },
+      { name: 'Pangolin', rarity: 'uncommon' },
+      { name: 'Tamarin', rarity: 'uncommon' },
+      { name: 'Kinkajou', rarity: 'uncommon' },
       { name: 'Deer', rarity: 'rare' },
       { name: 'Boar', rarity: 'rare' },
       { name: 'Hawk', rarity: 'rare' },
@@ -506,6 +642,16 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Caracal', rarity: 'rare' },
       { name: 'Moose', rarity: 'rare' },
       { name: 'Elk', rarity: 'rare' },
+      { name: 'Serval', rarity: 'rare' },
+      { name: 'Bush Dog', rarity: 'rare' },
+      { name: 'Secretary Bird', rarity: 'rare' },
+      { name: 'Maned Wolf', rarity: 'rare' },
+      { name: 'Golden Jackal', rarity: 'rare' },
+      { name: 'Musk Ox', rarity: 'rare' },
+      { name: 'Clouded Leopard', rarity: 'rare' },
+      { name: 'Bearded Vulture', rarity: 'rare' },
+      { name: 'Harpy Eagle', rarity: 'rare' },
+      { name: 'Mountain Lion', rarity: 'rare' },
       { name: 'Bear', rarity: 'epic' },
       { name: 'Dire Wolf', rarity: 'epic' },
       { name: 'Thunder Elk', rarity: 'epic' },
@@ -526,6 +672,16 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Ice Lynx', rarity: 'epic' },
       { name: 'Bison', rarity: 'epic' },
       { name: 'Iron Stag', rarity: 'epic' },
+      { name: 'Ember Falcon', rarity: 'epic' },
+      { name: 'Crystal Boar', rarity: 'epic' },
+      { name: 'Frostfang Lynx', rarity: 'epic' },
+      { name: 'Lava Panther', rarity: 'epic' },
+      { name: 'Ironclaw Wolverine', rarity: 'epic' },
+      { name: 'Tundra Ram', rarity: 'epic' },
+      { name: 'Solar Macaw', rarity: 'epic' },
+      { name: 'Shadow Porcupine', rarity: 'epic' },
+      { name: 'Spirit Vulture', rarity: 'epic' },
+      { name: 'Celestial Ibex', rarity: 'epic' },
       { name: 'White Stag', rarity: 'legendary' },
       { name: 'Mythic Phoenix', rarity: 'legendary' },
       { name: 'Griffin', rarity: 'legendary' },
@@ -537,6 +693,12 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Phantom Jaguar', rarity: 'legendary' },
       { name: 'Divine Stag', rarity: 'legendary' },
       { name: 'Celestial Bear', rarity: 'legendary' },
+      { name: 'Flamehorn Yak', rarity: 'legendary' },
+      { name: 'Spectral Falcon', rarity: 'legendary' },
+      { name: 'Gilded Stag', rarity: 'legendary' },
+      { name: 'Ember Phoenix', rarity: 'legendary' },
+      { name: 'Mythic Ram', rarity: 'legendary' },
+      { name: 'Frostmane Lion', rarity: 'legendary' },
       { name: 'Eclipse Dragon', rarity: 'mythical' },
       { name: 'Spirit of the Forest', rarity: 'mythical' },
       { name: 'Cosmic Thunderbird', rarity: 'mythical' },
@@ -552,6 +714,11 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Forest Djinn', rarity: 'mythical' },
       { name: 'Celestial Wolf', rarity: 'mythical' },
       { name: 'Titan Boar', rarity: 'mythical' },
+      { name: 'Oblivion Wolf', rarity: 'mythical' },
+      { name: 'Runeblade Stag', rarity: 'mythical' },
+      { name: 'Soulfeather Roc', rarity: 'mythical' },
+      { name: 'Chrono Panther', rarity: 'mythical' },
+      { name: 'Twilight Chimera', rarity: 'mythical' },
       { name: 'Platypus', rarity: 'transcendent' },
       { name: 'Dimensional Alpaca', rarity: 'transcendent' },
       { name: 'The One Who Hunts', rarity: 'transcendent' },
@@ -564,6 +731,10 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Chronobeast', rarity: 'transcendent' },
       { name: 'Galactic Elephant', rarity: 'transcendent' },
       { name: 'Cosmic Rhino', rarity: 'transcendent' },
+      { name: 'Interdimensional Capybara', rarity: 'transcendent' },
+      { name: 'The Final Squirrel', rarity: 'transcendent' },
+      { name: 'Fractal Pegasus', rarity: 'transcendent' },
+      { name: 'Hamstergod Supreme', rarity: 'transcendent' },
     ];
     const itemTable = [
       { name: 'Rubber Duck', rarity: 'common' },
@@ -927,8 +1098,17 @@ router.post('/:userId/daily', async (req, res) => {
       });
     }
 
-    // Calculate streak bonus
-    const streak = wallet.dailyStreak || 0;
+    // --- Streak reset logic ---
+    let streak = wallet.dailyStreak || 0;
+    if (lastClaim) {
+      const msSinceLastClaim = now.getTime() - lastClaim.getTime();
+      if (msSinceLastClaim > 24 * 60 * 60 * 1000) {
+        streak = 0; // Reset streak if more than 24 hours since last claim
+      }
+    }
+    streak += 1;
+    // --- End streak reset logic ---
+
     const baseAmount = 10000; // Base daily bonus (10% of starting balance)
     const streakMultiplier = Math.min(1 + (streak * 0.1), 2); // Max 2x multiplier
     const bonusAmount = Math.floor(baseAmount * streakMultiplier);
@@ -936,7 +1116,7 @@ router.post('/:userId/daily', async (req, res) => {
     // Update wallet
     wallet.balance += bonusAmount;
     wallet.lastDailyClaim = new Date(); // Store the exact claim time
-    wallet.dailyStreak = (wallet.dailyStreak || 0) + 1;
+    wallet.dailyStreak = streak;
     await wallet.save();
 
     // Record transaction
@@ -1748,6 +1928,16 @@ router.post('/:discordId/fish', async (req, res) => {
       { name: 'Sunfish', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Dace', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Rudd', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Herring', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Roach', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Whitefish', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Crucian Carp', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Bleak', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Shiner', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Loach', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Grunt Fish', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Silver Biddy', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Sculpin', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
     
       // Uncommon
       { name: 'Bass', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
@@ -1765,6 +1955,16 @@ router.post('/:discordId/fish', async (req, res) => {
       { name: 'Bullhead Catfish', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Blue Catfish', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Burbot', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Sheepshead', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'White Bass', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Golden Perch', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Spotted Seatrout', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Striped Bass', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Weakfish', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Silver Carp', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Lake Whitefish', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Longnose Gar', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Black Crappie', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       // Rare
       { name: 'Salmon', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Sturgeon', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
@@ -1781,6 +1981,16 @@ router.post('/:discordId/fish', async (req, res) => {
       { name: 'Flying Fish', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Tilefish', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Queen Angelfish', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Red Drum', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Bluefin Tuna', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Atlantic Bonito', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Deep Sea Smelt', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Dusky Grouper', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Bigeye Trevally', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Ghost Catfish', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Ocean Sunfish', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Spotted Eagle Ray', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Threadfin Bream', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       // Epic
       { name: 'Mahi-Mahi', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Giant Squid', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
@@ -1802,6 +2012,15 @@ router.post('/:discordId/fish', async (req, res) => {
       { name: 'Lionfish', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Silver Salmon', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Swordtail Shark', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Thunderfin', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Starlight Ray', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Crystal Piranha', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Twilight Lanternfish', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Ghostfin Barracuda', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Frostjaw Pike', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Ironscale Tuna', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Blazetail Salmon', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Volcanic Grouper', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       // Legendary
       { name: 'Golden Koi', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
       { name: 'Ancient Leviathan', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
@@ -1812,7 +2031,12 @@ router.post('/:discordId/fish', async (req, res) => {
       { name: 'Stormscale Tuna', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
       { name: 'Shadowfin Orca', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
       { name: 'Prism Jellyfish', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
-    
+      { name: 'Frostfin Leviathan', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Titan Bass', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Hellmaw Eel', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Thundercrash Ray', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Gilded Marlin', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
+      { name: 'Stormray Manta', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
       // Mythical
       { name: 'Abyssal Serpent', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Timefish of Eternity', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
@@ -1826,6 +2050,11 @@ router.post('/:discordId/fish', async (req, res) => {
       { name: 'Moonlit Tuna', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Astral Barracuda', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Cosmic Lanternfish', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Chronoshark', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Aurora Abyssfish', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Wyrmfin', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Reality Pike', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Sunborn Leviathan', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
 
       // Transcendent
         { name: 'Goldfish', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
@@ -1837,6 +2066,10 @@ router.post('/:discordId/fish', async (req, res) => {
         { name: 'Etherfin Leviathan', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
         { name: 'Galactic Jellyray', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
         { name: 'The Kraken', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+        { name: 'Eternafish', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+        { name: 'Omnisquid', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+        { name: 'Celestine Ray', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+        { name: 'Godfin Eternatus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
     ];
     
     // Rarity weights
@@ -1857,107 +2090,140 @@ router.post('/:discordId/fish', async (req, res) => {
       (!b.expiresAt || b.expiresAt > now)
     );
 
-    let boostFactor = 0;
+    // Multiplier for rate buffs
+    let rateMultiplier = 1;
+    let rateBuffType = null;
     if (rateBuff) {
-      boostFactor = {
-        fishing_rate_2x: 0.10,  // +10% chance shift
-        fishing_rate_3x: 0.18,  // +18%
-        fishing_rate_5x: 0.30   // +30%
-      }[rateBuff.type];
-      buffMessage += `${rateBuff.type} buff active: +${Math.floor(boostFactor * 100)}% chance boost!`;
+      rateBuffType = rateBuff.type;
+      rateMultiplier = {
+        fishing_rate_2x: 2,
+        fishing_rate_3x: 3,
+        fishing_rate_5x: 5
+      }[rateBuff.type] || 1;
+      buffMessage += `${rateBuff.type} buff active: Epic+ drop rates multiplied by ${rateMultiplier}x!`;
     }
 
-    // Apply guaranteed buffs with rate buff redistribution
+    // Calculate rarity weights based on buffs
+    let weights = { ...baseWeights };
     if (guaranteedBuff) {
+      // Guaranteed Legendary or Epic logic
       if (guaranteedBuff.type === 'fishing_legendary') {
-        // Base probabilities
-        const baseLegendary = 0.985;      // 98.5%
-        const baseMythical = 0.01;        // 1%
-        const baseTranscendent = 0.005;   // 0.5%
-
-        if (boostFactor > 0) {
-          // Redistribution target: mythical + transcendent
-          const totalAbove = baseMythical + baseTranscendent;
-          const mythicalRatio = baseMythical / totalAbove;
-          const transcendentRatio = baseTranscendent / totalAbove;
-
-          const mythicalBoost = boostFactor * mythicalRatio;
-          const transcendentBoost = boostFactor * transcendentRatio;
-
-          const adjustedLegendary = baseLegendary - boostFactor;
-
-          // Apply shifted thresholds
-          if (rarityRoll > 0.995 - transcendentBoost) rarity = 'transcendent';
-          else if (rarityRoll > 0.985 - mythicalBoost) rarity = 'mythical';
-          else rarity = 'legendary';
-        } else {
-          if (rarityRoll > 0.995) rarity = 'transcendent';
-          else if (rarityRoll > 0.985) rarity = 'mythical';
-          else rarity = 'legendary';
+        // Only legendary, mythical, transcendent possible
+        // If rate buff, multiply mythical+ and assign remainder to legendary
+        const baseLegendary = baseWeights.legendary;
+        const baseMythical = baseWeights.mythical;
+        const baseTranscendent = baseWeights.transcendent;
+        const mythicalPlusBase = baseMythical + baseTranscendent;
+        let mythicalPlus = mythicalPlusBase * rateMultiplier;
+        if (mythicalPlus > 100) mythicalPlus = 100;
+        let legendary = baseLegendary + (mythicalPlusBase - mythicalPlus);
+        if (legendary < 0) legendary = 0;
+        // Distribute mythical/transcendent in original ratio
+        let mythical = 0, transcendent = 0;
+        if (mythicalPlus > 0) {
+          mythical = (baseMythical / mythicalPlusBase) * mythicalPlus;
+          transcendent = (baseTranscendent / mythicalPlusBase) * mythicalPlus;
         }
-
-        if (buffMessage) buffMessage += '\n';
-        buffMessage += `${guaranteedBuff.type} buff used: Guaranteed Legendary or better!`;
+        weights = {
+          transcendent,
+          mythical,
+          legendary,
+          epic: 0,
+          rare: 0,
+          uncommon: 0,
+          common: 0
+        };
       } else if (guaranteedBuff.type === 'fishing_epic') {
-        // Base probabilities
-        const baseEpic = 0.955;           // 95.5%
-        const baseLegendary = 0.03;       // 3%
-        const baseMythical = 0.01;        // 1%
-        const baseTranscendent = 0.005;   // 0.5%
-
-        if (boostFactor > 0) {
-          // Redistribute from epic to higher
-          const totalAbove = baseLegendary + baseMythical + baseTranscendent;
-          const legendaryRatio = baseLegendary / totalAbove;
-          const mythicalRatio = baseMythical / totalAbove;
-          const transcendentRatio = baseTranscendent / totalAbove;
-
-          const legendaryBoost = boostFactor * legendaryRatio;
-          const mythicalBoost = boostFactor * mythicalRatio;
-          const transcendentBoost = boostFactor * transcendentRatio;
-
-          const adjustedEpic = baseEpic - boostFactor;
-
-          // Apply shifted thresholds
-          if (rarityRoll > 0.995 - transcendentBoost) rarity = 'transcendent';
-          else if (rarityRoll > 0.985 - mythicalBoost) rarity = 'mythical';
-          else if (rarityRoll > 0.955 - legendaryBoost) rarity = 'legendary';
-          else rarity = 'epic';
-        } else {
-          if (rarityRoll > 0.995) rarity = 'transcendent';
-          else if (rarityRoll > 0.985) rarity = 'mythical';
-          else if (rarityRoll > 0.955) rarity = 'legendary';
-          else rarity = 'epic';
+        // Only epic, legendary, mythical, transcendent possible
+        // If rate buff, multiply legendary+ and assign remainder to epic
+        const baseEpic = baseWeights.epic;
+        const baseLegendary = baseWeights.legendary;
+        const baseMythical = baseWeights.mythical;
+        const baseTranscendent = baseWeights.transcendent;
+        const legendaryPlusBase = baseLegendary + baseMythical + baseTranscendent;
+        let legendaryPlus = legendaryPlusBase * rateMultiplier;
+        if (legendaryPlus > 100) legendaryPlus = 100;
+        let epic = baseEpic + (legendaryPlusBase - legendaryPlus);
+        if (epic < 0) epic = 0;
+        // Distribute legendary/mythical/transcendent in original ratio
+        let legendary = 0, mythical = 0, transcendent = 0;
+        if (legendaryPlus > 0) {
+          legendary = (baseLegendary / legendaryPlusBase) * legendaryPlus;
+          mythical = (baseMythical / legendaryPlusBase) * legendaryPlus;
+          transcendent = (baseTranscendent / legendaryPlusBase) * legendaryPlus;
         }
-
-        if (buffMessage) buffMessage += '\n';
-        buffMessage += `${guaranteedBuff.type} buff used: Guaranteed Epic or better!`;
+        weights = {
+          transcendent,
+          mythical,
+          legendary,
+          epic,
+          rare: 0,
+          uncommon: 0,
+          common: 0
+        };
       }
-      
       // Decrement uses
       guaranteedBuff.usesLeft--;
       if (guaranteedBuff.usesLeft <= 0) {
         user.buffs = user.buffs.filter(b => b !== guaranteedBuff);
       }
+      if (buffMessage) buffMessage += '\n';
+      buffMessage += `${guaranteedBuff.type} buff used: Guaranteed ${guaranteedBuff.type === 'fishing_legendary' ? 'Legendary' : 'Epic'} or better!`;
     } else if (rateBuff) {
       // Only rate buff, no guaranteed buff
-      const finalRoll = Math.min(rarityRoll + boostFactor, 0.999);
-      
-      if (finalRoll > 0.995) rarity = 'transcendent';   // 0.5%
-      else if (finalRoll > 0.985) rarity = 'mythical';  // 1%
-      else if (finalRoll > 0.955) rarity = 'legendary'; // 3%
-      else if (finalRoll > 0.90) rarity = 'epic';       // 5.5%
-      else if (finalRoll > 0.75) rarity = 'rare';       // 15%
-      else if (finalRoll > 0.50) rarity = 'uncommon';   // 25%
-    } else {
-      // No buffs, use normal rarity weights
-      if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
-      else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
-      else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
-      else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
-      else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
-      else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%
+      // Multiply epic+ by rateMultiplier, distribute rest among rare/uncommon/common
+      const baseEpic = baseWeights.epic;
+      const baseLegendary = baseWeights.legendary;
+      const baseMythical = baseWeights.mythical;
+      const baseTranscendent = baseWeights.transcendent;
+      const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent;
+      let epicPlus = epicPlusBase * rateMultiplier;
+      if (epicPlus > 100) epicPlus = 100;
+      // Distribute epic/legendary/mythical/transcendent in original ratio
+      let epic = 0, legendary = 0, mythical = 0, transcendent = 0;
+      if (epicPlus > 0) {
+        epic = (baseEpic / epicPlusBase) * epicPlus;
+        legendary = (baseLegendary / epicPlusBase) * epicPlus;
+        mythical = (baseMythical / epicPlusBase) * epicPlus;
+        transcendent = (baseTranscendent / epicPlusBase) * epicPlus;
+      }
+      // Remaining %
+      let remaining = 100 - epicPlus;
+      const baseLower = baseWeights.rare + baseWeights.uncommon + baseWeights.common;
+      let rare = 0, uncommon = 0, common = 0;
+      if (remaining > 0 && baseLower > 0) {
+        rare = (baseWeights.rare / baseLower) * remaining;
+        uncommon = (baseWeights.uncommon / baseLower) * remaining;
+        common = (baseWeights.common / baseLower) * remaining;
+      }
+      weights = {
+        transcendent,
+        mythical,
+        legendary,
+        epic,
+        rare,
+        uncommon,
+        common
+      };
     }
+    // Normalize weights to sum to 100
+    const totalWeight = rarityOrder.reduce((sum, r) => sum + (weights[r] || 0), 0);
+    if (totalWeight > 0 && totalWeight !== 100) {
+      for (const r of rarityOrder) {
+        weights[r] = (weights[r] || 0) * (100 / totalWeight);
+      }
+    }
+    // Pick rarity based on weights
+    let roll = Math.random() * 100;
+    let pickedRarity = 'common';
+    for (const r of rarityOrder) {
+      if (roll < (weights[r] || 0)) {
+        pickedRarity = r;
+        break;
+      }
+      roll -= (weights[r] || 0);
+    }
+    rarity = pickedRarity;
 
     // Pick a fish of that rarity
     const options = fishTable.filter(f => f.rarity === rarity);
@@ -2032,6 +2298,16 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Field Mouse', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Frog', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
       { name: 'Lizard', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Beaver', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Mallard', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Turtle', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Snail', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Rat', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Magpie', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Bat', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Finch', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Newt', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+      { name: 'Shrew', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
     
       // Uncommon
       { name: 'Fox', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
@@ -2047,6 +2323,16 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Woodpecker', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Gopher', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       { name: 'Opossum', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Ferret', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Tasmanian Devil', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Armadillo', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Monitor Lizard', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Snapping Turtle', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Jackrabbit', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Kookaburra', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Pangolin', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Tamarin', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
+      { name: 'Kinkajou', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1500 },
       // Rare
       { name: 'Deer', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Boar', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
@@ -2066,6 +2352,16 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Caracal', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Moose', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       { name: 'Elk', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Serval', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Bush Dog', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Secretary Bird', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Maned Wolf', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Golden Jackal', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Musk Ox', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Clouded Leopard', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Bearded Vulture', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Harpy Eagle', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
+      { name: 'Mountain Lion', rarity: 'rare', value: () => Math.floor(Math.random() * 3000) + 4000 },
       // Epic
       { name: 'Bear', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Dire Wolf', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
@@ -2087,6 +2383,16 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Ice Lynx', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Bison', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       { name: 'Iron Stag', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Ember Falcon', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Crystal Boar', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Frostfang Lynx', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Lava Panther', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Ironclaw Wolverine', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Tundra Ram', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Solar Macaw', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Shadow Porcupine', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Spirit Vulture', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
+      { name: 'Celestial Ibex', rarity: 'epic', value: () => Math.floor(Math.random() * 7000) + 8000 },
       // Legendary
       { name: 'White Stag', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
       { name: 'Mythic Phoenix', rarity: 'legendary', value: () => Math.floor(Math.random() * 30000) + 50000 },
@@ -2099,6 +2405,12 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Phantom Jaguar', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
       { name: 'Divine Stag', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
       { name: 'Celestial Bear', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
+      { name: 'Flamehorn Yak', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
+      { name: 'Spectral Falcon', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
+      { name: 'Gilded Stag', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
+      { name: 'Ember Phoenix', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
+      { name: 'Mythic Ram', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
+      { name: 'Frostmane Lion', rarity: 'legendary', value: () => Math.floor(Math.random() * 20000) + 30000 },
       // Mythical
       { name: 'Eclipse Dragon', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Spirit of the Forest', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
@@ -2115,6 +2427,11 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Forest Djinn', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Celestial Wolf', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       { name: 'Titan Boar', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Oblivion Wolf', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Runeblade Stag', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Soulfeather Roc', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Chrono Panther', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
+      { name: 'Twilight Chimera', rarity: 'mythical', value: () => Math.floor(Math.random() * 100000) + 100000 },
       // Transcendent
       { name: 'Platypus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Dimensional Alpaca', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
@@ -2128,6 +2445,10 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Chronobeast', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Cosmic Rhino', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Galactic Elephant', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Interdimensional Capybara', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'The Final Squirrel', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Fractal Pegasus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Hamstergod Supreme', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
     ];
     
     // Rarity weights
@@ -2148,107 +2469,140 @@ router.post('/:discordId/hunt', async (req, res) => {
       (!b.expiresAt || b.expiresAt > now)
     );
 
-    let boostFactor = 0;
+    // Multiplier for rate buffs
+    let rateMultiplier = 1;
+    let rateBuffType = null;
     if (rateBuff) {
-      boostFactor = {
-        hunting_rate_2x: 0.10,  // +10% chance shift
-        hunting_rate_3x: 0.18,  // +18%
-        hunting_rate_5x: 0.30   // +30%
-      }[rateBuff.type];
-      buffMessage += `${rateBuff.type} buff active: +${Math.floor(boostFactor * 100)}% chance boost!`;
+      rateBuffType = rateBuff.type;
+      rateMultiplier = {
+        hunting_rate_2x: 2,
+        hunting_rate_3x: 3,
+        hunting_rate_5x: 5
+      }[rateBuff.type] || 1;
+      buffMessage += `${rateBuff.type} buff active: Epic+ drop rates multiplied by ${rateMultiplier}x!`;
     }
 
-    // Apply guaranteed buffs with rate buff redistribution
+    // Calculate rarity weights based on buffs
+    let weights = { ...baseWeights };
     if (guaranteedBuff) {
+      // Guaranteed Legendary or Epic logic
       if (guaranteedBuff.type === 'hunting_legendary') {
-        // Base probabilities
-        const baseLegendary = 0.985;      // 98.5%
-        const baseMythical = 0.01;        // 1%
-        const baseTranscendent = 0.005;   // 0.5%
-
-        if (boostFactor > 0) {
-          // Redistribution target: mythical + transcendent
-          const totalAbove = baseMythical + baseTranscendent;
-          const mythicalRatio = baseMythical / totalAbove;
-          const transcendentRatio = baseTranscendent / totalAbove;
-
-          const mythicalBoost = boostFactor * mythicalRatio;
-          const transcendentBoost = boostFactor * transcendentRatio;
-
-          const adjustedLegendary = baseLegendary - boostFactor;
-
-          // Apply shifted thresholds
-          if (rarityRoll > 0.995 - transcendentBoost) rarity = 'transcendent';
-          else if (rarityRoll > 0.985 - mythicalBoost) rarity = 'mythical';
-          else rarity = 'legendary';
-        } else {
-          if (rarityRoll > 0.995) rarity = 'transcendent';
-          else if (rarityRoll > 0.985) rarity = 'mythical';
-          else rarity = 'legendary';
+        // Only legendary, mythical, transcendent possible
+        // If rate buff, multiply mythical+ and assign remainder to legendary
+        const baseLegendary = baseWeights.legendary;
+        const baseMythical = baseWeights.mythical;
+        const baseTranscendent = baseWeights.transcendent;
+        const mythicalPlusBase = baseMythical + baseTranscendent;
+        let mythicalPlus = mythicalPlusBase * rateMultiplier;
+        if (mythicalPlus > 100) mythicalPlus = 100;
+        let legendary = baseLegendary + (mythicalPlusBase - mythicalPlus);
+        if (legendary < 0) legendary = 0;
+        // Distribute mythical/transcendent in original ratio
+        let mythical = 0, transcendent = 0;
+        if (mythicalPlus > 0) {
+          mythical = (baseMythical / mythicalPlusBase) * mythicalPlus;
+          transcendent = (baseTranscendent / mythicalPlusBase) * mythicalPlus;
         }
-
-        if (buffMessage) buffMessage += '\n';
-        buffMessage += `${guaranteedBuff.type} buff used: Guaranteed Legendary or better!`;
+        weights = {
+          transcendent,
+          mythical,
+          legendary,
+          epic: 0,
+          rare: 0,
+          uncommon: 0,
+          common: 0
+        };
       } else if (guaranteedBuff.type === 'hunting_epic') {
-        // Base probabilities
-        const baseEpic = 0.955;           // 95.5%
-        const baseLegendary = 0.03;       // 3%
-        const baseMythical = 0.01;        // 1%
-        const baseTranscendent = 0.005;   // 0.5%
-
-        if (boostFactor > 0) {
-          // Redistribute from epic to higher
-          const totalAbove = baseLegendary + baseMythical + baseTranscendent;
-          const legendaryRatio = baseLegendary / totalAbove;
-          const mythicalRatio = baseMythical / totalAbove;
-          const transcendentRatio = baseTranscendent / totalAbove;
-
-          const legendaryBoost = boostFactor * legendaryRatio;
-          const mythicalBoost = boostFactor * mythicalRatio;
-          const transcendentBoost = boostFactor * transcendentRatio;
-
-          const adjustedEpic = baseEpic - boostFactor;
-
-          // Apply shifted thresholds
-          if (rarityRoll > 0.995 - transcendentBoost) rarity = 'transcendent';
-          else if (rarityRoll > 0.985 - mythicalBoost) rarity = 'mythical';
-          else if (rarityRoll > 0.955 - legendaryBoost) rarity = 'legendary';
-          else rarity = 'epic';
-        } else {
-          if (rarityRoll > 0.995) rarity = 'transcendent';
-          else if (rarityRoll > 0.985) rarity = 'mythical';
-          else if (rarityRoll > 0.955) rarity = 'legendary';
-          else rarity = 'epic';
+        // Only epic, legendary, mythical, transcendent possible
+        // If rate buff, multiply legendary+ and assign remainder to epic
+        const baseEpic = baseWeights.epic;
+        const baseLegendary = baseWeights.legendary;
+        const baseMythical = baseWeights.mythical;
+        const baseTranscendent = baseWeights.transcendent;
+        const legendaryPlusBase = baseLegendary + baseMythical + baseTranscendent;
+        let legendaryPlus = legendaryPlusBase * rateMultiplier;
+        if (legendaryPlus > 100) legendaryPlus = 100;
+        let epic = baseEpic + (legendaryPlusBase - legendaryPlus);
+        if (epic < 0) epic = 0;
+        // Distribute legendary/mythical/transcendent in original ratio
+        let legendary = 0, mythical = 0, transcendent = 0;
+        if (legendaryPlus > 0) {
+          legendary = (baseLegendary / legendaryPlusBase) * legendaryPlus;
+          mythical = (baseMythical / legendaryPlusBase) * legendaryPlus;
+          transcendent = (baseTranscendent / legendaryPlusBase) * legendaryPlus;
         }
-
-        if (buffMessage) buffMessage += '\n';
-        buffMessage += `${guaranteedBuff.type} buff used: Guaranteed Epic or better!`;
+        weights = {
+          transcendent,
+          mythical,
+          legendary,
+          epic,
+          rare: 0,
+          uncommon: 0,
+          common: 0
+        };
       }
-      
       // Decrement uses
       guaranteedBuff.usesLeft--;
       if (guaranteedBuff.usesLeft <= 0) {
         user.buffs = user.buffs.filter(b => b !== guaranteedBuff);
       }
+      if (buffMessage) buffMessage += '\n';
+      buffMessage += `${guaranteedBuff.type} buff used: Guaranteed ${guaranteedBuff.type === 'hunting_legendary' ? 'Legendary' : 'Epic'} or better!`;
     } else if (rateBuff) {
       // Only rate buff, no guaranteed buff
-      const finalRoll = Math.min(rarityRoll + boostFactor, 0.999);
-      
-      if (finalRoll > 0.995) rarity = 'transcendent';   // 0.5%
-      else if (finalRoll > 0.985) rarity = 'mythical';  // 1%
-      else if (finalRoll > 0.955) rarity = 'legendary'; // 3%
-      else if (finalRoll > 0.90) rarity = 'epic';       // 5.5%
-      else if (finalRoll > 0.75) rarity = 'rare';       // 15%
-      else if (finalRoll > 0.50) rarity = 'uncommon';   // 25%
-    } else {
-      // No buffs, use normal rarity weights
-      if (rarityRoll > 0.995) rarity = 'transcendent';  // 0.5%
-      else if (rarityRoll > 0.985) rarity = 'mythical'; // 1%
-      else if (rarityRoll > 0.955) rarity = 'legendary'; // 3%
-      else if (rarityRoll > 0.90) rarity = 'epic';       // 5.5%
-      else if (rarityRoll > 0.75) rarity = 'rare';       // 15%
-      else if (rarityRoll > 0.50) rarity = 'uncommon';   // 25%
+      // Multiply epic+ by rateMultiplier, distribute rest among rare/uncommon/common
+      const baseEpic = baseWeights.epic;
+      const baseLegendary = baseWeights.legendary;
+      const baseMythical = baseWeights.mythical;
+      const baseTranscendent = baseWeights.transcendent;
+      const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent;
+      let epicPlus = epicPlusBase * rateMultiplier;
+      if (epicPlus > 100) epicPlus = 100;
+      // Distribute epic/legendary/mythical/transcendent in original ratio
+      let epic = 0, legendary = 0, mythical = 0, transcendent = 0;
+      if (epicPlus > 0) {
+        epic = (baseEpic / epicPlusBase) * epicPlus;
+        legendary = (baseLegendary / epicPlusBase) * epicPlus;
+        mythical = (baseMythical / epicPlusBase) * epicPlus;
+        transcendent = (baseTranscendent / epicPlusBase) * epicPlus;
+      }
+      // Remaining %
+      let remaining = 100 - epicPlus;
+      const baseLower = baseWeights.rare + baseWeights.uncommon + baseWeights.common;
+      let rare = 0, uncommon = 0, common = 0;
+      if (remaining > 0 && baseLower > 0) {
+        rare = (baseWeights.rare / baseLower) * remaining;
+        uncommon = (baseWeights.uncommon / baseLower) * remaining;
+        common = (baseWeights.common / baseLower) * remaining;
+      }
+      weights = {
+        transcendent,
+        mythical,
+        legendary,
+        epic,
+        rare,
+        uncommon,
+        common
+      };
     }
+    // Normalize weights to sum to 100
+    const totalWeight = rarityOrder.reduce((sum, r) => sum + (weights[r] || 0), 0);
+    if (totalWeight > 0 && totalWeight !== 100) {
+      for (const r of rarityOrder) {
+        weights[r] = (weights[r] || 0) * (100 / totalWeight);
+      }
+    }
+    // Pick rarity based on weights
+    roll = Math.random() * 100;
+    pickedRarity = 'common';
+    for (const r of rarityOrder) {
+      if (roll < (weights[r] || 0)) {
+        pickedRarity = r;
+        break;
+      }
+      roll -= (weights[r] || 0);
+    }
+    rarity = pickedRarity;
 
     // Pick an animal of that rarity
     const options = animalTable.filter(a => a.rarity === rarity);
@@ -3505,13 +3859,13 @@ router.post('/:discordId/mysterybox', async (req, res) => {
           },
           {
             type: 'fishing_rate_2x',
-            description: '+10% chance boost for all fish rarities for 2 hours!', // Increased from 10% and 1 hour
+            description: 'Epic+ fish drop rates multiplied by 2x for 2 hours!', // Increased from 10% and 1 hour
             expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
             weight: 15
           },
           {
             type: 'hunting_rate_2x',
-            description: '+10% chance boost for all animal rarities for 2 hours!', // Increased from 10% and 1 hour
+            description: 'Epic+ animal drop rates multiplied by 2x for 2 hours!', // Increased from 10% and 1 hour
             expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
             weight: 15
           },
@@ -3554,25 +3908,25 @@ router.post('/:discordId/mysterybox', async (req, res) => {
           },
           {
             type: 'fishing_rate_3x',
-            description: '+18% chance boost for all fish rarities for 1 hour!', // Increased from 18% and 30 minutes
+            description: 'Epic+ fish drop rates multiplied by 3x for 1 hour!', // Increased from 18% and 30 minutes
             expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
             weight: 10
           },
           {
             type: 'hunting_rate_3x',
-            description: '+18% chance boost for all animal rarities for 1 hour!', // Increased from 18% and 30 minutes
+            description: 'Epic+ animal drop rates multiplied by 3x for 1 hour!', // Increased from 18% and 30 minutes
             expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
             weight: 10
           },
           {
             type: 'fishing_rate_5x',
-            description: '+30% chance boost for all fish rarities for 30 minutes!', // Increased from 30% and 15 minutes
+            description: 'Epic+ fish drop rates multiplied by 5x for 30 minutes!', // Increased from 30% and 15 minutes
             expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
             weight: 5
           },
           {
             type: 'hunting_rate_5x',
-            description: '+30% chance boost for all animal rarities for 30 minutes!', // Increased from 30% and 15 minutes
+            description: 'Epic+ animal drop rates multiplied by 5x for 30 minutes!', // Increased from 30% and 15 minutes
             expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
             weight: 5
           },
@@ -3792,7 +4146,7 @@ router.get('/:discordId/steal-stats', requireGuildId, async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found.' });
     
     const stealStats = user.stealStats || { success: 0, fail: 0, jail: 0, totalStolen: 0 };
-    const totalAttempts = stealStats.success + stealStats.fail + stealStats.jail;
+    const totalAttempts = stealStats.success + stealStats.jail;
     const successRate = totalAttempts > 0 ? ((stealStats.success / totalAttempts) * 100).toFixed(1) : 0;
     
     res.json({
@@ -3936,6 +4290,28 @@ router.post('/:userId/reset-timeout', requireGuildId, async (req, res) => {
         console.error('Error resetting timeout:', error);
         res.status(500).json({ message: 'Error resetting timeout duration' });
     }
+});
+
+// --- List all currently jailed users in a guild ---
+router.get('/jailed-users', async (req, res) => {
+  try {
+    const guildId = req.headers['x-guild-id'] || req.query.guildId;
+    if (!guildId) {
+      return res.status(400).json({ message: 'Missing guildId.' });
+    }
+    const now = new Date();
+    const users = await User.find({ guildId, jailedUntil: { $gt: now } }).select('discordId username jailedUntil');
+    res.json({
+      jailedUsers: users.map(u => ({
+        discordId: u.discordId,
+        username: u.username,
+        jailedUntil: u.jailedUntil
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching jailed users:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
 });
 
 module.exports = router; 

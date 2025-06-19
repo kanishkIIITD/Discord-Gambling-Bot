@@ -18,13 +18,8 @@ module.exports = {
         )),
 
   async execute(interaction) {
-    let deferred = false;
     try {
-      // Only defer if not already deferred
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply();
-        deferred = true;
-      }
+      await interaction.deferReply();
 
       const boxType = interaction.options.getString('type');
 
@@ -84,39 +79,28 @@ module.exports = {
         embed.addFields({ name: 'Additional Info', value: message, inline: false });
       }
 
-      if (deferred) {
-        await interaction.editReply({ embeds: [embed] });
-      } else {
-        await interaction.reply({ embeds: [embed] });
-      }
+      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       logger.error('Error in Mystery Box:', error);
-      // Prefer backend error message if available
-      const backendMsg = error?.response?.data?.message;
-      const errorMsg = backendMsg || error.message || 'Unknown error';
-      if (deferred) {
-        await interaction.editReply({ 
-          embeds: [new EmbedBuilder()
-            .setColor('#FF0000')
-            .setTitle('Error')
-            .setDescription(errorMsg)
-            .addFields(
-              { name: 'Context', value: 'Mystery Box' }
-            )
-            .setTimestamp()]
-        });
-      } else {
-        await interaction.reply({ 
-          embeds: [new EmbedBuilder()
-            .setColor('#FF0000')
-            .setTitle('Error')
-            .setDescription(errorMsg)
-            .addFields(
-              { name: 'Context', value: 'Mystery Box' }
-            )
-            .setTimestamp()],
-          ephemeral: true 
-        });
+      
+      // If we haven't replied yet, try to send an error message
+      try {
+        const backendMsg = error?.response?.data?.message;
+        const errorMsg = backendMsg || error.message || 'Unknown error';
+        const errorEmbed = new EmbedBuilder()
+          .setColor('#FF0000')
+          .setTitle('Error')
+          .setDescription(errorMsg)
+          .addFields({ name: 'Context', value: 'Mystery Box' })
+          .setTimestamp();
+
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({ embeds: [errorEmbed], flags: 64 }); // 64 is the flag for ephemeral
+        } else {
+          await interaction.editReply({ embeds: [errorEmbed] });
+        }
+      } catch (followupError) {
+        logger.error('Failed to send error message:', followupError);
       }
     }
   }

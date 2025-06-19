@@ -40,8 +40,14 @@ async function timeoutUser(guild, userId, durationSeconds, reason) {
             return { applied: true, totalTimeout: totalTimeoutDuration };
         }
     } catch (error) {
-        console.error('Error timing out user:', error);
-        throw error;
+        if (error.code === 10007) {
+            // Unknown Member error - user is no longer in the server
+            console.log(`Cannot timeout user ${userId}: User is no longer a member of the server`);
+            throw new Error('User is no longer a member of this server');
+        } else {
+            console.error('Error timing out user:', error);
+            throw error;
+        }
     }
 }
 

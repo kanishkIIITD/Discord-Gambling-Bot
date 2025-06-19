@@ -46,7 +46,7 @@ module.exports = {
             const embed = createSuccessEmbed('🦹 Steal Statistics')
                 .addFields(
                     { name: 'Successful Steals', value: stealStats.success.toString(), inline: true },
-                    { name: 'Failed Attempts', value: stealStats.fail.toString(), inline: true },
+                    // { name: 'Failed Attempts', value: stealStats.fail.toString(), inline: true },
                     { name: 'Times Jailed', value: stealStats.jail.toString(), inline: true },
                     { name: 'Total Attempts', value: stealStats.totalAttempts.toString(), inline: true },
                     { name: 'Success Rate', value: `${stealStats.successRate}%`, inline: true },
@@ -86,7 +86,7 @@ module.exports = {
                 }
             );
 
-            const { success, stolenAmount, newBalance, jailTimeMinutes, cooldownTime } = response.data;
+            const { success, stolenAmount, newBalance, jailTimeMinutes, cooldownTime, buffUsed, buffMessage } = response.data;
 
             if (success) {
                 // Success case
@@ -94,10 +94,15 @@ module.exports = {
                     .addFields(
                         { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
                         { name: 'Amount Stolen', value: `${stolenAmount.toLocaleString('en-US')} points`, inline: true },
-                        { name: 'New Balance', value: `${newBalance.toLocaleString('en-US')} points`, inline: true }
+                        { name: 'New Balance', value: `${newBalance.toLocaleString('en-US')} points`, inline: true },
+                        { name: 'Result', value: `You successfully stole from <@${targetUser.id}>!`, inline: false }
                     );
 
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.editReply({
+                    content: `<@${targetUser.id}>`,
+                    embeds: [embed],
+                    allowedMentions: { users: [targetUser.id] }
+                });
 
             } else {
                 // Failure case
@@ -106,10 +111,14 @@ module.exports = {
                     .addFields(
                         { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
                         { name: 'Jail Time', value: `${jailTimeMinutes} minutes`, inline: true },
-                        { name: 'Result', value: 'You got caught and are now jailed!', inline: false }
+                        { name: 'Result', value: buffMessage ? buffMessage : `You got caught trying to steal from <@${targetUser.id}> and are now jailed!`, inline: false }
                     );
 
-                await interaction.editReply({ embeds: [embed] });
+                await interaction.editReply({
+                    content: `<@${targetUser.id}>`,
+                    embeds: [embed],
+                    allowedMentions: { users: [targetUser.id] }
+                });
             }
 
         } catch (error) {

@@ -24,6 +24,7 @@ const stealCommand = require('./commands/steal');
 const fs = require('fs');
 const path = require('path');
 const { timeoutUser, handleTimeoutRemoval } = require('./utils/discordUtils');
+const jailedCommand = require('./commands/jailed');
 
 const backendApiUrl = process.env.BACKEND_API_URL;
 
@@ -2248,6 +2249,7 @@ client.on('interactionCreate', async interaction => {
 						},
 						{ name: '🚔 Jail System', value:
 							'`/bail` - Bail a jailed user out (for a fee)\n' +
+							'`/jailed` - View all currently jailed users in this server\n' +
 							'`/timeout` - Timeout a user'
 						},
 						{ name: '📊 Stats & Info', value:
@@ -2295,16 +2297,19 @@ client.on('interactionCreate', async interaction => {
 							'`work_quintuple` - Quintuple work earnings (5x)'
 						},
 						{ name: 'Fishing/Hunting Rate Buffs', value:
-							'`fishing_rate_2x` - Double fishing rarity chances (+10%)\n' +
-							'`fishing_rate_3x` - Triple fishing rarity chances (+18%)\n' +
-							'`fishing_rate_5x` - Quintuple fishing rarity chances (+30%)\n' +
-							'`hunting_rate_2x` - Double hunting rarity chances (+10%)\n' +
-							'`hunting_rate_3x` - Triple hunting rarity chances (+18%)\n' +
-							'`hunting_rate_5x` - Quintuple hunting rarity chances (+30%)'
+							'`fishing_rate_2x` - Epic+ fish drop rates multiplied by 2x (2 hours)\n' +
+							'`fishing_rate_3x` - Epic+ fish drop rates multiplied by 3x (1 hour)\n' +
+							'`fishing_rate_5x` - Epic+ fish drop rates multiplied by 5x (30 min)\n' +
+							'`hunting_rate_2x` - Epic+ animal drop rates multiplied by 2x (2 hours)\n' +
+							'`hunting_rate_3x` - Epic+ animal drop rates multiplied by 3x (1 hour)\n' +
+							'`hunting_rate_5x` - Epic+ animal drop rates multiplied by 5x (30 min)\n' +
+							'\n*If stacked with guaranteed buffs, the multiplier applies to legendary+ or mythical+ as appropriate.*'
 						},
 						{ name: 'Guaranteed Buffs', value:
 							'`fishing_legendary` - Guaranteed legendary or better fish\n' +
-							'`hunting_legendary` - Guaranteed legendary or better animal'
+							'`hunting_legendary` - Guaranteed legendary or better animal\n' +
+							'`fishing_epic` - Guaranteed epic or better fish\n' +
+							'`hunting_epic` - Guaranteed epic or better animal'
 						},
 						{ name: 'Other Buffs', value:
 							'`crime_success` - Guaranteed successful crime\n' +
@@ -2768,6 +2773,8 @@ client.on('interactionCreate', async interaction => {
 				});
 			}
 		}
+	} else if (commandName === 'jailed') {
+		await jailedCommand.execute(interaction);
 	}
 
 	// --- Handle duel accept/decline buttons ---

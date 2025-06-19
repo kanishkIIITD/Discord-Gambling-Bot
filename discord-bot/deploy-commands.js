@@ -842,6 +842,10 @@ const commands = [
 	{
 		name: 'question',
 		description: 'Answer a question about a cat for a chance to win or lose points!'
+	},
+	{
+		name: 'jailed',
+		description: 'View all currently jailed users in this server.'
 	}
 ];
 

@@ -37,7 +37,21 @@ module.exports = {
         }
 
         // Check if the target user is timeoutable
-        const targetMember = await interaction.guild.members.fetch(targetUser.id);
+        let targetMember;
+        try {
+            targetMember = await interaction.guild.members.fetch(targetUser.id);
+        } catch (error) {
+            if (error.code === 10007) {
+                // Unknown Member error - user is no longer in the server
+                const errorEmbed = createErrorEmbed('User Not Found')
+                    .setDescription(`❌ Cannot timeout ${targetUser.username} because they are no longer a member of this server.\n\nThis can happen if:\n• They were banned from the server\n• They left the server\n• They were removed from the server\n\n**Note:** Your points have not been deducted.`);
+                return interaction.editReply({ embeds: [errorEmbed] });
+            } else {
+                // Re-throw other errors
+                throw error;
+            }
+        }
+
         if (!targetMember.moderatable) {
             const errorEmbed = createErrorEmbed('Permission Error')
                 .setDescription(`I cannot timeout ${targetUser.username} as they have higher permissions than me. Please contact a server administrator for assistance.`);
@@ -142,6 +156,9 @@ module.exports = {
                     // For any other error message from the backend
                     errorEmbed.setDescription(error.response.data.message);
                 }
+            } else if (error.message === 'User is no longer a member of this server') {
+                // Error from timeoutUser function
+                errorEmbed.setDescription(`❌ Cannot timeout ${targetUser.username} because they are no longer a member of this server.\n\nThis can happen if:\n• They were banned from the server\n• They left the server\n• They were removed from the server\n\n**Note:** Your points have not been deducted.`);
             } else {
                 // For unexpected errors
                 errorEmbed.setDescription('❌ An unexpected error occurred while processing the timeout command.');
@@ -158,7 +175,7 @@ module.exports = {
                     { name: 'User', value: `<@${interaction.user.id}>`, inline: true },
                     { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
                     { name: 'Duration', value: `${duration} minute(s)`, inline: true },
-                    { name: 'Error', value: error.response?.data?.message || 'An unexpected error occurred' }
+                    { name: 'Error', value: error.response?.data?.message || error.message || 'An unexpected error occurred' }
                 ],
                 footer: { text: `Reason: ${reason}` }
             });
