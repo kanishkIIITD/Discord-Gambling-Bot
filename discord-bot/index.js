@@ -2297,12 +2297,12 @@ client.on('interactionCreate', async interaction => {
 							'`work_quintuple` - Quintuple work earnings (5x)'
 						},
 						{ name: 'Fishing/Hunting Rate Buffs', value:
-							'`fishing_rate_2x` - Epic+ fish drop rates multiplied by 2x (2 hours)\n' +
-							'`fishing_rate_3x` - Epic+ fish drop rates multiplied by 3x (1 hour)\n' +
-							'`fishing_rate_5x` - Epic+ fish drop rates multiplied by 5x (30 min)\n' +
-							'`hunting_rate_2x` - Epic+ animal drop rates multiplied by 2x (2 hours)\n' +
-							'`hunting_rate_3x` - Epic+ animal drop rates multiplied by 3x (1 hour)\n' +
-							'`hunting_rate_5x` - Epic+ animal drop rates multiplied by 5x (30 min)\n' +
+							'`fishing_rate_2x` - Epic+ fish drop rates multiplied by 1.5x (2 hours)\n' +
+							'`fishing_rate_3x` - Epic+ fish drop rates multiplied by 2x (1 hour)\n' +
+							'`fishing_rate_5x` - Epic+ fish drop rates multiplied by 3x (30 min)\n' +
+							'`hunting_rate_2x` - Epic+ animal drop rates multiplied by 1.5x (2 hours)\n' +
+							'`hunting_rate_3x` - Epic+ animal drop rates multiplied by 2x (1 hour)\n' +
+							'`hunting_rate_5x` - Epic+ animal drop rates multiplied by 3x (30 min)\n' +
 							'\n*If stacked with guaranteed buffs, the multiplier applies to legendary+ or mythical+ as appropriate.*'
 						},
 						{ name: 'Guaranteed Buffs', value:

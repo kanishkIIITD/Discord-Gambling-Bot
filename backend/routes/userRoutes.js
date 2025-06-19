@@ -2096,9 +2096,9 @@ router.post('/:discordId/fish', async (req, res) => {
     if (rateBuff) {
       rateBuffType = rateBuff.type;
       rateMultiplier = {
-        fishing_rate_2x: 2,
-        fishing_rate_3x: 3,
-        fishing_rate_5x: 5
+        fishing_rate_2x: 1.5,
+        fishing_rate_3x: 2,
+        fishing_rate_5x: 3
       }[rateBuff.type] || 1;
       buffMessage += `${rateBuff.type} buff active: Epic+ drop rates multiplied by ${rateMultiplier}x!`;
     }
@@ -2475,9 +2475,9 @@ router.post('/:discordId/hunt', async (req, res) => {
     if (rateBuff) {
       rateBuffType = rateBuff.type;
       rateMultiplier = {
-        hunting_rate_2x: 2,
-        hunting_rate_3x: 3,
-        hunting_rate_5x: 5
+        hunting_rate_2x: 1.5,
+        hunting_rate_3x: 2,
+        hunting_rate_5x: 3
       }[rateBuff.type] || 1;
       buffMessage += `${rateBuff.type} buff active: Epic+ drop rates multiplied by ${rateMultiplier}x!`;
     }
@@ -3859,19 +3859,19 @@ router.post('/:discordId/mysterybox', async (req, res) => {
           },
           {
             type: 'fishing_rate_2x',
-            description: 'Epic+ fish drop rates multiplied by 2x for 2 hours!', // Increased from 10% and 1 hour
+            description: 'Epic+ fish drop rates multiplied by 1.5x for 2 hours!',
             expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
             weight: 15
           },
           {
             type: 'hunting_rate_2x',
-            description: 'Epic+ animal drop rates multiplied by 2x for 2 hours!', // Increased from 10% and 1 hour
+            description: 'Epic+ animal drop rates multiplied by 1.5x for 2 hours!',
             expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
             weight: 15
           },
           {
             type: 'earnings_x3',
-            description: '3x earnings for 1 hour!', // Increased from 30 minutes
+            description: 'Epic+ fish drop rates multiplied by 2x for 1 hour!',
             expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
             weight: 10
           },
@@ -3920,13 +3920,13 @@ router.post('/:discordId/mysterybox', async (req, res) => {
           },
           {
             type: 'fishing_rate_5x',
-            description: 'Epic+ fish drop rates multiplied by 5x for 30 minutes!', // Increased from 30% and 15 minutes
+            description: 'Epic+ fish drop rates multiplied by 3x for 30 minutes!', // Increased from 30% and 15 minutes
             expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
             weight: 5
           },
           {
             type: 'hunting_rate_5x',
-            description: 'Epic+ animal drop rates multiplied by 5x for 30 minutes!', // Increased from 30% and 15 minutes
+            description: 'Epic+ animal drop rates multiplied by 3x for 30 minutes!', // Increased from 30% and 15 minutes
             expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
             weight: 5
           },
