@@ -40,6 +40,35 @@ client.once('ready', () => {
 	console.log(`Discord Client ID: ${process.env.CLIENT_ID}`);
 });
 
+// Send a welcome embed when the bot is added to a new server
+const defaultDashboardUrl = 'https://discord-gambling-bot.vercel.app/dashboard';
+const defaultCommandsUrl = 'https://discord-gambling-bot.vercel.app/commands';
+client.on('guildCreate', async (guild) => {
+	try {
+		// Find the first text channel where the bot can send messages
+		const channel = guild.channels.cache.find(
+			(ch) =>
+				ch.type === 0 && // 0 = GuildText in discord.js v14
+				ch.permissionsFor(guild.members.me).has(['SendMessages', 'ViewChannel'])
+		);
+		if (!channel) return;
+
+		const embed = new EmbedBuilder()
+			.setColor(0x8e44ad)
+			.setTitle('👋 Thanks for adding Gambling Bot!')
+			.setDescription('Get started by visiting your dashboard or viewing all available commands. Use `/help` in Discord for a quick overview.')
+			.addFields(
+				{ name: 'Dashboard', value: `[Open Dashboard](${defaultDashboardUrl})`, inline: true },
+				{ name: 'Commands', value: `[View Commands](${defaultCommandsUrl})`, inline: true }
+			)
+			.setFooter({ text: 'Enjoy and good luck!' });
+
+		await channel.send({ embeds: [embed] });
+	} catch (err) {
+		console.error('Failed to send welcome embed on guildCreate:', err);
+	}
+});
+
 // List of commands blocked for jailed users
 const jailedBlockedCommands = [
 	// Gambling & Betting

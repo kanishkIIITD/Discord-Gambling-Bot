@@ -67,6 +67,16 @@ export const Navigation = () => {
               >
                 Bot Permissions
               </Link>
+              <Link
+                to="/commands"
+                className={`inline-flex items-center px-1 pt-1 text-sm font-medium tracking-wide ${
+                  isActive('/commands') 
+                    ? 'text-primary border-b-2 border-primary' 
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Commands
+              </Link>
             </div>
           </div>
 
@@ -185,6 +195,17 @@ export const Navigation = () => {
             onClick={() => setIsMobileMenuOpen(false)}
           >
             Bot Permissions
+          </Link>
+          <Link
+            to="/commands"
+            className={`block px-3 py-2 rounded-md text-base font-medium tracking-wide ${
+              isActive('/commands') 
+                ? 'text-primary bg-primary/10' 
+                : 'text-text-secondary hover:text-text-primary hover:bg-primary/5'
+            }`}
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            Commands
           </Link>
           {user ? (
             <Link

@@ -43,7 +43,9 @@ module.exports = {
       if (count > 1 && response.data.rewards && Array.isArray(response.data.rewards)) {
         const rewards = response.data.rewards;
         let summaryLines = rewards.map((reward, idx) => {
-          if (reward.rewardType === 'coins' || reward.rewardType === 'jackpot') {
+          if (reward.rewardType === 'jackpot') {
+            return `Box ${idx + 1}: 🏆 JACKPOT! 💰 ${reward.amount?.toLocaleString('en-US')} points`;
+          } else if (reward.rewardType === 'coins') {
             return `Box ${idx + 1}: 💰 ${reward.amount?.toLocaleString('en-US')} points`;
           } else if (reward.rewardType === 'item' && reward.item) {
             return `Box ${idx + 1}: 🎁 ${reward.item.name} (${reward.item.rarity})${typeof reward.item.value === 'number' ? ` - ${reward.item.value.toLocaleString('en-US')} points` : ''}`;
@@ -60,9 +62,7 @@ module.exports = {
         const embed = new EmbedBuilder()
           .setColor(0x8e44ad)
           .setTitle('🎁 Mystery Boxes')
-          .setDescription(`You opened ${count} ${boxType} mystery boxes!
-
-${summaryLines.join('\n')}`)
+          .setDescription(`You opened ${count} ${boxType} mystery boxes!\n\n${summaryLines.join('\n')}`)
           .setTimestamp()
           .setFooter({ text: `Requested by ${interaction.user.tag}` });
         await interaction.editReply({ embeds: [embed] });
@@ -88,7 +88,13 @@ ${summaryLines.join('\n')}`)
         .setTimestamp()
         .setFooter({ text: `Requested by ${interaction.user.tag}` });
 
-      if (rewardType === 'coins') {
+      if (rewardType === 'jackpot') {
+        embed.addFields({
+          name: '🏆 JACKPOT!',
+          value: `**${amount.toLocaleString('en-US')} points**`,
+          inline: true
+        });
+      } else if (rewardType === 'coins') {
         embed.addFields({ 
           name: '💰 Reward', 
           value: `**${amount.toLocaleString('en-US')} points**`,
