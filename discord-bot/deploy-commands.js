@@ -732,19 +732,18 @@ const commands = [
 				type: 3,
 				required: true,
 				choices: [
-					{
-						name: 'Basic Box (Free once per day)',
-						value: 'basic'
-					},
-					{
-						name: 'Premium Box (1,000,000 points)',
-						value: 'premium'
-					},
-					{
-						name: 'Ultimate Box (10,000,000 points)',
-						value: 'ultimate'
-					}
+					{ name: 'Basic Box (Free once per day)', value: 'basic' },
+					{ name: 'Premium Box (1,000,000 points)', value: 'premium' },
+					{ name: 'Ultimate Box (10,000,000 points)', value: 'ultimate' }
 				]
+			},
+			{
+				name: 'count',
+				description: 'How many boxes to open (max 10, only for premium/ultimate)',
+				type: 4,
+				required: false,
+				min_value: 1,
+				max_value: 10
 			}
 		]
 	},

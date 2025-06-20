@@ -3784,268 +3784,54 @@ router.post('/:discordId/mysterybox', async (req, res) => {
     };
     const cost = costs[boxType];
 
-    // Handle basic box (free once per day)
+    let count = parseInt(req.body.count) || 1;
+    const maxCount = 10;
+    if (boxType === 'basic') count = 1;
+    if (count < 1) count = 1;
+    if (count > maxCount) count = maxCount;
+
+    // Multi-box logic for premium/ultimate
+    if (boxType !== 'basic' && count > 1) {
+      if (wallet.balance < cost * count) {
+        return res.status(400).json({ message: `You need ${(cost * count).toLocaleString('en-US')} points to open ${count} ${boxType} mystery boxes.` });
+      }
+      wallet.balance -= cost * count;
+      await wallet.save();
+      cleanUserBuffs(user);
+      const rewards = [];
+      for (let i = 0; i < count; i++) {
+        rewards.push(generateMysteryBoxReward(user, wallet, boxType, now));
+      }
+      await wallet.save();
+      await user.save();
+      return res.json({ rewards });
+    }
+
+    // Existing single-box logic
     if (boxType === 'basic') {
       if (user.mysteryboxCooldown && user.mysteryboxCooldown > now) {
         return res.status(429).json({ message: `You already opened your free mystery box today. Try again at ${user.mysteryboxCooldown.toLocaleString()}` });
       }
       user.mysteryboxCooldown = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     } else {
-      // Premium and Ultimate boxes always cost points
       if (wallet.balance < cost) {
         return res.status(400).json({ message: `You need ${cost.toLocaleString('en-US')} points to open a ${boxType} mystery box.` });
       }
-      // Deduct cost immediately
       wallet.balance -= cost;
       await wallet.save();
     }
-
-    // Remove expired buffs
     cleanUserBuffs(user);
-
-    // Determine reward based on box type
-    const roll = Math.random();
-    let rewardType, amount = 0, item = null, message, buff = null;
-
-    // Define reward probabilities and amounts based on box type
-    const rewardConfigs = {
-      basic: {
-        coins: { chance: 0.5, min: 50000, max: 150000 }, // Increased from 10k-40k to 50k-150k
-        items: { chance: 0.3, pool: [
-          { name: 'Rubber Duck', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 }, // 500-1500
-          { name: 'Golden Mustache', rarity: 'rare', value: () => Math.floor(Math.random() * 5000) + 3000 }, // 3000-8000
-          { name: 'Party Hat', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1000 }, // 1000-3000
-          { name: 'Mysterious Key', rarity: 'rare', value: () => Math.floor(Math.random() * 5000) + 3000 }, // 3000-8000
-          { name: 'Tiny Top Hat', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 }, // 500-1500
-          { name: 'Epic Sunglasses', rarity: 'legendary', value: () => Math.floor(Math.random() * 50000) + 30000 } // 30k-80k
-        ]},
-        buffs: { chance: 0.15, pool: [
-          {
-            type: 'earnings_x2',
-            description: '2x earnings for 2 hours!', // Increased from 1 hour
-            expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000)
-          },
-          {
-            type: 'work_double',
-            description: 'Next /work gives double points!',
-            usesLeft: 1
-          },
-          {
-            type: 'crime_success',
-            description: 'Next /crime is guaranteed success!',
-            usesLeft: 1
-          },
-          {
-            type: 'jail_immunity',
-            description: 'Immunity from jail for 2 hours!', // Increased from 1 hour
-            expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000)
-          }
-        ]},
-        jackpot: { chance: 0.05, min: 300000, max: 500000 } // Increased from 100k-300k to 300k-500k
-      },
-      premium: {
-        coins: { chance: 0.45, min: 500000, max: 750000 }, // Increased from 50k-200k to 200k-500k
-        items: { chance: 0.2, pool: [
-          { name: 'Dragon Scale', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 }, // 20k-50k
-          { name: 'Phoenix Feather', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 }, // 20k-50k
-          { name: 'Ancient Coin', rarity: 'legendary', value: () => Math.floor(Math.random() * 500000) + 300000 }, // 30k-80k
-          { name: 'Mystic Crystal', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 }, // 20k-50k
-          { name: 'Enchanted Tome', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 } // 20k-50k
-        ]},
-        buffs: { chance: 0.3, pool: [
-          {
-            type: 'fishing_rare',
-            description: 'Next fish is guaranteed Rare or better!',
-            usesLeft: 1,
-            weight: 25
-          },
-          {
-            type: 'hunting_rare',
-            description: 'Next animal is guaranteed Rare or better!',
-            usesLeft: 1,
-            weight: 25
-          },
-          {
-            type: 'fishing_rate_2x',
-            description: 'Epic+ fish drop rates multiplied by 1.5x for 2 hours!',
-            expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
-            weight: 15
-          },
-          {
-            type: 'hunting_rate_2x',
-            description: 'Epic+ animal drop rates multiplied by 1.5x for 2 hours!',
-            expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000),
-            weight: 15
-          },
-          {
-            type: 'earnings_x3',
-            description: 'Epic+ fish drop rates multiplied by 2x for 1 hour!',
-            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
-            weight: 10
-          },
-          {
-            type: 'work_triple',
-            description: 'Next /work gives 3x points!',
-            usesLeft: 1,
-            weight: 10
-          }
-        ]},
-        jackpot: { chance: 0.05, min: 10000000, max: 20000000 } // Increased from 500k-1M to 1M-2M
-      },
-      ultimate: {
-        coins: { chance: 0.45, min: 5000000, max: 7500000 }, // Increased from 200k-1M to 500k-2M
-        items: { chance: 0.1, pool: [
-          { name: 'Celestial Crown', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 }, // 100k-200k
-          { name: 'Dragon Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 }, // 50k-130k
-          { name: 'Phoenix Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 }, // 50k-130k
-          { name: 'Eternal Crystal', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 }, // 100k-200k
-          { name: 'Ancient Tome', rarity: 'legendary', value: () => Math.floor(Math.random() * 8000000) + 5000000 } // 50k-130k
-        ]},
-        buffs: { chance: 0.4, pool: [
-          {
-            type: 'fishing_epic',
-            description: 'Next fish is guaranteed Epic or better!',
-            usesLeft: 1,
-            weight: 20
-          },
-          {
-            type: 'hunting_epic',
-            description: 'Next animal is guaranteed Epic or better!',
-            usesLeft: 1,
-            weight: 20
-          },
-          {
-            type: 'fishing_rate_3x',
-            description: 'Epic+ fish drop rates multiplied by 3x for 1 hour!', // Increased from 18% and 30 minutes
-            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
-            weight: 10
-          },
-          {
-            type: 'hunting_rate_3x',
-            description: 'Epic+ animal drop rates multiplied by 3x for 1 hour!', // Increased from 18% and 30 minutes
-            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
-            weight: 10
-          },
-          {
-            type: 'fishing_rate_5x',
-            description: 'Epic+ fish drop rates multiplied by 3x for 30 minutes!', // Increased from 30% and 15 minutes
-            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
-            weight: 5
-          },
-          {
-            type: 'hunting_rate_5x',
-            description: 'Epic+ animal drop rates multiplied by 3x for 30 minutes!', // Increased from 30% and 15 minutes
-            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
-            weight: 5
-          },
-          {
-            type: 'earnings_x5',
-            description: '5x earnings for 30 minutes!', // Increased from 15 minutes
-            expiresAt: new Date(now.getTime() + 30 * 60 * 1000),
-            weight: 15
-          },
-          {
-            type: 'work_quintuple',
-            description: 'Next /work gives 5x points!',
-            usesLeft: 1,
-            weight: 15
-          }
-        ]},
-        jackpot: { chance: 0.05, min: 50000000, max: 100000000 } // Increased from 2M-5M to 5M-10M
-      }
-    };
-
-    const config = rewardConfigs[boxType];
-    let cumulativeChance = 0;
-
-    // Determine reward type
-    if (roll < (cumulativeChance += config.coins.chance)) {
-      // Coins
-      amount = Math.floor(Math.random() * (config.coins.max - config.coins.min + 1)) + config.coins.min;
-      wallet.balance += amount;
-      rewardType = 'coins';
-      message = `You found ${amount.toLocaleString('en-US')} points inside the ${boxType} box!`;
-    } else if (roll < (cumulativeChance += config.items.chance)) {
-      // Item
-      const selectedItem = config.items.pool[Math.floor(Math.random() * config.items.pool.length)];
-      const itemValue = selectedItem.value();
-      user.inventory = user.inventory || [];
-      const idx = user.inventory.findIndex(i => i.type === 'item' && i.name === selectedItem.name);
-      if (idx >= 0) {
-        user.inventory[idx].count += 1;
-      } else {
-        user.inventory.push({ 
-          type: 'item', 
-          name: selectedItem.name, 
-          rarity: selectedItem.rarity, 
-          value: itemValue, 
-          count: 1 
-        });
-      }
-      rewardType = 'item';
-      message = `You found a **${selectedItem.name}** (${selectedItem.rarity}) worth ${itemValue.toLocaleString('en-US')} points in the ${boxType} box!`;
-    } else if (roll < (cumulativeChance += config.buffs.chance)) {
-      // Buffs
-      const buffPool = config.buffs.pool;
-      const totalWeight = buffPool.reduce((sum, buff) => sum + (buff.weight || 1), 0);
-      let buffRoll = Math.random() * totalWeight;
-      
-      let selectedBuff = null;
-      for (const buff of buffPool) {
-        buffRoll -= (buff.weight || 1);
-        if (buffRoll <= 0) {
-          selectedBuff = { ...buff };
-          delete selectedBuff.weight; // Remove weight from the buff object
-          break;
-        }
-      }
-      
-      if (!selectedBuff) {
-        selectedBuff = { ...buffPool[0] };
-        delete selectedBuff.weight;
-      }
-      
-      user.buffs = user.buffs || [];
-      
-      // Check for existing buff of same type
-      const existingBuffIdx = user.buffs.findIndex(b => b.type === selectedBuff.type);
-      if (existingBuffIdx >= 0) {
-        const existingBuff = user.buffs[existingBuffIdx];
-        if (selectedBuff.expiresAt) {
-          // For time-based buffs, extend the duration
-          const currentExpiry = existingBuff.expiresAt || new Date(now.getTime());
-          const newExpiry = new Date(currentExpiry.getTime() + (selectedBuff.expiresAt - now.getTime()));
-          existingBuff.expiresAt = newExpiry;
-        } else if (selectedBuff.usesLeft !== undefined) {
-          // For use-based buffs, add the uses
-          existingBuff.usesLeft = (existingBuff.usesLeft || 0) + selectedBuff.usesLeft;
-        }
-        message = `You found a buff: ${selectedBuff.description} (Stacked with existing buff!)`;
-      } else {
-        // Add new buff if none exists
-        user.buffs.push(selectedBuff);
-        message = `You found a buff: ${selectedBuff.description}`;
-      }
-      
-      rewardType = 'buffs';
-    } else {
-      // Jackpot
-      amount = Math.floor(Math.random() * (config.jackpot.max - config.jackpot.min + 1)) + config.jackpot.min;
-      wallet.balance += amount;
-      rewardType = 'jackpot';
-      message = `JACKPOT! You found ${amount.toLocaleString('en-US')} points and a golden ticket in the ${boxType} box!`;
-    }
-
+    const reward = generateMysteryBoxReward(user, wallet, boxType, now);
     await wallet.save();
     await user.save();
-    res.json({ rewardType, amount, item, message, cooldown: user.mysteryboxCooldown });
+    res.json({ ...reward, cooldown: user.mysteryboxCooldown });
   } catch (error) {
     console.error('Error in /mysterybox:', error);
     res.status(500).json({ message: 'Server error during mystery box.' });
   }
 });
 
-// --- Remove expired buffs helper ---
+// --- REMOVE EXPIRED BUFFS HELPER ---
 function cleanUserBuffs(user) {
   const now = new Date();
   user.buffs = (user.buffs || []).filter(buff => {
@@ -4055,7 +3841,7 @@ function cleanUserBuffs(user) {
   });
 }
 
-// --- DUEL: Get pending duels for autocomplete ---
+// --- DUEL: GET PENDING DUELS FOR AUTOCOMPLETE ---
 router.get('/:discordId/pending-duels', async (req, res) => {
   try {
     const user = req.user;
@@ -4321,5 +4107,138 @@ router.get('/jailed-users', async (req, res) => {
     res.status(500).json({ message: 'Server error.' });
   }
 });
+
+// --- Helper: Generate a single mystery box reward ---
+function generateMysteryBoxReward(user, wallet, boxType, now) {
+  const rewardConfigs = {
+    basic: {
+      coins: { chance: 0.5, min: 50000, max: 150000 },
+      items: { chance: 0.3, pool: [
+        { name: 'Rubber Duck', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+        { name: 'Golden Mustache', rarity: 'rare', value: () => Math.floor(Math.random() * 5000) + 3000 },
+        { name: 'Party Hat', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1000 },
+        { name: 'Mysterious Key', rarity: 'rare', value: () => Math.floor(Math.random() * 5000) + 3000 },
+        { name: 'Tiny Top Hat', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
+        { name: 'Epic Sunglasses', rarity: 'legendary', value: () => Math.floor(Math.random() * 50000) + 30000 }
+      ]},
+      buffs: { chance: 0.15, pool: [
+        { type: 'earnings_x2', description: '2x earnings for 2 hours!', expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000) },
+        { type: 'work_double', description: 'Next /work gives double points!', usesLeft: 1 },
+        { type: 'crime_success', description: 'Next /crime is guaranteed success!', usesLeft: 1 },
+        { type: 'jail_immunity', description: 'Immunity from jail for 2 hours!', expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000) }
+      ]},
+      jackpot: { chance: 0.05, min: 300000, max: 500000 }
+    },
+    premium: {
+      coins: { chance: 0.45, min: 500000, max: 750000 },
+      items: { chance: 0.2, pool: [
+        { name: 'Dragon Scale', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
+        { name: 'Phoenix Feather', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
+        { name: 'Ancient Coin', rarity: 'legendary', value: () => Math.floor(Math.random() * 500000) + 300000 },
+        { name: 'Mystic Crystal', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
+        { name: 'Enchanted Tome', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 }
+      ]},
+      buffs: { chance: 0.3, pool: [
+        { type: 'fishing_rare', description: 'Next fish is guaranteed Rare or better!', usesLeft: 1, weight: 25 },
+        { type: 'hunting_rare', description: 'Next animal is guaranteed Rare or better!', usesLeft: 1, weight: 25 },
+        { type: 'fishing_rate_2x', description: 'Epic+ fish drop rates multiplied by 1.5x for 2 hours!', expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000), weight: 15 },
+        { type: 'hunting_rate_2x', description: 'Epic+ animal drop rates multiplied by 1.5x for 2 hours!', expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000), weight: 15 },
+        { type: 'earnings_x3', description: 'Epic+ fish drop rates multiplied by 2x for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 10 },
+        { type: 'work_triple', description: 'Next /work gives 3x points!', usesLeft: 1, weight: 10 }
+      ]},
+      jackpot: { chance: 0.05, min: 10000000, max: 20000000 }
+    },
+    ultimate: {
+      coins: { chance: 0.45, min: 5000000, max: 7500000 },
+      items: { chance: 0.1, pool: [
+        { name: 'Celestial Crown', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 },
+        { name: 'Dragon Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 },
+        { name: 'Phoenix Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 },
+        { name: 'Eternal Crystal', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 },
+        { name: 'Ancient Tome', rarity: 'legendary', value: () => Math.floor(Math.random() * 8000000) + 5000000 }
+      ]},
+      buffs: { chance: 0.4, pool: [
+        { type: 'fishing_epic', description: 'Next fish is guaranteed Epic or better!', usesLeft: 1, weight: 20 },
+        { type: 'hunting_epic', description: 'Next animal is guaranteed Epic or better!', usesLeft: 1, weight: 20 },
+        { type: 'fishing_rate_3x', description: 'Epic+ fish drop rates multiplied by 3x for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 10 },
+        { type: 'hunting_rate_3x', description: 'Epic+ animal drop rates multiplied by 3x for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 10 },
+        { type: 'fishing_rate_5x', description: 'Epic+ fish drop rates multiplied by 3x for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 5 },
+        { type: 'hunting_rate_5x', description: 'Epic+ animal drop rates multiplied by 3x for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 5 },
+        { type: 'earnings_x5', description: '5x earnings for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 15 },
+        { type: 'work_quintuple', description: 'Next /work gives 5x points!', usesLeft: 1, weight: 15 }
+      ]},
+      jackpot: { chance: 0.05, min: 50000000, max: 100000000 }
+    }
+  };
+  const config = rewardConfigs[boxType];
+  const roll = Math.random();
+  let rewardType, amount = 0, item = null, message;
+  let cumulativeChance = 0;
+  if (roll < (cumulativeChance += config.coins.chance)) {
+    amount = Math.floor(Math.random() * (config.coins.max - config.coins.min + 1)) + config.coins.min;
+    wallet.balance += amount;
+    rewardType = 'coins';
+    message = `You found ${amount.toLocaleString('en-US')} points inside the ${boxType} box!`;
+  } else if (roll < (cumulativeChance += config.items.chance)) {
+    const selectedItem = config.items.pool[Math.floor(Math.random() * config.items.pool.length)];
+    const itemValue = selectedItem.value();
+    user.inventory = user.inventory || [];
+    const idx = user.inventory.findIndex(i => i.type === 'item' && i.name === selectedItem.name);
+    if (idx >= 0) {
+      user.inventory[idx].count += 1;
+    } else {
+      user.inventory.push({ 
+        type: 'item', 
+        name: selectedItem.name, 
+        rarity: selectedItem.rarity, 
+        value: itemValue, 
+        count: 1 
+      });
+    }
+    rewardType = 'item';
+    item = { name: selectedItem.name, rarity: selectedItem.rarity, value: itemValue };
+    message = `You found a **${selectedItem.name}** (${selectedItem.rarity}) worth ${itemValue.toLocaleString('en-US')} points in the ${boxType} box!`;
+  } else if (roll < (cumulativeChance += config.buffs.chance)) {
+    const buffPool = config.buffs.pool;
+    const totalWeight = buffPool.reduce((sum, buff) => sum + (buff.weight || 1), 0);
+    let buffRoll = Math.random() * totalWeight;
+    let selectedBuff = null;
+    for (const buff of buffPool) {
+      buffRoll -= (buff.weight || 1);
+      if (buffRoll <= 0) {
+        selectedBuff = { ...buff };
+        delete selectedBuff.weight;
+        break;
+      }
+    }
+    if (!selectedBuff) {
+      selectedBuff = { ...buffPool[0] };
+      delete selectedBuff.weight;
+    }
+    user.buffs = user.buffs || [];
+    const existingBuffIdx = user.buffs.findIndex(b => b.type === selectedBuff.type);
+    if (existingBuffIdx >= 0) {
+      const existingBuff = user.buffs[existingBuffIdx];
+      if (selectedBuff.expiresAt) {
+        const currentExpiry = existingBuff.expiresAt || new Date(now.getTime());
+        const newExpiry = new Date(currentExpiry.getTime() + (selectedBuff.expiresAt - now.getTime()));
+        existingBuff.expiresAt = newExpiry;
+      } else if (selectedBuff.usesLeft !== undefined) {
+        existingBuff.usesLeft = (existingBuff.usesLeft || 0) + selectedBuff.usesLeft;
+      }
+      message = `You found a buff: ${selectedBuff.description} (Stacked with existing buff!)`;
+    } else {
+      user.buffs.push(selectedBuff);
+      message = `You found a buff: ${selectedBuff.description}`;
+    }
+    rewardType = 'buffs';
+  } else {
+    amount = Math.floor(Math.random() * (config.jackpot.max - config.jackpot.min + 1)) + config.jackpot.min;
+    wallet.balance += amount;
+    rewardType = 'jackpot';
+    message = `JACKPOT! You found ${amount.toLocaleString('en-US')} points and a golden ticket in the ${boxType} box!`;
+  }
+  return { rewardType, amount, item, message };
+}
 
 module.exports = router; 

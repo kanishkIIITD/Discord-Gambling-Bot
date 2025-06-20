@@ -15,23 +15,62 @@ module.exports = {
           { name: 'Basic Box (Free once per day)', value: 'basic' },
           { name: 'Premium Box (1,000,000 points)', value: 'premium' },
           { name: 'Ultimate Box (10,000,000 points)', value: 'ultimate' }
-        )),
+        ))
+    .addIntegerOption(option =>
+      option.setName('count')
+        .setDescription('The number of boxes to open')
+        .setMinValue(1)
+        .setMaxValue(10)
+    ),
 
   async execute(interaction) {
     try {
       await interaction.deferReply();
 
       const boxType = interaction.options.getString('type');
+      let count = interaction.options.getInteger('count') || 1;
+      if (boxType === 'basic') count = 1;
 
       const response = await axios.post(`${process.env.BACKEND_API_URL}/users/${interaction.user.id}/mysterybox`, {
         boxType,
+        count,
         guildId: interaction.guildId
       }, {
         headers: { 'x-guild-id': interaction.guildId }
       });
 
-      const { rewardType, amount, item, message } = response.data;
+      // Multi-box summary embed
+      if (count > 1 && response.data.rewards && Array.isArray(response.data.rewards)) {
+        const rewards = response.data.rewards;
+        let summaryLines = rewards.map((reward, idx) => {
+          if (reward.rewardType === 'coins' || reward.rewardType === 'jackpot') {
+            return `Box ${idx + 1}: 💰 ${reward.amount?.toLocaleString('en-US')} points`;
+          } else if (reward.rewardType === 'item' && reward.item) {
+            return `Box ${idx + 1}: 🎁 ${reward.item.name} (${reward.item.rarity})${typeof reward.item.value === 'number' ? ` - ${reward.item.value.toLocaleString('en-US')} points` : ''}`;
+          } else if ((reward.rewardType === 'buffs' || reward.rewardType === 'buff') && reward.message) {
+            // Try to extract buff description from message
+            const desc = reward.message.replace('You found a buff: ', '').split(' (')[0];
+            return `Box ${idx + 1}: ✨ ${desc}`;
+          } else if (reward.message) {
+            return `Box ${idx + 1}: ${reward.message}`;
+          } else {
+            return `Box ${idx + 1}: Unknown reward`;
+          }
+        });
+        const embed = new EmbedBuilder()
+          .setColor(0x8e44ad)
+          .setTitle('🎁 Mystery Boxes')
+          .setDescription(`You opened ${count} ${boxType} mystery boxes!
 
+${summaryLines.join('\n')}`)
+          .setTimestamp()
+          .setFooter({ text: `Requested by ${interaction.user.tag}` });
+        await interaction.editReply({ embeds: [embed] });
+        return;
+      }
+
+      // Existing single-box logic (unchanged)
+      const { rewardType, amount, item, message } = response.data;
       let embedColor = 0x8e44ad; // Default purple for normal rewards
       
       if (rewardType === 'buffs' || rewardType === 'buff') {
