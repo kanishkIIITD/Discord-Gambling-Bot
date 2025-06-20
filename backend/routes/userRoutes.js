@@ -4164,8 +4164,8 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { type: 'fishing_rate_5x', description: 'Epic+ fish drop rates multiplied by 3x for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 5 },
         { type: 'hunting_rate_5x', description: 'Epic+ animal drop rates multiplied by 3x for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 5 },
         { type: 'earnings_x5', description: '5x earnings for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 10 },
-        { type: 'work_quintuple', description: 'Next /work gives 5x points!', usesLeft: 1, weight: 15 },
-        { type: 'jail_immunity', description: 'Immunity from jail for 2 hours!', expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000), weight: 5 }
+        { type: 'work_quintuple', description: 'Next /work gives 5x points!', usesLeft: 1, weight: 19 },
+        { type: 'jail_immunity', description: 'Immunity from jail for 2 hours!', expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000), weight: 1 }
       ]},
       jackpot: { chance: 0.05, min: 50000000, max: 100000000 }
     }

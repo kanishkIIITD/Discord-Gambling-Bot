@@ -99,6 +99,7 @@ const commands = [
 				description: 'The ID of the bet to view.',
 				type: ApplicationCommandOptionType.String,
 				required: true,
+				autocomplete: true
 			},
 		],
 	},
@@ -138,6 +139,7 @@ const commands = [
 				description: 'The ID of the bet to edit.',
 				type: ApplicationCommandOptionType.String,
 				required: true,
+				autocomplete: true
 			},
 			{
 				name: 'description',
@@ -169,6 +171,7 @@ const commands = [
 				description: 'The ID of the bet to extend.',
 				type: ApplicationCommandOptionType.String,
 				required: true,
+				autocomplete: true
 			},
 			{
 				name: 'additional_minutes',
@@ -188,6 +191,7 @@ const commands = [
 				description: 'The ID of the bet to view.',
 				type: ApplicationCommandOptionType.String,
 				required: true,
+				autocomplete: true
 			},
 		],
 	},

@@ -200,6 +200,44 @@ client.on('interactionCreate', async interaction => {
 		if (interaction.commandName === 'duel') {
 			return duelCommand.autocomplete(interaction);
 		}
+		// --- NEW: Add autocomplete for editbet, extendbet, viewbet, betinfo ---
+		if ([
+			'editbet',
+			'extendbet',
+			'viewbet',
+			'betinfo'
+		].includes(interaction.commandName) && focusedOption.name === 'bet_id') {
+			// For editbet and extendbet, only open bets can be edited/extended
+			if (interaction.commandName === 'editbet' || interaction.commandName === 'extendbet') {
+				const response = await axios.get(`${backendApiUrl}/bets/open`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const bets = response.data;
+				await interaction.respond(
+					bets.slice(0, 25).map(bet => ({
+						name: `${bet.description} (${bet._id})`,
+						value: bet._id
+					}))
+				);
+				return;
+			}
+			// For viewbet and betinfo, show all unresolved bets (open or closed)
+			if (interaction.commandName === 'viewbet' || interaction.commandName === 'betinfo') {
+				const response = await axios.get(`${backendApiUrl}/bets/unresolved`, {
+					params: { guildId: interaction.guildId },
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const bets = response.data;
+				await interaction.respond(
+					bets.slice(0, 25).map(bet => ({
+						name: `${bet.description} (${bet._id})`,
+						value: bet._id
+					}))
+				);
+				return;
+			}
+		}
 		return;
 	}
 	// TODO: Implement WebSocket connection to backend for real-time balance updates
@@ -2442,16 +2480,21 @@ client.on('interactionCreate', async interaction => {
 			const betId = interaction.options.getString('bet_id');
 			const description = interaction.options.getString('description');
 			const optionsString = interaction.options.getString('options');
-			const options = optionsString.split(',').map(option => option.trim());
+			let options;
+			if (optionsString !== null && optionsString !== undefined) {
+				options = optionsString.split(',').map(option => option.trim());
+			}
 			const durationMinutes = interaction.options.getInteger('duration_minutes');
 
-			const response = await axios.put(`${backendApiUrl}/bets/${betId}/edit`, {
-				description,
-				options,
-				durationMinutes,
+			const requestBody = {
 				creatorDiscordId: userId,
 				guildId: interaction.guildId
-			}, {
+			};
+			if (description) requestBody.description = description;
+			if (options) requestBody.options = options;
+			if (durationMinutes) requestBody.durationMinutes = durationMinutes;
+
+			const response = await axios.put(`${backendApiUrl}/bets/${betId}/edit`, requestBody, {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const updatedBet = response.data.bet;

@@ -46,7 +46,7 @@ router.post('/', async (req, res) => {
     const { description, options, creatorDiscordId, durationMinutes } = req.body;
 
     // Find the creator user by Discord ID
-    const creator = await User.findOne({ discordId: creatorDiscordId });
+    const creator = await User.findOne({ discordId: creatorDiscordId, guildId: req.guildId });
     if (!creator) {
       return res.status(404).json({ message: 'Creator user not found.' });
     }
@@ -144,7 +144,7 @@ router.post('/:betId/place', async (req, res) => {
 
     // Find the bet and the bettor
     const bet = await Bet.findById(betId).where({ guildId: req.guildId });
-    const bettor = await User.findOne({ discordId: bettorDiscordId });
+    const bettor = await User.findOne({ discordId: bettorDiscordId, guildId: req.guildId });
 
     if (!bet) {
       return res.status(404).json({ message: 'Bet not found.' });
@@ -348,7 +348,13 @@ router.put('/:betId/edit', requireBetCreatorOrAdmin, async (req, res) => {
 
     // Update the bet with new values if provided
     if (description) bet.description = description;
-    if (options) bet.options = options.split(',').map(option => option.trim());
+    if (options) {
+      if (Array.isArray(options)) {
+        bet.options = options.map(option => option.trim());
+      } else if (typeof options === 'string') {
+        bet.options = options.split(',').map(option => option.trim());
+      }
+    }
     if (durationMinutes) {
       bet.closingTime = new Date(Date.now() + durationMinutes * 60 * 1000);
     }
