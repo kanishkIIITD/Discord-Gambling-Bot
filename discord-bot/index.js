@@ -658,11 +658,18 @@ client.on('interactionCreate', async interaction => {
 					content = `<@&${gamblersRole.id}>`;
 				}
 			}
-			await interaction.editReply({
-				content,
-				embeds: [embed],
-				...(gamblersRole ? { allowedMentions: { roles: [gamblersRole.id] } } : {})
-			});
+			// Main embed response (no ping in content)
+				await interaction.editReply({
+					embeds: [embed],
+				});
+
+				// Follow-up ping
+				if (gamblersRole) {
+					await interaction.followUp({
+						content: `${content} A new bet **${newBet.description}** has been created!`,
+						allowedMentions: { roles: [gamblersRole.id] },
+					});
+				}
 		} catch (error) {
 			console.error('Error creating bet:', error, error?.response?.data);
 			if (!interaction.replied) {
@@ -881,11 +888,16 @@ client.on('interactionCreate', async interaction => {
 			let gamblersRole = guild?.roles?.cache?.find(role => role.name === 'Gamblers');
 			let content = gamblersRole ? `<@&${gamblersRole.id}>` : '';
 
-			await interaction.editReply({ 
-				content, 
+			await interaction.editReply({  
 				embeds: [embed],
-				allowedMentions: { roles: [gamblersRole?.id] }
 			});
+
+			if (gamblersRole) {
+				await interaction.followUp({
+					content: `${content} Bet **${resolvedBet.description}** has been resolved.`,
+					allowedMentions: { roles: [gamblersRole.id] },
+				});
+			}
 		} catch (error) {
 			console.error('Error resolving bet:', error.response?.data || error.message);
 			if (!interaction.replied) {

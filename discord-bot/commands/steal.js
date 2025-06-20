@@ -69,8 +69,6 @@ module.exports = {
     },
 
     async attemptSteal(interaction) {
-        await interaction.deferReply();
-
         const targetUser = interaction.options.getUser('target');
 
         try {
@@ -98,7 +96,7 @@ module.exports = {
                         { name: 'Result', value: `You successfully stole from <@${targetUser.id}>!`, inline: false }
                     );
 
-                await interaction.editReply({
+                await interaction.reply({
                     content: `<@${targetUser.id}>`,
                     embeds: [embed],
                     allowedMentions: { users: [targetUser.id] }
@@ -114,7 +112,7 @@ module.exports = {
                         { name: 'Result', value: buffMessage ? buffMessage : `You got caught trying to steal from <@${targetUser.id}> and are now jailed!`, inline: false }
                     );
 
-                await interaction.editReply({
+                await interaction.reply({
                     content: `<@${targetUser.id}>`,
                     embeds: [embed],
                     allowedMentions: { users: [targetUser.id] }
@@ -151,7 +149,7 @@ module.exports = {
                 errorEmbed.setDescription('❌ An unexpected error occurred while processing the steal command.');
             }
 
-            await interaction.editReply({ embeds: [errorEmbed] });
+            await interaction.reply({ embeds: [errorEmbed] });
         }
     }
 }; 

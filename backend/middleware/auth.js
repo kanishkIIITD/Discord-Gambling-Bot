@@ -58,19 +58,19 @@ const requireGuildId = (req, res, next) => {
 const requireBetCreatorOrAdmin = async (req, res, next) => {
   try {
     const { betId } = req.params;
-    const { creatorDiscordId } = req.body;
+    const { creatorDiscordId, guildId } = req.body;
     
     // Find the bet
     const bet = await Bet.findById(betId).populate('creator', 'discordId');
-    if (!bet) {
-      return res.status(404).json({ message: 'Bet not found.' });
+    if (!bet || !bet.creator) {
+      return res.status(404).json({ message: 'Bet or bet creator not found.' });
     }
 
     // Check if user is creator
     const isCreator = bet.creator.discordId === creatorDiscordId;
     
-    // Check if user is admin
-    const user = await User.findOne({ discordId: creatorDiscordId });
+    // Check if user is admin in this guild
+    const user = await User.findOne({ discordId: creatorDiscordId, guildId });
     const isAdmin = user && (user.role === 'admin' || user.role === 'superadmin');
 
     if (!isCreator && !isAdmin) {
