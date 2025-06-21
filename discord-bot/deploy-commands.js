@@ -16,7 +16,7 @@ const commands = [
 	},
 	{
 		name: 'createbet',
-		description: 'Creates a new betting event (Admin/Superadmin only).',
+		description: 'Creates a new betting event.',
 		options: [
 			{
 				name: 'description',
@@ -67,7 +67,7 @@ const commands = [
 	},
 	{
 		name: 'resolvebet',
-		description: 'Resolves a betting event and distributes winnings (Admin/Superadmin only).',
+		description: 'Resolves a betting event and distributes winnings (Creator/Admin/Superadmin only).',
 		options: [
 			{
 				name: 'bet_id',
@@ -105,7 +105,7 @@ const commands = [
 	},
 	{
 		name: 'closebet',
-		description: 'Closes betting for a specific event (Admin/Superadmin only).',
+		description: 'Closes betting for a specific event (Creator/Admin/Superadmin only).',
 		options: [
 			{
 				name: 'bet_id',
@@ -300,21 +300,9 @@ const commands = [
 		options: [
 			{
 				name: 'amount',
-				description: 'Amount to bet (number or one of: allin, half, quarter, third, random) (only required for new game)',
+				description: 'Amount to bet (number or one of: allin, half, quarter, third, random)',
 				type: ApplicationCommandOptionType.String,
-				required: false
-			},
-			{
-				name: 'action',
-				description: 'Action to take (hit, stand, double, split)',
-				type: 3,
-				required: false,
-				choices: [
-					{ name: 'Hit', value: 'hit' },
-					{ name: 'Stand', value: 'stand' },
-					{ name: 'Double', value: 'double' },
-					{ name: 'Split', value: 'split' }
-				]
+				required: true
 			}
 		]
 	},
@@ -537,7 +525,13 @@ const commands = [
 				name: 'user',
 				description: 'The user to bail out',
 				type: 6,
-				required: true
+				required: false
+			},
+			{
+				name: 'all',
+				description: 'Bail all jailed users in the server',
+				type: ApplicationCommandOptionType.Boolean,
+				required: false
 			}
 		]
 	},
@@ -856,23 +850,23 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
 	try {
-		// console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
+		console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
 
-		// // Deploy to test guild only
-		// const data = await rest.put(
-		// 	Routes.applicationGuildCommands(clientId, guildId1),
-		// 	{ body: commands },
-		// );
-
-		// console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
-
-		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
-		console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
-		const globalData = await rest.put(
-			Routes.applicationCommands(clientId),
+		// Deploy to test guild only
+		const data = await rest.put(
+			Routes.applicationGuildCommands(clientId, guildId1),
 			{ body: commands },
 		);
-		console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
+
+		console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
+
+		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
+		// console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
+		// const globalData = await rest.put(
+		// 	Routes.applicationCommands(clientId),
+		// 	{ body: commands },
+		// );
+		// console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
 	} catch (error) {
 		console.error(error);
 	}

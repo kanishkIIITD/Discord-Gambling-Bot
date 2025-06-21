@@ -88,9 +88,6 @@ export const Landing = () => {
             >
               Contact on Discord
             </a>
-            <a href="/commands" className="quick-link">
-              <span role="img" aria-label="commands">💡</span> Commands
-            </a>
           </div>
         </div>
       </main>

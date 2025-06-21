@@ -7,21 +7,21 @@ export const commandCategories = [
     commands: [
       {
         name: 'createbet',
-        description: 'Creates a new betting event (Admin/Superadmin only).',
+        description: 'Creates a new betting event.',
         usage: '/createbet description:<desc> options:<opt1,opt2,...> [duration_minutes:<min>]',
-        instructions: 'Admins only. Use to start a new bet.'
+        instructions: 'Use to start a new bet.'
       },
       {
         name: 'editbet',
-        description: 'Edits a bet\'s description or options before any bets are placed (Creator/Admin/Superadmin only).',
+        description: 'Edits a bet\'s description or options before any bets are placed.',
         usage: '/editbet bet_id:<id> [description:<desc>] [options:<opt1,opt2,...>] [duration_minutes:<min>]',
-        instructions: ''
+        instructions: 'Can only be used before any bets are placed. Creator/Admin/Superadmin only.'
       },
       {
         name: 'extendbet',
-        description: 'Extends the duration of an open bet (Creator/Admin/Superadmin only).',
+        description: 'Extends the duration of an open bet.',
         usage: '/extendbet bet_id:<id> additional_minutes:<min>',
-        instructions: ''
+        instructions: 'Creator/Admin/Superadmin only'
       },
       {
         name: 'placebet',
@@ -49,21 +49,21 @@ export const commandCategories = [
       },
       {
         name: 'resolvebet',
-        description: 'Resolves a betting event and distributes winnings (Admin/Superadmin only).',
+        description: 'Resolves a betting event and distributes winnings.',
         usage: '/resolvebet bet_id:<id> winning_option:<option>',
-        instructions: 'Admins only.'
+        instructions: 'Creator/Admin/Superadmin only.'
       },
       {
         name: 'closebet',
-        description: 'Closes betting for a specific event (Admin/Superadmin only).',
+        description: 'Closes betting for a specific event.',
         usage: '/closebet bet_id:<id>',
-        instructions: 'Admins only.'
+        instructions: 'Creator/Admin/Superadmin only'
       },
       {
         name: 'cancelbet',
-        description: 'Cancels a bet before any bets are placed (Creator/Admin/Superadmin only).',
+        description: 'Cancels a bet before any bets are placed.',
         usage: '/cancelbet bet_id:<id>',
-        instructions: ''
+        instructions: 'Creator/Admin/Superadmin only.'
       },
       {
         name: 'unresolvedbets',
@@ -97,8 +97,8 @@ export const commandCategories = [
       {
         name: 'blackjack',
         description: 'Play blackjack',
-        usage: '/blackjack [amount:<amount>] [action:<hit|stand|double|split>]',
-        instructions: ''
+        usage: '/blackjack amount:<amount>',
+        instructions: 'Use interactive buttons to play. Supports hit, stand, double, and split actions.'
       },
       {
         name: 'roulette',
@@ -116,7 +116,7 @@ export const commandCategories = [
         name: 'duel',
         description: 'Challenge another user to a duel for points!',
         usage: '/duel challenge user:<user> amount:<amount> | /duel accept duel_id:<id> | /duel decline duel_id:<id> | /duel stats',
-        instructions: ''
+        instructions: 'The duel lasts 1 minute before it cancels.'
       }
     ]
   },
@@ -133,7 +133,7 @@ export const commandCategories = [
         name: 'daily',
         description: 'Claim your daily point bonus.',
         usage: '/daily',
-        instructions: ''
+        instructions: 'Streak resets every 24 hours.'
       },
       {
         name: 'profile',
@@ -151,7 +151,7 @@ export const commandCategories = [
         name: 'gift',
         description: 'Gift points to another user.',
         usage: '/gift user:<user> amount:<amount>',
-        instructions: ''
+        instructions: 'You can only gift points to users who have already used the bot.'
       }
     ]
   },
@@ -180,7 +180,7 @@ export const commandCategories = [
         name: 'cooldowns',
         description: 'View all your current cooldowns',
         usage: '/cooldowns',
-        instructions: ''
+        instructions: 'Jail time is shown when you are jailed.'
       },
       {
         name: 'help',
@@ -221,13 +221,13 @@ export const commandCategories = [
         name: 'sell',
         description: 'Sell items from your collection for points!',
         usage: '/sell action:<action> [type:<type>] [name:<name>] [count:<n>]',
-        instructions: ''
+        instructions: 'If selecting a specific item, you must specify the type, name and count. It can have a single item or multiple items comma separated.'
       },
       {
         name: 'trade',
         description: 'Trade items with another user!',
         usage: '/trade action:<action> target:<user> [type:<type>] [name:<name>] [count:<n>]',
-        instructions: ''
+        instructions: 'If selecting a specific item, you must specify the type, name and count. It can have a single item or multiple items comma separated.'
       },
       {
         name: 'mysterybox',
@@ -237,15 +237,15 @@ export const commandCategories = [
       },
       {
         name: 'meowbark',
-        description: 'Perform a meow or bark to earn points (5 min cooldown, max 100,000 points).',
+        description: 'Perform a meow or bark to earn points.',
         usage: '/meowbark amount:<n>',
-        instructions: ''
+        instructions: '5 min cooldown, max 100,000 points.'
       },
       {
         name: 'question',
         description: 'Answer a question about a cat for a chance to win or lose points!',
         usage: '/question',
-        instructions: ''
+        instructions: '5 min cooldown.'
       },
       {
         name: 'beg',
@@ -267,9 +267,9 @@ export const commandCategories = [
       },
       {
         name: 'steal',
-        description: 'Attempt to steal points from another user (30% success rate, 2-hour cooldown)',
+        description: 'Attempt to steal points from another user.',
         usage: '/steal do target:<user> | /steal stats',
-        instructions: ''
+        instructions: '30% success rate, 2-hour cooldown.'
       },
       {
         name: 'buffs',
@@ -286,7 +286,7 @@ export const commandCategories = [
         name: 'duel',
         description: 'Challenge another user to a duel for points!',
         usage: '/duel challenge user:<user> amount:<amount> | /duel accept duel_id:<id> | /duel decline duel_id:<id> | /duel stats',
-        instructions: ''
+        instructions: 'The duel lasts 1 minute before it cancels.'
       }
     ]
   },
@@ -312,9 +312,9 @@ export const commandCategories = [
     commands: [
       {
         name: 'timeout',
-        description: 'Timeout a user for a specified duration (costs 100k * duration + 2% of balance, 5 min cooldown)',
+        description: 'Timeout a user for a specified duration.',
         usage: '/timeout user:<user> duration:<1-5> [reason:<text>]',
-        instructions: 'Requires Timeout Members permission.'
+        instructions: 'Requires Timeout Members permission in the Gambling Bot role. 100k * duration + 2% of balance, 5 min cooldown.'
       },
       {
         name: 'setlogchannel',
@@ -331,8 +331,8 @@ export const commandCategories = [
       {
         name: 'bail',
         description: 'Bail a jailed user out of jail (for a fee)',
-        usage: '/bail user:<user>',
-        instructions: ''
+        usage: '/bail [user:<user>] [all:<true|false>]',
+        instructions: 'Specify either a user to bail or set all:true to bail all jailed users in the server.'
       },
       {
         name: 'jailed',
