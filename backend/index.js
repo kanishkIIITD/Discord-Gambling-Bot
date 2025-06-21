@@ -9,7 +9,7 @@ const cookieParser = require('cookie-parser');
 const WebSocket = require('ws');
 const http = require('http');
 const userRoutes = require('./routes/userRoutes');
-const { router: betRouter, setWebSocketServer } = require('./routes/betRoutes');
+const { router: betRouter, setWebSocketServer, scheduleBetClosure } = require('./routes/betRoutes');
 const gamblingRoutes = require('./routes/gamblingRoutes');
 const authRoutes = require('./routes/authRoutes');
 const miscRoutes = require('./routes/miscRoutes');
@@ -106,8 +106,21 @@ app.use(passport.session());
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log(`Connected to MongoDB ${process.env.MONGODB_URI}`);
+    // --- Schedule bet closure timers for all open bets with a future closingTime ---
+    try {
+      const now = new Date();
+      const openBets = await Bet.find({ status: 'open', closingTime: { $gt: now } });
+      let scheduled = 0;
+      for (const bet of openBets) {
+        scheduleBetClosure(bet);
+        scheduled++;
+      }
+      console.log(`[BetTimers] Scheduled closure timers for ${scheduled} open bets with future closingTime.`);
+    } catch (err) {
+      console.error('[BetTimers] Error scheduling bet timers on startup:', err);
+    }
   })
   .catch(err => {
     console.error('MongoDB connection error:', err);

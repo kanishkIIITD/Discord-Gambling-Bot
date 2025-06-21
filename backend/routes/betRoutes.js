@@ -40,6 +40,44 @@ router.use(async (req, res, next) => {
 // Apply requireGuildId to all routes
 router.use(requireGuildId);
 
+// Timer management for automatic bet closing
+const betTimers = new Map();
+
+function scheduleBetClosure(bet) {
+  // Cancel any existing timer for this bet
+  cancelBetClosure(bet._id);
+  if (!bet.closingTime || bet.status !== 'open') return;
+  const delay = new Date(bet.closingTime).getTime() - Date.now();
+  if (delay <= 0) return; // Already expired
+  const timer = setTimeout(async () => {
+    try {
+      // Double-check bet is still open and not already closed
+      const freshBet = await Bet.findById(bet._id);
+      if (freshBet && freshBet.status === 'open') {
+        freshBet.status = 'closed';
+        await freshBet.save();
+        broadcastToAll({
+          type: 'BET_CLOSED',
+          betId: freshBet._id
+        });
+      }
+    } catch (err) {
+      console.error('Error auto-closing bet:', err);
+    } finally {
+      betTimers.delete(String(bet._id));
+    }
+  }, delay);
+  betTimers.set(String(bet._id), timer);
+}
+
+function cancelBetClosure(betId) {
+  const timer = betTimers.get(String(betId));
+  if (timer) {
+    clearTimeout(timer);
+    betTimers.delete(String(betId));
+  }
+}
+
 // Create a new bet
 router.post('/', async (req, res) => {
   try {
@@ -66,6 +104,11 @@ router.post('/', async (req, res) => {
       type: 'BET_CREATED',
       bet: newBet
     });
+
+    // Schedule automatic closure if needed
+    if (newBet.closingTime) {
+      scheduleBetClosure(newBet);
+    }
     
     res.status(201).json(newBet);
   } catch (error) {
@@ -118,6 +161,37 @@ router.get('/closed', async (req, res) => {
     res.json(closedBets);
   } catch (error) {
     console.error('Error fetching closed bets:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Get all closed, unnotified bets (for Discord bot polling)
+router.get('/closed-unnotified', async (req, res) => {
+  try {
+    const guildId = req.guildId;
+    const query = { status: 'closed', notified: false };
+    if (guildId) query.guildId = guildId;
+    const bets = await Bet.find(query);
+    res.json(bets);
+  } catch (error) {
+    console.error('Error fetching closed-unnotified bets:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// Mark a bet as notified (after Discord bot announces closure)
+router.post('/:betId/mark-notified', async (req, res) => {
+  try {
+    const betId = req.params.betId;
+    const bet = await Bet.findById(betId);
+    if (!bet) {
+      return res.status(404).json({ message: 'Bet not found.' });
+    }
+    bet.notified = true;
+    await bet.save();
+    res.json({ message: 'Bet marked as notified.' });
+  } catch (error) {
+    console.error('Error marking bet as notified:', error);
     res.status(500).json({ message: 'Server error.' });
   }
 });
@@ -274,32 +348,36 @@ router.get('/:betId/placed', async (req, res) => {
 
 // Close betting for a specific event
 router.put('/:betId/close', requireBetCreatorOrAdmin, async (req, res) => {
-    try {
-      const betId = req.params.betId;
-      const bet = await Bet.findById(betId).where({ guildId: req.guildId });
+  try {
+    const betId = req.params.betId;
+    const bet = await Bet.findById(betId).where({ guildId: req.guildId });
 
-      if (!bet) {
-        return res.status(404).json({ message: 'Bet not found.' });
-      }
-      if (bet.status !== 'open') {
-          return res.status(400).json({ message: 'Bet is not currently open.' });
-      }
-
-      bet.status = 'closed';
-      await bet.save();
-
-      // Broadcast bet closure
-      broadcastToAll({
-        type: 'BET_CLOSED',
-        betId: bet._id
-      });
-
-      res.json({ message: 'Bet closed successfully.', bet });
-
-    } catch (error) {
-      console.error('Error closing bet:', error);
-      res.status(500).json({ message: 'Server error.' });
+    if (!bet) {
+      return res.status(404).json({ message: 'Bet not found.' });
     }
+    if (bet.status !== 'open') {
+      return res.status(400).json({ message: 'Bet is not currently open.' });
+    }
+
+    bet.status = 'closed';
+    bet.notified = true;
+    await bet.save();
+
+    // Broadcast bet closure
+    broadcastToAll({
+      type: 'BET_CLOSED',
+      betId: bet._id
+    });
+
+    // Cancel any scheduled closure timer
+    cancelBetClosure(bet._id);
+
+    res.json({ message: 'Bet closed successfully.', bet });
+
+  } catch (error) {
+    console.error('Error closing bet:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
 });
 
 // Cancel a bet (creator or admin only)
@@ -355,11 +433,17 @@ router.put('/:betId/edit', requireBetCreatorOrAdmin, async (req, res) => {
         bet.options = options.split(',').map(option => option.trim());
       }
     }
+    let closingTimeChanged = false;
     if (durationMinutes) {
       bet.closingTime = new Date(Date.now() + durationMinutes * 60 * 1000);
+      closingTimeChanged = true;
     }
 
     await bet.save();
+    // Reschedule timer if closingTime was changed
+    if (closingTimeChanged) {
+      scheduleBetClosure(bet);
+    }
     res.json({ message: 'Bet updated successfully.', bet });
 
   } catch (error) {
@@ -394,6 +478,9 @@ router.put('/:betId/extend', requireBetCreatorOrAdmin, async (req, res) => {
     bet.closingTime = newClosingTime;
     await bet.save();
 
+    // Reschedule timer for new closing time
+    scheduleBetClosure(bet);
+
     res.json({ 
       message: 'Bet duration extended successfully.', 
       bet,
@@ -427,7 +514,11 @@ router.put('/:betId/resolve', requireBetCreatorOrAdmin, async (req, res) => {
 
       bet.status = 'resolved';
       bet.winningOption = winningOption;
+      bet.notified = true;
       await bet.save();
+
+      // Cancel any scheduled closure timer
+      cancelBetClosure(bet._id);
 
       const placedBets = await PlacedBet.find({ bet: bet._id }).populate('bettor').where({ guildId: req.guildId });
 
@@ -521,7 +612,10 @@ router.post('/:betId/refund', auth, requireAdmin, async (req, res) => {
       }
     }
     bet.status = 'refunded';
+    bet.notified = true;
     await bet.save();
+    // Cancel any scheduled closure timer
+    cancelBetClosure(bet._id);
     res.json({ bet });
   } catch (error) {
     console.error('Error refunding bet:', error);
@@ -529,4 +623,5 @@ router.post('/:betId/refund', auth, requireAdmin, async (req, res) => {
   }
 });
 
-module.exports = { router, setWebSocketServer };
+// Export timer functions for use in other endpoints
+module.exports = { router, setWebSocketServer, scheduleBetClosure, cancelBetClosure };

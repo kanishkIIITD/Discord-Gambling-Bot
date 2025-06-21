@@ -9,6 +9,7 @@ const betSchema = new mongoose.Schema({
   winningOption: { type: String }, // To be filled upon resolution
   createdAt: { type: Date, default: Date.now },
   closingTime: { type: Date }, // Time when betting closes
+  notified: { type: Boolean, default: false }, // Whether closure has been announced to Discord
   // Add other bet-related fields as needed (e.g., end time, related message ID)
 });
 

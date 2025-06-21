@@ -23,6 +23,9 @@ const questionCommand = require('./commands/question');
 const jailedCommand = require('./commands/jailed');
 const stealCommand = require('./commands/steal');
 const transactionHistoryCommand = require('./commands/transactionHistory');
+const fs = require('fs/promises');
+const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
+let betMessageMap = {};
 
 const backendApiUrl = process.env.BACKEND_API_URL;
 
@@ -33,9 +36,80 @@ const client = new Client({ intents: [
 	GatewayIntentBits.GuildMembers
 ] });
 
+// --- Blackjack: Track latest message per user per guild ---
+const activeBlackjackMessages = new Map(); // key: `${guildId}_${userId}` => { channelId, messageId }
+
+// Load bet message map from file
+async function loadBetMessageMap() {
+  try {
+    const data = await fs.readFile(BET_MESSAGE_MAP_FILE, 'utf8');
+    betMessageMap = JSON.parse(data);
+  } catch (err) {
+    betMessageMap = {};
+  }
+}
+
+// Save bet message map to file
+async function saveBetMessageMap() {
+  await fs.writeFile(BET_MESSAGE_MAP_FILE, JSON.stringify(betMessageMap, null, 2));
+}
+
+// On bot startup, load the mapping
+loadBetMessageMap();
+
 client.once('ready', () => {
 	console.log(`Logged in as ${client.user.tag}!`);
 	console.log(`Discord Client ID: ${process.env.CLIENT_ID}`);
+
+	// --- Poll for closed, unnotified bets every 20 seconds ---
+	setInterval(async () => {
+		try {
+			for (const [guildId, guild] of client.guilds.cache) {
+				try {
+					const response = await axios.get(`${backendApiUrl}/bets/closed-unnotified`, {
+						headers: { 'x-guild-id': guildId }
+					});
+					const closedBets = response.data;
+					for (const bet of closedBets) {
+						const mapping = betMessageMap[bet._id];
+						if (mapping) {
+							try {
+								const channel = await client.channels.fetch(mapping.channelId);
+								const message = await channel.messages.fetch(mapping.messageId);
+								// Send a reply to the original message to indicate betting is closed
+								const closedEmbed = new EmbedBuilder()
+									.setColor(0x636e72)
+									.setTitle('🔒 Bet Closed')
+									.setDescription('Betting is now closed for this bet.')
+									.setTimestamp();
+								await message.reply({ embeds: [closedEmbed] });
+							} catch (err) {
+								console.error('Failed to reply to bet message:', err);
+							}
+						}
+						// Mark as notified in backend
+						try {
+							await axios.post(`${backendApiUrl}/bets/${bet._id}/mark-notified`, {}, {
+								headers: { 'x-guild-id': guildId }
+							});
+						} catch (err) {
+							console.error('Failed to mark bet as notified:', err);
+						}
+						// --- Cleanup: Remove mapping for this bet and save ---
+						if (betMessageMap[bet._id]) {
+							delete betMessageMap[bet._id];
+							await saveBetMessageMap();
+						}
+					}
+				} catch (err) {
+					// Log error for this guild, but continue polling others
+					console.error(`Error polling for closed-unnotified bets in guild ${guildId}:`, err?.response?.data || err.message);
+				}
+			}
+		} catch (err) {
+			console.error('Error in closed-unnotified bets poller:', err);
+		}
+	}, 20000);
 });
 
 // Send a welcome embed when the bot is added to a new server
@@ -480,8 +554,6 @@ client.on('interactionCreate', async interaction => {
 		if (interaction.customId.startsWith('blackjack_')) {
 			try {
 				const [_, action, buttonUserId] = interaction.customId.split('_');
-				
-				// Only allow the user who started the game to use the buttons
 				if (buttonUserId !== interaction.user.id) {
 					await interaction.reply({ 
 						content: '❌ Only the player who started this blackjack game can use these buttons.', 
@@ -489,7 +561,25 @@ client.on('interactionCreate', async interaction => {
 					});
 					return;
 				}
-
+				// --- Disable previous blackjack message for this user (if any) ---
+				const key = `${interaction.guildId}_${interaction.user.id}`;
+				const prev = activeBlackjackMessages.get(key);
+				if (prev && (prev.channelId !== interaction.channelId || prev.messageId !== interaction.message.id)) {
+					try {
+						const channel = await client.channels.fetch(prev.channelId);
+						const msg = await channel.messages.fetch(prev.messageId);
+						if (msg && msg.components?.length) {
+							const disabledRows = msg.components.map(row => {
+								const newRow = ActionRowBuilder.from(row);
+								newRow.components = newRow.components.map(btn => ButtonBuilder.from(btn).setDisabled(true));
+								return newRow;
+							});
+							await msg.edit({ components: disabledRows });
+						}
+					} catch (e) { /* ignore if not found */ }
+				}
+				// --- Always defer reply before sending new message ---
+				await interaction.deferReply();
 				// Perform the blackjack action
 				const response = await axios.post(`${backendApiUrl}/gambling/${interaction.user.id}/blackjack`, { 
 					action: action 
@@ -530,16 +620,6 @@ client.on('interactionCreate', async interaction => {
 				});
 				
 				embed.setTimestamp();
-
-				// --- Disable previous buttons ---
-				if (interaction.message && interaction.message.components?.length) {
-					const disabledComponents = interaction.message.components.map(row => {
-						const newRow = ActionRowBuilder.from(row);
-						newRow.components = newRow.components.map(btn => ButtonBuilder.from(btn).setDisabled(true));
-						return newRow;
-					});
-					await interaction.update({ components: disabledComponents });
-				}
 
 				// Create action buttons if game is not over
 				let components = [];
@@ -585,8 +665,27 @@ client.on('interactionCreate', async interaction => {
 					components.push(actionRow);
 				}
 
-				// Create a new message instead of updating the existing one
-				await interaction.followUp({ embeds: [embed], components });
+				// Send the new game state as the reply
+				const sentMsg = await interaction.editReply({ embeds: [embed], components });
+				// --- Disable previous blackjack message for this user (if any) ---
+				const keyButton = `${interaction.guildId}_${interaction.user.id}`;
+				const prevButton = activeBlackjackMessages.get(keyButton);
+				if (prevButton && (prevButton.channelId !== interaction.channelId || prevButton.messageId !== sentMsg.id)) {
+					try {
+						const channel = await client.channels.fetch(prevButton.channelId);
+						const msg = await channel.messages.fetch(prevButton.messageId);
+						if (msg && msg.components?.length) {
+							const disabledRows = msg.components.map(row => {
+								const newRow = ActionRowBuilder.from(row);
+								newRow.components = newRow.components.map(btn => ButtonBuilder.from(btn).setDisabled(true));
+								return newRow;
+							});
+							await msg.edit({ components: disabledRows });
+						}
+					} catch (e) { /* ignore if not found */ }
+				}
+				// Track this as the latest blackjack message for this user
+				activeBlackjackMessages.set(keyButton, { channelId: sentMsg.channelId || sentMsg.channel.id, messageId: sentMsg.id });
 			} catch (error) {
 				console.error('Error handling blackjack button:', error);
 				const errorMessage = error.response?.data?.message || error.message || 'An error occurred while processing the blackjack action.';
@@ -861,9 +960,13 @@ client.on('interactionCreate', async interaction => {
 				}
 			}
 			// Main embed response (no ping in content)
-				await interaction.editReply({
+			const sentMessage = await interaction.editReply({
 					embeds: [embed],
 				});
+
+			// Persist betId -> messageId/channelId mapping
+			betMessageMap[newBet._id] = { messageId: sentMessage.id, channelId: sentMessage.channelId || sentMessage.channel.id };
+			await saveBetMessageMap();
 
 				// Follow-up ping
 				if (gamblersRole) {
@@ -1845,6 +1948,119 @@ client.on('interactionCreate', async interaction => {
 			});
 			const data = response.data;
 			
+			// --- PATCH: If resumed, notify user and re-send current game state ---
+			if (data.resumed) {
+				// --- Disable previous blackjack message for this user (if any) ---
+				const key = `${interaction.guildId}_${interaction.user.id}`;
+				const prev = activeBlackjackMessages.get(key);
+				if (prev && (prev.channelId !== interaction.channelId || prev.messageId !== interaction.id)) {
+					try {
+						const channel = await client.channels.fetch(prev.channelId);
+						const msg = await channel.messages.fetch(prev.messageId);
+						if (msg && msg.components?.length) {
+							const disabledRows = msg.components.map(row => {
+								const newRow = ActionRowBuilder.from(row);
+								newRow.components = newRow.components.map(btn => ButtonBuilder.from(btn).setDisabled(true));
+								return newRow;
+							});
+							await msg.edit({ components: disabledRows });
+						}
+					} catch (e) { /* ignore if not found */ }
+				}
+				const resumeEmbed = new EmbedBuilder()
+					.setColor(0xffbe76)
+					.setTitle('🃏 Blackjack In Progress')
+					.setDescription('You already have a blackjack game in progress! Please finish your current game before starting a new one. Here is your current game:');
+				// Add player hands
+				data.playerHands.forEach((hand, i) => {
+					const handValue = calculateHandValue(hand);
+					resumeEmbed.addFields({
+						name: `Your Hand ${i + 1}${i === data.currentHand ? ' (Current)' : ''} (${handValue})`,
+						value: hand.map(card => `${card.value}${card.suit}`).join(' ')
+					});
+				});
+				// Add dealer hand
+				const dealerValue = calculateHandValue(data.dealerHand);
+				resumeEmbed.addFields({
+					name: `Dealer's Hand (${data.gameOver ? dealerValue : '?'})`,
+					value: data.dealerHand.map(card => `${card.value}${card.suit}`).join(' ')
+				});
+				resumeEmbed.addFields({
+					name: 'Your Balance',
+					value: `${data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`
+				});
+				resumeEmbed.setTimestamp();
+				// Create action buttons if game is not over
+				let resumeComponents = [];
+				if (!data.gameOver) {
+					const actionRow = new ActionRowBuilder();
+					// Hit button
+					actionRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`blackjack_hit_${interaction.user.id}`)
+							.setLabel('🎯 Hit')
+							.setStyle(ButtonStyle.Primary)
+					);
+					// Stand button
+					actionRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`blackjack_stand_${interaction.user.id}`)
+							.setLabel('✋ Stand')
+							.setStyle(ButtonStyle.Secondary)
+					);
+					// Double button (if available)
+					if (data.canDouble) {
+						actionRow.addComponents(
+							new ButtonBuilder()
+								.setCustomId(`blackjack_double_${interaction.user.id}`)
+								.setLabel('💰 Double')
+								.setStyle(ButtonStyle.Success)
+						);
+					}
+					// Split button (if available)
+					if (data.canSplit) {
+						actionRow.addComponents(
+							new ButtonBuilder()
+								.setCustomId(`blackjack_split_${interaction.user.id}`)
+								.setLabel('🃏 Split')
+								.setStyle(ButtonStyle.Danger)
+						);
+					}
+					resumeComponents.push(actionRow);
+				}
+				// --- Disable previous buttons if possible ---
+				if (interaction.message && interaction.message.components?.length) {
+					const disabledComponents = interaction.message.components.map(row => {
+						const newRow = ActionRowBuilder.from(row);
+						newRow.components = newRow.components.map(btn => ButtonBuilder.from(btn).setDisabled(true));
+						return newRow;
+					});
+					await interaction.update({ components: disabledComponents });
+				}
+				const sentMsg = await interaction.editReply({ embeds: [resumeEmbed], components: resumeComponents });
+				// --- Disable previous blackjack message for this user (if any) ---
+				const keyResume = `${interaction.guildId}_${interaction.user.id}`;
+				const prevResume = activeBlackjackMessages.get(keyResume);
+				if (prevResume && (prevResume.channelId !== interaction.channelId || prevResume.messageId !== sentMsg.id)) {
+					try {
+						const channel = await client.channels.fetch(prevResume.channelId);
+						const msg = await channel.messages.fetch(prevResume.messageId);
+						if (msg && msg.components?.length) {
+							const disabledRows = msg.components.map(row => {
+								const newRow = ActionRowBuilder.from(row);
+								newRow.components = newRow.components.map(btn => ButtonBuilder.from(btn).setDisabled(true));
+								return newRow;
+							});
+							await msg.edit({ components: disabledRows });
+						}
+					} catch (e) { /* ignore if not found */ }
+				}
+				// Track this as the latest blackjack message for this user
+				activeBlackjackMessages.set(keyResume, { channelId: sentMsg.channelId || sentMsg.channel.id, messageId: sentMsg.id });
+				return;
+			}
+			// ... existing code for new game ...
+
 			// Create embed
 			const embed = new EmbedBuilder()
 				.setColor(data.gameOver ? (data.results.some(r => r.result === 'win' || r.result === 'blackjack') ? 0x00ff00 : 0xff0000) : 0x0099ff)
@@ -1935,7 +2151,26 @@ client.on('interactionCreate', async interaction => {
 				components.push(actionRow);
 			}
 
-			await interaction.editReply({ embeds: [embed], components });
+			const sentMsg = await interaction.editReply({ embeds: [embed], components });
+			// --- Disable previous blackjack message for this user (if any) ---
+			const keyNew = `${interaction.guildId}_${interaction.user.id}`;
+			const prevNew = activeBlackjackMessages.get(keyNew);
+			if (prevNew && (prevNew.channelId !== interaction.channelId || prevNew.messageId !== sentMsg.id)) {
+				try {
+					const channel = await client.channels.fetch(prevNew.channelId);
+					const msg = await channel.messages.fetch(prevNew.messageId);
+					if (msg && msg.components?.length) {
+						const disabledRows = msg.components.map(row => {
+							const newRow = ActionRowBuilder.from(row);
+							newRow.components = newRow.components.map(btn => ButtonBuilder.from(btn).setDisabled(true));
+							return newRow;
+						});
+						await msg.edit({ components: disabledRows });
+					}
+				} catch (e) { /* ignore if not found */ }
+			}
+			// Track this as the latest blackjack message for this user
+			activeBlackjackMessages.set(keyNew, { channelId: sentMsg.channelId || sentMsg.channel.id, messageId: sentMsg.id });
 		} catch (error) {
 			if (!interaction.replied) {
 				await safeErrorReply(interaction, new EmbedBuilder()

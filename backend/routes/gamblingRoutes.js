@@ -299,29 +299,51 @@ router.post('/:discordId/blackjack', async (req, res) => {
     const wallet = req.wallet;
     const user = req.user;
 
-    // --- PATCH: Always delete any unfinished or old game state before starting a new game ---
+    // --- PATCH: Only allow a new game if there is no unfinished game ---
     let gameState = await BlackjackGame.findOne({ 
       user: req.user._id,
       guildId: req.guildId
     });
+    // If starting a new game (amount provided)
     if (amount !== undefined) {
-      // If starting a new game, always delete any previous game state (even if not gameOver)
+      if (gameState && !gameState.gameOver) {
+        // There is an unfinished game, return it instead of starting a new one
+        // Calculate canSplit/canDouble for UI
+        const calculateHandValue = (hand) => {
+          if (!hand || hand.length === 0) return 0;
+          let value = 0;
+          let aces = 0;
+          for (let card of hand) {
+            if (!card || !card.value) continue;
+            if (card.value === 'A') { aces++; value += 11; }
+            else if (['K', 'Q', 'J'].includes(card.value)) { value += 10; }
+            else { value += parseInt(card.value); }
+          }
+          while (value > 21 && aces > 0) { value -= 10; aces--; }
+          return value;
+        };
+        return res.json({
+          playerHands: gameState.playerHands,
+          dealerHand: gameState.gameOver ? gameState.dealerHand : [gameState.dealerHand[0], { suit: '?', value: '?' }],
+          currentHand: gameState.currentHand,
+          gameOver: gameState.gameOver,
+          results: [],
+          newBalance: wallet.balance,
+          canSplit: gameState.playerHands[gameState.currentHand]?.length === 2 && 
+                    calculateHandValue([gameState.playerHands[gameState.currentHand][0]]) === 
+                    calculateHandValue([gameState.playerHands[gameState.currentHand][1]]),
+          canDouble: gameState.playerHands[gameState.currentHand]?.length === 2,
+          resumed: true
+        });
+      }
+      // If previous game is over or doesn't exist, delete old state and start new game (existing logic)
       if (gameState) {
-        try {
-          await BlackjackGame.deleteOne({ _id: gameState._id });
-        } catch (error) {
-          console.error('Error cleaning up old blackjack game:', error);
-        }
+        try { await BlackjackGame.deleteOne({ _id: gameState._id }); } catch (error) { console.error('Error cleaning up old blackjack game:', error); }
         gameState = null;
       }
     } else if (gameState && (gameState.gameOver || (gameState.createdAt < new Date(Date.now() - 60 * 60 * 1000)))) {
       // Clean up if game is over or too old
-      try {
-        await BlackjackGame.deleteOne({ _id: gameState._id });
-        gameState = null;
-      } catch (error) {
-        console.error('Error cleaning up old blackjack game:', error);
-      }
+      try { await BlackjackGame.deleteOne({ _id: gameState._id }); gameState = null; } catch (error) { console.error('Error cleaning up old blackjack game:', error); }
     }
     // --- END PATCH ---
 
