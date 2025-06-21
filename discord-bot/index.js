@@ -856,6 +856,8 @@ client.on('interactionCreate', async interaction => {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const bet = response.data;
+			// The bet object now contains totalPot and optionTotals
+			const { totalPot, optionTotals } = bet;
 
 			const embed = new EmbedBuilder()
 				.setColor(0x00b894)
@@ -863,6 +865,7 @@ client.on('interactionCreate', async interaction => {
 				.addFields(
 					{ name: 'ID', value: bet._id, inline: true },
 					{ name: 'Status', value: bet.status, inline: true },
+					{ name: 'Total Pot', value: `${(totalPot || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
 				)
 				.setTimestamp(new Date(bet.createdAt));
@@ -871,30 +874,16 @@ client.on('interactionCreate', async interaction => {
 				embed.addFields({ name: 'Winning Option', value: bet.winningOption, inline: true });
 			}
 
-			try {
-				const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`, {
-					params: { guildId: interaction.guildId },
-					headers: { 'x-guild-id': interaction.guildId }
-				});
-				const placedBets = placedBetsResponse.data.data;
-
-				if (placedBets.length > 0) {
-					const betsByOption = placedBets.reduce((acc, placedBet) => {
-						acc[placedBet.option] = (acc[placedBet.option] || 0) + placedBet.amount;
-						return acc;
-					}, {});
-
-					let placedBetsSummary = '';
-					for (const [option, totalAmount] of Object.entries(betsByOption)) {
-						placedBetsSummary += `**${option}:** ${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\n`;
-					}
-					embed.addFields({ name: 'Total Placed Per Option', value: placedBetsSummary, inline: false });
-				} else {
-					embed.addFields({ name: 'Placed Bets', value: 'No bets have been placed yet.', inline: false });
+			// Display option totals using backend-provided data
+			if (optionTotals && Object.keys(optionTotals).length > 0) {
+				let placedBetsSummary = '';
+				for (const [option, totalAmount] of Object.entries(optionTotals)) {
+					const percent = totalPot > 0 ? ((totalAmount / totalPot) * 100) : 0;
+					placedBetsSummary += `**${option}:** ${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points (${percent.toFixed(1)}%)\n`;
 				}
-			} catch (placedBetsError) {
-				console.error('Error fetching placed bets for viewbet:', placedBetsError.response?.data || placedBetsError.message);
-				embed.addFields({ name: 'Placed Bets', value: '*Could not fetch placed bets.', inline: false });
+				embed.addFields({ name: 'Total Placed Per Option', value: placedBetsSummary, inline: false });
+			} else {
+				embed.addFields({ name: 'Placed Bets', value: 'No bets have been placed yet.', inline: false });
 			}
 
 			await interaction.editReply({ embeds: [embed] });
@@ -2991,16 +2980,8 @@ client.on('interactionCreate', async interaction => {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const bet = betResponse.data;
-			const placedBetsResponse = await axios.get(`${backendApiUrl}/bets/${betId}/placed`, {
-				params: { guildId: interaction.guildId },
-				headers: { 'x-guild-id': interaction.guildId }
-			});
-			const placedBets = placedBetsResponse.data.data;
-			const totalPot = placedBets.reduce((sum, placedBet) => sum + placedBet.amount, 0);
-			const betsByOption = placedBets.reduce((acc, placedBet) => {
-				acc[placedBet.option] = (acc[placedBet.option] || 0) + placedBet.amount;
-				return acc;
-			}, {});
+			const { totalPot, optionTotals } = bet;
+			
 			const embed = new EmbedBuilder()
 				.setColor(0x6c5ce7)
 				.setTitle(`📊 Bet Information: ${bet.description}`)
@@ -3010,14 +2991,16 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Created By', value: `<@${bet.creator.discordId}>`, inline: true },
 					{ name: 'Created At', value: new Date(bet.createdAt).toLocaleString(), inline: true },
 					{ name: 'Closing Time', value: bet.closingTime ? new Date(bet.closingTime).toLocaleString() : 'Not set', inline: true },
-					{ name: 'Total Pot', value: `${totalPot.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'Total Pot', value: `${(totalPot || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false }
 				)
 				.setTimestamp();
 			let betsPerOptionText = '';
-			for (const [option, amount] of Object.entries(betsByOption)) {
-				const percentage = totalPot > 0 ? ((amount / totalPot) * 100).toFixed(1) : 0;
-				betsPerOptionText += `**${option}:** ${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points (${percentage}%)\n`;
+			if (optionTotals) {
+				for (const [option, amount] of Object.entries(optionTotals)) {
+					const percentage = totalPot > 0 ? ((amount / totalPot) * 100).toFixed(1) : 0;
+					betsPerOptionText += `**${option}:** ${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points (${percentage}%)\n`;
+				}
 			}
 			embed.addFields({ name: 'Bets Per Option', value: betsPerOptionText || 'No bets placed yet', inline: false });
 			if (bet.status === 'resolved' && bet.winningOption) {

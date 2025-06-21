@@ -50,12 +50,8 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
 
-  // Calculate total pot and per-option totals
-  const optionTotals = bet && bet.options.reduce((acc, option) => {
-    acc[option] = placedBets.filter(pb => pb.option === option).reduce((sum, pb) => sum + pb.amount, 0);
-    return acc;
-  }, {});
-  const totalPot = placedBets.reduce((sum, pb) => sum + pb.amount, 0);
+  // The backend now provides these totals directly
+  const { optionTotals, totalPot } = bet || {};
 
   // Fetch user preferences for pagination
   useEffect(() => {
@@ -99,7 +95,7 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
           { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
         );
         setPlacedBets(placedRes.data.data);
-        setPlacedBetsTotal(placedRes.data.totalCount || (placedRes.data.data ? placedRes.data.data.length : placedRes.data.length));
+        setPlacedBetsTotal(placedRes.data.totalCount || (placedRes.data.data ? placedRes.data.data.length : 0));
       } catch (err) {
         console.error('Error fetching bet details:', err);
         setError('Failed to fetch bet details.');
@@ -168,7 +164,7 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
                 { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
             );
             setPlacedBets(placedBetsRes.data.data);
-            setPlacedBetsTotal(placedBetsRes.data.totalCount || (placedBetsRes.data.data ? placedBetsRes.data.data.length : placedBetsRes.data.length));
+            setPlacedBetsTotal(placedBetsRes.data.totalCount || (placedBetsRes.data.data ? placedBetsRes.data.data.length : 0));
 
             // Balance update is handled by WebSocket in DashboardLayout
 
@@ -336,14 +332,14 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
           <div className="mt-4 bg-surface rounded-lg p-6 shadow flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="text-lg font-semibold text-text-primary">Total Pot</div>
-              <div className="text-2xl font-bold text-primary font-mono">{totalPot.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-base font-medium text-text-secondary">points</span></div>
+              <div className="text-2xl font-bold text-primary font-mono">{(totalPot || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-base font-medium text-text-secondary">points</span></div>
             </div>
             <div className="divide-y divide-border">
               {bet.options.map(option => {
-                const amount = optionTotals[option] || 0;
+                const amount = (optionTotals && optionTotals[option]) || 0;
                 const percent = totalPot > 0 ? ((amount / totalPot) * 100) : 0;
                 // Find the leading option
-                const maxAmount = Math.max(...bet.options.map(opt => optionTotals[opt] || 0));
+                const maxAmount = optionTotals ? Math.max(...Object.values(optionTotals)) : 0;
                 const isLeading = amount === maxAmount && amount > 0;
                 return (
                   <div key={option} className="py-3 flex flex-col gap-1">

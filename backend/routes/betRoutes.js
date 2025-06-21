@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const Bet = require('../models/Bet');
 const PlacedBet = require('../models/PlacedBet');
@@ -8,6 +9,7 @@ const Transaction = require('../models/Transaction');
 const WebSocket = require('ws');
 const { updateUserWinStreak } = require('../utils/gamblingUtils');
 const { requireAdmin, auth, requireGuildId, requireBetCreatorOrAdmin } = require('../middleware/auth');
+const { broadcastToUser } = require('../utils/websocketService');
 
 // Get the WebSocket server instance
 let wss;
@@ -199,11 +201,35 @@ router.post('/:betId/mark-notified', async (req, res) => {
 // Get a specific bet by ID
 router.get('/:betId', async (req, res) => {
   try {
-    const bet = await Bet.findById(req.params.betId).populate('creator', 'username discordId').where({ guildId: req.guildId });
+    const bet = await Bet.findOne({ _id: req.params.betId, guildId: req.guildId })
+      .populate('creator', 'username discordId')
+      .lean();
+
     if (!bet) {
       return res.status(404).json({ message: 'Bet not found.' });
     }
-    res.json(bet);
+
+    const placedBetsStats = await PlacedBet.aggregate([
+      { $match: { bet: bet._id } },
+      { $group: { _id: '$option', totalAmount: { $sum: '$amount' } } },
+    ]);
+
+    const optionTotals = bet.options.reduce((acc, option) => {
+      acc[option] = 0;
+      return acc;
+    }, {});
+
+    let totalPot = 0;
+    placedBetsStats.forEach(stat => {
+      optionTotals[stat._id] = stat.totalAmount;
+      totalPot += stat.totalAmount;
+    });
+
+    res.json({
+      ...bet,
+      optionTotals,
+      totalPot,
+    });
   } catch (error) {
     console.error('Error fetching bet by ID:', error);
     res.status(500).json({ message: 'Server error.' });
@@ -212,113 +238,114 @@ router.get('/:betId', async (req, res) => {
 
 // Place a bet on an existing event
 router.post('/:betId/place', async (req, res) => {
+  const { bettorDiscordId, option, amount } = req.body;
+  const { betId } = req.params;
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { bettorDiscordId, option, amount } = req.body;
-    const betId = req.params.betId;
+    // Basic validations
+    if (amount <= 0) {
+      throw { status: 400, message: 'Amount must be positive.' };
+    }
 
     // Find the bet and the bettor
-    const bet = await Bet.findById(betId).where({ guildId: req.guildId });
-    const bettor = await User.findOne({ discordId: bettorDiscordId, guildId: req.guildId });
-
+    const bet = await Bet.findById(betId).session(session).where({ guildId: req.guildId });
     if (!bet) {
-      return res.status(404).json({ message: 'Bet not found.' });
+      throw { status: 404, message: 'Bet not found.' };
     }
-
-    // // console.log(`DEBUG: Bet options from DB:', bet.options`);
 
     if (bet.status !== 'open') {
-        return res.status(400).json({ message: 'Bet is not open for placing bets.' });
+      throw { status: 400, message: 'Bet is not open for placing bets.' };
     }
-    // Check if bet's closing time has passed
+
     if (bet.closingTime && new Date() > bet.closingTime) {
-        bet.status = 'closed';
-        await bet.save();
-        
-        // Broadcast bet closure
-        broadcastToAll({
-          type: 'BET_CLOSED',
-          betId: bet._id
-        });
-        
-        return res.status(400).json({ message: 'Bet is closed as the closing time has passed.' });
+      bet.status = 'closed';
+      await bet.save({ session });
+      broadcastToAll({ type: 'BET_CLOSED', betId: bet._id });
+      throw { status: 400, message: 'Bet is closed as the closing time has passed.' };
     }
-    if (!bettor) {
-      return res.status(404).json({ message: 'Bettor user not found.' });
-    }
+
     if (!bet.options.includes(option)) {
-        return res.status(400).json({ message: 'Invalid option for this bet.' });
-    }
-    if (amount <= 0) {
-        return res.status(400).json({ message: 'Amount must be positive.' });
+      throw { status: 400, message: 'Invalid option for this bet.' };
     }
 
-    // Check if the user has already placed a bet on this event on a different option
-    const existingBetOnEvent = await PlacedBet.findOne({ bet: bet._id, bettor: bettor._id });
-
-    if (existingBetOnEvent && existingBetOnEvent.option !== option) {
-      return res.status(400).json({ message: `You have already placed a bet on the option "${existingBetOnEvent.option}" for this event. You cannot bet on a different option.` });
+    const bettor = await User.findOne({ discordId: bettorDiscordId, guildId: req.guildId }).session(session);
+    if (!bettor) {
+      throw { status: 404, message: 'Bettor user not found.' };
     }
 
-    // Check if user has enough balance (requires wallet access)
-    const wallet = await Wallet.findOne({ user: bettor._id, guildId: req.guildId });
+    // Check balance and deduct from wallet
+    const wallet = await Wallet.findOne({ user: bettor._id, guildId: req.guildId }).session(session);
     if (!wallet || wallet.balance < amount) {
-        return res.status(400).json({ message: 'Insufficient balance.' });
+      throw { status: 400, message: 'Insufficient balance.' };
     }
-
-    // Deduct amount from wallet
     wallet.balance -= amount;
-    await wallet.save();
 
-    // Record bet placement transaction
-    const betTransaction = new Transaction({
+    // Check for existing bet and handle logic
+    const existingPlacedBet = await PlacedBet.findOne({ bet: bet._id, bettor: bettor._id }).session(session);
+
+    if (existingPlacedBet) {
+      if (existingPlacedBet.option !== option) {
+        throw { status: 400, message: `You have already placed a bet on the option "${existingPlacedBet.option}". You cannot bet on a different option.` };
+      }
+      // Add to existing bet
+      existingPlacedBet.amount += amount;
+      await existingPlacedBet.save({ session });
+    } else {
+      // Create new placed bet
+      await PlacedBet.create([{
+        bet: bet._id,
+        bettor: bettor._id,
+        option,
+        amount,
+        guildId: req.guildId,
+      }], { session });
+    }
+    
+    // Record transaction and save wallet
+    await Transaction.create([{
       user: bettor._id,
       type: 'bet',
       amount: -amount,
       description: `Bet placed on "${bet.description}" - Option: ${option}`,
       guildId: req.guildId,
-    });
-    await betTransaction.save();
+    }], { session });
+    
+    await wallet.save({ session });
 
-    // Create the placed bet
-    const placedBet = new PlacedBet({
-      bet: bet._id,
-      bettor: bettor._id,
-      option,
-      amount,
-      guildId: req.guildId,
-    });
+    // Commit transaction
+    await session.commitTransaction();
 
-    await placedBet.save();
-
-    // Broadcast bet update
+    // Broadcast updates (outside of transaction)
     broadcastToAll({
       type: 'BET_UPDATED',
       bet: await Bet.findById(betId).populate('creator', 'discordId').where({ guildId: req.guildId })
     });
 
-    // Broadcast balance update to the bettor
-    if (wss) {
-      const client = Array.from(wss.clients).find(
-        c => c.discordId === bettorDiscordId
-      );
-      if (client && client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({
-          type: 'BALANCE_UPDATE',
-          balance: wallet.balance
-        }));
-      }
-    }
-
-    res.status(201).json({ message: 'Bet placed successfully.', placedBet });
+    broadcastToUser(bettorDiscordId, {
+      type: 'BALANCE_UPDATE',
+      balance: wallet.balance
+    });
+    
+    res.status(201).json({ message: 'Bet placed successfully.' });
 
   } catch (error) {
+    await session.abortTransaction();
     console.error('Error placing bet:', error);
-    res.status(500).json({ message: 'Server error.' });
+    if (error.status) {
+      res.status(error.status).json({ message: error.message });
+    } else {
+      res.status(500).json({ message: 'Server error during bet placement.' });
+    }
+  } finally {
+    session.endSession();
   }
 });
 
 // Get placed bets for a specific bet by ID (with pagination)
-router.get('/:betId/placed', async (req, res) => {
+router.get('/:betId/placed', requireGuildId, async (req, res) => {
   try {
     const betId = req.params.betId;
     const page = parseInt(req.query.page) || 1;
