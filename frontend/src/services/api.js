@@ -193,8 +193,8 @@ export const updateUsername = async (discordId, username) => {
 };
 
 // Refund a bet (admin/superadmin only)
-export const refundBet = async (betId) => {
-  const response = await axios.post(`${API_URL}/api/bets/${betId}/refund`, { guildId: MAIN_GUILD_ID }, withGuild());
+export const refundBet = async (betId, creatorDiscordId) => {
+  const response = await axios.post(`${API_URL}/api/bets/${betId}/refund`, { creatorDiscordId, guildId: MAIN_GUILD_ID }, withGuild());
   return response.data;
 };
 

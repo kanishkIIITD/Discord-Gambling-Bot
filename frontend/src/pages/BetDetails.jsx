@@ -279,7 +279,7 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const handleRefundBet = async () => {
     setAdminActionLoading(true);
     try {
-      await refundBet(betId);
+      await refundBet(betId, user.discordId);
       toast.success('Bet refunded successfully.');
       setShowRefundModal(false);
       // Refresh bet details
