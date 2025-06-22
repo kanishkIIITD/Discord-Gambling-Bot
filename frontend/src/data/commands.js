@@ -66,6 +66,12 @@ export const commandCategories = [
         instructions: 'Creator/Admin/Superadmin only.'
       },
       {
+        name: 'refund',
+        description: 'Refund all bets for a specific bet.',
+        usage: '/refund bet_id:<id>',
+        instructions: 'Creator/Admin/Superadmin only. Refunds all bets for the selected bet.'
+      },
+      {
         name: 'unresolvedbets',
         description: 'Shows all bets that are unresolved (status: open or closed).',
         usage: '/unresolvedbets',

@@ -658,40 +658,41 @@ router.put('/:betId/resolve', requireBetCreatorOrAdmin, async (req, res) => {
     }
 });
 
-// Refund a bet (admin/superadmin only)
-router.post('/:betId/refund', auth, requireAdmin, async (req, res) => {
+// Refund a bet (creator, admin, or superadmin only)
+router.post('/:betId/refund', requireBetCreatorOrAdmin, async (req, res) => {
   try {
     const { betId } = req.params;
-    const bet = await Bet.findById(betId).where({ guildId: req.guildId });
+    const { creatorDiscordId, guildId } = req.body;
+    const effectiveGuildId = req.guildId || guildId;
+    const bet = await Bet.findById(betId).where({ guildId: effectiveGuildId });
     if (!bet) return res.status(404).json({ message: 'Bet not found.' });
     if (['resolved', 'cancelled', 'refunded'].includes(bet.status)) {
       return res.status(400).json({ message: 'Bet is already resolved, cancelled, or refunded.' });
     }
     // Refund all placed bets
     const placedBets = await PlacedBet.find({ bet: betId });
+    let refundedCount = 0;
     for (const placedBet of placedBets) {
       // Fetch the bettor's wallet
-      const wallet = await Wallet.findOne({ user: placedBet.bettor, guildId: req.guildId });
+      const wallet = await Wallet.findOne({ user: placedBet.bettor, guildId: effectiveGuildId });
       if (wallet) {
-        // Refund points
         wallet.balance += placedBet.amount;
         await wallet.save();
-        // Create refund transaction
         await Transaction.create({
           user: placedBet.bettor,
           type: 'refund',
           amount: placedBet.amount,
           description: `Refund for bet: ${bet.description}`,
-          guildId: req.guildId,
+          guildId: effectiveGuildId,
         });
+        refundedCount++;
       }
     }
     bet.status = 'refunded';
     bet.notified = true;
     await bet.save();
-    // Cancel any scheduled closure timer
     cancelBetClosure(bet._id);
-    res.json({ bet });
+    res.json({ bet, refundedCount });
   } catch (error) {
     console.error('Error refunding bet:', error);
     res.status(500).json({ message: 'Server error refunding bet.' });

@@ -93,7 +93,8 @@ module.exports = {
         await interaction.editReply({ embeds: [embed] });
         return;
       }
-
+      // Set cooldown immediately to prevent race condition
+      questionCooldowns.set(userId, Date.now());
       // Randomly select animal type
       const animalType = Math.random() < 0.5 ? 'cat' : 'gecko';
       let randomImage, randomQuestion;
@@ -122,11 +123,12 @@ module.exports = {
           .setDescription('This command requires being run in a channel where the bot can read messages.')
           .setTimestamp();
         await safeErrorReply(interaction, errorEmbed);
+        // Remove cooldown if we never actually prompted
+        questionCooldowns.delete(userId);
         return;
       }
 
       const filter = m => m.author.id === userId && ['yes', 'no'].includes(m.content.toLowerCase());
-      questionCooldowns.set(userId, Date.now());
 
       try {
         const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });

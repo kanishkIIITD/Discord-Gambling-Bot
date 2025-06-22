@@ -843,6 +843,19 @@ const commands = [
 	{
 		name: 'jailed',
 		description: 'View all currently jailed users in this server.'
+	},
+	{
+		name: 'refund',
+		description: 'Refund all bets for a specific bet (Creator/Admin/Superadmin only).',
+		options: [
+			{
+				name: 'bet_id',
+				description: 'The ID of the bet to refund',
+				type: ApplicationCommandOptionType.String,
+				required: true,
+				autocomplete: true
+			}
+		]
 	}
 ];
 
@@ -850,23 +863,23 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
 	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
+		// console.log(`Started refreshing ${commands.length} application (/) commands for test guild ${guildId1}.`);
 
-		// Deploy to test guild only
-		const data = await rest.put(
-			Routes.applicationGuildCommands(clientId, guildId1),
-			{ body: commands },
-		);
-
-		console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
-
-		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
-		// console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
-		// const globalData = await rest.put(
-		// 	Routes.applicationCommands(clientId),
+		// // Deploy to test guild only
+		// const data = await rest.put(
+		// 	Routes.applicationGuildCommands(clientId, guildId1),
 		// 	{ body: commands },
 		// );
-		// console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
+
+		// console.log(`Successfully reloaded ${data.length} guild application (/) commands for guild ${guildId1}.`);
+
+		// Uncomment below to deploy globally (WARNING: global updates can take up to 1 hour to propagate)
+		console.log(`Started refreshing ${commands.length} application (/) commands globally.`);
+		const globalData = await rest.put(
+			Routes.applicationCommands(clientId),
+			{ body: commands },
+		);
+		console.log(`Successfully reloaded ${globalData.length} global application (/) commands.`);
 	} catch (error) {
 		console.error(error);
 	}

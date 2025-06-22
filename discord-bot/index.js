@@ -23,6 +23,7 @@ const questionCommand = require('./commands/question');
 const jailedCommand = require('./commands/jailed');
 const stealCommand = require('./commands/steal');
 const transactionHistoryCommand = require('./commands/transactionHistory');
+const refundCommand = require('./commands/refund');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 let betMessageMap = {};
@@ -319,6 +320,10 @@ client.on('interactionCreate', async interaction => {
 				);
 				return;
 			}
+		}
+		// Add refund autocomplete support
+		if (interaction.commandName === 'refund') {
+			return refundCommand.autocomplete(interaction);
 		}
 		return;
 	}
@@ -662,7 +667,7 @@ client.on('interactionCreate', async interaction => {
 				}
 
 				// Send the new game state as the reply
-				const sentMsg = await interaction.editReply({ embeds: [embed], components });
+				const sentMsg = await interaction.editReply({ content: `<@${interaction.user.id}>`, embeds: [embed], components });
 
 				// Track this as the latest blackjack message for this user
 				const key = `${interaction.guildId}_${interaction.user.id}`;
@@ -2002,7 +2007,7 @@ client.on('interactionCreate', async interaction => {
 					});
 					await interaction.update({ components: disabledComponents });
 				}
-				const sentMsg = await interaction.editReply({ embeds: [resumeEmbed], components: resumeComponents });
+				const sentMsg = await interaction.editReply({ content: `<@${interaction.user.id}>`, embeds: [resumeEmbed], components: resumeComponents });
 				// --- Disable previous blackjack message for this user (if any) ---
 				const keyResume = `${interaction.guildId}_${interaction.user.id}`;
 				const prevResume = activeBlackjackMessages.get(keyResume);
@@ -2116,7 +2121,7 @@ client.on('interactionCreate', async interaction => {
 				components.push(actionRow);
 			}
 
-			const sentMsg = await interaction.editReply({ embeds: [embed], components });
+			const sentMsg = await interaction.editReply({ content: `<@${interaction.user.id}>`, embeds: [embed], components });
 			// --- Disable previous blackjack message for this user (if any) ---
 			const keyNew = `${interaction.guildId}_${interaction.user.id}`;
 			const prevNew = activeBlackjackMessages.get(keyNew);
@@ -2609,6 +2614,8 @@ client.on('interactionCreate', async interaction => {
 							'`/betinfo` - Full stats: pot, percentages, placed bets\n' +
 							'`/resolvebet` - End a bet and pay out winners (auto-pings Gamblers)\n' +
 							'`/closebet` - Lock the bet early (no new bets)\n' +
+							'`/cancelbet` - Cancel a bet before any bets are placed\n' +
+							'`/refund` - Refund all bets for a specific bet (Creator/Admin/Superadmin only)\n' +
 							'`/unresolvedbets` - View all unresolved bets'
 						},
 						{ name: '🛠️ QoL Features', value:
@@ -3248,6 +3255,8 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'jailed') {
 		await jailedCommand.execute(interaction);
+	} else if (commandName === 'refund') {
+		await refundCommand.execute(interaction);
 	}
 
 	// --- Handle duel accept/decline buttons ---
@@ -3290,7 +3299,7 @@ client.on('interactionCreate', async interaction => {
 						timestamp: new Date(),
 						footer: { text: `Duel ID: ${duelId}`, headers: { 'x-guild-id': interaction.guildId } }
 					};
-					await interaction.update({ embeds: [resultEmbed], components: [], headers: { 'x-guild-id': interaction.guildId } });
+					await interaction.update({ content: `<@${interaction.user.id}>`, embeds: [resultEmbed], components: [], headers: { 'x-guild-id': interaction.guildId } });
 				} else {
 					const resultEmbed = {
 						color: 0xff7675,
@@ -3299,7 +3308,7 @@ client.on('interactionCreate', async interaction => {
 						timestamp: new Date(),
 						footer: { text: `Duel ID: ${duelId}`, headers: { 'x-guild-id': interaction.guildId } }
 					};
-					await interaction.update({ embeds: [resultEmbed], components: [], headers: { 'x-guild-id': interaction.guildId } });
+					await interaction.update({ content: `<@${interaction.user.id}>`, embeds: [resultEmbed], components: [], headers: { 'x-guild-id': interaction.guildId } });
 				}
 			} catch (error) {
 				if (error.response && error.response.data && error.response.data.message) {

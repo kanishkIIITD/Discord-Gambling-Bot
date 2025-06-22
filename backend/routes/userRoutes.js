@@ -578,7 +578,7 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Omnisquid', rarity: 'transcendent' },
       { name: 'Celestine Ray', rarity: 'transcendent' },
       { name: 'Godfin Eternatus', rarity: 'transcendent' },
-      { name: 'Kanaloa\'s Wrath', rarity: 'og' },
+      { name: "Kanalo's Wrath", rarity: 'og' },
       { name: 'Hasib the Abyssseer', rarity: 'og' },
       { name: 'Jeemongul', rarity: 'og' },
     ];
@@ -2237,7 +2237,7 @@ router.post('/:discordId/fish', async (req, res) => {
         { name: 'Godfin Eternatus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
 
         // OG
-        { name: 'Kanaloa\'s Wrath', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
+        { name: "Kanalo's Wrath", rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
         { name: 'Hasib the Abyssseer', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
         { name: 'Jeemongul', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
     ];
