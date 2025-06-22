@@ -77,7 +77,7 @@ module.exports = {
         embedColor = 0x00FFFF; // Cyan for buffs
       } else if (rewardType === 'coins' && amount >= 1000000) {
         embedColor = 0xFFD700; // Gold for jackpot (1M+ points)
-      } else if (rewardType === 'item' && item && ['legendary', 'mythical', 'transcendent'].includes(item.rarity)) {
+      } else if (rewardType === 'item' && item && ['legendary', 'mythical', 'transcendent', 'og'].includes(item.rarity)) {
         embedColor = 0xFFD700; // Gold for legendary+ items
       }
 

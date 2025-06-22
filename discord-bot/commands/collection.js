@@ -3,7 +3,7 @@ const axios = require('axios');
 const ResponseHandler = require('../utils/responseHandler');
 const logger = require('../utils/logger');
 
-const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical', 'transcendent'];
+const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical', 'transcendent', 'og'];
 
 const rarityEmojis = {
   common: '⚪',
@@ -12,22 +12,23 @@ const rarityEmojis = {
   epic: '🟣',
   legendary: '🟡',
   mythical: '🟠',
-  transcendent: '🌟'
+  transcendent: '🌟',
+  og: '🕶️'
 };
 
 const fishRarityEmojis = {
   common: '🐟', uncommon: '🎣', rare: '🐠',
-  epic: '🦑', legendary: '🐉', mythical: '🌊', transcendent: '🪙🐟'
+  epic: '🦑', legendary: '🐉', mythical: '🌊', transcendent: '🪙🐟', og: '🔱'
 };
 
 const animalRarityEmojis = {
   common: '🐾', uncommon: '🦃', rare: '🦊',
-  epic: '🐻', legendary: '🦄', mythical: '🌌', transcendent: '🎩🦫'
+  epic: '🐻', legendary: '🦄', mythical: '🌌', transcendent: '🎩🦫', og: '👑'
 };
 
 const collectibleRarityEmojis = {
   common: '🎁', uncommon: '🎀', rare: '🎊',
-  epic: '🎉', legendary: '💫', mythical: '✨', transcendent: '🌟'
+  epic: '🎉', legendary: '💫', mythical: '✨', transcendent: '🌟', og: '👑'
 };
 
 const rarityColors = {
@@ -37,7 +38,8 @@ const rarityColors = {
   epic: 0x9b59b6,
   legendary: 0xf1c40f,
   mythical: 0xe67e22,
-  transcendent: 0xFF1493
+  transcendent: 0xFF1493,
+  og: 0xC0392B
 };
 
 function splitIntoFields(title, fullText) {

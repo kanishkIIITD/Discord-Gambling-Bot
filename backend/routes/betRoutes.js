@@ -122,8 +122,24 @@ router.post('/', async (req, res) => {
 // Get all open bets
 router.get('/open', async (req, res) => {
   try {
-    const openBets = await Bet.find({ status: 'open', guildId: req.guildId }).populate('creator', 'discordId');
-    res.json(openBets);
+    const openBets = await Bet.find({ status: 'open', guildId: req.guildId }).populate('creator', 'discordId').lean();
+    
+    // Calculate total pot for each bet
+    const betsWithTotals = await Promise.all(openBets.map(async (bet) => {
+      const placedBetsStats = await PlacedBet.aggregate([
+        { $match: { bet: bet._id } },
+        { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
+      ]);
+      
+      const totalPot = placedBetsStats.length > 0 ? placedBetsStats[0].totalAmount : 0;
+      
+      return {
+        ...bet,
+        totalPot,
+      };
+    }));
+    
+    res.json(betsWithTotals);
   } catch (error) {
     console.error('Error fetching open bets:', error);
     res.status(500).json({ message: 'Server error.' });
@@ -148,8 +164,24 @@ router.get('/upcoming', async (req, res) => {
 // Get all unresolved bets (open or closed)
 router.get('/unresolved', async (req, res) => {
   try {
-    const unresolvedBets = await Bet.find({ status: { $in: ['open', 'closed'] }, guildId: req.guildId }).populate('creator', 'discordId');
-    res.json(unresolvedBets);
+    const unresolvedBets = await Bet.find({ status: { $in: ['open', 'closed'] }, guildId: req.guildId }).populate('creator', 'discordId').lean();
+    
+    // Calculate total pot for each bet
+    const betsWithTotals = await Promise.all(unresolvedBets.map(async (bet) => {
+      const placedBetsStats = await PlacedBet.aggregate([
+        { $match: { bet: bet._id } },
+        { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
+      ]);
+      
+      const totalPot = placedBetsStats.length > 0 ? placedBetsStats[0].totalAmount : 0;
+      
+      return {
+        ...bet,
+        totalPot,
+      };
+    }));
+    
+    res.json(betsWithTotals);
   } catch (error) {
     console.error('Error fetching unresolved bets:', error);
     res.status(500).json({ message: 'Server error.' });
@@ -159,8 +191,24 @@ router.get('/unresolved', async (req, res) => {
 // Get all closed bets
 router.get('/closed', async (req, res) => {
   try {
-    const closedBets = await Bet.find({ status: 'closed', guildId: req.guildId }).populate('creator', 'discordId');
-    res.json(closedBets);
+    const closedBets = await Bet.find({ status: 'closed', guildId: req.guildId }).populate('creator', 'discordId').lean();
+    
+    // Calculate total pot for each bet
+    const betsWithTotals = await Promise.all(closedBets.map(async (bet) => {
+      const placedBetsStats = await PlacedBet.aggregate([
+        { $match: { bet: bet._id } },
+        { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
+      ]);
+      
+      const totalPot = placedBetsStats.length > 0 ? placedBetsStats[0].totalAmount : 0;
+      
+      return {
+        ...bet,
+        totalPot,
+      };
+    }));
+    
+    res.json(betsWithTotals);
   } catch (error) {
     console.error('Error fetching closed bets:', error);
     res.status(500).json({ message: 'Server error.' });

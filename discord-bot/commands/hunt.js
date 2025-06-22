@@ -82,6 +82,17 @@ const flavorTexts = {
     "You crossed into realms unknown. The {name} came back with you.",
     "You're not hunting anymore. You're ascending. {name} is yours.",
     "Even gods would hesitate. But the {name} belongs to you now."
+  ],
+  og: [
+    "👑 OG KILL! The {name} steps from legend — and you take it down without hesitation.",
+    "You feel the weight of history as the {name} enters your sights. A legacy continues.",
+    "The air shifts... even nature bows to the return of the {name}. You make the shot.",
+    "This isn't just a hunt. This is heritage. The {name} is yours.",
+    // New
+    "Only ancient paths lead to a {name}. Only true hunters find them.",
+    "The {name} hasn't been seen in ages. Yet it finds *you*.",
+    "You didn't hunt the {name} — it remembered you.",
+    "The old spirits nod as the {name} falls to your hand."
   ]
 };
 
@@ -94,7 +105,8 @@ const rarityColors = {
   epic: 0x9b59b6,          // Purple
   legendary: 0xf1c40f,     // Gold
   mythical: 0xe67e22,      // Orange
-  transcendent: 0xFF1493   // Pink
+  transcendent: 0xFF1493,  // Pink
+  og: 0xC0392B            // Red
 };
 
 module.exports = {

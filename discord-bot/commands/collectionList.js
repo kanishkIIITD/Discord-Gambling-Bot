@@ -3,7 +3,7 @@ const axios = require('axios');
 const ResponseHandler = require('../utils/responseHandler');
 const logger = require('../utils/logger');
 
-const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical', 'transcendent'];
+const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical', 'transcendent', 'og'];
 const rarityEmojis = {
   common: '⚪',
   uncommon: '🟢',
@@ -11,7 +11,8 @@ const rarityEmojis = {
   epic: '🟣',
   legendary: '🟡',
   mythical: '🟠',
-  transcendent: '🌟'
+  transcendent: '🌟',
+  og: '🕶️'
 };
 
 // Add rarity colors for embed
@@ -22,7 +23,8 @@ const rarityColors = {
   epic: 0x9b59b6,          // Purple
   legendary: 0xf1c40f,     // Gold
   mythical: 0xe67e22,      // Orange
-  transcendent: 0xFF1493   // Pink
+  transcendent: 0xFF1493,  // Pink
+  og: 0xC0392B            // Red
 };
 
 // Helper to split long text into multiple fields
@@ -125,15 +127,6 @@ module.exports = {
       let currentPage = 0;
       const getEmbed = (pageIdx) => {
         const page = allPages[pageIdx];
-        const rarityValueRanges = {
-          common: '100-500',
-          uncommon: '500-2,000',
-          rare: '2,000-5,000',
-          epic: '5,000-20,000',
-          legendary: '20,000-50,000',
-          mythical: '50,000-100,000',
-          transcendent: '100,000-200,000'
-        };
         return {
           color: rarityColors[page.rarity] || 0x0099ff,
           title: `Collection List — ${page.rarity.charAt(0).toUpperCase() + page.rarity.slice(1)} (${pageIdx + 1}/${allPages.length})`,

@@ -80,6 +80,17 @@ const flavorTexts = {
     "Transcendence achieved—the {name} sings the universe's song to you.",
     "The moment you touched the {name}, you left the mortal plane behind.",
     "The {name} is not just a catch—it's a key to the beyond."
+  ],
+  og: [
+    "🏆 OG CATCH! The legendary {name} returns—like the old days.",
+    "You feel a shiver down your spine… the {name} has been seen again.",
+    "This isn't just fishing. This is history. You caught the {name}.",
+    "The {name} surfaces—older than myths, and just as powerful.",
+    // New
+    "A ripple from the past... The {name} answers your call.",
+    "Even the ocean remembers this one. The {name} is back.",
+    "They thought it was gone forever, but you've pulled the {name} from legend.",
+    "Only true anglers remember. The {name} is proof you're one of them."
   ]
 };
 
@@ -93,7 +104,8 @@ const rarityColors = {
   epic: 0x9b59b6,          // Purple
   legendary: 0xf1c40f,     // Gold
   mythical: 0xe67e22,      // Orange
-  transcendent: 0xFF1493   // Pink
+  transcendent: 0xFF1493,  // Pink
+  og: 0xC0392B            // Red
 };
 
 module.exports = {

@@ -13,7 +13,8 @@ const { auth, requireSuperAdmin } = require('../middleware/auth');
 
 // Rarity weights for buffs
 const baseWeights = {
-  transcendent: 0.5,
+  og: 0.1,
+  transcendent: 0.4,
   mythical: 1,
   legendary: 3,
   epic: 5.5,
@@ -23,6 +24,7 @@ const baseWeights = {
 };
 // Rarity order for buffs
 const rarityOrder = [
+  'og',
   'transcendent',
   'mythical',
   'legendary',
@@ -576,6 +578,9 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Omnisquid', rarity: 'transcendent' },
       { name: 'Celestine Ray', rarity: 'transcendent' },
       { name: 'Godfin Eternatus', rarity: 'transcendent' },
+      { name: 'Kanaloa\'s Wrath', rarity: 'og' },
+      { name: 'Hasib the Abyssseer', rarity: 'og' },
+      { name: 'Jeemongul', rarity: 'og' },
     ];
     const animalTable = [
       { name: 'Rabbit', rarity: 'common' },
@@ -735,6 +740,9 @@ router.get('/collection-list', async (req, res) => {
       { name: 'The Final Squirrel', rarity: 'transcendent' },
       { name: 'Fractal Pegasus', rarity: 'transcendent' },
       { name: 'Hamstergod Supreme', rarity: 'transcendent' },
+      { name: 'Wyrmlord Daph', rarity: 'og' },
+      { name: 'Voidwatcher Blau', rarity: 'og' },
+      { name: 'Chronohedgehog Nodlehs', rarity: 'og' },
     ];
     const itemTable = [
       { name: 'Rubber Duck', rarity: 'common' },
@@ -2181,6 +2189,11 @@ router.post('/:discordId/fish', async (req, res) => {
         { name: 'Omnisquid', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
         { name: 'Celestine Ray', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
         { name: 'Godfin Eternatus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+
+        // OG
+        { name: 'Kanaloa\'s Wrath', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
+        { name: 'Hasib the Abyssseer', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
+        { name: 'Jeemongul', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
     ];
     
     // Rarity weights
@@ -2219,27 +2232,30 @@ router.post('/:discordId/fish', async (req, res) => {
     if (guaranteedBuff) {
       // Guaranteed Rare or Epic logic
       if (guaranteedBuff.type === 'fishing_rare') {
-        // Only rare, epic, legendary, mythical, transcendent possible
+        // Only rare, epic, legendary, mythical, transcendent, og possible
         // If rate buff, multiply mythical+ and assign remainder to legendary
         const baseRare = baseWeights.rare;
         const baseEpic = baseWeights.epic;
         const baseLegendary = baseWeights.legendary;
         const baseMythical = baseWeights.mythical;
         const baseTranscendent = baseWeights.transcendent;
-        const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent;
+        const baseOg = baseWeights.og;
+        const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent + baseOg;
         let epicPlus = epicPlusBase * rateMultiplier;
         if (epicPlus > 100) epicPlus = 100;
         let rare = baseRare + (epicPlusBase - epicPlus);
         if (rare < 0) rare = 0;
-        // Distribute rare/epic/legendary/mythical/transcendent in original ratio
-        let epic = 0, legendary = 0, mythical = 0, transcendent = 0;
+        // Distribute rare/epic/legendary/mythical/transcendent/og in original ratio
+        let epic = 0, legendary = 0, mythical = 0, transcendent = 0, og = 0;
         if (epicPlus > 0) {
           epic = (baseEpic / epicPlusBase) * epicPlus;
           legendary = (baseLegendary / epicPlusBase) * epicPlus;
           mythical = (baseMythical / epicPlusBase) * epicPlus;
           transcendent = (baseTranscendent / epicPlusBase) * epicPlus;
+          og = (baseOg / epicPlusBase) * epicPlus;
         }
         weights = {
+          og,
           transcendent,
           mythical,
           legendary,
@@ -2249,25 +2265,28 @@ router.post('/:discordId/fish', async (req, res) => {
           common: 0
         };
       } else if (guaranteedBuff.type === 'fishing_epic') {
-        // Only epic, legendary, mythical, transcendent possible
+        // Only epic, legendary, mythical, transcendent, og possible
         // If rate buff, multiply legendary+ and assign remainder to epic
         const baseEpic = baseWeights.epic;
         const baseLegendary = baseWeights.legendary;
         const baseMythical = baseWeights.mythical;
         const baseTranscendent = baseWeights.transcendent;
-        const legendaryPlusBase = baseLegendary + baseMythical + baseTranscendent;
+        const baseOg = baseWeights.og;
+        const legendaryPlusBase = baseLegendary + baseMythical + baseTranscendent + baseOg;
         let legendaryPlus = legendaryPlusBase * rateMultiplier;
         if (legendaryPlus > 100) legendaryPlus = 100;
         let epic = baseEpic + (legendaryPlusBase - legendaryPlus);
         if (epic < 0) epic = 0;
-        // Distribute legendary/mythical/transcendent in original ratio
-        let legendary = 0, mythical = 0, transcendent = 0;
+        // Distribute legendary/mythical/transcendent/og in original ratio
+        let legendary = 0, mythical = 0, transcendent = 0, og = 0;
         if (legendaryPlus > 0) {
           legendary = (baseLegendary / legendaryPlusBase) * legendaryPlus;
           mythical = (baseMythical / legendaryPlusBase) * legendaryPlus;
           transcendent = (baseTranscendent / legendaryPlusBase) * legendaryPlus;
+          og = (baseOg / legendaryPlusBase) * legendaryPlus;
         }
         weights = {
+          og,
           transcendent,
           mythical,
           legendary,
@@ -2291,16 +2310,18 @@ router.post('/:discordId/fish', async (req, res) => {
       const baseLegendary = baseWeights.legendary;
       const baseMythical = baseWeights.mythical;
       const baseTranscendent = baseWeights.transcendent;
-      const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent;
+      const baseOg = baseWeights.og;
+      const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent + baseOg;
       let epicPlus = epicPlusBase * rateMultiplier;
       if (epicPlus > 100) epicPlus = 100;
-      // Distribute epic/legendary/mythical/transcendent in original ratio
-      let epic = 0, legendary = 0, mythical = 0, transcendent = 0;
+      // Distribute epic/legendary/mythical/transcendent/og in original ratio
+      let epic = 0, legendary = 0, mythical = 0, transcendent = 0, og = 0;
       if (epicPlus > 0) {
         epic = (baseEpic / epicPlusBase) * epicPlus;
         legendary = (baseLegendary / epicPlusBase) * epicPlus;
         mythical = (baseMythical / epicPlusBase) * epicPlus;
         transcendent = (baseTranscendent / epicPlusBase) * epicPlus;
+        og = (baseOg / epicPlusBase) * epicPlus;
       }
       // Remaining %
       let remaining = 100 - epicPlus;
@@ -2312,6 +2333,7 @@ router.post('/:discordId/fish', async (req, res) => {
         common = (baseWeights.common / baseLower) * remaining;
       }
       weights = {
+        og,
         transcendent,
         mythical,
         legendary,
@@ -2564,6 +2586,11 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'The Final Squirrel', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Fractal Pegasus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Hamstergod Supreme', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+
+      // OG
+      { name: 'Wyrmlord Daph', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
+      { name: 'Voidwatcher Blau', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
+      { name: 'Chronohedgehog Nodlehs', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
     ];
     
     // Rarity weights
@@ -2602,27 +2629,30 @@ router.post('/:discordId/hunt', async (req, res) => {
     if (guaranteedBuff) {
       // Guaranteed Rare or Epic logic
       if (guaranteedBuff.type === 'hunting_rare') {
-        // Only rare, epic, legendary, mythical, transcendent possible
+        // Only rare, epic, legendary, mythical, transcendent, og possible
         // If rate buff, multiply mythical+ and assign remainder to legendary
         const baseRare = baseWeights.rare;
         const baseEpic = baseWeights.epic;
         const baseLegendary = baseWeights.legendary;
         const baseMythical = baseWeights.mythical;
         const baseTranscendent = baseWeights.transcendent;
-        const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent;
+        const baseOg = baseWeights.og;
+        const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent + baseOg;
         let epicPlus = epicPlusBase * rateMultiplier;
         if (epicPlus > 100) epicPlus = 100;
         let rare = baseRare + (epicPlusBase - epicPlus);
         if (rare < 0) rare = 0;
-        // Distribute rare/epic/legendary/mythical/transcendent in original ratio
-        let epic = 0, legendary = 0, mythical = 0, transcendent = 0;
+        // Distribute rare/epic/legendary/mythical/transcendent/og in original ratio
+        let epic = 0, legendary = 0, mythical = 0, transcendent = 0, og = 0;
         if (epicPlus > 0) {
           epic = (baseEpic / epicPlusBase) * epicPlus;
           legendary = (baseLegendary / epicPlusBase) * epicPlus;
           mythical = (baseMythical / epicPlusBase) * epicPlus;
           transcendent = (baseTranscendent / epicPlusBase) * epicPlus;
+          og = (baseOg / epicPlusBase) * epicPlus;
         }
         weights = {
+          og,
           transcendent,
           mythical,
           legendary,
@@ -2632,25 +2662,28 @@ router.post('/:discordId/hunt', async (req, res) => {
           common: 0
         };
       } else if (guaranteedBuff.type === 'hunting_epic') {
-        // Only epic, legendary, mythical, transcendent possible
+        // Only epic, legendary, mythical, transcendent, og possible
         // If rate buff, multiply legendary+ and assign remainder to epic
         const baseEpic = baseWeights.epic;
         const baseLegendary = baseWeights.legendary;
         const baseMythical = baseWeights.mythical;
         const baseTranscendent = baseWeights.transcendent;
-        const legendaryPlusBase = baseLegendary + baseMythical + baseTranscendent;
+        const baseOg = baseWeights.og;
+        const legendaryPlusBase = baseLegendary + baseMythical + baseTranscendent + baseOg;
         let legendaryPlus = legendaryPlusBase * rateMultiplier;
         if (legendaryPlus > 100) legendaryPlus = 100;
         let epic = baseEpic + (legendaryPlusBase - legendaryPlus);
         if (epic < 0) epic = 0;
-        // Distribute legendary/mythical/transcendent in original ratio
-        let legendary = 0, mythical = 0, transcendent = 0;
+        // Distribute legendary/mythical/transcendent/og in original ratio
+        let legendary = 0, mythical = 0, transcendent = 0, og = 0;
         if (legendaryPlus > 0) {
           legendary = (baseLegendary / legendaryPlusBase) * legendaryPlus;
           mythical = (baseMythical / legendaryPlusBase) * legendaryPlus;
           transcendent = (baseTranscendent / legendaryPlusBase) * legendaryPlus;
+          og = (baseOg / legendaryPlusBase) * legendaryPlus;
         }
         weights = {
+          og,
           transcendent,
           mythical,
           legendary,
@@ -2674,16 +2707,18 @@ router.post('/:discordId/hunt', async (req, res) => {
       const baseLegendary = baseWeights.legendary;
       const baseMythical = baseWeights.mythical;
       const baseTranscendent = baseWeights.transcendent;
-      const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent;
+      const baseOg = baseWeights.og;
+      const epicPlusBase = baseEpic + baseLegendary + baseMythical + baseTranscendent + baseOg;
       let epicPlus = epicPlusBase * rateMultiplier;
       if (epicPlus > 100) epicPlus = 100;
-      // Distribute epic/legendary/mythical/transcendent in original ratio
-      let epic = 0, legendary = 0, mythical = 0, transcendent = 0;
+      // Distribute epic/legendary/mythical/transcendent/og in original ratio
+      let epic = 0, legendary = 0, mythical = 0, transcendent = 0, og = 0;
       if (epicPlus > 0) {
         epic = (baseEpic / epicPlusBase) * epicPlus;
         legendary = (baseLegendary / epicPlusBase) * epicPlus;
         mythical = (baseMythical / epicPlusBase) * epicPlus;
         transcendent = (baseTranscendent / epicPlusBase) * epicPlus;
+        og = (baseOg / epicPlusBase) * epicPlus;
       }
       // Remaining %
       let remaining = 100 - epicPlus;
@@ -2695,6 +2730,7 @@ router.post('/:discordId/hunt', async (req, res) => {
         common = (baseWeights.common / baseLower) * remaining;
       }
       weights = {
+        og,
         transcendent,
         mythical,
         legendary,
@@ -2845,7 +2881,7 @@ router.post('/:discordId/sell', async (req, res) => {
 
         case 'all_rare_plus':
           const rarePlusItems = (user.inventory || []).filter(i => 
-            ['rare', 'epic', 'legendary', 'mythical', 'transcendent'].includes(i.rarity)
+            ['rare', 'epic', 'legendary', 'mythical', 'transcendent', 'og'].includes(i.rarity)
           );
           itemsToSell = rarePlusItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
           totalValue = rarePlusItems.reduce((sum, item) => sum + (item.value * item.count), 0);
@@ -3112,7 +3148,7 @@ router.post('/:discordId/sell-preview', async (req, res) => {
 
       case 'all_rare_plus':
         const rarePlusItems = (user.inventory || []).filter(i => 
-          ['rare', 'epic', 'legendary', 'mythical', 'transcendent'].includes(i.rarity)
+          ['rare', 'epic', 'legendary', 'mythical', 'transcendent', 'og'].includes(i.rarity)
         );
         itemsToPreview = rarePlusItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
         totalValue = rarePlusItems.reduce((sum, item) => sum + (item.value * item.count), 0);
@@ -3136,7 +3172,7 @@ router.post('/:discordId/sell-preview', async (req, res) => {
     // Check for high-value items
     const highValueItems = itemsToPreview.filter(item => {
       const inventoryItem = (user.inventory || []).find(i => i.type === item.type && i.name === item.name);
-      return inventoryItem && (inventoryItem.rarity === 'legendary' || inventoryItem.rarity === 'mythical' || inventoryItem.rarity === 'transcendent');
+      return inventoryItem && (inventoryItem.rarity === 'legendary' || inventoryItem.rarity === 'mythical' || inventoryItem.rarity === 'transcendent' || inventoryItem.rarity === 'og');
     });
 
     const needsConfirmation = totalValue > 10000 || highValueItems.length > 0 || itemsToPreview.length > 10;
@@ -3248,7 +3284,7 @@ router.post('/:discordId/trade', async (req, res) => {
 
         case 'all_rare_plus':
           const rarePlusItems = (sender.inventory || []).filter(i => 
-            ['rare', 'epic', 'legendary', 'mythical', 'transcendent'].includes(i.rarity)
+            ['rare', 'epic', 'legendary', 'mythical', 'transcendent', 'og'].includes(i.rarity)
           );
           itemsToTrade = rarePlusItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
           totalValue = rarePlusItems.reduce((sum, item) => sum + (item.value * item.count), 0);
@@ -3596,7 +3632,7 @@ router.post('/:discordId/trade-preview', async (req, res) => {
 
       case 'all_rare_plus':
         const rarePlusItems = (sender.inventory || []).filter(i => 
-          ['rare', 'epic', 'legendary', 'mythical', 'transcendent'].includes(i.rarity)
+          ['rare', 'epic', 'legendary', 'mythical', 'transcendent', 'og'].includes(i.rarity)
         );
         itemsToPreview = rarePlusItems.map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
         totalValue = rarePlusItems.reduce((sum, item) => sum + (item.value * item.count), 0);
@@ -3620,7 +3656,7 @@ router.post('/:discordId/trade-preview', async (req, res) => {
     // Check for high-value items
     const highValueItems = itemsToPreview.filter(item => {
       const inventoryItem = (sender.inventory || []).find(i => i.type === item.type && i.name === item.name);
-      return inventoryItem && (inventoryItem.rarity === 'legendary' || inventoryItem.rarity === 'mythical' || inventoryItem.rarity === 'transcendent');
+      return inventoryItem && (inventoryItem.rarity === 'legendary' || inventoryItem.rarity === 'mythical' || inventoryItem.rarity === 'transcendent' || inventoryItem.rarity === 'og');
     });
 
     const needsConfirmation = totalValue > 10000 || highValueItems.length > 0 || itemsToPreview.length > 10;
