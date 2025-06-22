@@ -1978,40 +1978,54 @@ router.post('/:discordId/bail-all', async (req, res) => {
       return res.status(400).json({ message: 'No users are currently jailed in this server.' });
     }
     
-    // Calculate total bail cost for all users
+    // Check if payer is jailed and add to failedUsers if so
+    let failedUsers = [];
+    if (payer.jailedUntil && payer.jailedUntil > now) {
+      failedUsers.push({
+        discordId: payer.discordId,
+        username: payer.username,
+        reason: 'You cannot bail yourself out with this command.'
+      });
+    }
+
+    // Filter out the payer from jailedUsers for actual bail processing
+    const filteredJailedUsers = jailedUsers.filter(u => u.discordId !== payer.discordId);
+    if (filteredJailedUsers.length === 0 && failedUsers.length > 0) {
+      return res.status(400).json({ message: 'You cannot bail yourself out with this command. No other users are currently jailed.', failedUsers });
+    }
+
+    // Calculate total bail cost for all users (excluding payer)
     let totalCost = 0;
     const bailedUsers = [];
-    const failedUsers = [];
-    
+
     // Get payer's wallet
     const payerWallet = await Wallet.findOne({ user: payer._id, guildId: req.guildId });
     if (!payerWallet) {
       return res.status(400).json({ message: 'Your wallet not found.' });
     }
-    
+
     // Calculate costs and check if payer can afford
-    for (const jailedUser of jailedUsers) {
+    for (const jailedUser of filteredJailedUsers) {
       const minutesLeft = Math.ceil((jailedUser.jailedUntil - now) / 60000);
       const bailCost = 10000 + minutesLeft * 1000;
       totalCost += bailCost;
     }
-    
+
     if (payerWallet.balance < totalCost) {
       return res.status(400).json({ 
-        message: `You need ${totalCost.toLocaleString('en-US')} points to bail all users out. You have ${payerWallet.balance.toLocaleString('en-US')} points.` 
+        message: `You need ${totalCost.toLocaleString('en-US')} points to bail all users out. You have ${payerWallet.balance.toLocaleString('en-US')} points.`,
+        failedUsers
       });
     }
-    
-    // Process bails for all users
-    for (const jailedUser of jailedUsers) {
+
+    // Process bails for all users (excluding payer)
+    for (const jailedUser of filteredJailedUsers) {
       try {
         const minutesLeft = Math.ceil((jailedUser.jailedUntil - now) / 60000);
         const bailCost = 10000 + minutesLeft * 1000;
-        
         // Free the user
         jailedUser.jailedUntil = null;
         await jailedUser.save();
-        
         // Record successful bail
         bailedUsers.push({
           discordId: jailedUser.discordId,
@@ -2019,44 +2033,46 @@ router.post('/:discordId/bail-all', async (req, res) => {
           bailCost: bailCost,
           minutesLeft: minutesLeft
         });
-        
         // Broadcast to the freed user
         broadcastToUser(jailedUser.discordId, { 
           type: 'BAILED_OUT', 
           message: `You have been bailed out by <@${payer.discordId}>!` 
         });
-        
       } catch (error) {
         console.error(`[BAIL-ALL] Error bailing user ${jailedUser.discordId}:`, error);
         failedUsers.push({
           discordId: jailedUser.discordId,
           username: jailedUser.username,
-          reason: 'Server error processing bail'
+          reason: error.message || 'Server error processing bail'
         });
       }
     }
-    
+
     // Deduct total cost from payer
     payerWallet.balance -= totalCost;
     await payerWallet.save();
-    
+
     // Record transaction for payer
     const transaction = new Transaction({
       user: payer._id,
       type: 'bail',
       amount: -totalCost,
-      description: `Bailed out ${bailedUsers.length} users`,
+      description: `Bailed out ${bailedUsers.length} users` + (failedUsers.length > 0 ? ` (${failedUsers.length} failed)` : ''),
       guildId: req.guildId
     });
     await transaction.save();
-    
+
     // Broadcast updates to payer
     broadcastToUser(payer.discordId, { type: 'TRANSACTION', transaction });
     broadcastToUser(payer.discordId, { type: 'BALANCE_UPDATE', balance: payerWallet.balance });
-    
-    console.log('[BAIL-ALL] Mass bail successful.');
+
+    let responseMsg = `Successfully bailed out ${bailedUsers.length} users for ${totalCost.toLocaleString('en-US')} points!`;
+    if (failedUsers.length > 0) {
+      responseMsg += `\n${failedUsers.length} users could not be bailed out.`;
+    }
+
     res.json({
-      message: `Successfully bailed out ${bailedUsers.length} users for ${totalCost.toLocaleString('en-US')} points!`,
+      message: responseMsg,
       totalCost,
       bailedUsers,
       failedUsers

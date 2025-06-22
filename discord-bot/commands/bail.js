@@ -45,31 +45,49 @@ module.exports = {
         logger.info('[BAIL] Backend call succeeded. Preparing embed.');
         const { message, totalCost, bailedUsers, failedUsers } = response.data;
         
-        const embed = {
-          color: 0x0099ff,
-          title: '🪙 Mass Bail Result',
-          description: message,
-          fields: [
-            { name: 'Total Cost', value: `${totalCost?.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) || 'N/A'} points`, inline: true },
-            { name: 'Users Bailed', value: `${bailedUsers?.length || 0}`, inline: true },
-            { name: 'Failed Bails', value: `${failedUsers?.length || 0}`, inline: true }
-          ],
-          timestamp: new Date(),
-          footer: { text: `Requested by ${interaction.user.tag}` }
-        };
-
-        // Add details about bailed users if any
-        if (bailedUsers && bailedUsers.length > 0) {
-          const bailedList = bailedUsers.map(u => `<@${u.discordId}>`).join(', ');
-          embed.fields.push({ name: 'Successfully Bailed', value: bailedList, inline: false });
+        let embed;
+        if (bailedUsers.length > 0) {
+          embed = {
+            color: 0x0099ff,
+            title: '🪙 Mass Bail Result',
+            description: message,
+            fields: [
+              { name: 'Total Cost', value: `${totalCost?.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) || 'N/A'} points`, inline: true },
+              { name: 'Users Bailed', value: `${bailedUsers?.length || 0}`, inline: true },
+              { name: 'Failed Bails', value: `${failedUsers?.length || 0}`, inline: true }
+            ],
+            timestamp: new Date(),
+            footer: { text: `Requested by ${interaction.user.tag}` }
+          };
+          // Add details about bailed users if any
+          if (bailedUsers && bailedUsers.length > 0) {
+            const bailedList = bailedUsers.map(u => `<@${u.discordId}>`).join(', ');
+            embed.fields.push({ name: 'Successfully Bailed', value: bailedList, inline: false });
+          }
+          // Add details about failed bails if any
+          if (failedUsers && failedUsers.length > 0) {
+            const failedList = failedUsers.map(u => `<@${u.discordId}>: ${u.reason}`).join('\n');
+            embed.fields.push({ name: 'Failed Bails', value: failedList, inline: false });
+          }
+        } else {
+          // All failed
+          embed = {
+            color: 0xff7675,
+            title: '❌ Mass Bail Failed',
+            description: 'Failed to bail out any users.',
+            fields: [
+              { name: 'Total Cost', value: `${totalCost?.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) || 'N/A'} points`, inline: true },
+              { name: 'Users Bailed', value: '0', inline: true },
+              { name: 'Failed Bails', value: `${failedUsers?.length || 0}`, inline: true }
+            ],
+            timestamp: new Date(),
+            footer: { text: `Requested by ${interaction.user.tag}` }
+          };
+          if (failedUsers && failedUsers.length > 0) {
+            const failedList = failedUsers.map(u => `<@${u.discordId}>: ${u.reason}`).join('\n');
+            embed.fields.push({ name: 'Failed Bails', value: failedList, inline: false });
+          }
         }
-
-        // Add details about failed bails if any
-        if (failedUsers && failedUsers.length > 0) {
-          const failedList = failedUsers.map(u => `<@${u.discordId}>: ${u.reason}`).join('\n');
-          embed.fields.push({ name: 'Failed Bails', value: failedList, inline: false });
-        }
-
         await interaction.editReply({ embeds: [embed] });
         logger.info('[BAIL] Reply sent successfully.');
         return;
