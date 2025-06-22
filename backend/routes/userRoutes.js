@@ -741,7 +741,7 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Fractal Pegasus', rarity: 'transcendent' },
       { name: 'Hamstergod Supreme', rarity: 'transcendent' },
       { name: 'Wyrmlord Daph', rarity: 'og' },
-      { name: 'Voidwatcher Blau', rarity: 'og' },
+      { name: 'Blau the Voidwatcher', rarity: 'og' },
       { name: 'Chronohedgehog Nodlehs', rarity: 'og' },
     ];
     const itemTable = [
@@ -2210,7 +2210,7 @@ router.post('/:discordId/fish', async (req, res) => {
 
     // Check for drop rate buffs
     const rateBuff = (user.buffs || []).find(b => 
-      (b.type === 'fishing_rate_2x' || b.type === 'fishing_rate_3x' || b.type === 'fishing_rate_5x') && 
+      (b.type === 'fishing_rate_1.5x' || b.type === 'fishing_rate_2x' || b.type === 'fishing_rate_3x') && 
       (!b.expiresAt || b.expiresAt > now)
     );
 
@@ -2220,9 +2220,9 @@ router.post('/:discordId/fish', async (req, res) => {
     if (rateBuff) {
       rateBuffType = rateBuff.type;
       rateMultiplier = {
-        fishing_rate_2x: 1.5,
-        fishing_rate_3x: 2,
-        fishing_rate_5x: 3
+        'fishing_rate_1.5x': 1.5,
+        'fishing_rate_2x': 2,
+        'fishing_rate_3x': 3
       }[rateBuff.type] || 1;
       buffMessage += `${rateBuff.type} buff active: Epic+ drop rates multiplied by ${rateMultiplier}x!`;
     }
@@ -2589,7 +2589,7 @@ router.post('/:discordId/hunt', async (req, res) => {
 
       // OG
       { name: 'Wyrmlord Daph', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
-      { name: 'Voidwatcher Blau', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
+      { name: 'Blau the Voidwatcher', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
       { name: 'Chronohedgehog Nodlehs', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
     ];
     
@@ -2607,7 +2607,7 @@ router.post('/:discordId/hunt', async (req, res) => {
 
     // Check for drop rate buffs
     const rateBuff = (user.buffs || []).find(b => 
-      (b.type === 'hunting_rate_2x' || b.type === 'hunting_rate_3x' || b.type === 'hunting_rate_5x') && 
+      (b.type === 'hunting_rate_1.5x' || b.type === 'hunting_rate_2x' || b.type === 'hunting_rate_3x') && 
       (!b.expiresAt || b.expiresAt > now)
     );
 
@@ -2617,9 +2617,9 @@ router.post('/:discordId/hunt', async (req, res) => {
     if (rateBuff) {
       rateBuffType = rateBuff.type;
       rateMultiplier = {
-        hunting_rate_2x: 1.5,
-        hunting_rate_3x: 2,
-        hunting_rate_5x: 3
+        'hunting_rate_1.5x': 1.5,
+        'hunting_rate_2x': 2,
+        'hunting_rate_3x': 3
       }[rateBuff.type] || 1;
       buffMessage += `${rateBuff.type} buff active: Epic+ drop rates multiplied by ${rateMultiplier}x!`;
     }
@@ -4260,7 +4260,7 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
   const rewardConfigs = {
     basic: {
       coins: { chance: 0.5, min: 50000, max: 150000 },
-      items: { chance: 0.3, pool: [
+      items: { chance: 0.35, pool: [
         { name: 'Rubber Duck', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
         { name: 'Golden Mustache', rarity: 'rare', value: () => Math.floor(Math.random() * 5000) + 3000 },
         { name: 'Party Hat', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1000 },
@@ -4268,49 +4268,49 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { name: 'Tiny Top Hat', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
         { name: 'Epic Sunglasses', rarity: 'legendary', value: () => Math.floor(Math.random() * 50000) + 30000 }
       ]},
-      buffs: { chance: 0.15, pool: [
-        { type: 'earnings_x2', description: '2x earnings for 2 hours!', expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000) },
-        { type: 'work_double', description: 'Next /work gives double points!', usesLeft: 1 },
+      buffs: { chance: 0.10, pool: [
+        { type: 'earnings_x2', description: '2x earnings for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000) },
+        { type: 'work_double', description: 'Next /work gives 2x points!', usesLeft: 1 },
         { type: 'crime_success', description: 'Next /crime is guaranteed success!', usesLeft: 1 }
       ]},
       jackpot: { chance: 0.05, min: 300000, max: 500000 }
     },
     premium: {
       coins: { chance: 0.45, min: 500000, max: 750000 },
-      items: { chance: 0.2, pool: [
+      items: { chance: 0.4, pool: [
         { name: 'Dragon Scale', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
         { name: 'Phoenix Feather', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
         { name: 'Ancient Coin', rarity: 'legendary', value: () => Math.floor(Math.random() * 500000) + 300000 },
         { name: 'Mystic Crystal', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
         { name: 'Enchanted Tome', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 }
       ]},
-      buffs: { chance: 0.3, pool: [
+      buffs: { chance: 0.1, pool: [
         { type: 'fishing_rare', description: 'Next fish is guaranteed Rare or better!', usesLeft: 1, weight: 25 },
         { type: 'hunting_rare', description: 'Next animal is guaranteed Rare or better!', usesLeft: 1, weight: 25 },
-        { type: 'fishing_rate_2x', description: 'Epic+ fish drop rates multiplied by 1.5x for 2 hours!', expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000), weight: 15 },
-        { type: 'hunting_rate_2x', description: 'Epic+ animal drop rates multiplied by 1.5x for 2 hours!', expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000), weight: 15 },
-        { type: 'earnings_x3', description: 'Epic+ fish drop rates multiplied by 2x for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 10 },
+        { type: 'fishing_rate_1.5x', description: 'Epic+ fish drop rates multiplied by 1.5x for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 15 },
+        { type: 'hunting_rate_1.5x', description: 'Epic+ animal drop rates multiplied by 1.5x for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 15 },
+        { type: 'earnings_x3', description: '3x earnings for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 10 },
         { type: 'work_triple', description: 'Next /work gives 3x points!', usesLeft: 1, weight: 10 }
       ]},
       jackpot: { chance: 0.05, min: 10000000, max: 20000000 }
     },
     ultimate: {
       coins: { chance: 0.45, min: 5000000, max: 7500000 },
-      items: { chance: 0.1, pool: [
+      items: { chance: 0.4, pool: [
         { name: 'Celestial Crown', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 },
         { name: 'Dragon Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 },
         { name: 'Phoenix Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 },
         { name: 'Eternal Crystal', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 },
         { name: 'Ancient Tome', rarity: 'legendary', value: () => Math.floor(Math.random() * 8000000) + 5000000 }
       ]},
-      buffs: { chance: 0.4, pool: [
+      buffs: { chance: 0.1, pool: [
         { type: 'fishing_epic', description: 'Next fish is guaranteed Epic or better!', usesLeft: 1, weight: 20 },
         { type: 'hunting_epic', description: 'Next animal is guaranteed Epic or better!', usesLeft: 1, weight: 20 },
-        { type: 'fishing_rate_3x', description: 'Epic+ fish drop rates multiplied by 3x for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 10 },
-        { type: 'hunting_rate_3x', description: 'Epic+ animal drop rates multiplied by 3x for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 10 },
-        { type: 'fishing_rate_5x', description: 'Epic+ fish drop rates multiplied by 3x for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 5 },
-        { type: 'hunting_rate_5x', description: 'Epic+ animal drop rates multiplied by 3x for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 5 },
-        { type: 'earnings_x5', description: '5x earnings for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 10 },
+        { type: 'fishing_rate_2x', description: 'Epic+ fish drop rates multiplied by 2x for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 10 },
+        { type: 'hunting_rate_2x', description: 'Epic+ animal drop rates multiplied by 2x for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 10 },
+        { type: 'fishing_rate_3x', description: 'Epic+ fish drop rates multiplied by 3x for 15 minutes!', expiresAt: new Date(now.getTime() + 15 * 60 * 1000), weight: 5 },
+        { type: 'hunting_rate_3x', description: 'Epic+ animal drop rates multiplied by 3x for 15 minutes!', expiresAt: new Date(now.getTime() + 15 * 60 * 1000), weight: 5 },
+        { type: 'earnings_x5', description: '5x earnings for 15 minutes!', expiresAt: new Date(now.getTime() + 15 * 60 * 1000), weight: 10 },
         { type: 'work_quintuple', description: 'Next /work gives 5x points!', usesLeft: 1, weight: 19 },
         { type: 'jail_immunity', description: 'Immunity from jail for your next crime or steal!', usesLeft: 1, weight: 1 }
       ]},
