@@ -561,25 +561,21 @@ client.on('interactionCreate', async interaction => {
 					});
 					return;
 				}
-				// --- Disable previous blackjack message for this user (if any) ---
-				const key = `${interaction.guildId}_${interaction.user.id}`;
-				const prev = activeBlackjackMessages.get(key);
-				if (prev && (prev.channelId !== interaction.channelId || prev.messageId !== interaction.message.id)) {
-					try {
-						const channel = await client.channels.fetch(prev.channelId);
-						const msg = await channel.messages.fetch(prev.messageId);
-						if (msg && msg.components?.length) {
-							const disabledRows = msg.components.map(row => {
-								const newRow = ActionRowBuilder.from(row);
-								newRow.components = newRow.components.map(btn => ButtonBuilder.from(btn).setDisabled(true));
-								return newRow;
-							});
-							await msg.edit({ components: disabledRows });
-						}
-					} catch (e) { /* ignore if not found */ }
-				}
-				// --- Always defer reply before sending new message ---
+
+				// Defer the reply to acknowledge the interaction
 				await interaction.deferReply();
+
+				// Immediately disable the buttons on the message that was clicked
+				const originalMessage = interaction.message;
+				if (originalMessage && originalMessage.components?.length > 0) {
+					const disabledRows = originalMessage.components.map(row => {
+						const newRow = ActionRowBuilder.from(row);
+						newRow.components = newRow.components.map(btn => ButtonBuilder.from(btn).setDisabled(true));
+						return newRow;
+					});
+					await originalMessage.edit({ components: disabledRows });
+				}
+
 				// Perform the blackjack action
 				const response = await axios.post(`${backendApiUrl}/gambling/${interaction.user.id}/blackjack`, { 
 					action: action 
@@ -667,25 +663,10 @@ client.on('interactionCreate', async interaction => {
 
 				// Send the new game state as the reply
 				const sentMsg = await interaction.editReply({ embeds: [embed], components });
-				// --- Disable previous blackjack message for this user (if any) ---
-				const keyButton = `${interaction.guildId}_${interaction.user.id}`;
-				const prevButton = activeBlackjackMessages.get(keyButton);
-				if (prevButton && (prevButton.channelId !== interaction.channelId || prevButton.messageId !== sentMsg.id)) {
-					try {
-						const channel = await client.channels.fetch(prevButton.channelId);
-						const msg = await channel.messages.fetch(prevButton.messageId);
-						if (msg && msg.components?.length) {
-							const disabledRows = msg.components.map(row => {
-								const newRow = ActionRowBuilder.from(row);
-								newRow.components = newRow.components.map(btn => ButtonBuilder.from(btn).setDisabled(true));
-								return newRow;
-							});
-							await msg.edit({ components: disabledRows });
-						}
-					} catch (e) { /* ignore if not found */ }
-				}
+
 				// Track this as the latest blackjack message for this user
-				activeBlackjackMessages.set(keyButton, { channelId: sentMsg.channelId || sentMsg.channel.id, messageId: sentMsg.id });
+				const key = `${interaction.guildId}_${interaction.user.id}`;
+				activeBlackjackMessages.set(key, { channelId: sentMsg.channelId || sentMsg.channel.id, messageId: sentMsg.id });
 			} catch (error) {
 				console.error('Error handling blackjack button:', error);
 				const errorMessage = error.response?.data?.message || error.message || 'An error occurred while processing the blackjack action.';

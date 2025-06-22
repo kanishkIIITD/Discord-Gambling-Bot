@@ -1541,8 +1541,54 @@ router.post('/:discordId/meowbark', async (req, res) => {
   }
 });
 
+// --- PENALIZE LIAR ENDPOINT (for /question command) ---
+router.post('/:discordId/penalize-liar', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.guildId;
+    const user = req.user;
+    const wallet = req.wallet;
+    
+    const penaltyAmount = 10000000; // 10 million
+    let deductedAmount;
+
+    if (wallet.balance >= penaltyAmount) {
+      wallet.balance -= penaltyAmount;
+      deductedAmount = penaltyAmount;
+    } else {
+      deductedAmount = wallet.balance;
+      wallet.balance = 0;
+    }
+    
+    await wallet.save();
+
+    // Create a transaction record for the penalty
+    await Transaction.create({
+      user: user._id,
+      guildId,
+      type: 'penalty',
+      amount: -deductedAmount,
+      description: 'Penalty for lying to the gecko.',
+      metadata: {
+        command: 'question'
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `User penalized for lying. Deducted ${deductedAmount.toLocaleString('en-US')} points.`,
+      newBalance: wallet.balance,
+      deductedAmount
+    });
+
+  } catch (error) {
+    console.error('Error in penalize-liar endpoint:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
 // Search users by username (for gifting, autocomplete, etc.)
-router.get('/search-users', async (req, res) => {
+router.get('/search-users', requireGuildId, async (req, res) => {
   try {
     const q = req.query.q || '';
     if (!q || q.length < 2) {

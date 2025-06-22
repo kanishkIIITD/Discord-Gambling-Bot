@@ -171,6 +171,56 @@ module.exports = {
             : `${incorrectResponses[animalType][Math.floor(Math.random() * incorrectResponses[animalType].length)]} **${Math.abs(finalAmount).toLocaleString('en-US')} points** have been deducted from your account.`)
           .setTimestamp();
         await interaction.followUp({ embeds: [resultEmbed] });
+
+        // --- LIE DETECTOR FOR GECKO ---
+        if (animalType === 'gecko' && isCorrect) {
+          const lieFilter = m => {
+            if (m.author.id !== userId) return false;
+            const content = m.content.toLowerCase();
+            const liePatterns = [
+              /\b(lie|lied|lying|liar)\b/,
+              /\b(joking|joke|kidding|kiddin|jk|just kidding|just joking)\b/,
+              /\b(not really|actually no|i take it back|i didn'?t mean it)\b/,
+              /^\s*no+[\s!.]*$/i, // Matches "no", "nooo!", "no.", "NO", etc. case-insensitively
+              /\b(sike|psych|nah just kidding|just messing|just playin[g]?)\b/,
+            ];
+            return liePatterns.some(pattern => pattern.test(content));
+          };
+
+          const lieCollector = interaction.channel.createMessageCollector({ filter: lieFilter, time: 15000, max: 1 });
+
+          lieCollector.on('collect', async m => {
+            try {
+              const penaltyResponse = await axios.post(`${backendUrl}/users/${userId}/penalize-liar`, {
+                guildId: interaction.guildId
+              }, {
+                headers: { 'x-guild-id': interaction.guildId }
+              });
+
+              const { deductedAmount } = penaltyResponse.data;
+
+              if (deductedAmount > 0) {
+                const penaltyFlavorTexts = [
+                  `The gecko tilts its head. It knows you lied. As punishment for your deception, it has snatched **${deductedAmount.toLocaleString('en-US')}** points from your wallet.`,
+                  `A faint whisper is heard on the wind... *'Liar... liar...'*. You check your balance and notice **${deductedAmount.toLocaleString('en-US')}** points are missing. The gecko is not to be trifled with.`,
+                  `You thought you could deceive the gecko? Big mistake. It just hacked your account and transferred **${deductedAmount.toLocaleString('en-US')}** points to its offshore reptile fund.`,
+                  `The gecko stares into your soul, sees the deceit within, and shakes its head in disappointment. **${deductedAmount.toLocaleString('en-US')}** points have been confiscated for emotional damages.`
+                ];
+                const penaltyMessage = penaltyFlavorTexts[Math.floor(Math.random() * penaltyFlavorTexts.length)];
+                
+                const penaltyEmbed = new EmbedBuilder()
+                  .setColor(0x8B0000) // Dark Red
+                  .setTitle('🐍 A Lie is Detected!')
+                  .setDescription(penaltyMessage)
+                  .setTimestamp();
+                await interaction.followUp({ embeds: [penaltyEmbed] });
+              }
+            } catch (penaltyError) {
+              console.error('Error during lie penalty:', penaltyError);
+              // Fail silently, don't bother the user with another error message
+            }
+          });
+        }
         return;
       } catch (err) {
         if (err instanceof Collection || (err && err.code === 'COLLECTION_MAX_TIME') || (err instanceof Error && err.message === 'time')) {

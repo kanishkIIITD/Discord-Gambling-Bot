@@ -30,7 +30,8 @@ const transactionSchema = new mongoose.Schema({
       'mystery_box',
       'question',
       'steal',
-      'stolen'
+      'stolen',
+      'penalty'
     ],
     required: true
   },
