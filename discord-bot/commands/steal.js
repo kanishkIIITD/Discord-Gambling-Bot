@@ -30,7 +30,7 @@ module.exports = {
     },
 
     async showStats(interaction) {
-        await interaction.deferReply();
+        const start = Date.now();
 
         try {
             const response = await axios.get(
@@ -42,18 +42,24 @@ module.exports = {
                 }
             );
 
+            const duration = Date.now() - start;
+
             const { stealStats } = response.data;
             const embed = createSuccessEmbed('🦹 Steal Statistics')
                 .addFields(
                     { name: 'Successful Steals', value: stealStats.success.toString(), inline: true },
-                    // { name: 'Failed Attempts', value: stealStats.fail.toString(), inline: true },
                     { name: 'Times Jailed', value: stealStats.jail.toString(), inline: true },
                     { name: 'Total Attempts', value: stealStats.totalAttempts.toString(), inline: true },
                     { name: 'Success Rate', value: `${stealStats.successRate}%`, inline: true },
                     { name: 'Total Stolen', value: `${stealStats.totalStolen.toLocaleString('en-US')} points`, inline: true }
                 );
 
-            await interaction.editReply({ embeds: [embed] });
+            if (duration < 2500) {
+                await interaction.reply({ embeds: [embed] });
+            } else {
+                await interaction.deferReply();
+                await interaction.editReply({ embeds: [embed] });
+            }
 
         } catch (error) {
             const errorEmbed = createErrorEmbed('Command Error');
@@ -64,12 +70,17 @@ module.exports = {
                 errorEmbed.setDescription('❌ An unexpected error occurred while fetching steal statistics.');
             }
 
-            await interaction.editReply({ embeds: [errorEmbed] });
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ embeds: [errorEmbed] });
+            } else {
+                await interaction.editReply({ embeds: [errorEmbed] });
+            }
         }
     },
 
     async attemptSteal(interaction) {
         const targetUser = interaction.options.getUser('target');
+        const start = Date.now();
 
         try {
             const response = await axios.post(
@@ -84,10 +95,14 @@ module.exports = {
                 }
             );
 
-            const { success, stolenAmount, newBalance, jailTimeMinutes, cooldownTime, buffUsed, buffMessage } = response.data;
+            const duration = Date.now() - start;
+
+            const {
+                success, stolenAmount, newBalance,
+                jailTimeMinutes, buffMessage
+            } = response.data;
 
             if (success) {
-                // Success case
                 const embed = createSuccessEmbed('🦹 Steal Successful!')
                     .addFields(
                         { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
@@ -96,60 +111,83 @@ module.exports = {
                         { name: 'Result', value: `You successfully stole from <@${targetUser.id}>!`, inline: false }
                     );
 
-                await interaction.reply({
-                    content: `<@${targetUser.id}>`,
+                const messageData = {
                     embeds: [embed],
                     allowedMentions: { users: [targetUser.id] }
-                });
+                };
 
+                if (duration < 2500) {
+                    await interaction.reply({
+                        content: `<@${targetUser.id}>`,
+                        ...messageData
+                    });
+                } else {
+                    await interaction.deferReply();
+                    await interaction.editReply(messageData);
+                    await interaction.followUp({
+                        content: `<@${targetUser.id}>`,
+                        allowedMentions: { users: [targetUser.id] }
+                    });
+                }
             } else {
-                // Failure case
                 const embed = createErrorEmbed('🚔 Steal Failed!')
-                    .setColor(0xffa500) // Orange for failure
+                    .setColor(0xffa500)
                     .addFields(
                         { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
                         { name: 'Jail Time', value: `${jailTimeMinutes} minutes`, inline: true },
-                        { name: 'Result', value: buffMessage ? buffMessage : `You got caught trying to steal from <@${targetUser.id}> and are now jailed!`, inline: false }
+                        { name: 'Result', value: buffMessage || `You got caught trying to steal from <@${targetUser.id}> and are now jailed!`, inline: false }
                     );
 
-                await interaction.reply({
-                    content: `<@${targetUser.id}>`,
+                const messageData = {
                     embeds: [embed],
                     allowedMentions: { users: [targetUser.id] }
-                });
+                };
+
+                if (duration < 2500) {
+                    await interaction.reply({
+                        content: `<@${targetUser.id}>`,
+                        ...messageData
+                    });
+                } else {
+                    await interaction.deferReply();
+                    await interaction.editReply(messageData);
+                    await interaction.followUp({
+                        content: `<@${targetUser.id}>`,
+                        allowedMentions: { users: [targetUser.id] }
+                    });
+                }
             }
 
         } catch (error) {
-            // Create error embed
             const errorEmbed = createErrorEmbed('Command Error');
             
             if (error.response?.status === 429) {
-                // Cooldown error
                 errorEmbed.setDescription(`⏰ ${error.response.data.message}`);
             } else if (error.response?.data?.message) {
-                const message = error.response.data.message.toLowerCase();
+                const msg = error.response.data.message.toLowerCase();
                 
-                // Handle specific error cases with appropriate emojis
-                if (message.includes('cooldown') || message.includes('wait')) {
+                if (msg.includes('cooldown') || msg.includes('wait')) {
                     errorEmbed.setDescription(`⏰ ${error.response.data.message}`);
-                } else if (message.includes('jailed')) {
+                } else if (msg.includes('jailed')) {
                     errorEmbed.setDescription(`🚔 ${error.response.data.message}`);
-                } else if (message.includes('not found') || message.includes('does not exist')) {
+                } else if (msg.includes('not found') || msg.includes('does not exist')) {
                     errorEmbed.setDescription(`❌ ${error.response.data.message}`);
-                } else if (message.includes('insufficient balance')) {
+                } else if (msg.includes('insufficient balance')) {
                     errorEmbed.setDescription(`💰 ${error.response.data.message}`);
-                } else if (message.includes('cannot steal from yourself')) {
+                } else if (msg.includes('cannot steal from yourself')) {
                     errorEmbed.setDescription(`🤦 ${error.response.data.message}`);
                 } else {
-                    // For any other error message from the backend
                     errorEmbed.setDescription(error.response.data.message);
                 }
             } else {
-                // For unexpected errors
                 errorEmbed.setDescription('❌ An unexpected error occurred while processing the steal command.');
             }
 
-            await interaction.reply({ embeds: [errorEmbed] });
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ embeds: [errorEmbed] });
+            } else {
+                await interaction.editReply({ embeds: [errorEmbed] });
+            }
         }
     }
 }; 

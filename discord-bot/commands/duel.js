@@ -73,18 +73,27 @@ module.exports = {
     const backendUrl = process.env.BACKEND_API_URL;
     const userId = interaction.user.id;
     const guildId = interaction.guildId;
+  
     if (sub === 'challenge') {
       try {
-        await interaction.deferReply();
         const opponent = interaction.options.getUser('user');
         const amount = interaction.options.getInteger('amount');
+  
         if (opponent.bot) {
           await ResponseHandler.handleError(interaction, { message: 'You cannot duel a bot.' }, 'Duel');
           return;
         }
-        // Initiate duel in backend
-        const duelRes = await axios.post(`${backendUrl}/users/${userId}/duel`, { opponentDiscordId: opponent.id, amount, guildId }, { headers: { 'x-guild-id': guildId } });
+  
+        const start = Date.now();
+        const duelRes = await axios.post(
+          `${backendUrl}/users/${userId}/duel`,
+          { opponentDiscordId: opponent.id, amount, guildId },
+          { headers: { 'x-guild-id': guildId } }
+        );
+        const duration = Date.now() - start;
+  
         const { duelId } = duelRes.data;
+  
         const embed = {
           color: 0xe17055,
           title: '⚔️ Duel Challenge!',
@@ -92,64 +101,99 @@ module.exports = {
           timestamp: new Date(),
           footer: { text: `Duel ID: ${duelId}` }
         };
-        await interaction.editReply({ embeds: [embed] });
-        return;
+  
+        const pingContent = `<@${userId}> <@${opponent.id}>`;
+  
+        if (duration < 2500) {
+          await interaction.reply({
+            content: pingContent,
+            embeds: [embed],
+            allowedMentions: { users: [userId, opponent.id] }
+          });
+        } else {
+          await interaction.deferReply();
+          await interaction.editReply({ embeds: [embed] });
+          await interaction.followUp({
+            content: pingContent,
+            allowedMentions: { users: [userId, opponent.id] }
+          });
+        }
       } catch (error) {
         logger.error('Error in /duel challenge:', error);
-        if (error.response && error.response.data && error.response.data.message) {
-          await ResponseHandler.handleError(interaction, { message: error.response.data.message }, 'Duel');
-          return;
-        } else {
-          await ResponseHandler.handleError(interaction, error, 'Duel');
-          return;
-        }
+        await ResponseHandler.handleError(interaction, error.response?.data || error, 'Duel');
       }
-    } else if (sub === 'accept' || sub === 'decline') {
+    }
+  
+    else if (sub === 'accept' || sub === 'decline') {
       try {
-        await interaction.deferReply();
         const duelId = interaction.options.getString('duel_id');
         const accept = sub === 'accept';
-        // Respond to duel
-        const response = await axios.post(`${backendUrl}/users/${userId}/duel/respond`, { duelId, accept, guildId }, { headers: { 'x-guild-id': guildId } });
+  
+        const start = Date.now();
+        const response = await axios.post(
+          `${backendUrl}/users/${userId}/duel/respond`,
+          { duelId, accept, guildId },
+          { headers: { 'x-guild-id': guildId } }
+        );
+        const duration = Date.now() - start;
+  
+        let embed;
+        let pingContent;
+  
         if (accept) {
           const { winner, loser, actionText } = response.data;
-          const winnerMention = `<@${winner}>`;
-          const loserMention = `<@${loser}>`;
-          const resultEmbed = {
+          embed = {
             color: 0x00b894,
             title: '⚔️ Duel Result',
-            description: `${winnerMention} ${actionText}\n\n**Winner:** ${winnerMention}\n**Loser:** ${loserMention}`,
+            description: `<@${winner}> ${actionText}\n\n**Winner:** <@${winner}>\n**Loser:** <@${loser}>`,
             timestamp: new Date(),
             footer: { text: `Duel ID: ${duelId}` }
           };
-          await interaction.editReply({ embeds: [resultEmbed] });
-          return;
+          pingContent = `<@${winner}> <@${loser}>`;
         } else {
-          const resultEmbed = {
+          embed = {
             color: 0xff7675,
-            title: 'Duel Declined',
+            title: '❌ Duel Declined',
             description: `You declined the duel. Stakes refunded.`,
             timestamp: new Date(),
             footer: { text: `Duel ID: ${duelId}` }
           };
-          await interaction.editReply({ embeds: [resultEmbed] });
-          return;
         }
+  
+        if (duration < 2500) {
+          await interaction.reply({
+            content: pingContent || null,
+            embeds: [embed],
+            allowedMentions: pingContent ? { parse: ['users'] } : undefined
+          });
+        } else {
+          await interaction.deferReply();
+          await interaction.editReply({ embeds: [embed] });
+          if (pingContent) {
+            await interaction.followUp({
+              content: pingContent,
+              allowedMentions: { parse: ['users'] }
+            });
+          }
+        }
+  
       } catch (error) {
         logger.error('Error in /duel accept/decline:', error);
-        if (error.response && error.response.data && error.response.data.message) {
-          await ResponseHandler.handleError(interaction, { message: error.response.data.message }, 'Duel');
-          return;
-        } else {
-          await ResponseHandler.handleError(interaction, error, 'Duel');
-          return;
-        }
+        await ResponseHandler.handleError(interaction, error.response?.data || error, 'Duel');
       }
-    } else if (sub === 'stats') {
+    }
+  
+    else if (sub === 'stats') {
       try {
-        await interaction.deferReply();
-        const statsRes = await axios.get(`${backendUrl}/users/${userId}/duel-stats`, { params: { guildId }, headers: { 'x-guild-id': guildId } });
+        const start = Date.now();
+        const statsRes = await axios.get(`${backendUrl}/users/${userId}/duel-stats`, {
+          params: { guildId },
+          headers: { 'x-guild-id': guildId }
+        });
+  
+        const duration = Date.now() - start;
         const { wins, losses } = statsRes.data;
+  
         const embed = {
           color: 0x8e44ad,
           title: '⚔️ Duel Stats',
@@ -160,13 +204,18 @@ module.exports = {
           timestamp: new Date(),
           footer: { text: `Requested by ${interaction.user.tag}` }
         };
-        await interaction.editReply({ embeds: [embed] });
-        return;
+  
+        if (duration < 2500) {
+          await interaction.reply({ embeds: [embed] });
+        } else {
+          await interaction.deferReply();
+          await interaction.editReply({ embeds: [embed] });
+        }
+  
       } catch (error) {
         logger.error('Error in /duel stats:', error);
-        await ResponseHandler.handleError(interaction, error, 'Duel Stats');
-        return;
+        await ResponseHandler.handleError(interaction, error.response?.data || error, 'Duel Stats');
       }
     }
-  },
+  }  
 }; 

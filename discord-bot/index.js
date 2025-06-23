@@ -890,7 +890,6 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'createbet') {
 		try {
-			await interaction.deferReply();
 			const description = interaction.options.getString('description');
 			const optionsString = interaction.options.getString('options');
 			const options = optionsString.split(',').map(option => option.trim());
@@ -901,22 +900,27 @@ client.on('interactionCreate', async interaction => {
 					.setTitle('⚠️ Invalid Options')
 					.setDescription('Please provide at least two comma-separated options for the bet.')
 					.setTimestamp();
-				await interaction.editReply({ embeds: [embed] });
+				await interaction.reply({ embeds: [embed], ephemeral: true });
 				return;
 			}
 
 			const durationMinutes = interaction.options.getInteger('duration_minutes');
 
+			// Timing the backend request to decide whether to defer
+			const startTime = Date.now();
 			const response = await axios.post(`${backendApiUrl}/bets`, {
 				description,
 				options,
 				creatorDiscordId: userId,
-				durationMinutes: durationMinutes,
+				durationMinutes,
 			}, {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
 
 			const newBet = response.data;
+
+			const duration = Date.now() - startTime;
+
 			const embed = new EmbedBuilder()
 				.setColor(0x0099ff)
 				.setTitle('🎲 New Bet Created!')
@@ -931,34 +935,52 @@ client.on('interactionCreate', async interaction => {
 				embed.setFooter({ text: `Closes in ${durationMinutes} min` });
 			}
 
+			// Prepare ping content
 			const guild = interaction.guild;
 			let gamblersRole;
 			let content = '';
-			if (guild && guild.roles && guild.roles.cache) {
+			if (guild?.roles?.cache) {
 				gamblersRole = guild.roles.cache.find(role => role.name === 'Gamblers');
 				if (gamblersRole) {
 					content = `<@&${gamblersRole.id}>`;
 				}
 			}
-			// Main embed response (no ping in content)
-			const sentMessage = await interaction.editReply({
+
+			// Decide response method
+			if (duration < 2500) {
+				// Fast enough — reply directly with ping
+				const sentMessage = await interaction.reply({
+					content: `${content}`,
 					embeds: [embed],
-				});
+					allowedMentions: gamblersRole ? { roles: [gamblersRole.id] } : undefined
+				}).then(() => interaction.fetchReply());
 
-			// Persist betId -> messageId/channelId mapping
-			betMessageMap[newBet._id] = { messageId: sentMessage.id, channelId: sentMessage.channelId || sentMessage.channel.id };
-			await saveBetMessageMap();
+				// Track message
+				betMessageMap[newBet._id] = { messageId: sentMessage.id, channelId: sentMessage.channelId || sentMessage.channel.id };
+			} else {
+				// Took too long — use defer and follow-up
+				await interaction.deferReply();
 
-				// Follow-up ping
+				const sentMessage = await interaction.editReply({ 
+					embeds: [embed]
+				}).then(() => interaction.fetchReply());
+
+				// Track message
+				betMessageMap[newBet._id] = { messageId: sentMessage.id, channelId: sentMessage.channelId || sentMessage.channel.id };
+
 				if (gamblersRole) {
 					await interaction.followUp({
 						content: `${content} A new bet **${newBet.description}** has been created!`,
-						allowedMentions: { roles: [gamblersRole.id] },
+						allowedMentions: { roles: [gamblersRole.id] }
 					});
 				}
+			}
+
+			await saveBetMessageMap();
+
 		} catch (error) {
 			console.error('Error creating bet:', error, error?.response?.data);
-			if (!interaction.replied) {
+			if (!interaction.replied && !interaction.deferred) {
 				await safeErrorReply(interaction, new EmbedBuilder()
 					.setColor(0xff7675)
 					.setTitle('❌ Error Creating Bet')
@@ -1123,11 +1145,15 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'resolvebet') {
 		try {
-			await interaction.deferReply();
 			const betId = interaction.options.getString('bet_id');
 			const winningOption = interaction.options.getString('winning_option');
+
+			// Time only backend calls
+			const startTime = Date.now();
+
+			// Resolve the bet
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/resolve`, {
-				winningOption: winningOption,
+				winningOption,
 				resolverDiscordId: userId,
 				creatorDiscordId: userId,
 				guildId: interaction.guildId
@@ -1136,16 +1162,17 @@ client.on('interactionCreate', async interaction => {
 			});
 			const resolvedBet = response.data.bet;
 
-			// Fetch the resolved bet with totals from the backend
+			// Fetch full bet details
 			const betResponse = await axios.get(`${backendApiUrl}/bets/${betId}`, {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
 			});
 			const betWithTotals = betResponse.data;
-			const { totalPot, optionTotals } = betWithTotals;
 
-			// Calculate payout rate using backend-provided data
-			const winnerPot = optionTotals && optionTotals[winningOption] ? optionTotals[winningOption] : 0;
+			const duration = Date.now() - startTime;
+
+			const { totalPot, optionTotals } = betWithTotals;
+			const winnerPot = optionTotals?.[winningOption] || 0;
 			const payoutRate = winnerPot > 0 ? (totalPot / winnerPot) : 0;
 
 			const embed = new EmbedBuilder()
@@ -1156,31 +1183,62 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Bet ID', value: resolvedBet._id, inline: true },
 					{ name: 'Winning Option', value: resolvedBet.winningOption, inline: true },
 					{ name: 'Resolved by', value: `${interaction.user.username} (<@${userId}>)`, inline: true },
-					{ name: 'Total Pot', value: `${(totalPot || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: false },
-					{ name: 'Bets Per Option', value: optionTotals && Object.keys(optionTotals).length > 0 ? 
-						Object.entries(optionTotals).map(([option, amount]) => `**${option}:** ${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`).join('\n') : 
-						'No bets placed yet', inline: false },
-					{ name: 'Payout Rate', value: winnerPot > 0 ? `1 : ${payoutRate.toFixed(2)}` : 'No winners', inline: false }
+					{
+						name: 'Total Pot',
+						value: `${(totalPot || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points`,
+						inline: false
+					},
+					{
+						name: 'Bets Per Option',
+						value: optionTotals && Object.keys(optionTotals).length > 0
+							? Object.entries(optionTotals)
+								.map(([option, amount]) =>
+									`**${option}:** ${amount.toLocaleString('en-US', {
+										minimumFractionDigits: 2,
+										maximumFractionDigits: 2
+									})} points`
+								).join('\n')
+							: 'No bets placed yet',
+						inline: false
+					},
+					{
+						name: 'Payout Rate',
+						value: winnerPot > 0 ? `1 : ${payoutRate.toFixed(2)}` : 'No winners',
+						inline: false
+					}
 				)
 				.setTimestamp();
 
+			// Prepare role ping
 			const guild = interaction.guild;
-			let gamblersRole = guild?.roles?.cache?.find(role => role.name === 'Gamblers');
-			let content = gamblersRole ? `<@&${gamblersRole.id}>` : '';
+			const gamblersRole = guild?.roles?.cache?.find(role => role.name === 'Gamblers');
+			const content = gamblersRole ? `<@&${gamblersRole.id}>` : '';
+			const allowedMentions = gamblersRole ? { roles: [gamblersRole.id] } : undefined;
 
-			await interaction.editReply({  
-				embeds: [embed],
-			});
+			// Send reply based on duration
+			if (duration < 2500) {
+				await interaction.reply({
+					content: `${content}`,
+					embeds: [embed],
+					allowedMentions
+				}).then(() => interaction.fetchReply());
+			} else {
+				await interaction.deferReply();
 
-			if (gamblersRole) {
-				await interaction.followUp({
-					content: `${content} Bet **${resolvedBet.description}** has been resolved.`,
-					allowedMentions: { roles: [gamblersRole.id] },
-				});
+				await interaction.editReply({
+					embeds: [embed]
+				}).then(() => interaction.fetchReply());
+
+				if (gamblersRole) {
+					await interaction.followUp({
+						content: `${content} Bet **${resolvedBet.description}** has been resolved.`,
+						allowedMentions
+					});
+				}
 			}
 		} catch (error) {
 			console.error('Error resolving bet:', error.response?.data || error.message);
-			if (!interaction.replied) {
+			if (!interaction.replied && !interaction.deferred) {
 				await safeErrorReply(interaction, new EmbedBuilder()
 					.setColor(0xff7675)
 					.setTitle('❌ Error Resolving Bet')

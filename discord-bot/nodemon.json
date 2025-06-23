@@ -1,0 +1,4 @@
+{
+  "ignore": ["betMessageMap.json"],
+  "watch": ["*.js", "commands/*.js", "utils/*.js"]
+} 

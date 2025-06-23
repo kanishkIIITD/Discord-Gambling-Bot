@@ -740,6 +740,7 @@ router.get('/collection-list', async (req, res) => {
       { name: 'The Final Squirrel', rarity: 'transcendent' },
       { name: 'Fractal Pegasus', rarity: 'transcendent' },
       { name: 'Hamstergod Supreme', rarity: 'transcendent' },
+      { name: 'Reztard', rarity: 'transcendent' },
       { name: 'Wyrmlord Daph', rarity: 'og' },
       { name: 'Blau the Voidwatcher', rarity: 'og' },
       { name: 'Chronohedgehog Nodlehs', rarity: 'og' },
@@ -2648,6 +2649,7 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'The Final Squirrel', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Fractal Pegasus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Hamstergod Supreme', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Reztard', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
 
       // OG
       { name: 'Wyrmlord Daph', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
