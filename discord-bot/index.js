@@ -159,7 +159,7 @@ const jailedBlockedCommands = [
 	'createbet', 'placebet', 'resolvebet', 'listbets', 'viewbet', 'closebet', 'cancelbet', 'editbet', 'extendbet', 'betinfo',
 	
 	// Money-Earning Activities
-	'work', 'beg', 'daily', 'meowbark', 'crime', 'fish', 'hunt', 'steal',
+	'work', 'beg', 'daily', 'meowbark', 'crime', 'fish', 'hunt', 'steal', 'question',
 	
 	// Trading & Economy
 	'sell', 'trade', 'gift', 'mysterybox',

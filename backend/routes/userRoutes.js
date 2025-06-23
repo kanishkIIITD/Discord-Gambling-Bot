@@ -4382,7 +4382,7 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { type: 'work_quintuple', description: 'Next /work gives 5x points!', usesLeft: 1, weight: 19 },
         { type: 'jail_immunity', description: 'Immunity from jail for your next crime or steal!', usesLeft: 1, weight: 1 }
       ]},
-      jackpot: { chance: 0.01, min: 50000000, max: 100000000 }
+      jackpot: { chance: 0.01, min: 100000000, max: 200000000 }
     }
   };
   const config = rewardConfigs[boxType];
