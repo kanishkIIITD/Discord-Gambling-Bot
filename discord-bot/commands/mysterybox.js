@@ -3,6 +3,9 @@ const axios = require('axios');
 const { handleError } = require('../utils/responseHandler');
 const logger = require('../utils/logger');
 
+// --- In-memory cooldown map: { userId: { [guildId]: { premium: timestamp, ultimate: timestamp } } } ---
+const boxCooldowns = new Map();
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('mysterybox')
@@ -20,7 +23,7 @@ module.exports = {
       option.setName('count')
         .setDescription('The number of boxes to open')
         .setMinValue(1)
-        .setMaxValue(10)
+        .setMaxValue(20)
     ),
 
   async execute(interaction) {
@@ -30,6 +33,37 @@ module.exports = {
       const boxType = interaction.options.getString('type');
       let count = interaction.options.getInteger('count') || 1;
       if (boxType === 'basic') count = 1;
+
+      // --- Cooldown logic (per user, per guild, per box type) ---
+      const userId = interaction.user.id;
+      const guildId = interaction.guildId;
+      const now = Date.now();
+      let cooldownSeconds = 0;
+      if (boxType === 'premium') cooldownSeconds = 10 * count;
+      if (boxType === 'ultimate') cooldownSeconds = 15 * count;
+      if (cooldownSeconds > 0) {
+        let userCooldown = boxCooldowns.get(userId) || {};
+        let guildCooldown = userCooldown[guildId] || {};
+        const lastUsed = guildCooldown[boxType] || 0;
+        const remaining = lastUsed - now;
+        if (remaining > 0) {
+          const seconds = Math.ceil(remaining / 1000);
+          await interaction.editReply({
+            embeds: [
+              new EmbedBuilder()
+                .setColor(0xffbe76)
+                .setTitle('⏳ Cooldown')
+                .setDescription(`You must wait ${seconds}s before opening more ${boxType} boxes in this server. Cooldown: ${cooldownSeconds/count}s per box.`)
+                .setTimestamp()
+            ]
+          });
+          return;
+        }
+        // Set new cooldown
+        guildCooldown[boxType] = now + cooldownSeconds * 1000;
+        userCooldown[guildId] = guildCooldown;
+        boxCooldowns.set(userId, userCooldown);
+      }
 
       const response = await axios.post(`${process.env.BACKEND_API_URL}/users/${interaction.user.id}/mysterybox`, {
         boxType,

@@ -3884,7 +3884,11 @@ router.post('/:discordId/duel/respond', async (req, res) => {
       opponentWallet.balance += duel.amount;
       await challengerWallet.save();
       await opponentWallet.save();
-      res.json({ message: 'Duel declined or timed out. Stakes refunded.' });
+      res.json({
+        message: 'Duel declined or timed out. Stakes refunded.',
+        challenger: duel.challengerDiscordId,
+        opponent: duel.opponentDiscordId
+      });
     }
   } catch (error) {
     console.error('Error responding to duel:', error);
@@ -3996,7 +4000,7 @@ router.post('/:discordId/mysterybox', async (req, res) => {
     const cost = costs[boxType];
 
     let count = parseInt(req.body.count) || 1;
-    const maxCount = 10;
+    const maxCount = 20;
     if (boxType === 'basic') count = 1;
     if (count < 1) count = 1;
     if (count > maxCount) count = maxCount;
@@ -4341,7 +4345,7 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
     },
     premium: {
       coins: { chance: 0.45, min: 500000, max: 750000 },
-      items: { chance: 0.4, pool: [
+      items: { chance: 0.44, pool: [
         { name: 'Dragon Scale', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
         { name: 'Phoenix Feather', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
         { name: 'Ancient Coin', rarity: 'legendary', value: () => Math.floor(Math.random() * 500000) + 300000 },
@@ -4356,11 +4360,11 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { type: 'earnings_x3', description: '3x earnings for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 10 },
         { type: 'work_triple', description: 'Next /work gives 3x points!', usesLeft: 1, weight: 10 }
       ]},
-      jackpot: { chance: 0.05, min: 10000000, max: 20000000 }
+      jackpot: { chance: 0.01, min: 10000000, max: 20000000 }
     },
     ultimate: {
       coins: { chance: 0.45, min: 5000000, max: 7500000 },
-      items: { chance: 0.4, pool: [
+      items: { chance: 0.44, pool: [
         { name: 'Celestial Crown', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 },
         { name: 'Dragon Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 },
         { name: 'Phoenix Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 },
@@ -4378,7 +4382,7 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { type: 'work_quintuple', description: 'Next /work gives 5x points!', usesLeft: 1, weight: 19 },
         { type: 'jail_immunity', description: 'Immunity from jail for your next crime or steal!', usesLeft: 1, weight: 1 }
       ]},
-      jackpot: { chance: 0.05, min: 50000000, max: 100000000 }
+      jackpot: { chance: 0.01, min: 50000000, max: 100000000 }
     }
   };
   const config = rewardConfigs[boxType];
@@ -4451,5 +4455,25 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
   }
   return { rewardType, amount, item, message };
 }
+
+// --- DUEL: Get duel by ID (status check for bot timeout) ---
+router.get('/duel/:duelId', async (req, res) => {
+  try {
+    const duel = await Duel.findById(req.params.duelId);
+    if (!duel) return res.status(404).json({ message: 'Duel not found.' });
+    res.json({
+      duelId: duel._id,
+      status: duel.status,
+      challengerDiscordId: duel.challengerDiscordId,
+      opponentDiscordId: duel.opponentDiscordId,
+      amount: duel.amount,
+      createdAt: duel.createdAt,
+      resolvedAt: duel.resolvedAt || null
+    });
+  } catch (error) {
+    console.error('Error fetching duel by ID:', error);
+    res.status(500).json({ message: 'Server error fetching duel.' });
+  }
+});
 
 module.exports = router; 

@@ -3,7 +3,7 @@ const axios = require('axios');
 const ResponseHandler = require('../utils/responseHandler');
 const path = require('path');
 
-// In-memory cooldown map
+// In-memory cooldown map: { userId: { [guildId]: lastUsed } }
 const questionCooldowns = new Map();
 
 // List of cute cat images
@@ -78,8 +78,10 @@ module.exports = {
     try {
       await interaction.deferReply();
       const userId = interaction.user.id;
+      const guildId = interaction.guildId;
       const now = Date.now();
-      const lastUsed = questionCooldowns.get(userId) || 0;
+      let userCooldown = questionCooldowns.get(userId) || {};
+      const lastUsed = userCooldown[guildId] || 0;
       const cooldown = 5 * 60 * 1000; // 5 minutes
 
       // Check cooldown
@@ -88,13 +90,14 @@ module.exports = {
         const embed = new EmbedBuilder()
           .setColor(0xffbe76)
           .setTitle('⏳ Cooldown')
-          .setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again.`)
+          .setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again in this server.`)
           .setTimestamp();
         await interaction.editReply({ embeds: [embed] });
         return;
       }
       // Set cooldown immediately to prevent race condition
-      questionCooldowns.set(userId, Date.now());
+      userCooldown[guildId] = now;
+      questionCooldowns.set(userId, userCooldown);
       // Randomly select animal type
       const animalType = Math.random() < 0.5 ? 'cat' : 'gecko';
       let randomImage, randomQuestion;

@@ -692,6 +692,87 @@ client.on('interactionCreate', async interaction => {
 			}
 			return;
 		}
+		// --- Handle duel accept/decline buttons ---
+		if (interaction.customId.startsWith('duel_accept_') || interaction.customId.startsWith('duel_decline_')) {
+			// Parse duelId and opponentId from customId
+			const match = interaction.customId.match(/^duel_(accept|decline)_(.+)_(\d+)$/);
+			let duelId, opponentId;
+			if (match) {
+				duelId = match[2];
+				opponentId = match[3];
+			} else {
+				// fallback for old format
+				duelId = interaction.customId.replace('duel_accept_', '').replace('duel_decline_', '');
+				opponentId = null;
+			}
+			const accept = interaction.customId.startsWith('duel_accept_');
+			const userId = interaction.user.id;
+			const backendUrl = process.env.BACKEND_API_URL;
+			if (opponentId && userId !== opponentId) {
+				await interaction.reply({ content: 'Only the challenged user can accept or decline this duel.', ephemeral: true });
+				return;
+			}
+			// Only the correct opponent can proceed
+			const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+			const disabledRow = new ActionRowBuilder().addComponents(
+				new ButtonBuilder()
+					.setCustomId(`duel_accept_${duelId}_${opponentId}`)
+					.setLabel('✅ Accept')
+					.setStyle(ButtonStyle.Success)
+					.setDisabled(true),
+				new ButtonBuilder()
+					.setCustomId(`duel_decline_${duelId}_${opponentId}`)
+					.setLabel('❌ Decline')
+					.setStyle(ButtonStyle.Danger)
+					.setDisabled(true)
+			);
+			try {
+				await interaction.update({ components: [disabledRow] });
+				const response = await axios.post(`${backendUrl}/users/${userId}/duel/respond`, {
+					duelId,
+					accept
+				}, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				if (accept) {
+					const { winner, actionText, loser } = response.data;
+					const winnerMention = `<@${winner}>`;
+					const loserMention = loser ? `<@${loser}>` : '';
+					const resultEmbed = {
+						color: 0x00b894,
+						title: '⚔️ Duel Result',
+						description: `${winnerMention} ${actionText}\n\n**Winner:** ${winnerMention}${loserMention ? `\n**Loser:** ${loserMention}` : ''}`,
+						timestamp: new Date(),
+						footer: { text: `Duel ID: ${duelId}` }
+					};
+					await interaction.followUp({ content: `${winnerMention} ${loserMention}`.trim(), embeds: [resultEmbed], components: [] });
+				} else {
+					// --- Mention both users when declined ---
+					const { challenger, opponent } = response.data;
+					const challengerMention = `<@${challenger}>`;
+					const opponentMention = `<@${opponent}>`;
+					const resultEmbed = {
+						color: 0xff7675,
+						title: 'Duel Declined',
+						description: `${challengerMention} ${opponentMention}\nThe duel was declined. Stakes refunded.`,
+						timestamp: new Date(),
+						footer: { text: `Duel ID: ${duelId}` }
+					};
+					await interaction.followUp({ content: `${challengerMention} ${opponentMention}`, embeds: [resultEmbed], components: [] });
+				}
+			} catch (error) {
+				const errorMessage = error?.response?.data?.message || error?.message || 'Duel expired, not found, or already resolved.';
+				const resultEmbed = {
+					color: 0xff7675,
+					title: 'Duel Error',
+					description: `❌ ${errorMessage}`,
+					timestamp: new Date(),
+					footer: { text: `Duel ID: ${duelId}` }
+				};
+				await interaction.followUp({ embeds: [resultEmbed], components: [] });
+			}
+			return;
+		}
 	}
 	
 	if (!interaction.isCommand()) return;
@@ -2514,18 +2595,21 @@ client.on('interactionCreate', async interaction => {
 			const amount = interaction.options.getInteger('amount');
 			const userId = interaction.user.id;
 			const now = Date.now();
-			const lastUsed = meowbarkCooldowns.get(userId) || 0;
+			const guildId = interaction.guildId;
+			let userCooldown = meowbarkCooldowns.get(userId) || {};
+			const lastUsed = userCooldown[guildId] || 0;
 			const cooldown = 5 * 60 * 1000; // 5 minutes
 			if (now - lastUsed < cooldown) {
 				const remaining = Math.ceil((cooldown - (now - lastUsed)) / 1000);
 				const embed = new EmbedBuilder()
 					.setColor(0xffbe76)
 					.setTitle('⏳ Cooldown')
-					.setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again.`)
+					.setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again in this server.`)
 					.setTimestamp();
 				await interaction.editReply({ embeds: [embed] });
 				return;
 			}
+			meowbarkCooldowns.set(userId, { ...userCooldown, [guildId]: now });
 			if (amount < 1 || amount > 100000) {
 				const embed = new EmbedBuilder()
 					.setColor(0xff7675)
@@ -2543,9 +2627,6 @@ client.on('interactionCreate', async interaction => {
 			await interaction.editReply({ embeds: [promptEmbed] });
 
 			const filter = m => m.author.id === userId && ['meow', 'bark', 'woof', 'woof woof'].includes(m.content.toLowerCase());
-			meowbarkCooldowns.set(userId, Date.now());
-
-			// console.log(`[MEOWBARK] User ${userId} in guild ${interaction.guildId} prompted. Awaiting reply with filter...`);
 
 			// --- Add check for interaction.channel --- 
             if (!interaction.channel) {
@@ -2803,8 +2884,6 @@ client.on('interactionCreate', async interaction => {
 					fields: [
 						{ name: 'Duel', value:
 							'`/duel challenge @user amount` - Challenge another user to a duel for points\n' +
-							'`/duel accept duel_id` - Accept a pending duel\n' +
-							'`/duel decline duel_id` - Decline a pending duel\n' +
 							'`/duel stats` - View your duel win/loss record'
 						}
 					],
@@ -3321,73 +3400,11 @@ client.on('interactionCreate', async interaction => {
 	} else if (commandName === 'refund') {
 		await refundCommand.execute(interaction);
 	}
-
-	// --- Handle duel accept/decline buttons ---
-	if (interaction.isButton()) {
-		if (interaction.customId.startsWith('duel_accept_') || interaction.customId.startsWith('duel_decline_')) {
-			const duelId = interaction.customId.replace('duel_accept_', '').replace('duel_decline_', '');
-			const accept = interaction.customId.startsWith('duel_accept_');
-			const userId = interaction.user.id;
-			const backendUrl = process.env.BACKEND_API_URL;
-			try {
-				// Only allow the challenged user to respond
-				// Fetch duel info from backend to get the opponent's Discord ID
-				const duelRes = await axios.get(`${backendUrl}/duels/${duelId}`, {
-					params: { guildId: interaction.guildId },
-					headers: { 'x-guild-id': interaction.guildId }
-				});
-				const duel = duelRes.data;
-				if (duel.status !== 'pending') {
-					await interaction.reply({ content: 'This duel has already been resolved.', headers: { 'x-guild-id': interaction.guildId } });
-					return;
-				}
-				if (userId !== duel.opponentDiscordId) {
-					await interaction.reply({ content: 'Only the challenged user can accept or decline this duel.', headers: { 'x-guild-id': interaction.guildId } });
-					return;
-				}
-				// Respond to duel
-				const response = await axios.post(`${backendUrl}/users/${userId}/duel/respond`, {
-					duelId,
-					accept
-				}, {
-					headers: { 'x-guild-id': interaction.guildId }
-				});
-				if (accept) {
-					const { winner, actionText } = response.data;
-					const winnerMention = `<@${winner}>`;
-					const resultEmbed = {
-						color: 0x00b894,
-						title: '⚔️ Duel Result',
-						description: `${winnerMention} ${actionText}\n\n**Winner:** ${winnerMention}`,
-						timestamp: new Date(),
-						footer: { text: `Duel ID: ${duelId}`, headers: { 'x-guild-id': interaction.guildId } }
-					};
-					await interaction.update({ content: `<@${interaction.user.id}>`, embeds: [resultEmbed], components: [], headers: { 'x-guild-id': interaction.guildId } });
-				} else {
-					const resultEmbed = {
-						color: 0xff7675,
-						title: 'Duel Declined',
-						description: `<@${userId}> declined the duel. Stakes refunded.`,
-						timestamp: new Date(),
-						footer: { text: `Duel ID: ${duelId}`, headers: { 'x-guild-id': interaction.guildId } }
-					};
-					await interaction.update({ content: `<@${interaction.user.id}>`, embeds: [resultEmbed], components: [], headers: { 'x-guild-id': interaction.guildId } });
-				}
-			} catch (error) {
-				if (error.response && error.response.data && error.response.data.message) {
-						await interaction.reply({ content: error.response.data.message, headers: { 'x-guild-id': interaction.guildId } });
-				} else {
-					await interaction.reply({ content: 'Error processing duel response.', headers: { 'x-guild-id': interaction.guildId } });
-				}
-			}
-			return;
-		}
-	}
 });
 
 // Log in to Discord with your client's token
 client.login(process.env.DISCORD_TOKEN); 
-// In-memory cooldown map for /meowbark
+// In-memory cooldown map for /meowbark: { userId: { [guildId]: lastUsed } }
 const meowbarkCooldowns = new Map(); 
 
 process.on('unhandledRejection', error => {
@@ -3408,46 +3425,8 @@ async function safeErrorReply(interaction, embed) {
 } 
 
 // --- Duel Expiry Notification Poller ---
-setInterval(async () => {
-  try {
-    const response = await axios.get(`${backendApiUrl}/duels/expired-unnotified`);
-    const duels = response.data.duels || [];
-    if (duels.length === 0) return;
-    for (const duel of duels) {
-      // Notify challenger
-      try {
-        const challengerUser = await client.users.fetch(duel.challengerDiscordId);
-				const embed = new EmbedBuilder()
-					.setColor(0xff7675)
-          .setTitle('⏰ Duel Cancelled')
-          .setDescription(`Your duel with <@${duel.opponentDiscordId}> was cancelled as time ran out. Both players have been refunded their stakes (**${duel.amount.toLocaleString('en-US')} points** each).`)
-          .setFooter({ text: `Duel ID: ${duel._id}` })
-					.setTimestamp();
-        await challengerUser.send({ embeds: [embed] });
-      } catch (err) {
-        console.warn('Failed to notify challenger:', duel.challengerDiscordId, err.message);
-      }
-      // Notify opponent
-      try {
-        const opponentUser = await client.users.fetch(duel.opponentDiscordId);
-				const embed = new EmbedBuilder()
-          .setColor(0xff7675)
-          .setTitle('⏰ Duel Cancelled')
-          .setDescription(`Your duel with <@${duel.challengerDiscordId}> was cancelled as time ran out. Both players have been refunded their stakes (**${duel.amount.toLocaleString('en-US')} points** each).`)
-          .setFooter({ text: `Duel ID: ${duel._id}` })
-					.setTimestamp();
-        await opponentUser.send({ embeds: [embed] });
-		} catch (err) {
-        console.warn('Failed to notify opponent:', duel.opponentDiscordId, err.message);
-      }
-    }
-    // Mark as notified
-    const duelIds = duels.map(d => d._id);
-    await axios.post(`${backendApiUrl}/duels/mark-notified`, { duelIds });
-		} catch (err) {
-    console.error('Error polling for expired duels:', err.message);
-  }
-}, 10000); // every 10 seconds
+// REMOVE the entire setInterval block that polls /duels/expired-unnotified and notifies users
+// ... existing code ...
 
 // Add event listener for manual timeout removals
 client.on('guildMemberUpdate', async (oldMember, newMember) => {

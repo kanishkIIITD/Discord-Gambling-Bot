@@ -681,34 +681,6 @@ const commands = [
 				]
 			},
 			{
-				name: 'accept',
-				description: 'Accept a pending duel',
-				type: 1,
-				options: [
-					{
-						name: 'duel_id',
-						description: 'The ID of the duel to accept',
-						type: 3,
-						required: true,
-						autocomplete: true
-					}
-				]
-			},
-			{
-				name: 'decline',
-				description: 'Decline a pending duel',
-				type: 1,
-				options: [
-					{
-						name: 'duel_id',
-						description: 'The ID of the duel to decline',
-						type: 3,
-						required: true,
-						autocomplete: true
-					}
-				]
-			},
-			{
 				name: 'stats',
 				description: 'View your duel win/loss record',
 				type: 1
@@ -737,11 +709,11 @@ const commands = [
 			},
 			{
 				name: 'count',
-				description: 'How many boxes to open (max 10, only for premium/ultimate)',
+				description: 'How many boxes to open (max 20, only for premium/ultimate)',
 				type: 4,
 				required: false,
 				min_value: 1,
-				max_value: 10
+				max_value: 20
 			}
 		]
 	},
