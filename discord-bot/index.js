@@ -645,7 +645,7 @@ client.on('interactionCreate', async interaction => {
 					
 					// Double button (if available and hand has exactly 2 cards and enough balance)
 					const currentHand = data.playerHands[data.currentHand];
-					const betAmount = data.bets ? data.bets[data.currentHand] : (amount || 0);
+					const betAmount = data.bets ? data.bets[data.currentHand] : 0;
 					const balance = data.newBalance;
 					if (data.canDouble && currentHand.length === 2 && balance >= betAmount) {
 						actionRow.addComponents(
