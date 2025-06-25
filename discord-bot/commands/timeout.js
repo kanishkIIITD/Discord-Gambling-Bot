@@ -145,8 +145,49 @@ module.exports = {
                 if (message.includes('cooldown') || message.includes('wait')) {
                     errorEmbed.setDescription(`⏰ ${error.response.data.message}`);
                 } else if (message.includes('insufficient balance') || message.includes('not enough points')) {
-                    errorEmbed.setDescription(`💰 ${error.response.data.message}`);
-                } else if (message.includes('not found') || message.includes('does not exist')) {
+                    const brokeMessages = [
+                        `Nice try, but you're too broke to silence anyone right now 💸.`,
+                        `<@${targetUser.id}> lives to speak another day… because you couldn’t afford their silence 😂.`,
+                        `You pulled out your wallet… and moths flew out 🪰. Timeout failed!`,
+                        `That timeout attempt bounced like your bank account 📉.`,
+                        `You tried to flex your power, but your balance said 'nah' 💀.`,
+                        `Even the timeout gods require coin. And you, friend, are bankrupt.`,
+                        `Imagine being so broke, you can’t even afford 5 minutes of peace 😬.`,
+                        `Timeout failed. Poverty won 🏚️.`,
+                        `You're all bark and no balance. Timeout rejected 🐶.`,
+                        `You wanted silence... but your wallet said 'speak freely.' 🎤`
+                    ];
+                
+                    const funMessage = brokeMessages[Math.floor(Math.random() * brokeMessages.length)];
+                    const brokeEmbed = createErrorEmbed('💸 You\'re Broke!')
+                        .setDescription(`${funMessage}`)
+                        .addFields(
+                            { name: 'Target User', value: `<@${targetUser.id}>`, inline: true },
+                            { name: 'Duration Attempted', value: `${duration} minute(s)`, inline: true },
+                            { name: 'Cost', value: `${(100000 * duration).toLocaleString('en-US')} + 2% of balance`, inline: true },
+                            { name: 'Reason', value: reason || 'No reason provided', inline: false }
+                        )
+                        .setFooter({ text: 'Earn more points to timeout users like a boss 💼' });
+                
+                    await interaction.editReply({ embeds: [brokeEmbed] });
+                
+                    // Log the failed attempt
+                    await sendLogToChannel(interaction.client, interaction.guildId, {
+                        color: 0xffa500, // orange for warning/failure
+                        title: '❌ Timeout Failed - Broke!',
+                        description: `${funMessage}`,
+                        fields: [
+                            { name: 'User', value: `<@${interaction.user.id}>`, inline: true },
+                            { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
+                            { name: 'Attempted Duration', value: `${duration} minute(s)`, inline: true },
+                            { name: 'Cost', value: `${(100000 * duration).toLocaleString('en-US')} + 2% of balance`, inline: true },
+                            { name: 'Reason', value: reason || 'No reason provided' }
+                        ],
+                    });
+                
+                    return; // Exit here so no other error handling runs
+                }
+                 else if (message.includes('not found') || message.includes('does not exist')) {
                     errorEmbed.setDescription(`❌ ${error.response.data.message}`);
                 } else if (message.includes('admin') || message.includes('superadmin')) {
                     errorEmbed.setDescription(`👑 ${error.response.data.message}`);
