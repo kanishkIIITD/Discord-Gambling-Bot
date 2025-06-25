@@ -41,11 +41,12 @@ module.exports = {
       let cooldownSeconds = 0;
       if (boxType === 'premium') cooldownSeconds = 10 * count;
       if (boxType === 'ultimate') cooldownSeconds = 15 * count;
+      let userCooldown, guildCooldown, lastUsed, remaining;
       if (cooldownSeconds > 0) {
-        let userCooldown = boxCooldowns.get(userId) || {};
-        let guildCooldown = userCooldown[guildId] || {};
-        const lastUsed = guildCooldown[boxType] || 0;
-        const remaining = lastUsed - now;
+        userCooldown = boxCooldowns.get(userId) || {};
+        guildCooldown = userCooldown[guildId] || {};
+        lastUsed = guildCooldown[boxType] || 0;
+        remaining = lastUsed - now;
         if (remaining > 0) {
           const seconds = Math.ceil(remaining / 1000);
           await interaction.editReply({
@@ -59,10 +60,6 @@ module.exports = {
           });
           return;
         }
-        // Set new cooldown
-        guildCooldown[boxType] = now + cooldownSeconds * 1000;
-        userCooldown[guildId] = guildCooldown;
-        boxCooldowns.set(userId, userCooldown);
       }
 
       const response = await axios.post(`${process.env.BACKEND_API_URL}/users/${interaction.user.id}/mysterybox`, {
@@ -72,6 +69,15 @@ module.exports = {
       }, {
         headers: { 'x-guild-id': interaction.guildId }
       });
+
+      // --- Set cooldown only after successful backend call ---
+      if (cooldownSeconds > 0) {
+        userCooldown = boxCooldowns.get(userId) || {};
+        guildCooldown = userCooldown[guildId] || {};
+        guildCooldown[boxType] = now + cooldownSeconds * 1000;
+        userCooldown[guildId] = guildCooldown;
+        boxCooldowns.set(userId, userCooldown);
+      }
 
       // Multi-box summary embed
       if (count > 1 && response.data.rewards && Array.isArray(response.data.rewards)) {

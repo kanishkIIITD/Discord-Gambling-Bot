@@ -4336,7 +4336,7 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { name: 'Tiny Top Hat', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
         { name: 'Epic Sunglasses', rarity: 'legendary', value: () => Math.floor(Math.random() * 50000) + 30000 }
       ]},
-      buffs: { chance: 0.10, pool: [
+      buffs: { chance: 0.1, pool: [
         { type: 'earnings_x2', description: '2x earnings for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000) },
         { type: 'work_double', description: 'Next /work gives 2x points!', usesLeft: 1 },
         { type: 'crime_success', description: 'Next /crime is guaranteed success!', usesLeft: 1 }
@@ -4344,8 +4344,8 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
       jackpot: { chance: 0.05, min: 300000, max: 500000 }
     },
     premium: {
-      coins: { chance: 0.45, min: 500000, max: 750000 },
-      items: { chance: 0.44, pool: [
+      coins: { chance: 0.5, min: 500000, max: 750000 },
+      items: { chance: 0.35, pool: [
         { name: 'Dragon Scale', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
         { name: 'Phoenix Feather', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
         { name: 'Ancient Coin', rarity: 'legendary', value: () => Math.floor(Math.random() * 500000) + 300000 },
@@ -4360,11 +4360,11 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { type: 'earnings_x3', description: '3x earnings for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 10 },
         { type: 'work_triple', description: 'Next /work gives 3x points!', usesLeft: 1, weight: 10 }
       ]},
-      jackpot: { chance: 0.01, min: 10000000, max: 20000000 }
+      jackpot: { chance: 0.05, min: 10000000, max: 20000000 }
     },
     ultimate: {
-      coins: { chance: 0.45, min: 5000000, max: 7500000 },
-      items: { chance: 0.44, pool: [
+      coins: { chance: 0.5, min: 5000000, max: 7500000 },
+      items: { chance: 0.35, pool: [
         { name: 'Celestial Crown', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 },
         { name: 'Dragon Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 },
         { name: 'Phoenix Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 },
@@ -4382,7 +4382,7 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { type: 'work_quintuple', description: 'Next /work gives 5x points!', usesLeft: 1, weight: 19 },
         { type: 'jail_immunity', description: 'Immunity from jail for your next crime or steal!', usesLeft: 1, weight: 1 }
       ]},
-      jackpot: { chance: 0.01, min: 100000000, max: 200000000 }
+      jackpot: { chance: 0.05, min: 100000000, max: 200000000 }
     }
   };
   const config = rewardConfigs[boxType];

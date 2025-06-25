@@ -158,7 +158,7 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
 
     // Slot symbols and their weights
     const symbols = ['🍒', '🍊', '🍋', '🍇', '💎', '7️⃣'];
-    const weights = [30, 25, 20, 15, 8, 2]; // Percentages
+    const weights = [28, 24, 19, 14, 10, 5]; // percentages
 
     // Generate three random symbols
     const getRandomSymbol = () => {
@@ -182,58 +182,60 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
     let multiplier = 0;
     let jackpotAmount = 0;
     let winType = null;
+    let winnings = 0; // Initialize winnings to 0
     if (isJackpot) {
-      // Win the entire jackpot
       let jackpot = await Jackpot.findOne({ guildId: req.guildId });
       if (!jackpot) jackpot = new Jackpot({ guildId: req.guildId });
-      jackpotAmount = jackpot.currentAmount; // Store jackpot amount before resetting
-      multiplier = 554.83; // Recommended jackpot payout multiplier
+      jackpotAmount = jackpot.currentAmount;
+      const jackpotMultiplier = 554.83;
+      winnings = Math.max(jackpotAmount, Math.floor(amount * jackpotMultiplier));
+      multiplier = 0;
       winType = 'jackpot';
       jackpot.lastWinner = user._id;
-      jackpot.lastWinAmount = jackpotAmount;
+      jackpot.lastWinAmount = winnings;
       jackpot.lastWinTime = new Date();
-      jackpot.currentAmount = 0; // Reset jackpot
+      jackpot.currentAmount = 0;
       await jackpot.save();
       const jackpotTransaction = new Transaction({
         user: user._id,
         type: 'jackpot',
-        amount: jackpotAmount,
+        amount: winnings,
         description: 'JACKPOT WIN! 🎉',
         guildId: req.guildId
       });
       await jackpotTransaction.save();
-      if (isJackpot && jackpotTransaction) {
-        broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: jackpotTransaction });
-      }
     } else if (reels[0] === reels[1] && reels[1] === reels[2]) {
       // Three of a kind
       winType = 'three-of-a-kind';
       switch (reels[0]) {
         case '7️⃣': multiplier = 50; break;
-        case '💎': multiplier = 20.56; break;
+        case '💎': multiplier = 25; break;
         case '🍇': multiplier = 12.11; break;
         case '🍋': multiplier = 8.22; break;
         case '🍊': multiplier = 6.65; break;
-        case '🍒': multiplier = 4.31; break;
+        case '🍒': multiplier = 5.0; break;
       }
+      winnings = amount * multiplier;
     } else if (
       (reels.filter(s => s === '7️⃣').length === 2)
     ) {
       // Two 7️⃣ (but not three)
       multiplier = 4.11;
       winType = 'two-sevens';
+      winnings = amount * multiplier;
     } else if (
       (reels[0] === reels[1] && reels[0] !== '7️⃣') ||
       (reels[0] === reels[2] && reels[0] !== '7️⃣') ||
       (reels[1] === reels[2] && reels[1] !== '7️⃣')
     ) {
       // Any two matching symbols (except 7️⃣)
-      multiplier = 1.15;
+      multiplier = 1.2;
       winType = 'two-matching';
+      winnings = amount * multiplier;
     }
 
-    const winnings = isJackpot ? Math.floor(amount * 554.83) : amount * multiplier;
-    const won = multiplier > 0;
+    // Consolidate 'won' check and 'winnings' calculation
+    const won = winnings > 0;
 
     // Free spin logic: track loss streak and award free spin after 5 losses
     if (!won && !usedFreeSpin) {
@@ -257,11 +259,10 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
     );
     await wallet.save();
 
-    if (!isJackpot) {
-      const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
-      if (latestTransaction) {
-        broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
-      }
+    // CONSOLIDATED BROADCAST:
+    const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
+    if (latestTransaction) {
+      broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
     }
 
     // Add to jackpot if lost and not a free spin
