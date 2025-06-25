@@ -489,7 +489,9 @@ router.post('/:discordId/blackjack', async (req, res) => {
 
           // Check if user has enough balance
           if (wallet.balance < currentBet) {
-            return res.status(400).json({ message: 'Insufficient balance to double down.' });
+            return res.status(400).json({ 
+              message: `You need ${currentBet.toLocaleString('en-US')} points to double down, but you only have ${wallet.balance.toLocaleString('en-US')}.` 
+            });
           }
 
           // Process double down
@@ -522,9 +524,13 @@ router.post('/:discordId/blackjack', async (req, res) => {
           // Check if can split (same value cards and enough balance)
           const currentHand = gameState.playerHands[gameState.currentHand];
           if (currentHand.length !== 2 || 
-              calculateHandValue([currentHand[0]]) !== calculateHandValue([currentHand[1]]) ||
-              wallet.balance < gameState.bets[gameState.currentHand]) {
+              calculateHandValue([currentHand[0]]) !== calculateHandValue([currentHand[1]])) {
             return res.status(400).json({ message: 'Cannot split this hand.' });
+          }
+          if (wallet.balance < gameState.bets[gameState.currentHand]) {
+            return res.status(400).json({
+              message: `You need ${gameState.bets[gameState.currentHand].toLocaleString('en-US')} points to split, but you only have ${wallet.balance.toLocaleString('en-US')}.`
+            });
           }
           
           // Create new hand and move one card

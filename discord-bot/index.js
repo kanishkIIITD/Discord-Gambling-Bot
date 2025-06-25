@@ -643,9 +643,11 @@ client.on('interactionCreate', async interaction => {
 							.setStyle(ButtonStyle.Secondary)
 					);
 					
-					// Double button (if available and hand has exactly 2 cards)
+					// Double button (if available and hand has exactly 2 cards and enough balance)
 					const currentHand = data.playerHands[data.currentHand];
-					if (data.canDouble && currentHand.length === 2) {
+					const betAmount = data.bets ? data.bets[data.currentHand] : (amount || 0);
+					const balance = data.newBalance;
+					if (data.canDouble && currentHand.length === 2 && balance >= betAmount) {
 						actionRow.addComponents(
 							new ButtonBuilder()
 								.setCustomId(`blackjack_double_${buttonUserId || userId}`)
@@ -654,11 +656,12 @@ client.on('interactionCreate', async interaction => {
 						);
 					}
 					
-					// Split button (if available, hand has exactly 2 cards, and both cards have the same value)
+					// Split button (if available, hand has exactly 2 cards, both cards have the same value, and enough balance)
 					if (
 						data.canSplit &&
 						currentHand.length === 2 &&
-						currentHand[0].value === currentHand[1].value
+						currentHand[0].value === currentHand[1].value &&
+						balance >= betAmount
 					) {
 						actionRow.addComponents(
 							new ButtonBuilder()
