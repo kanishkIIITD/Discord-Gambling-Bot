@@ -128,7 +128,7 @@ export const commandCategories = [
         name: 'golden-tickets',
         description: 'Check how many golden tickets you have!',
         usage: '/golden-tickets',
-        instructions: ''
+        instructions: 'Golden Tickets can be obtained by opening Ultimate mystery boxes.'
       },
       {
         name: 'redeem-golden-ticket',

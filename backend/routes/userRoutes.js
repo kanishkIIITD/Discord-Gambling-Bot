@@ -3992,7 +3992,7 @@ router.post('/:discordId/beg', async (req, res) => {
         'You sneeze dramatically, but no one reacts.',
         'You tried fake crying. A dog was mildly interested, but no humans.',
         'You shouted your life story. No one clapped.',
-        'A man in a tux looked at you, said "Get a job", and walked off.',
+        'A man in a tux looked at you, said "Get a j*b", and walked off.',
         'You blended in with a nearby statue. No donations.',
         'Someone dropped a leaf in your hat. How thoughtful.',
         'Even the pigeons ignored you.'

@@ -46,9 +46,11 @@ export const Transactions = () => {
         const res = await getTransactionHistory(user.discordId, page, limit);
         setTransactions(res.transactions);
         setTotalCount(res.totalCount || 0);
-        // Calculate total pages based on totalCount and items per page
+        // Calculate total pages based on totalCount and items per page, capped at 50
         const effectiveItemsPerPage = userPreferences?.itemsPerPage || ITEMS_PER_PAGE;
-        setTotalPages(Math.ceil((res.totalCount || 0) / effectiveItemsPerPage));
+        const maxPages = 50;
+        const calculatedPages = Math.ceil((res.totalCount || 0) / effectiveItemsPerPage);
+        setTotalPages(Math.min(calculatedPages, maxPages));
       } catch (err) {
         setError('Failed to fetch transactions.');
       } finally {
