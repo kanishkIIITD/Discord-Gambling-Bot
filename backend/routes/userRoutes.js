@@ -4544,7 +4544,7 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
     wallet.balance += amount;
     rewardType = 'jackpot';
     // 1% chance for golden ticket ONLY for ultimate box
-    if (boxType === 'ultimate' && Math.random() < 0.01) {
+    if (boxType === 'ultimate' && Math.random() < 0.001) {
       user.inventory = user.inventory || [];
       const idx = user.inventory.findIndex(i => i.type === 'item' && i.name === 'Golden Ticket');
       if (idx >= 0) {

@@ -39,8 +39,8 @@ module.exports = {
       const guildId = interaction.guildId;
       const now = Date.now();
       let cooldownSeconds = 0;
-      if (boxType === 'premium') cooldownSeconds = 10 * count;
-      if (boxType === 'ultimate') cooldownSeconds = 15 * count;
+      if (boxType === 'premium') cooldownSeconds = 5 * count;
+      if (boxType === 'ultimate') cooldownSeconds = Math.round(7.5 * count);
       let userCooldown, guildCooldown, lastUsed, remaining;
       if (cooldownSeconds > 0) {
         userCooldown = boxCooldowns.get(userId) || {};
