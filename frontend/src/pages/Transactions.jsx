@@ -42,15 +42,13 @@ export const Transactions = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await axios.get(
-          `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/transactions`,
-          { params: { page: page, limit: limit, type: filter, guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
-        );
-        setTransactions(res.data.transactions);
-        // Total count from backend is not needed for frontend pagination limit
-        // Calculate total pages based on the maximum number of items to display on the frontend
+        // Fetch both transactions and totalCount from backend
+        const res = await getTransactionHistory(user.discordId, page, limit);
+        setTransactions(res.transactions);
+        setTotalCount(res.totalCount || 0);
+        // Calculate total pages based on totalCount and items per page
         const effectiveItemsPerPage = userPreferences?.itemsPerPage || ITEMS_PER_PAGE;
-        setTotalPages(Math.ceil(MAX_TOTAL_ITEMS / effectiveItemsPerPage)); // Corrected calculation
+        setTotalPages(Math.ceil((res.totalCount || 0) / effectiveItemsPerPage));
       } catch (err) {
         setError('Failed to fetch transactions.');
       } finally {
@@ -58,8 +56,7 @@ export const Transactions = () => {
       }
     };
     if (user?.discordId && userPreferences) {
-      // Pass the current page and the adjusted limit (up to MAX_TOTAL_ITEMS)
-      fetchTransactions(currentPage, Math.min(userPreferences.itemsPerPage || ITEMS_PER_PAGE, MAX_TOTAL_ITEMS));
+      fetchTransactions(currentPage, userPreferences.itemsPerPage || ITEMS_PER_PAGE);
     }
   }, [user, currentPage, filter, userPreferences]);
 
@@ -126,6 +123,12 @@ export const Transactions = () => {
                       case 'sell': return 'Sell';
                       case 'bail': return 'Bail';
                       case 'giveaway': return 'Giveaway';
+                      case 'timeout': return 'Timeout';
+                      case 'mystery_box': return 'Mystery Box';
+                      case 'question': return 'Question';
+                      case 'steal': return 'Steal';
+                      case 'stolen': return 'Stolen';
+                      case 'penalty': return 'Penalty';
                       default: return 'Unknown';
                     }
                   };

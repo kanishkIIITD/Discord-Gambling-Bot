@@ -581,6 +581,7 @@ router.get('/collection-list', async (req, res) => {
       { name: "Kanalo's Wrath", rarity: 'og' },
       { name: 'Hasib the Abyssseer', rarity: 'og' },
       { name: 'Jeemongul', rarity: 'og' },
+      { name: 'Oven', rarity: 'og' },
     ];
     const animalTable = [
       { name: 'Rabbit', rarity: 'common' },
@@ -741,28 +742,55 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Fractal Pegasus', rarity: 'transcendent' },
       { name: 'Hamstergod Supreme', rarity: 'transcendent' },
       { name: 'Reztard', rarity: 'transcendent' },
+      { name: 'Yaki the Gecko', rarity: 'transcendent' },
       { name: 'Wyrmlord Daph', rarity: 'og' },
       { name: 'Blau the Voidwatcher', rarity: 'og' },
       { name: 'Chronohedgehog Nodlehs', rarity: 'og' },
+      { name: 'Crime-Time Rifa', rarity: 'og' },
     ];
     const itemTable = [
       { name: 'Rubber Duck', rarity: 'common' },
+      { name: 'Tiny Top Hat', rarity: 'common' },
+      { name: 'Banana Peel', rarity: 'common' },
+      { name: 'Squeaky Hammer', rarity: 'common' },
       { name: 'Party Hat', rarity: 'uncommon' },
+      { name: 'Magic Pebble', rarity: 'uncommon' },
+      { name: 'Broken Compass', rarity: 'uncommon' },
       { name: 'Golden Mustache', rarity: 'rare' },
       { name: 'Mysterious Key', rarity: 'rare' },
-      { name: 'Tiny Top Hat', rarity: 'common' },
-      { name: 'Epic Sunglasses', rarity: 'legendary' },
+      { name: 'Lucky Coin', rarity: 'rare' },
+      { name: 'Pocket Rainbow', rarity: 'rare' },
+      { name: 'Elixir of Fortune', rarity: 'rare' },
+      { name: 'Treasure Map Fragment', rarity: 'rare' },
       { name: 'Dragon Scale', rarity: 'epic' },
       { name: 'Phoenix Feather', rarity: 'epic' },
-      { name: 'Ancient Coin', rarity: 'legendary' },
       { name: 'Mystic Crystal', rarity: 'epic' },
       { name: 'Enchanted Tome', rarity: 'epic' },
-      { name: 'Celestial Crown', rarity: 'mythical' },
+      { name: 'Starlit Pendant', rarity: 'epic' },
+      { name: 'Phantom Cloak', rarity: 'epic' },
+      { name: 'Ancient Tablet', rarity: 'epic' },
+      { name: 'Crystal Dice', rarity: 'epic' },
+      { name: 'Epic Sunglasses', rarity: 'legendary' },
+      { name: 'Mini Loot Bag', rarity: 'legendary' },
+      { name: 'Ancient Coin', rarity: 'legendary' },
+      { name: 'Gem-Encrusted Ring', rarity: 'legendary' },
+      { name: 'Void Trinket', rarity: 'legendary' },
+      { name: 'Ancient Tome', rarity: 'legendary' },
       { name: 'Dragon Heart', rarity: 'legendary' },
       { name: 'Phoenix Heart', rarity: 'legendary' },
+      { name: 'Astral Relic', rarity: 'legendary' },
+      { name: 'Cosmic Mirror', rarity: 'legendary' },
       { name: 'Eternal Crystal', rarity: 'mythical' },
-      { name: 'Ancient Tome', rarity: 'legendary' },
+      { name: 'Celestial Crown', rarity: 'mythical' },
+      { name: 'Timeworn Crown', rarity: 'mythical' },
+      { name: 'Ember of Creation', rarity: 'mythical' },
+      { name: 'Soulbound Locket', rarity: 'mythical' },
+      { name: 'Infinity Gem', rarity: 'mythical' },
+      { name: 'Relic of the Old Gods', rarity: 'mythical' },
+      { name: 'Crown of Shadows', rarity: 'mythical' },
+      { name: 'Primordial Egg', rarity: 'mythical' }
     ];
+    
     // Add type field
     const fishList = fishTable.map(f => ({ ...f, type: 'fish' }));
     const animalList = animalTable.map(a => ({ ...a, type: 'animal' }));
@@ -2257,6 +2285,7 @@ router.post('/:discordId/fish', async (req, res) => {
         { name: "Kanalo's Wrath", rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
         { name: 'Hasib the Abyssseer', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
         { name: 'Jeemongul', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
+        { name: 'Oven', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
     ];
     
     // Rarity weights
@@ -2650,11 +2679,13 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Fractal Pegasus', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Hamstergod Supreme', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
       { name: 'Reztard', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
+      { name: 'Yaki the Gecko', rarity: 'transcendent', value: () => Math.floor(Math.random() * 2000000) + 3000000 },
 
       // OG
       { name: 'Wyrmlord Daph', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
       { name: 'Blau the Voidwatcher', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
       { name: 'Chronohedgehog Nodlehs', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
+      { name: 'Crime-Time Rifa', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
     ];
     
     // Rarity weights

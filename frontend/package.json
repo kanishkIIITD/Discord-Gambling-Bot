@@ -19,6 +19,7 @@
     "react-confetti": "^6.4.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.5.2",
+    "react-icons": "^5.5.0",
     "react-konva": "^18.2.10",
     "react-konva-utils": "^1.1.0",
     "react-modal": "^3.16.3",

@@ -77,6 +77,16 @@ export const Navigation = () => {
               >
                 Commands
               </Link>
+              <Link
+                to="/support"
+                className={`inline-flex items-center px-1 pt-1 text-sm font-medium tracking-wide ${
+                  isActive('/support') 
+                    ? 'text-primary border-b-2 border-primary' 
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Support
+              </Link>
             </div>
           </div>
 
@@ -206,6 +216,17 @@ export const Navigation = () => {
             onClick={() => setIsMobileMenuOpen(false)}
           >
             Commands
+          </Link>
+          <Link
+            to="/support"
+            className={`block px-3 py-2 rounded-md text-base font-medium tracking-wide ${
+              isActive('/support') 
+                ? 'text-primary bg-primary/10' 
+                : 'text-text-secondary hover:text-text-primary hover:bg-primary/5'
+            }`}
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            Support
           </Link>
           {user ? (
             <Link

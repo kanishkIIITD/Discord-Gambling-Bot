@@ -190,6 +190,12 @@ export const Dashboard = () => {
                       case 'sell': return 'Sell';
                       case 'bail': return 'Bail';
                       case 'giveaway': return 'Giveaway';
+                      case 'timeout': return 'Timeout';
+                      case 'mystery_box': return 'Mystery Box';
+                      case 'question': return 'Question';
+                      case 'steal': return 'Steal';
+                      case 'stolen': return 'Stolen';
+                      case 'penalty': return 'Penalty';
                       default: return 'Unknown';
                     }
                   };

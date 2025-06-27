@@ -123,6 +123,18 @@ export const commandCategories = [
         description: 'Challenge another user to a duel for points!',
         usage: '/duel challenge user:<user> amount:<amount> | /duel accept duel_id:<id> | /duel decline duel_id:<id> | /duel stats',
         instructions: 'The duel lasts 1 minute before it cancels.'
+      },
+      {
+        name: 'golden-tickets',
+        description: 'Check how many golden tickets you have!',
+        usage: '/golden-tickets',
+        instructions: ''
+      },
+      {
+        name: 'redeem-golden-ticket',
+        description: 'Redeem a golden ticket for 10% of the jackpot pool (7-day cooldown).',
+        usage: '/redeem-golden-ticket',
+        instructions: ''
       }
     ]
   },

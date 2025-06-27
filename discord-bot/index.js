@@ -118,6 +118,7 @@ client.once('ready', () => {
 // Send a welcome embed when the bot is added to a new server
 const defaultDashboardUrl = 'https://discord-gambling-bot.vercel.app/dashboard';
 const defaultCommandsUrl = 'https://discord-gambling-bot.vercel.app/commands';
+const defaultSupportUrl = 'https://www.buymeacoffee.com/lostzoroman';
 client.on('guildCreate', async (guild) => {
 	try {
 		// Find the first text channel where the bot can send messages
@@ -134,7 +135,8 @@ client.on('guildCreate', async (guild) => {
 			.setDescription('Get started by visiting your dashboard or viewing all available commands. Use `/help` in Discord for a quick overview.')
 			.addFields(
 				{ name: 'Dashboard', value: `[Open Dashboard](${defaultDashboardUrl})`, inline: true },
-				{ name: 'Commands', value: `[View Commands](${defaultCommandsUrl})`, inline: true }
+				{ name: 'Commands', value: `[View Commands](${defaultCommandsUrl})`, inline: true },
+				{ name: '☕ Support the Bot', value: `[Buy Me a Coffee!](${defaultSupportUrl})`, inline: true }
 			)
 			.setFooter({ text: 'Enjoy and good luck!' });
 		
@@ -146,7 +148,11 @@ client.on('guildCreate', async (guild) => {
 				new ButtonBuilder()
 					.setLabel('📘 View Commands')
 					.setStyle(ButtonStyle.Link)
-					.setURL(defaultCommandsUrl)
+					.setURL(defaultCommandsUrl),
+				new ButtonBuilder()
+					.setLabel('☕ Buy Me a Coffee')
+					.setStyle(ButtonStyle.Link)
+					.setURL(defaultSupportUrl)
 			);	
 		await channel.send({ embeds: [embed], components: [buttons] });
 	} catch (err) {
@@ -2764,7 +2770,8 @@ client.on('interactionCreate', async interaction => {
 						{ name: '⚔️ Duel', value: 'Use `/help section:duel`' },
 						{ name: '✨ Buffs', value: 'Use `/help section:buffs`' },
 						{ name: '🛡️ Moderation', value: 'Use `/help section:moderation`' },
-						{ name: '📘 Full Commands List', value: `[View All Commands](${defaultCommandsUrl})` }
+						{ name: '📘 Full Commands List', value: `[View All Commands](${defaultCommandsUrl})` },
+						{ name: '☕ Support the Bot', value: `[Buy Me a Coffee!](${defaultSupportUrl})` }
 					],
 					timestamp: new Date()
 				};
@@ -3006,7 +3013,11 @@ client.on('interactionCreate', async interaction => {
 				new ButtonBuilder()
 					.setLabel('📘 View Commands')
 					.setStyle(ButtonStyle.Link)
-					.setURL(defaultCommandsUrl)
+					.setURL(defaultCommandsUrl),
+					new ButtonBuilder()
+					.setLabel('☕ Buy Me a Coffee')
+					.setStyle(ButtonStyle.Link)
+					.setURL(defaultSupportUrl)
 			);
 			const components = [buttons];
 			

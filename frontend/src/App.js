@@ -35,6 +35,7 @@ import { Toaster } from 'react-hot-toast';
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import HelpMenu from './components/HelpMenu';
+import Support from './pages/Support';
 
 function AppRoutes() {
   useScrollToTop();
@@ -79,6 +80,7 @@ function AppRoutes() {
         <Route path="betting/my" element={<MyBetsPage />} />
         <Route path="betting/history" element={<BetHistoryPage />} />
       </Route>
+      <Route path="/support" element={<Support />} />
     </Routes>
   );
 }

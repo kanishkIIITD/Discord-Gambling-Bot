@@ -105,69 +105,23 @@ export const Landing = () => {
 
       {/* Footer */}
       <footer className="bg-card border-t border-border mt-8 md:mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12 lg:gap-60">
-            {/* Brand Section */}
-            <div className="w-full">
-              <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent tracking-tight mb-4">
-                Gambling Bot
-              </h2>
-              <p className="text-text-secondary leading-relaxed tracking-wide mb-6 max-w-md text-sm md:text-base">
-                The ultimate Discord bot for GTA RP gambling. Create bets, manage your points, and enjoy the thrill of virtual gambling with your community.
-              </p>
-            </div>
-
-            {/* Quick Links */}
-            <div className="w-full">
-              <h3 className="text-lg font-semibold text-text-primary mb-4 tracking-wide">Quick Links</h3>
-              <ul className="space-y-2 md:space-y-3">
-                <li>
-                  <Link to="/dashboard" className="text-text-secondary hover:text-primary transition-colors tracking-wide text-sm md:text-base">
-                    Dashboard
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/bot-permissions" className="text-text-secondary hover:text-primary transition-colors tracking-wide text-sm md:text-base">
-                    Bot Permissions
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/terms" className="text-text-secondary hover:text-primary transition-colors tracking-wide text-sm md:text-base">
-                    Terms of Service
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/privacy" className="text-text-secondary hover:text-primary transition-colors tracking-wide text-sm md:text-base">
-                    Privacy Policy
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div className="w-full">
-              <h3 className="text-lg font-semibold text-text-primary mb-4 tracking-wide">Support</h3>
-              <ul className="space-y-2 md:space-y-3">
-                <li>
-                  <a href="https://discord.com/users/294497956348821505" className="text-text-secondary hover:text-primary transition-colors tracking-wide text-sm md:text-base" target="_blank" rel="noopener noreferrer">
-                    Contact Support
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Bottom Bar */}
-          <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t border-border">
-            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <p className="text-text-secondary tracking-wide text-sm md:text-base text-center md:text-left">
-                © {new Date().getFullYear()} Gambling Bot. All rights reserved.
-              </p>
-              <div className="flex flex-wrap justify-center md:justify-end gap-4 md:gap-6">
-                <button onClick={() => setModal('cookie')} className="text-text-secondary hover:text-primary transition-colors tracking-wide bg-transparent border-none p-0 m-0 cursor-pointer text-sm md:text-base">Cookie Policy</button>
-                <button onClick={() => setModal('acceptable')} className="text-text-secondary hover:text-primary transition-colors tracking-wide bg-transparent border-none p-0 m-0 cursor-pointer text-sm md:text-base">Acceptable Use</button>
-                <button onClick={() => setModal('security')} className="text-text-secondary hover:text-primary transition-colors tracking-wide bg-transparent border-none p-0 m-0 cursor-pointer text-sm md:text-base">Security</button>
-              </div>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
+            <p className="text-text-secondary tracking-wide text-sm md:text-base text-center md:text-left">
+              © {new Date().getFullYear()} Gambling Bot. All rights reserved.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 text-xs md:text-sm">
+              <button onClick={() => setModal('cookie')} className="text-text-secondary hover:text-primary transition-colors bg-transparent border-none p-0 m-0 cursor-pointer underline underline-offset-2 focus:outline-none">
+                Cookie Policy
+              </button>
+              <span className="text-border">|</span>
+              <button onClick={() => setModal('acceptable')} className="text-text-secondary hover:text-primary transition-colors bg-transparent border-none p-0 m-0 cursor-pointer underline underline-offset-2 focus:outline-none">
+                Acceptable Use
+              </button>
+              <span className="text-border">|</span>
+              <button onClick={() => setModal('security')} className="text-text-secondary hover:text-primary transition-colors bg-transparent border-none p-0 m-0 cursor-pointer underline underline-offset-2 focus:outline-none">
+                Security
+              </button>
             </div>
           </div>
         </div>
