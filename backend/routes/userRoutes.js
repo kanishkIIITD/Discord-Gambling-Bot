@@ -3982,9 +3982,9 @@ router.post('/:discordId/beg', async (req, res) => {
         `A raccoon mugged you and took ${amount.toLocaleString()} points.`,
         `A kid threw a rock in your bowl. You dropped ${amount.toLocaleString()} points in shock.`,
         `You slipped on a banana peel and lost ${amount.toLocaleString()} points.`,
-        `A con artist swapped your cash for Monopoly money. You’re down ${amount.toLocaleString()} points.`,
+        `A con artist swapped your cash for Monopoly money. You're down ${amount.toLocaleString()} points.`,
         `You leaned too far while begging and fell into a fountain, losing ${amount.toLocaleString()} points.`,
-        `Someone pickpocketed you while giving you a hug. You’re down ${amount.toLocaleString()} points.`,
+        `Someone pickpocketed you while giving you a hug. You're down ${amount.toLocaleString()} points.`,
         `Your sign blew away... along with ${amount.toLocaleString()} points in donations.`
       ];
       message = texts[Math.floor(Math.random() * texts.length)];
@@ -4005,7 +4005,7 @@ router.post('/:discordId/beg', async (req, res) => {
         `A movie crew mistook you for a background actor. You were paid ${amount.toLocaleString()} points!`,
         `You found a magic lamp. Instead of a genie, it spat out ${amount.toLocaleString()} points.`,
         `A secret admirer dropped a gift box. Inside: ${amount.toLocaleString()} points.`,
-        `A group of hackers rewarded you with ${amount.toLocaleString()} points for “just existing.”`
+        `A group of hackers rewarded you with ${amount.toLocaleString()} points for "just existing."`
       ];
       message = texts[Math.floor(Math.random() * texts.length)];
     }
@@ -4508,10 +4508,23 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
     }
     rewardType = 'buffs';
   } else {
+    // Jackpot reward
     amount = Math.floor(Math.random() * (config.jackpot.max - config.jackpot.min + 1)) + config.jackpot.min;
     wallet.balance += amount;
     rewardType = 'jackpot';
-    message = `JACKPOT! You found ${amount.toLocaleString('en-US')} points and a golden ticket in the ${boxType} box!`;
+    // 1% chance for golden ticket ONLY for ultimate box
+    if (boxType === 'ultimate' && Math.random() < 0.01) {
+      user.inventory = user.inventory || [];
+      const idx = user.inventory.findIndex(i => i.type === 'item' && i.name === 'Golden Ticket');
+      if (idx >= 0) {
+        user.inventory[idx].count += 1;
+      } else {
+        user.inventory.push({ type: 'item', name: 'Golden Ticket', rarity: 'legendary', value: 0, count: 1 });
+      }
+      message = `JACKPOT! You found ${amount.toLocaleString('en-US')} points and a **Golden Ticket** in the ${boxType} box!`;
+    } else {
+      message = `JACKPOT! You found ${amount.toLocaleString('en-US')} points in the ${boxType} box!`;
+    }
   }
   return { rewardType, amount, item, message };
 }

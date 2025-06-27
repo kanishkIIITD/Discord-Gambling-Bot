@@ -828,6 +828,14 @@ const commands = [
 				autocomplete: true
 			}
 		]
+	},
+	{
+		name: 'golden-tickets',
+		description: 'Check how many golden tickets you have!'
+	},
+	{
+		name: 'redeem-golden-ticket',
+		description: 'Redeem a golden ticket for 10% of the jackpot pool (7-day cooldown).'
 	}
 ];
 

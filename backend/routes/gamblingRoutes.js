@@ -927,5 +927,78 @@ router.post('/:discordId/jackpot/contribute', async (req, res) => {
   }
 });
 
+// --- Golden Ticket: Redeem for 10% of jackpot pool (7-day cooldown) ---
+router.post('/:discordId/redeem-golden-ticket', async (req, res) => {
+  try {
+    const user = req.user;
+    const wallet = req.wallet;
+    const now = new Date();
+    // Check cooldown
+    if (user.lastGoldenTicketRedemption && now - user.lastGoldenTicketRedemption < 7 * 24 * 60 * 60 * 1000) {
+      const nextAvailable = new Date(user.lastGoldenTicketRedemption.getTime() + 7 * 24 * 60 * 60 * 1000);
+      return res.status(429).json({ message: `You can redeem another golden ticket after ${nextAvailable.toLocaleString()}` });
+    }
+    // Check inventory for golden ticket
+    user.inventory = user.inventory || [];
+    const idx = user.inventory.findIndex(i => i.type === 'item' && i.name === 'Golden Ticket' && i.count > 0);
+    if (idx === -1) {
+      return res.status(400).json({ message: 'You do not have a Golden Ticket to redeem.' });
+    }
+    // Get jackpot
+    let jackpot = await Jackpot.findOne({ guildId: req.guildId });
+    if (!jackpot || jackpot.currentAmount <= 0) {
+      return res.status(400).json({ message: 'The jackpot pool is empty. Try again later.' });
+    }
+    // Calculate 10% payout
+    const payout = Math.floor(jackpot.currentAmount * 0.10);
+    if (payout <= 0) {
+      return res.status(400).json({ message: 'Jackpot pool is too small to redeem a Golden Ticket.' });
+    }
+    // Remove one golden ticket
+    user.inventory[idx].count -= 1;
+    if (user.inventory[idx].count === 0) user.inventory.splice(idx, 1);
+    // Update wallet and jackpot
+    wallet.balance += payout;
+    jackpot.currentAmount -= payout;
+    jackpot.lastWinner = user._id;
+    jackpot.lastWinAmount = payout;
+    jackpot.lastWinTime = now;
+    await wallet.save();
+    await user.save();
+    await jackpot.save();
+    // Set cooldown
+    user.lastGoldenTicketRedemption = now;
+    await user.save();
+    // Log transaction
+    const transaction = new Transaction({
+      user: user._id,
+      type: 'jackpot',
+      amount: payout,
+      description: 'Redeemed Golden Ticket for 10% of jackpot pool',
+      guildId: req.guildId
+    });
+    await transaction.save();
+    broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction });
+    broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
+    res.json({ message: `You redeemed a Golden Ticket for ${payout.toLocaleString('en-US')} points!`, payout, newBalance: wallet.balance, jackpotPool: jackpot.currentAmount });
+  } catch (error) {
+    console.error('Error redeeming golden ticket:', error);
+    res.status(500).json({ message: 'Server error during golden ticket redemption.' });
+  }
+});
+
+// --- Golden Ticket: Get count ---
+router.get('/:discordId/golden-tickets', async (req, res) => {
+  try {
+    const user = req.user;
+    user.inventory = user.inventory || [];
+    const ticket = user.inventory.find(i => i.type === 'item' && i.name === 'Golden Ticket');
+    const count = ticket ? ticket.count : 0;
+    res.json({ goldenTicketCount: count });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error fetching golden ticket count.' });
+  }
+});
+
 // Export only the router
 module.exports = router; 

@@ -24,6 +24,8 @@ const jailedCommand = require('./commands/jailed');
 const stealCommand = require('./commands/steal');
 const transactionHistoryCommand = require('./commands/transactionHistory');
 const refundCommand = require('./commands/refund');
+const goldenTicketsCommand = require('./commands/goldenTickets');
+const redeemGoldenTicketCommand = require('./commands/redeemGoldenTicket');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 let betMessageMap = {};
@@ -2738,6 +2740,10 @@ client.on('interactionCreate', async interaction => {
 		await cooldownsCommand.execute(interaction);
 	} else if (commandName === 'question') {
 		await questionCommand.execute(interaction);
+	} else if (commandName === 'golden-tickets') {
+		await goldenTicketsCommand.execute(interaction);
+	} else if (commandName === 'redeem-golden-ticket') {
+		await redeemGoldenTicketCommand.execute(interaction);
 	} else if (commandName === 'help') {
 		try {
 			await interaction.deferReply();
@@ -2810,7 +2816,9 @@ client.on('interactionCreate', async interaction => {
 						},
 						{ name: '💰 Special Games', value:
 							'`/jackpot` - View or contribute to the growing jackpot\n' +
-							'`/duel` - Challenge another user to a duel for points'
+							'`/duel` - Challenge another user to a duel for points\n' +
+							'`/golden-tickets` - Check how many golden tickets you have\n' +
+							'`/redeem-golden-ticket` - Redeem a golden ticket for 10% of the jackpot pool (7-day cooldown)'
 						},
 						{ name: '🛠️ QoL Features', value:
 							'• Smart shortcuts (allin, half, 100k, 2m)\n' +

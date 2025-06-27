@@ -84,15 +84,26 @@ module.exports = {
         const rewards = response.data.rewards;
         let summaryLines = rewards.map((reward, idx) => {
           if (reward.rewardType === 'jackpot') {
+            // Check if message mentions golden ticket
+            if (reward.message && /golden ticket/i.test(reward.message)) {
+              return `Box ${idx + 1}: 🏆 JACKPOT! 💰 ${reward.amount?.toLocaleString('en-US')} points + 🎫 Golden Ticket (Legendary!)`;
+            }
             return `Box ${idx + 1}: 🏆 JACKPOT! 💰 ${reward.amount?.toLocaleString('en-US')} points`;
           } else if (reward.rewardType === 'coins') {
             return `Box ${idx + 1}: 💰 ${reward.amount?.toLocaleString('en-US')} points`;
           } else if (reward.rewardType === 'item' && reward.item) {
+            // Check for golden ticket
+            if (reward.item.name === 'Golden Ticket') {
+              return `Box ${idx + 1}: 🎫 **Golden Ticket** (Legendary!)`;
+            }
             return `Box ${idx + 1}: 🎁 ${reward.item.name} (${reward.item.rarity})${typeof reward.item.value === 'number' ? ` - ${reward.item.value.toLocaleString('en-US')} points` : ''}`;
           } else if ((reward.rewardType === 'buffs' || reward.rewardType === 'buff') && reward.message) {
             // Try to extract buff description from message
             const desc = reward.message.replace('You found a buff: ', '').split(' (')[0];
             return `Box ${idx + 1}: ✨ ${desc}`;
+          } else if (reward.message && /golden ticket/i.test(reward.message)) {
+            // If message mentions golden ticket, highlight it
+            return `Box ${idx + 1}: 🎫 **Golden Ticket** (Legendary!)`;
           } else if (reward.message) {
             return `Box ${idx + 1}: ${reward.message}`;
           } else {

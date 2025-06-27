@@ -66,7 +66,8 @@ const userSchema = new mongoose.Schema({
   timeoutStats: {
     totalTimeouts: { type: Number, default: 0 },
     totalCost: { type: Number, default: 0 }
-  }
+  },
+  lastGoldenTicketRedemption: { type: Date, default: null }
 });
 
 userSchema.index({ discordId: 1, guildId: 1 }, { unique: true });
