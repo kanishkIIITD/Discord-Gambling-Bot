@@ -3929,14 +3929,23 @@ router.post('/:discordId/beg', async (req, res) => {
     let outcome, amount = 0, message;
     if (roll < 0.65) {
       // Small coin gain
-      amount = Math.floor(Math.random() * 5000) + 1000;
+      amount = Math.floor(Math.random() * 50000) + 10000;
       wallet.balance += amount;
       outcome = 'success';
       const texts = [
         `A kind stranger gave you ${amount.toLocaleString('en-US')} points.`,
         `You found ${amount.toLocaleString('en-US')} points on the ground!`,
         `Someone took pity and tossed you ${amount.toLocaleString('en-US')} points.`,
-        `A passing dog dropped a pouch with ${amount.toLocaleString('en-US')} points!`
+        `A passing dog dropped a pouch with ${amount.toLocaleString('en-US')} points!`,
+        `An old lady pinched your cheeks and gave you ${amount.toLocaleString()} points.`,
+        `A clown threw coins at you. You caught ${amount.toLocaleString()} of them.`,
+        `Someone yelled "make it rain!" and tossed ${amount.toLocaleString()} points your way.`,
+        `You did a little dance and earned ${amount.toLocaleString()} points in sympathy.`,
+        `A small child felt bad and gave you ${amount.toLocaleString()} points from their allowance.`,
+        `A ghost whispered a Venmo code to you. It led to ${amount.toLocaleString()} points.`,
+        `You found a wallet with exactly ${amount.toLocaleString()} points and no ID inside. Finders keepers!`,
+        `A bird dropped a coin purse — you snagged it! ${amount.toLocaleString()} points inside.`,
+        `You sang off-key and somehow earned ${amount.toLocaleString()} points from amused passersby.`
       ];
       message = texts[Math.floor(Math.random() * texts.length)];
     } else if (roll < 0.85) {
@@ -3946,30 +3955,57 @@ router.post('/:discordId/beg', async (req, res) => {
         'People walk by, ignoring your pleas.',
         'You beg, but nobody seems to notice.',
         'A pigeon is your only company. No coins today.',
-        'You get a sympathetic look, but no points.'
+        'You get a sympathetic look, but no points.',
+        'You sat there with your hand out... and your hand stayed empty.',
+        'Everyone\'s too busy checking their phones to notice you.',
+        'You sneeze dramatically, but no one reacts.',
+        'You tried fake crying. A dog was mildly interested, but no humans.',
+        'You shouted your life story. No one clapped.',
+        'A man in a tux looked at you, said "Get a job", and walked off.',
+        'You blended in with a nearby statue. No donations.',
+        'Someone dropped a leaf in your hat. How thoughtful.',
+        'Even the pigeons ignored you.'
       ];
       message = texts[Math.floor(Math.random() * texts.length)];
     } else if (roll < 0.97) {
       // Negative event
       outcome = 'negative';
-      amount = Math.floor(Math.random() * 2000) + 500;
+      amount = Math.floor(Math.random() * 20000) + 5000;
       wallet.balance = Math.max(0, wallet.balance - amount);
       const texts = [
         `A thief snatched ${amount.toLocaleString('en-US')} points from you!`,
         `You tripped and lost ${amount.toLocaleString('en-US')} points.`,
         `A seagull stole your last ${amount.toLocaleString('en-US')} points!`,
-        `You dropped your wallet and lost ${amount.toLocaleString('en-US')} points.`
+        `You dropped your wallet and lost ${amount.toLocaleString('en-US')} points.`,
+        `A suspicious goblin swaps your coins for... beans? You lost ${amount.toLocaleString('en-US')} points.`,
+        `You accidentally tipped over your cup. ${amount.toLocaleString()} points rolled into a drain.`,
+        `A raccoon mugged you and took ${amount.toLocaleString()} points.`,
+        `A kid threw a rock in your bowl. You dropped ${amount.toLocaleString()} points in shock.`,
+        `You slipped on a banana peel and lost ${amount.toLocaleString()} points.`,
+        `A con artist swapped your cash for Monopoly money. You’re down ${amount.toLocaleString()} points.`,
+        `You leaned too far while begging and fell into a fountain, losing ${amount.toLocaleString()} points.`,
+        `Someone pickpocketed you while giving you a hug. You’re down ${amount.toLocaleString()} points.`,
+        `Your sign blew away... along with ${amount.toLocaleString()} points in donations.`
       ];
       message = texts[Math.floor(Math.random() * texts.length)];
     } else {
       // Rare big reward
-      amount = Math.floor(Math.random() * 50000) + 50000;
+      amount = Math.floor(Math.random() * 5000000) + 5000000;
       wallet.balance += amount;
       outcome = 'jackpot';
       const texts = [
         `A mysterious benefactor handed you a briefcase with ${amount.toLocaleString('en-US')} points!`,
         `You won the street lottery: ${amount.toLocaleString('en-US')} points!`,
-        `A golden retriever delivered you a bag with ${amount.toLocaleString('en-US')} points!` 
+        `A golden retriever delivered you a bag with ${amount.toLocaleString('en-US')} points!`,
+        `The Coin Wizard taps your head with a wand. Coins fall out your ears! You got ${amount.toLocaleString('en-US')} points!`,
+        `An NPC glitched and dropped a loot bag with ${amount.toLocaleString()} points!`,
+        `You helped an old wizard cross the street. He blessed you with ${amount.toLocaleString()} points.`,
+        `A limousine stopped. Someone tossed a briefcase with ${amount.toLocaleString()} points and drove off.`,
+        `You accidentally joined a protest. Someone paid you ${amount.toLocaleString()} points to go home.`,
+        `A movie crew mistook you for a background actor. You were paid ${amount.toLocaleString()} points!`,
+        `You found a magic lamp. Instead of a genie, it spat out ${amount.toLocaleString()} points.`,
+        `A secret admirer dropped a gift box. Inside: ${amount.toLocaleString()} points.`,
+        `A group of hackers rewarded you with ${amount.toLocaleString()} points for “just existing.”`
       ];
       message = texts[Math.floor(Math.random() * texts.length)];
     }
@@ -4329,12 +4365,19 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
     basic: {
       coins: { chance: 0.5, min: 50000, max: 150000 },
       items: { chance: 0.35, pool: [
-        { name: 'Rubber Duck', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
-        { name: 'Golden Mustache', rarity: 'rare', value: () => Math.floor(Math.random() * 5000) + 3000 },
-        { name: 'Party Hat', rarity: 'uncommon', value: () => Math.floor(Math.random() * 2000) + 1000 },
-        { name: 'Mysterious Key', rarity: 'rare', value: () => Math.floor(Math.random() * 5000) + 3000 },
-        { name: 'Tiny Top Hat', rarity: 'common', value: () => Math.floor(Math.random() * 1000) + 500 },
-        { name: 'Epic Sunglasses', rarity: 'legendary', value: () => Math.floor(Math.random() * 50000) + 30000 }
+        { name: 'Tiny Top Hat', rarity: 'common', weight: 10, value: () => Math.floor(Math.random() * 1000) + 500 },
+        { name: 'Rubber Duck', rarity: 'common', weight: 10, value: () => Math.floor(Math.random() * 1000) + 500 },
+        { name: 'Banana Peel', rarity: 'common', weight: 10, value: () => Math.floor(Math.random() * 1000) + 500 },
+        { name: 'Squeaky Hammer', rarity: 'common', weight: 10, value: () => Math.floor(Math.random() * 1000) + 500 },
+        { name: 'Party Hat', rarity: 'uncommon', weight: 6, value: () => Math.floor(Math.random() * 2000) + 1000 },
+        { name: 'Magic Pebble', rarity: 'uncommon', weight: 6, value: () => Math.floor(Math.random() * 2000) + 1000 },
+        { name: 'Broken Compass', rarity: 'uncommon', weight: 6, value: () => Math.floor(Math.random() * 2000) + 1000 },
+        { name: 'Golden Mustache', rarity: 'rare', weight: 3, value: () => Math.floor(Math.random() * 5000) + 3000 },
+        { name: 'Mysterious Key', rarity: 'rare', weight: 3, value: () => Math.floor(Math.random() * 5000) + 3000 },
+        { name: 'Lucky Coin', rarity: 'rare', weight: 3, value: () => Math.floor(Math.random() * 5000) + 3000 },
+        { name: 'Pocket Rainbow', rarity: 'rare', weight: 3, value: () => Math.floor(Math.random() * 5000) + 3000 },
+        { name: 'Epic Sunglasses', rarity: 'legendary', weight: 1.5, value: () => Math.floor(Math.random() * 50000) + 30000 },
+        { name: 'Mini Loot Bag', rarity: 'legendary', weight: 1.5, value: () => Math.floor(Math.random() * 50000) + 30000 }
       ]},
       buffs: { chance: 0.1, pool: [
         { type: 'earnings_x2', description: '2x earnings for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000) },
@@ -4344,13 +4387,21 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
       jackpot: { chance: 0.05, min: 300000, max: 500000 }
     },
     premium: {
-      coins: { chance: 0.5, min: 500000, max: 750000 },
+      coins: { chance: 0.5, min: 600000, max: 900000 },
       items: { chance: 0.35, pool: [
-        { name: 'Dragon Scale', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
-        { name: 'Phoenix Feather', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
-        { name: 'Ancient Coin', rarity: 'legendary', value: () => Math.floor(Math.random() * 500000) + 300000 },
-        { name: 'Mystic Crystal', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 },
-        { name: 'Enchanted Tome', rarity: 'epic', value: () => Math.floor(Math.random() * 300000) + 200000 }
+        { name: 'Elixir of Fortune', rarity: 'rare', weight: 3, value: () => Math.floor(Math.random() * 100000) + 100000 },
+        { name: 'Treasure Map Fragment', rarity: 'rare', weight: 3, value: () => Math.floor(Math.random() * 100000) + 100000 },
+        { name: 'Dragon Scale', rarity: 'epic', weight: 2, value: () => Math.floor(Math.random() * 300000) + 200000 },
+        { name: 'Phoenix Feather', rarity: 'epic', weight: 2, value: () => Math.floor(Math.random() * 300000) + 200000 },
+        { name: 'Mystic Crystal', rarity: 'epic', weight: 2, value: () => Math.floor(Math.random() * 300000) + 200000 },
+        { name: 'Enchanted Tome', rarity: 'epic', weight: 2, value: () => Math.floor(Math.random() * 300000) + 200000 },
+        { name: 'Starlit Pendant', rarity: 'epic', weight: 2, value: () => Math.floor(Math.random() * 300000) + 200000 },
+        { name: 'Phantom Cloak', rarity: 'epic', weight: 2, value: () => Math.floor(Math.random() * 300000) + 200000 },
+        { name: 'Ancient Tablet', rarity: 'epic', weight: 2, value: () => Math.floor(Math.random() * 300000) + 200000 },
+        { name: 'Crystal Dice', rarity: 'epic', weight: 2, value: () => Math.floor(Math.random() * 300000) + 200000 },
+        { name: 'Ancient Coin', rarity: 'legendary', weight: 1.2, value: () => Math.floor(Math.random() * 500000) + 300000 },
+        { name: 'Gem-Encrusted Ring', rarity: 'legendary', weight: 1.2, value: () => Math.floor(Math.random() * 500000) + 300000 },
+        { name: 'Void Trinket', rarity: 'legendary', weight: 1.2, value: () => Math.floor(Math.random() * 500000) + 300000 },
       ]},
       buffs: { chance: 0.1, pool: [
         { type: 'fishing_rare', description: 'Next fish is guaranteed Rare or better!', usesLeft: 1, weight: 25 },
@@ -4365,11 +4416,20 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
     ultimate: {
       coins: { chance: 0.5, min: 5000000, max: 7500000 },
       items: { chance: 0.35, pool: [
-        { name: 'Celestial Crown', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 },
-        { name: 'Dragon Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 },
-        { name: 'Phoenix Heart', rarity: 'legendary', value: () => Math.floor(Math.random() * 800000) + 500000 },
-        { name: 'Eternal Crystal', rarity: 'mythical', value: () => Math.floor(Math.random() * 1000000) + 1000000 },
-        { name: 'Ancient Tome', rarity: 'legendary', value: () => Math.floor(Math.random() * 8000000) + 5000000 }
+        { name: 'Ancient Tome', rarity: 'legendary', weight: 2.5, value: () => Math.floor(Math.random() * 8000000) + 5000000 },
+        { name: 'Dragon Heart', rarity: 'legendary', weight: 2.5, value: () => Math.floor(Math.random() * 800000) + 500000 },
+        { name: 'Phoenix Heart', rarity: 'legendary', weight: 2.5, value: () => Math.floor(Math.random() * 800000) + 500000 },
+        { name: 'Astral Relic', rarity: 'legendary', weight: 2.5, value: () => Math.floor(Math.random() * 8000000) + 5000000 },
+        { name: 'Cosmic Mirror', rarity: 'legendary', weight: 2.5, value: () => Math.floor(Math.random() * 8000000) + 5000000 },
+        { name: 'Eternal Crystal', rarity: 'mythical', weight: 1, value: () => Math.floor(Math.random() * 1000000) + 1000000 },
+        { name: 'Celestial Crown', rarity: 'mythical', weight: 1, value: () => Math.floor(Math.random() * 1000000) + 1000000 },
+        { name: 'Timeworn Crown', rarity: 'mythical', weight: 1, value: () => Math.floor(Math.random() * 1000000) + 1000000 },
+        { name: 'Ember of Creation', rarity: 'mythical', weight: 1, value: () => Math.floor(Math.random() * 1000000) + 1000000 },
+        { name: 'Soulbound Locket', rarity: 'mythical', weight: 1, value: () => Math.floor(Math.random() * 1000000) + 1000000 },
+        { name: 'Infinity Gem', rarity: 'mythical', weight: 1, value: () => Math.floor(Math.random() * 1000000) + 1000000 },
+        { name: 'Relic of the Old Gods', rarity: 'mythical', weight: 1, value: () => Math.floor(Math.random() * 1000000) + 1000000 },
+        { name: 'Crown of Shadows', rarity: 'mythical', weight: 1, value: () => Math.floor(Math.random() * 1000000) + 1000000 },
+        { name: 'Primordial Egg', rarity: 'mythical', weight: 1, value: () => Math.floor(Math.random() * 1000000) + 1000000 },
       ]},
       buffs: { chance: 0.1, pool: [
         { type: 'fishing_epic', description: 'Next fish is guaranteed Epic or better!', usesLeft: 1, weight: 20 },

@@ -626,51 +626,51 @@ client.on('interactionCreate', async interaction => {
 				let components = [];
 				if (!data.gameOver) {
 					const actionRow = new ActionRowBuilder();
-					
-					// Hit button
-					actionRow.addComponents(
-						new ButtonBuilder()
-							.setCustomId(`blackjack_hit_${buttonUserId}`)
-							.setLabel('🎯 Hit')
-							.setStyle(ButtonStyle.Primary)
-					);
-					
-					// Stand button
+					const currentHand = data.playerHands[data.currentHand];
+					const betAmount = data.bets ? data.bets[data.currentHand] : 0;
+					const balance = data.newBalance;
+					const handValue = calculateHandValue(currentHand);
+
+					// Only show action buttons if hand value is less than 21
+					if (handValue < 21) {
+						// Hit button
+						actionRow.addComponents(
+							new ButtonBuilder()
+								.setCustomId(`blackjack_hit_${buttonUserId}`)
+								.setLabel('🎯 Hit')
+								.setStyle(ButtonStyle.Primary)
+						);
+						// Double button (if available and hand has exactly 2 cards and enough balance)
+						if (data.canDouble && currentHand.length === 2 && balance >= betAmount) {
+							actionRow.addComponents(
+								new ButtonBuilder()
+									.setCustomId(`blackjack_double_${buttonUserId || userId}`)
+									.setLabel('💰 Double')
+									.setStyle(ButtonStyle.Success)
+							);
+						}
+						// Split button (if available, hand has exactly 2 cards, both cards have the same value, and enough balance)
+						if (
+							data.canSplit &&
+							currentHand.length === 2 &&
+							currentHand[0].value === currentHand[1].value &&
+							balance >= betAmount
+						) {
+							actionRow.addComponents(
+								new ButtonBuilder()
+									.setCustomId(`blackjack_split_${buttonUserId || userId}`)
+									.setLabel('🃏 Split')
+									.setStyle(ButtonStyle.Danger)
+							);
+						}
+					}
+					// Stand button is always allowed if game is not over
 					actionRow.addComponents(
 						new ButtonBuilder()
 							.setCustomId(`blackjack_stand_${buttonUserId}`)
 							.setLabel('✋ Stand')
 							.setStyle(ButtonStyle.Secondary)
 					);
-					
-					// Double button (if available and hand has exactly 2 cards and enough balance)
-					const currentHand = data.playerHands[data.currentHand];
-					const betAmount = data.bets ? data.bets[data.currentHand] : 0;
-					const balance = data.newBalance;
-					if (data.canDouble && currentHand.length === 2 && balance >= betAmount) {
-						actionRow.addComponents(
-							new ButtonBuilder()
-								.setCustomId(`blackjack_double_${buttonUserId || userId}`)
-								.setLabel('💰 Double')
-								.setStyle(ButtonStyle.Success)
-						);
-					}
-					
-					// Split button (if available, hand has exactly 2 cards, both cards have the same value, and enough balance)
-					if (
-						data.canSplit &&
-						currentHand.length === 2 &&
-						currentHand[0].value === currentHand[1].value &&
-						balance >= betAmount
-					) {
-						actionRow.addComponents(
-							new ButtonBuilder()
-								.setCustomId(`blackjack_split_${buttonUserId || userId}`)
-								.setLabel('🃏 Split')
-								.setStyle(ButtonStyle.Danger)
-						);
-					}
-					
 					components.push(actionRow);
 				}
 
@@ -2111,38 +2111,51 @@ client.on('interactionCreate', async interaction => {
 				let resumeComponents = [];
 				if (!data.gameOver) {
 					const actionRow = new ActionRowBuilder();
-					// Hit button
-					actionRow.addComponents(
-						new ButtonBuilder()
-							.setCustomId(`blackjack_hit_${interaction.user.id}`)
-							.setLabel('🎯 Hit')
-							.setStyle(ButtonStyle.Primary)
-					);
-					// Stand button
+					const currentHand = data.playerHands[data.currentHand];
+					const betAmount = data.bets ? data.bets[data.currentHand] : 0;
+					const balance = data.newBalance;
+					const handValue = calculateHandValue(currentHand);
+
+					// Only show action buttons if hand value is less than 21
+					if (handValue < 21) {
+						// Hit button
+						actionRow.addComponents(
+							new ButtonBuilder()
+								.setCustomId(`blackjack_hit_${interaction.user.id}`)
+								.setLabel('🎯 Hit')
+								.setStyle(ButtonStyle.Primary)
+						);
+						// Double button (if available and hand has exactly 2 cards and enough balance)
+						if (data.canDouble && currentHand.length === 2 && balance >= betAmount) {
+							actionRow.addComponents(
+								new ButtonBuilder()
+									.setCustomId(`blackjack_double_${interaction.user.id}`)
+									.setLabel('💰 Double')
+									.setStyle(ButtonStyle.Success)
+							);
+						}
+						// Split button (if available, hand has exactly 2 cards, both cards have the same value, and enough balance)
+						if (
+							data.canSplit &&
+							currentHand.length === 2 &&
+							currentHand[0].value === currentHand[1].value &&
+							balance >= betAmount
+						) {
+							actionRow.addComponents(
+								new ButtonBuilder()
+									.setCustomId(`blackjack_split_${interaction.user.id}`)
+									.setLabel('🃏 Split')
+									.setStyle(ButtonStyle.Danger)
+							);
+						}
+					}
+					// Stand button is always allowed if game is not over
 					actionRow.addComponents(
 						new ButtonBuilder()
 							.setCustomId(`blackjack_stand_${interaction.user.id}`)
 							.setLabel('✋ Stand')
 							.setStyle(ButtonStyle.Secondary)
 					);
-					// Double button (if available)
-					if (data.canDouble) {
-						actionRow.addComponents(
-							new ButtonBuilder()
-								.setCustomId(`blackjack_double_${interaction.user.id}`)
-								.setLabel('💰 Double')
-								.setStyle(ButtonStyle.Success)
-						);
-					}
-					// Split button (if available)
-					if (data.canSplit) {
-						actionRow.addComponents(
-							new ButtonBuilder()
-								.setCustomId(`blackjack_split_${interaction.user.id}`)
-								.setLabel('🃏 Split')
-								.setStyle(ButtonStyle.Danger)
-						);
-					}
 					resumeComponents.push(actionRow);
 				}
 				// --- Disable previous buttons if possible ---
@@ -2227,44 +2240,52 @@ client.on('interactionCreate', async interaction => {
 			// Create action buttons if game is not over
 			let components = [];
 			if (!data.gameOver) {
-				const actionRow = new ActionRowBuilder();
-				
-				// Hit button
-				actionRow.addComponents(
-					new ButtonBuilder()
-						.setCustomId(`blackjack_hit_${userId}`)
-						.setLabel('🎯 Hit')
-						.setStyle(ButtonStyle.Primary)
-				);
-				
-				// Stand button
-				actionRow.addComponents(
-					new ButtonBuilder()
-						.setCustomId(`blackjack_stand_${userId}`)
-						.setLabel('✋ Stand')
-						.setStyle(ButtonStyle.Secondary)
-				);
-				
-				// Double button (if available)
-				if (data.canDouble) {
+				const actionRow = new ActionRowBuilder();			
+				const currentHand = data.playerHands[data.currentHand];
+					const betAmount = data.bets ? data.bets[data.currentHand] : 0;
+					const balance = data.newBalance;
+					const handValue = calculateHandValue(currentHand);
+
+					// Only show action buttons if hand value is less than 21
+					if (handValue < 21) {
+						// Hit button
+						actionRow.addComponents(
+							new ButtonBuilder()
+								.setCustomId(`blackjack_hit_${userId}`)
+								.setLabel('🎯 Hit')
+								.setStyle(ButtonStyle.Primary)
+						);
+						// Double button (if available and hand has exactly 2 cards and enough balance)
+						if (data.canDouble && currentHand.length === 2 && balance >= betAmount) {
+							actionRow.addComponents(
+								new ButtonBuilder()
+									.setCustomId(`blackjack_double_${userId}`)
+									.setLabel('💰 Double')
+									.setStyle(ButtonStyle.Success)
+							);
+						}
+						// Split button (if available, hand has exactly 2 cards, both cards have the same value, and enough balance)
+						if (
+							data.canSplit &&
+							currentHand.length === 2 &&
+							currentHand[0].value === currentHand[1].value &&
+							balance >= betAmount
+						) {
+							actionRow.addComponents(
+								new ButtonBuilder()
+									.setCustomId(`blackjack_split_${userId}`)
+									.setLabel('🃏 Split')
+									.setStyle(ButtonStyle.Danger)
+							);
+						}
+					}
+					// Stand button is always allowed if game is not over
 					actionRow.addComponents(
 						new ButtonBuilder()
-							.setCustomId(`blackjack_double_${userId}`)
-							.setLabel('💰 Double')
-							.setStyle(ButtonStyle.Success)
+							.setCustomId(`blackjack_stand_${userId}`)
+							.setLabel('✋ Stand')
+							.setStyle(ButtonStyle.Secondary)
 					);
-				}
-				
-				// Split button (if available)
-				if (data.canSplit) {
-					actionRow.addComponents(
-						new ButtonBuilder()
-							.setCustomId(`blackjack_split_${userId}`)
-							.setLabel('🃏 Split')
-							.setStyle(ButtonStyle.Danger)
-					);
-				}
-				
 				components.push(actionRow);
 			}
 

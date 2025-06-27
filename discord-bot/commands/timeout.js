@@ -93,8 +93,6 @@ module.exports = {
                     { name: 'Duration Added', value: `${duration} minute(s)`, inline: true },
                     { name: 'Total Duration', value: `${response.data.totalDuration} minute(s)`, inline: true },
                     { name: 'Cost', value: `${response.data.cost.toLocaleString()} points`, inline: true },
-                    { name: 'Remaining Balance', value: `${response.data.remainingBalance.toLocaleString()} points`, inline: true },
-                    { name: 'Cooldown', value: cooldownString, inline: true }
                 );
 
             // Add note if Discord timeout was extended from existing timeout
@@ -164,7 +162,7 @@ module.exports = {
                         .addFields(
                             { name: 'Target User', value: `<@${targetUser.id}>`, inline: true },
                             { name: 'Duration Attempted', value: `${duration} minute(s)`, inline: true },
-                            { name: 'Cost', value: `${(100000 * duration).toLocaleString('en-US')} + 2% of balance`, inline: true },
+                            { name: 'Required Cost', value: `${(100000 * duration).toLocaleString('en-US')} + 2% of balance`, inline: true },
                             { name: 'Reason', value: reason || 'No reason provided', inline: false }
                         )
                         .setFooter({ text: 'Earn more points to timeout users like a boss 💼' });
@@ -180,8 +178,8 @@ module.exports = {
                             { name: 'User', value: `<@${interaction.user.id}>`, inline: true },
                             { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
                             { name: 'Attempted Duration', value: `${duration} minute(s)`, inline: true },
-                            { name: 'Cost', value: `${(100000 * duration).toLocaleString('en-US')} + 2% of balance`, inline: true },
-                            { name: 'Reason', value: reason || 'No reason provided' }
+                            { name: 'Required Cost', value: `${(100000 * duration).toLocaleString('en-US')} + 2% of balance`, inline: true },
+                            { name: 'Reason', value: reason || 'No reason provided', inline: false }
                         ],
                     });
                 

@@ -449,6 +449,9 @@ router.post('/:discordId/blackjack', async (req, res) => {
 
       switch (action.toLowerCase()) {
         case 'hit':
+          if (calculateHandValue(gameState.playerHands[gameState.currentHand]) === 21) {
+            return res.status(400).json({ message: 'Cannot perform this action: hand value is already 21.' });
+          }
           // Add card to current hand
           gameState.playerHands[gameState.currentHand].push(deck.pop());
           
@@ -477,6 +480,9 @@ router.post('/:discordId/blackjack', async (req, res) => {
           break;
 
         case 'double':
+          if (calculateHandValue(gameState.playerHands[gameState.currentHand]) === 21) {
+            return res.status(400).json({ message: 'Cannot perform this action: hand value is already 21.' });
+          }
           // Validate current hand has exactly 2 cards
           if (gameState.playerHands[gameState.currentHand].length !== 2) {
             return res.status(400).json({ message: 'Can only double down on first two cards.' });
@@ -521,6 +527,9 @@ router.post('/:discordId/blackjack', async (req, res) => {
           break;
 
         case 'split':
+          if (calculateHandValue(gameState.playerHands[gameState.currentHand]) === 21) {
+            return res.status(400).json({ message: 'Cannot perform this action: hand value is already 21.' });
+          }
           // Check if can split (same value cards and enough balance)
           const currentHand = gameState.playerHands[gameState.currentHand];
           if (currentHand.length !== 2 || 
@@ -657,10 +666,16 @@ router.post('/:discordId/blackjack', async (req, res) => {
       gameOver: gameState.gameOver,
       results,
       newBalance: wallet.balance,
-      canSplit: gameState.playerHands[gameState.currentHand]?.length === 2 && 
-                calculateHandValue([gameState.playerHands[gameState.currentHand][0]]) === 
-                calculateHandValue([gameState.playerHands[gameState.currentHand][1]]),
-      canDouble: gameState.playerHands[gameState.currentHand]?.length === 2
+      canSplit: (
+        gameState.playerHands[gameState.currentHand]?.length === 2 &&
+        calculateHandValue([gameState.playerHands[gameState.currentHand][0]]) ===
+          calculateHandValue([gameState.playerHands[gameState.currentHand][1]]) &&
+        wallet.balance >= gameState.bets[gameState.currentHand]
+      ),
+      canDouble: (
+        gameState.playerHands[gameState.currentHand]?.length === 2 &&
+        wallet.balance >= gameState.bets[gameState.currentHand]
+      )
     });
 
     // Send WebSocket updates

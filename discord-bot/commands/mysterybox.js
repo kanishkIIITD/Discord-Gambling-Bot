@@ -101,7 +101,7 @@ module.exports = {
         });
         const embed = new EmbedBuilder()
           .setColor(0x8e44ad)
-          .setTitle('🎁 Mystery Boxes')
+          .setTitle('Mystery Boxes')
           .setDescription(`You opened ${count} ${boxType} mystery boxes!\n\n${summaryLines.join('\n')}`)
           .setTimestamp()
           .setFooter({ text: `Requested by ${interaction.user.tag}` });
@@ -123,7 +123,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(embedColor)
-        .setTitle('🎁 Mystery Box')
+        .setTitle('Mystery Box')
         .setDescription(`You opened a ${boxType} mystery box!`)
         .setTimestamp()
         .setFooter({ text: `Requested by ${interaction.user.tag}` });
