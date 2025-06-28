@@ -217,7 +217,7 @@ client.on('interactionCreate', async interaction => {
 				const bets = response.data;
 				await interaction.respond(
 					bets.slice(0, 25).map(bet => ({
-						name: `${bet.description} (${bet._id})`,
+						name: truncateChoiceName(`${bet.description} (${bet._id})`),
 						value: bet._id
 					}))
 				);
@@ -233,7 +233,7 @@ client.on('interactionCreate', async interaction => {
 				const bet = response.data;
 				await interaction.respond(
 					bet.options.map(opt => ({
-						name: opt,
+						name: truncateChoiceName(opt),
 						value: opt
 					}))
 				);
@@ -249,7 +249,7 @@ client.on('interactionCreate', async interaction => {
 			const bets = response.data;
 			await interaction.respond(
 				bets.slice(0, 25).map(bet => ({
-					name: `${bet.description} (${bet._id})`,
+					name: truncateChoiceName(`${bet.description} (${bet._id})`),
 					value: bet._id
 				}))
 			);
@@ -266,7 +266,7 @@ client.on('interactionCreate', async interaction => {
 				const bets = response.data;
 				await interaction.respond(
 					bets.slice(0, 25).map(bet => ({
-						name: `${bet.description} (${bet._id})`,
+						name: truncateChoiceName(`${bet.description} (${bet._id})`),
 						value: bet._id
 					}))
 				);
@@ -280,7 +280,7 @@ client.on('interactionCreate', async interaction => {
 				const bet = response.data;
 				await interaction.respond(
 					bet.options.map(opt => ({
-						name: opt,
+						name: truncateChoiceName(opt),
 						value: opt
 					}))
 				);
@@ -307,7 +307,7 @@ client.on('interactionCreate', async interaction => {
 				const bets = response.data;
 				await interaction.respond(
 					bets.slice(0, 25).map(bet => ({
-						name: `${bet.description} (${bet._id})`,
+						name: truncateChoiceName(`${bet.description} (${bet._id})`),
 						value: bet._id
 					}))
 				);
@@ -322,7 +322,7 @@ client.on('interactionCreate', async interaction => {
 				const bets = response.data;
 				await interaction.respond(
 					bets.slice(0, 25).map(bet => ({
-						name: `${bet.description} (${bet._id})`,
+						name: truncateChoiceName(`${bet.description} (${bet._id})`),
 						value: bet._id
 					}))
 				);
@@ -3511,4 +3511,10 @@ const calculateHandValue = (hand) => {
 
   return value;
 };
+
+// Utility to truncate choice names to 100 chars
+function truncateChoiceName(name) {
+  const MAX_LENGTH = 100;
+  return name.length > MAX_LENGTH ? name.slice(0, MAX_LENGTH - 1) + '…' : name;
+}
 

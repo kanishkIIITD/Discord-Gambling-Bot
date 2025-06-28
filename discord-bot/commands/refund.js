@@ -12,6 +12,12 @@ module.exports = {
         .setAutocomplete(true)
     ),
 
+  // Utility to truncate choice names to 100 chars
+  truncateChoiceName(name) {
+    const MAX_LENGTH = 100;
+    return name.length > MAX_LENGTH ? name.slice(0, MAX_LENGTH - 1) + '…' : name;
+  },
+
   async autocomplete(interaction) {
     const userId = interaction.user.id;
     const backendUrl = process.env.BACKEND_API_URL;
@@ -27,7 +33,7 @@ module.exports = {
       // For now, show all unresolved bets (permission checked on execute)
       await interaction.respond(
         bets.slice(0, 25).map(bet => ({
-          name: `${bet.description} (${bet._id})`,
+          name: module.exports.truncateChoiceName(`${bet.description} (${bet._id})`),
           value: bet._id
         }))
       );
