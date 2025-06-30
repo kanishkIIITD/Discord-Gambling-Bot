@@ -54,6 +54,14 @@ module.exports = {
       const count = interaction.options.getInteger('count');
       const guildId = interaction.guildId;
 
+      // Check if sell command is disabled for this guild
+      if (process.env.GUILD_ID_SELL && guildId === process.env.GUILD_ID_SELL) {
+        return interaction.editReply({
+          content: '❌ The sell command is disabled for this server.',
+          ephemeral: true
+        });
+      }
+
       // For specific items, validate required parameters
       if (action === 'specific') {
         if (!type || !name || !count) {

@@ -15,7 +15,10 @@ const catImages = [
 
 const geckoImages = [
   path.join(__dirname, '../images/frog1.png'),
-  path.join(__dirname, '../images/frog2.jpg')
+  path.join(__dirname, '../images/frog2.jpg'),
+  path.join(__dirname, '../images/frog3.jpg'),
+  path.join(__dirname, '../images/frog4.jpg'),
+  path.join(__dirname, '../images/frog5.jpg'),
 ];
 
 // New: Chest and Cursed Idol images (add your own images as needed)
@@ -130,7 +133,7 @@ const typeTitles = {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('question')
-    .setDescription('Answer a question about a cat or gecko for a chance to win or lose points!'),
+    .setDescription('Answer a question about a cat, gecko, chest, or cursed idol for a chance to win or lose points!'),
 
   async execute(interaction) {
     try {
@@ -205,7 +208,7 @@ module.exports = {
       try {
         const collected = await interaction.channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
         const reply = collected.first().content.toLowerCase();
-        const amount = 1000000; // 1 million points
+        const amount = 100000; // 100k points
         // For each type, check correct answer
         // const isCorrect = (animalType === 'cat' && reply === 'no') || (animalType === 'gecko' && reply === 'yes');
         const baseCorrect = (reply === correctAnswers[animalType]);
