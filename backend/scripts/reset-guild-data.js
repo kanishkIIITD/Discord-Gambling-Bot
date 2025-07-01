@@ -46,7 +46,7 @@ async function resetGuildData(guildId, isDryRun) {
       crimeStats: { success: 0, fail: 0, jail: 0 },
       stealStats: { success: 0, fail: 0, jail: 0, totalStolen: 0 },
       workStats: {},
-      inventory: [],
+      // inventory: [],
       buffs: [],
       duelWins: 0,
       duelLosses: 0,

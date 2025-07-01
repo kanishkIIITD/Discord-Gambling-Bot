@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { getUserProfile } from '../services/api';
 import { getUserStats } from '../services/api';
 import axios from 'axios';
+import { formatDisplayNumber } from '../utils/numberFormat';
+import { motion } from 'framer-motion';
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
@@ -77,51 +79,57 @@ export const Profile = () => {
   const { betting, gambling, currentWinStreak, maxWinStreak, jackpotWins, dailyBonusesClaimed, giftsSent, giftsReceived } = statsData;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Your Profile</h1>
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 24 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full"
+    >
+      <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center font-display">Your Profile</h1>
 
       <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 mb-8 space-y-4">
-        <h2 className="text-2xl font-semibold text-text-primary tracking-wide">User Information</h2>
-        <div className="text-text-secondary leading-relaxed tracking-wide grid grid-cols-1 md:grid-cols-2 gap-4">
-          <p><strong>Username:</strong> {userData.username}</p>
-          <p><strong>Discord ID:</strong> {userData.discordId}</p>
+        <h2 className="text-2xl font-semibold text-text-primary tracking-wide font-heading">User Information</h2>
+        <div className="text-text-secondary leading-relaxed tracking-wide grid grid-cols-1 md:grid-cols-2 gap-4 font-base">
+          <p><strong>Username:</strong> <span className="font-option">{userData.username}</span></p>
+          <p><strong>Discord ID:</strong> <span className="font-mono">{userData.discordId}</span></p>
           <p><strong>Account Created:</strong> {new Date(userData.createdAt).toLocaleDateString()}</p>
         </div>
       </div>
 
       <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 mb-8 space-y-4">
-        <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Wallet</h2>
-        <div className="text-text-secondary leading-relaxed tracking-wide">
-          <p><strong>Current Balance:</strong> <span className="font-semibold text-primary">{wallet.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points</span></p>
+        <h2 className="text-2xl font-semibold text-text-primary tracking-wide font-heading">Wallet</h2>
+        <div className="text-text-secondary leading-relaxed tracking-wide font-base">
+          <p><strong>Current Balance:</strong> <span className="font-semibold text-primary font-mono">{formatDisplayNumber(wallet.balance)} points</span></p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* Betting Section */}
         <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-4">
-          <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Betting</h2>
-          <div className="text-text-secondary leading-relaxed tracking-wide space-y-2">
-            <p><strong>Total Bets:</strong> {betting.totalBets}</p>
-            <p><strong>Total Wagered:</strong> {betting.totalWagered.toLocaleString('en-US')} points</p>
-            <p><strong>Total Won:</strong> {betting.totalWon.toLocaleString('en-US')} points</p>
-            <p><strong>Total Lost:</strong> {betting.totalLost.toLocaleString('en-US')} points</p>
-            <p><strong>Win Rate:</strong> {betting.winRate}%</p>
-            <p><strong>Biggest Win:</strong> {betting.biggestWin.toLocaleString('en-US')} points</p>
-            <p><strong>Biggest Loss:</strong> {betting.biggestLoss.toLocaleString('en-US')} points</p>
+          <h2 className="text-2xl font-semibold text-text-primary tracking-wide font-heading">Betting</h2>
+          <div className="text-text-secondary leading-relaxed tracking-wide space-y-2 font-base">
+            <p><strong>Total Bets:</strong> <span className="font-mono">{betting.totalBets}</span></p>
+            <p><strong>Total Wagered:</strong> <span className="font-mono">{formatDisplayNumber(betting.totalWagered)} points</span></p>
+            <p><strong>Total Won:</strong> <span className="font-mono">{formatDisplayNumber(betting.totalWon)} points</span></p>
+            <p><strong>Total Lost:</strong> <span className="font-mono">{formatDisplayNumber(betting.totalLost)} points</span></p>
+            <p><strong>Win Rate:</strong> <span className="font-mono">{betting.winRate}%</span></p>
+            <p><strong>Biggest Win:</strong> <span className="font-mono">{formatDisplayNumber(betting.biggestWin)} points</span></p>
+            <p><strong>Biggest Loss:</strong> <span className="font-mono">{formatDisplayNumber(betting.biggestLoss)} points</span></p>
           </div>
         </div>
         {/* Gambling Section */}
         <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-4">
-          <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Gambling</h2>
-          <div className="text-text-secondary leading-relaxed tracking-wide space-y-2">
-            <p><strong>Total Games Played:</strong> {gambling.totalGamesPlayed}</p>
-            <p><strong>Total Gambled:</strong> {gambling.totalGambled.toLocaleString('en-US')} points</p>
-            <p><strong>Total Won:</strong> {gambling.totalWon.toLocaleString('en-US')} points</p>
-            <p><strong>Total Lost:</strong> {gambling.totalLost.toLocaleString('en-US')} points</p>
-            <p><strong>Win Rate:</strong> {gambling.winRate}%</p>
-            <p><strong>Biggest Win:</strong> {gambling.biggestWin.toLocaleString('en-US')} points</p>
-            <p><strong>Biggest Loss:</strong> {gambling.biggestLoss.toLocaleString('en-US')} points</p>
-            <p><strong>Favorite Game:</strong> {gambling.favoriteGame}</p>
+          <h2 className="text-2xl font-semibold text-text-primary tracking-wide font-heading">Gambling</h2>
+          <div className="text-text-secondary leading-relaxed tracking-wide space-y-2 font-base">
+            <p><strong>Total Games Played:</strong> <span className="font-mono">{gambling.totalGamesPlayed}</span></p>
+            <p><strong>Total Gambled:</strong> <span className="font-mono">{formatDisplayNumber(gambling.totalGambled)} points</span></p>
+            <p><strong>Total Won:</strong> <span className="font-mono">{formatDisplayNumber(gambling.totalWon)} points</span></p>
+            <p><strong>Total Lost:</strong> <span className="font-mono">{formatDisplayNumber(gambling.totalLost)} points</span></p>
+            <p><strong>Win Rate:</strong> <span className="font-mono">{gambling.winRate}%</span></p>
+            <p><strong>Biggest Win:</strong> <span className="font-mono">{formatDisplayNumber(gambling.biggestWin)} points</span></p>
+            <p><strong>Biggest Loss:</strong> <span className="font-mono">{formatDisplayNumber(gambling.biggestLoss)} points</span></p>
+            <p><strong>Favorite Game:</strong> <span className="font-option">{gambling.favoriteGame}</span></p>
           </div>
         </div>
       </div>
@@ -129,11 +137,11 @@ export const Profile = () => {
       {/* Recent Bets Section */}
       {profileBetting.recentBets && profileBetting.recentBets.length > 0 && (
         <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-4 mb-8">
-          <h2 className="text-2xl font-semibold text-text-primary tracking-wide">Recent Bets</h2>
-          <ul className="list-disc list-inside text-text-secondary">
+          <h2 className="text-2xl font-semibold text-text-primary tracking-wide font-heading">Recent Bets</h2>
+          <ul className="list-disc list-inside text-text-secondary font-base">
             {profileBetting.recentBets.map((bet, idx) => (
               <li key={idx}>
-                <span className="font-medium">{bet.description}</span> - {bet.amount.toLocaleString('en-US')} points on <span className="font-medium">{bet.option}</span> (<span className={bet.result === 'Won' ? 'text-success' : bet.result === 'Lost' ? 'text-error' : 'text-warning'}>{bet.result}</span>)
+                <span className="font-medium font-option">{bet.description}</span> - <span className="font-mono">{formatDisplayNumber(bet.amount)} points</span> on <span className="font-medium font-option">{bet.option}</span> (<span className={bet.result === 'Won' ? 'text-success' : bet.result === 'Lost' ? 'text-error' : 'text-warning'}>{bet.result}</span>)
               </li>
             ))}
           </ul>
@@ -141,17 +149,17 @@ export const Profile = () => {
       )}
 
       <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-2 mb-8">
-        <h2 className="text-2xl font-semibold text-text-primary tracking-wide mb-2">Other Stats</h2>
-        <ul className="list-disc list-inside text-text-secondary space-y-1">
-          <li><strong>Current Win Streak:</strong> {currentWinStreak}</li>
-          <li><strong>Max Win Streak:</strong> {maxWinStreak}</li>
-          <li><strong>Jackpot Wins:</strong> {jackpotWins}</li>
-          <li><strong>Daily Bonuses Claimed:</strong> {dailyBonusesClaimed}</li>
-          <li><strong>Gifts Sent:</strong> {giftsSent}</li>
-          <li><strong>Gifts Received:</strong> {giftsReceived}</li>
-          <li><strong>Meow/Bark Rewards:</strong> {statsData.meowBarks}</li>
+        <h2 className="text-2xl font-semibold text-text-primary tracking-wide mb-2 font-heading">Other Stats</h2>
+        <ul className="list-disc list-inside text-text-secondary space-y-1 font-base">
+          <li><strong>Current Win Streak:</strong> <span className="font-mono">{currentWinStreak}</span></li>
+          <li><strong>Max Win Streak:</strong> <span className="font-mono">{maxWinStreak}</span></li>
+          <li><strong>Jackpot Wins:</strong> <span className="font-mono">{jackpotWins}</span></li>
+          <li><strong>Daily Bonuses Claimed:</strong> <span className="font-mono">{dailyBonusesClaimed}</span></li>
+          <li><strong>Gifts Sent:</strong> <span className="font-mono">{giftsSent}</span></li>
+          <li><strong>Gifts Received:</strong> <span className="font-mono">{giftsReceived}</span></li>
+          <li><strong>Meow/Bark Rewards:</strong> <span className="font-mono">{statsData.meowBarks}</span></li>
         </ul>
       </div>
-    </div>
+    </motion.div>
   );
 }; 

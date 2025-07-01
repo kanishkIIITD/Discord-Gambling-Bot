@@ -1,1 +1,195 @@
 /* write your css here */
+
+/* Font imports */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap');
+
+/* Color Palette - Light Mode (Default) */
+:root {
+  --bg: #F5F7FA;
+  --surface: #FFFFFF;
+  --primary: #3F51B5;
+  --secondary: #009688;
+  --accent: #FFC107;
+  --text-primary: #212121;
+  --text-secondary: #616161;
+  
+  /* Font variables */
+  --font-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Space Grotesk', 'Inter', sans-serif;
+  --font-display: 'Orbitron', 'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  --font-accent: 'Chakra Petch', 'Inter', sans-serif;
+}
+
+/* Color Palette - Dark Mode */
+[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1E1E1E;
+  --primary: #7986CB;
+  --secondary: #4DB6AC;
+  --accent: #FFD54F;
+  --text-primary: #E0E0E0;
+  --text-secondary: #B0B0B0;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+body {
+    @apply bg-background text-text-primary font-sans;
+    font-family: var(--font-base);
+}
+/* Add utility to hide number input spinners */
+.no-spinners::-webkit-outer-spin-button,
+.no-spinners::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.no-spinners {
+    -moz-appearance: textfield; /* Firefox */
+}
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-primary text-white rounded-md hover:bg-opacity-90 transition-all duration-200;
+    font-family: var(--font-base);
+}
+  
+  .card {
+    @apply bg-surface rounded-lg border border-text-secondary shadow-surface dark:shadow-surface-dark;
+  }
+  
+  /* Font utility classes */
+  .font-base {
+    font-family: var(--font-base);
+  }
+  
+  .font-heading {
+    font-family: var(--font-heading);
+  }
+  
+  .font-display {
+    font-family: var(--font-display);
+  }
+  
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  
+  .font-accent {
+    font-family: var(--font-accent);
+  }
+}
+
+.animate-fadeIn { animation: fadeIn 0.15s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Floating Animation for Landing Page */
+.floating {
+  animation: floating 3s ease-in-out infinite;
+}
+
+.floating:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.floating:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes floating {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+/* Page transition animations */
+.page-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.page-exit {
+  opacity: 1;
+}
+
+.page-exit-active {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Fade in animations with different directions */
+.fade-in-up {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.fade-in-down {
+  animation: fadeInDown 0.5s ease forwards;
+}
+
+.fade-in-left {
+  animation: fadeInLeft 0.5s ease forwards;
+}
+
+.fade-in-right {
+  animation: fadeInRight 0.5s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Staggered animation classes */
+.stagger-container > * {
+  opacity: 0;
+}
+
+.stagger-container.animate > *:nth-child(1) { animation: fadeInUp 0.5s ease forwards; }
+.stagger-container.animate > *:nth-child(2) { animation: fadeInUp 0.5s ease forwards 0.1s; }
+.stagger-container.animate > *:nth-child(3) { animation: fadeInUp 0.5s ease forwards 0.2s; }
+.stagger-container.animate > *:nth-child(4) { animation: fadeInUp 0.5s ease forwards 0.3s; }
+.stagger-container.animate > *:nth-child(5) { animation: fadeInUp 0.5s ease forwards 0.4s; }
+.stagger-container.animate > *:nth-child(6) { animation: fadeInUp 0.5s ease forwards 0.5s; }
+.stagger-container.animate > *:nth-child(7) { animation: fadeInUp 0.5s ease forwards 0.6s; }
+.stagger-container.animate > *:nth-child(8) { animation: fadeInUp 0.5s ease forwards 0.7s; }
+.stagger-container.animate > *:nth-child(9) { animation: fadeInUp 0.5s ease forwards 0.8s; }
+.stagger-container.animate > *:nth-child(10) { animation: fadeInUp 0.5s ease forwards 0.9s; transform: translateY(0px);}
+
+/* Hide scrollbars but keep functionality */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}

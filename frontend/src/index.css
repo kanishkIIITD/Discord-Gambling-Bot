@@ -1,4 +1,42 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap');
+
+/* Color Palette - Light Mode (Default) */
+:root {
+  --bg: #F5F7FA;
+  --surface: #FFFFFF;
+  --primary: #3F51B5;
+  --secondary: #009688;
+  --accent: #FFC107;
+  --text-primary: #212121;
+  --text-secondary: #616161;
+  
+  /* Layout variables - use fixed values */
+  --nav-height: 64px;
+  --nav-content-spacing: 0px;
+  --sidebar-width: 16rem;
+  
+  /* Font variables */
+  --font-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Space Grotesk', 'Inter', sans-serif;
+  --font-display: 'Orbitron', 'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  --font-accent: 'Chakra Petch', 'Inter', sans-serif;
+}
+
+/* Color Palette - Dark Mode */
+[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1E1E1E;
+  --primary: #7986CB;
+  --secondary: #4DB6AC;
+  --accent: #FFD54F;
+  --text-primary: #E0E0E0;
+  --text-secondary: #B0B0B0;
+}
 
 @tailwind base;
 @tailwind components;
@@ -7,6 +45,11 @@
 @layer base {
 body {
     @apply bg-background text-text-primary font-sans;
+    font-family: var(--font-base);
+    /* Ensure proper scrolling behavior */
+    overflow-x: hidden;
+    /* Ensure sticky positioning works */
+    position: relative;
 }
 /* Add utility to hide number input spinners */
 .no-spinners::-webkit-outer-spin-button,
@@ -22,12 +65,77 @@ body {
 @layer components {
   .btn-primary {
     @apply px-4 py-2 bg-primary text-white rounded-md hover:bg-opacity-90 transition-all duration-200;
+    font-family: var(--font-base);
 }
   
   .card {
-    @apply bg-card rounded-lg border border-border shadow-lg;
+    @apply bg-surface rounded-lg border border-text-secondary shadow-surface dark:shadow-surface-dark;
+  }
+  
+  /* Font utility classes */
+  .font-base {
+    font-family: var(--font-base);
+  }
+  
+  .font-heading {
+    font-family: var(--font-heading);
+  }
+  
+  .font-display {
+    font-family: var(--font-display);
+  }
+  
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  
+  .font-accent {
+    font-family: var(--font-accent);
   }
 }
 
 .animate-fadeIn { animation: fadeIn 0.15s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+/* Ensure proper sticky behavior */
+.sticky {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 50;
+}
+
+/* Prevent layout shift on scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Ensure proper stacking context */
+.z-30 { z-index: 30; }
+.z-40 { z-index: 40; }
+.z-50 { z-index: 50; }
+
+/* Ensure navigation bar has proper height and positioning */
+header.sticky {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 50;
+  height: 64px;
+  min-height: 64px;
+}
+
+/* Ensure sidebar positioning is correct */
+aside.fixed {
+  position: fixed;
+  top: 64px;
+  height: calc(100vh - 64px);
+  z-index: 40;
+}

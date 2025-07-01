@@ -4,6 +4,9 @@ import { getUserPreferences } from '../services/api';
 import axios from 'axios';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import ReactPaginate from 'react-paginate';
+import { motion, AnimatePresence } from 'framer-motion';
+import { formatDisplayNumber } from '../utils/numberFormat';
+
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
@@ -118,16 +121,25 @@ export const BiggestWinsLeaderboard = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8 w-full">
-      <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Biggest Wins Leaderboard</h1>
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 24 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8 w-full"
+    >
+      <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center font-display">Biggest Wins Leaderboard</h1>
       <div className="flex flex-col sm:flex-row sm:justify-end gap-4 mb-6 w-full">
         <div className="relative w-full sm:w-44 flex-shrink-0" ref={sortMenuRef}>
-          <button
+          <motion.button
             type="button"
-            className="flex items-center justify-between w-full px-3 py-1 rounded-lg bg-surface border border-border text-text-primary hover:bg-primary/10 transition-colors text-sm font-medium shadow-sm"
+            className="flex items-center justify-between w-full px-3 py-1 rounded-lg bg-surface border border-border text-text-primary hover:bg-primary/10 transition-colors text-sm font-medium shadow-sm font-base"
             onClick={() => setShowSortMenu((prev) => !prev)}
             aria-haspopup="listbox"
             aria-expanded={showSortMenu}
+            whileHover={{ scale: 1.05, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)', y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 10 }}
           >
             <span>Sort by: {SORT_OPTIONS.find(opt => opt.value === sortBy)?.label}</span>
             {sortOrder === 'asc' ? (
@@ -135,56 +147,74 @@ export const BiggestWinsLeaderboard = () => {
             ) : (
               <ChevronDownIcon className="h-5 w-5 text-text-secondary ml-2" aria-hidden="true" />
             )}
-          </button>
-          {showSortMenu && (
-            <div className="absolute z-50 mt-1 w-full rounded-lg bg-card border border-border py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none text-left">
-              {SORT_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => handleSortChange(opt.value)}
-                  className={`w-full flex items-center justify-between px-4 py-2 text-sm rounded transition-colors text-left
-                    ${sortBy === opt.value ? 'bg-primary/10 text-primary font-semibold' : 'text-text-primary hover:bg-primary/5'}
-                  `}
-                >
-                  <span>{opt.label}</span>
-                  {sortBy === opt.value && (
-                    sortOrder === 'asc' ? <ChevronUpIcon className="h-4 w-4 ml-2" /> : <ChevronDownIcon className="h-4 w-4 ml-2" />
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+          </motion.button>
+          <AnimatePresence>
+            {showSortMenu && (
+              <motion.div 
+                className="absolute z-50 mt-1 w-full rounded-lg bg-card border border-border py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none text-left"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+              >
+                {SORT_OPTIONS.map(opt => (
+                  <motion.button
+                    key={opt.value}
+                    onClick={() => handleSortChange(opt.value)}
+                    className={`w-full flex items-center justify-between px-4 py-2 text-sm rounded transition-colors text-left font-base
+                      ${sortBy === opt.value ? 'bg-primary/10 text-primary font-semibold' : 'text-text-primary hover:bg-primary/5'}
+                    `}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.96 }}
+                  >
+                    <span>{opt.label}</span>
+                    {sortBy === opt.value && (
+                      sortOrder === 'asc' ? <ChevronUpIcon className="h-4 w-4 ml-2" /> : <ChevronDownIcon className="h-4 w-4 ml-2" />
+                    )}
+                  </motion.button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
       <div className="bg-card rounded-lg shadow-lg overflow-x-auto w-full">
-        <div className="min-w-[500px] sm:min-w-full">
+        <div className="min-w-[500px] sm:min-w-full overflow-auto scrollbar-hide">
           <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
             <thead className="bg-card">
               <tr>
-                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">#</th>
-                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Player</th>
-                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Amount</th>
-                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Description</th>
-                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider">Date</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider font-base">#</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider font-base">Player</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider font-base">Amount</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider font-base">Description</th>
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-text-secondary uppercase tracking-wider font-base">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {wins.length > 0 ? (
-                wins.map((win, index) => {
-                  const isExpanded = expandedRows[index];
-                  const desc = win.description || '-';
-                  const shouldTruncate = desc.length > 17;
-                  const displayDesc = !shouldTruncate || isExpanded ? desc : desc.slice(0, 17) + '...';
-                  return (
-                  <tr key={index} className={`hover:bg-primary/5 ${win.discordId === user?.discordId ? 'bg-primary/20' : ''}`}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{(page - 1) * (userPreferences?.itemsPerPage || 10) + index + 1}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary tracking-wide text-center">{win.username}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary tracking-wide text-center">{win.amount.toLocaleString('en-US')} points</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary tracking-wide text-center">
+              <AnimatePresence initial={false}>
+                {wins.length > 0 ? (
+                  wins.map((win, index) => {
+                    const isExpanded = expandedRows[index];
+                    const desc = win.description || '-';
+                    const shouldTruncate = desc.length > 17;
+                    const displayDesc = !shouldTruncate || isExpanded ? desc : desc.slice(0, 17) + '...';
+                    return (
+                    <motion.tr
+                      key={win._id || index}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 16 }}
+                      transition={{ duration: 0.3, ease: 'easeOut' }}
+                      className={`hover:bg-primary/5 ${win.discordId === user?.discordId ? 'bg-primary/20' : ''}`}
+                    >
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center font-base">{(page - 1) * (userPreferences?.itemsPerPage || 10) + index + 1}</td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center font-option">{win.username}</td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm font-medium text-success tracking-wide text-center font-mono">{formatDisplayNumber(win.amount)} points</td>
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 text-sm text-text-primary tracking-wide text-center font-base">
                         {displayDesc}
                         {shouldTruncate && (
                           <button
-                            className="ml-2 text-primary underline text-xs focus:outline-none"
+                            className="ml-2 text-primary underline text-xs focus:outline-none font-base"
                             onClick={() => toggleExpand(index)}
                             aria-label={isExpanded ? 'Show less' : 'Show more'}
                           >
@@ -192,42 +222,67 @@ export const BiggestWinsLeaderboard = () => {
                           </button>
                         )}
                       </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary tracking-wide text-center">{new Date(win.timestamp).toLocaleString()}</td>
-                  </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="5" className="px-6 py-4 text-center text-sm text-text-secondary">No wins found.</td>
-                </tr>
-              )}
+                      <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-primary tracking-wide text-center font-base">
+                        {new Date(win.timestamp).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                    </motion.tr>
+                    );
+                  })
+                ) : (
+                  <motion.tr
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <td colSpan="5" className="px-6 py-4 text-center text-sm text-text-secondary font-base">No wins found.</td>
+                  </motion.tr>
+                )}
+              </AnimatePresence>
             </tbody>
           </table>
         </div>
       </div>
-      <div className="flex flex-wrap justify-center mt-6 w-full">
-        <ReactPaginate
-          previousLabel={"Prev"}
-          nextLabel={"Next"}
-          breakLabel={"..."}
-          breakClassName={"px-2 py-1"}
-          pageCount={totalPages}
-          marginPagesDisplayed={1}
-          pageRangeDisplayed={3}
-          onPageChange={handlePageChange}
-          forcePage={page - 1}
-          containerClassName={"flex flex-wrap gap-1 items-center"}
-          pageClassName={""}
-          pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10"}
-          activeClassName={""}
-          activeLinkClassName={"bg-primary text-white"}
-          previousClassName={""}
-          previousLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
-          nextClassName={""}
-          nextLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
-          disabledClassName={"opacity-50 cursor-not-allowed"}
-        />
-      </div>
-    </div>
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+      {totalPages > 1 && !loading && !error && (
+        <div className="flex flex-wrap justify-center mt-6 w-full">
+          <ReactPaginate
+            previousLabel={"Prev"}
+            nextLabel={"Next"}
+            breakLabel={"..."}
+            breakClassName={"px-2 py-1"}
+            pageCount={totalPages}
+            marginPagesDisplayed={1}
+            pageRangeDisplayed={3}
+            onPageChange={handlePageChange}
+            forcePage={page - 1}
+            containerClassName={"flex flex-wrap gap-1 items-center"}
+            pageClassName={""}
+            pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10"}
+            activeClassName={""}
+            activeLinkClassName={"bg-primary text-white"}
+            previousClassName={""}
+            previousLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
+            nextClassName={""}
+            nextLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
+            disabledClassName={"opacity-50 cursor-not-allowed"}
+          />
+        </div>
+      )}
+    </motion.div>
   );
 }; 

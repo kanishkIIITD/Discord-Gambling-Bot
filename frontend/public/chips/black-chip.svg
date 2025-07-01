@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Outer ring -->
+  <circle cx="50" cy="50" r="48" fill="#333" stroke="#555" stroke-width="2"/>
+  <!-- Inner ring -->
+  <circle cx="50" cy="50" r="42" fill="#222" stroke="#444" stroke-width="1"/>
+  <!-- Center circle -->
+  <circle cx="50" cy="50" r="35" fill="#111" stroke="#333" stroke-width="1"/>
+  <!-- Decorative dots around the edge -->
+  <g fill="#666">
+    <!-- 8 dots evenly spaced around the chip -->
+    <circle cx="50" cy="8" r="3"/>
+    <circle cx="78" cy="22" r="3"/>
+    <circle cx="92" cy="50" r="3"/>
+    <circle cx="78" cy="78" r="3"/>
+    <circle cx="50" cy="92" r="3"/>
+    <circle cx="22" cy="78" r="3"/>
+    <circle cx="8" cy="50" r="3"/>
+    <circle cx="22" cy="22" r="3"/>
+  </g>
+  <!-- Highlight for 3D effect -->
+  <path d="M50,2 A48,48 0 0,1 98,50" fill="none" stroke="#777" stroke-width="2" opacity="0.6"/>
+</svg>

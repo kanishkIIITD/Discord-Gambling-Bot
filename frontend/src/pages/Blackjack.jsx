@@ -1,11 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useDashboard } from '../contexts/DashboardContext';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import ChipList from '../components/ChipList';
 import { Howl } from 'howler';
+import { toast } from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { formatDisplayNumber } from '../utils/numberFormat';
+import RadixDialog from '../components/RadixDialog';
+import OptimizedImage from '../components/OptimizedImage';
+import withMemoization from '../utils/withMemoization';
 // import ChipSelector from '../components/ChipSelector'; // Placeholder for chip selector
 // import ResultModal from '../components/ResultModal'; // Placeholder for result modal
+import AnimatedElement from '../components/AnimatedElement';
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
@@ -138,45 +145,87 @@ export const Blackjack = () => {
   };
 
   // Improved Card component to match preview images and new requirements
-  const Card = ({ card }) => {
-    const isBack = card.value === '?' || card.suit === '?';
-    const isRed = card.suit === '♥️' || card.suit === '♦️';
-    const suitSymbol = card.suit;
-    const value = card.value;
+  const CardComponent = ({ card }) => {
+    // Use useMemo to calculate derived values
+    const { isBack, isRed, suitSymbol, value, ariaLabel } = useMemo(() => {
+      const isBack = card.value === '?' || card.suit === '?';
+      const isRed = card.suit === '♥️' || card.suit === '♦️';
+      const suitSymbol = card.suit;
+      const value = card.value;
+      const ariaLabel = isBack ? 'Card face down' : `${value} of ${suitSymbol}`;
+      return { isBack, isRed, suitSymbol, value, ariaLabel };
+    }, [card.value, card.suit]);
+    
     return (
       <div
-        className={`w-32 h-48 rounded-2xl shadow-2xl border-4 mx-3 flex flex-col justify-between items-start relative select-none ${isBack ? 'bg-[repeating-linear-gradient(135deg,#e11d48_0_6px,#fff_6px_12px)] border-red-700' : 'bg-white border-black'}`}
+        className={`w-32 h-48 rounded-2xl shadow-2xl border-4 mx-3 flex flex-col justify-between items-start relative select-none ${isBack ? 'bg-[repeating-linear-gradient(135deg,#e11d48_0_6px,var(--surface)_6px_12px)] border-red-700' : 'bg-surface border-text-primary'}`}
         style={{ minWidth: 128 }}
+        role="img"
+        aria-label={ariaLabel}
       >
         {isBack ? (
-          <div className="w-full h-full flex items-center justify-center text-4xl text-white font-extrabold opacity-80"> </div>
+          <div className="w-full h-full flex items-center justify-center text-4xl text-text-primary font-extrabold opacity-80"> </div>
         ) : (
           <>
-            <div className={`absolute top-3 left-4 text-3xl font-extrabold ${isRed ? 'text-red-500' : 'text-black'}`}>{value}</div>
+            <div className={`absolute top-3 left-4 text-3xl font-extrabold ${isRed ? 'text-red-500' : 'text-text-primary'}`}>{value}</div>
             <div className="flex-1 w-full flex items-center justify-center">
-              <span className={`text-6xl font-extrabold ${isRed ? 'text-red-500' : 'text-black'}`}>{suitSymbol}</span>
+              <span className={`text-6xl font-extrabold ${isRed ? 'text-red-500' : 'text-text-primary'}`}>{suitSymbol}</span>
             </div>
           </>
         )}
       </div>
     );
   };
+  
+  // Apply memoization to the Card component with custom comparison
+  const cardPropsComparator = (prevProps, nextProps) => {
+    return prevProps.card.value === nextProps.card.value && 
+           prevProps.card.suit === nextProps.card.suit;
+  };
+  
+  const Card = withMemoization(CardComponent, cardPropsComparator);
 
   // Visual chip stack with quantities
-  const ChipStack = ({ stack }) => {
-    // Count chips by value
-    const counts = chips.map(chip => ({ ...chip, count: stack.filter(v => v === chip.value).length }));
+  const ChipStackComponent = ({ stack }) => {
+    // Count chips by value using useMemo to avoid recalculation
+    const counts = useMemo(() => {
+      return chips.map(chip => ({ 
+        ...chip, 
+        count: stack.filter(v => v === chip.value).length 
+      }));
+    }, [stack]);
+    
     return (
-      <div className="flex flex-row items-end justify-center gap-2 mt-4">
+      <div 
+        className="flex flex-row items-end justify-center gap-2 mt-4"
+        role="group"
+        aria-label="Chip stack"
+      >
         {counts.filter(c => c.count > 0).map((chip) => (
           <div key={chip.value} className="flex flex-col items-center">
-            <img src={chip.image} alt={chip.value} className="w-12 h-12 mb-1" draggable={false} />
-            <span className="font-bold text-lg text-white">x{chip.count}</span>
+            <OptimizedImage 
+              src={chip.image} 
+              alt={`${chip.value} chip`} 
+              width={48} 
+              height={48} 
+              className="mb-1 rounded-full object-contain" 
+              draggable={false} 
+              ariaLabel={`${chip.count} chips of value ${chip.value}`}
+            />
+            <span className="font-bold text-lg text-text-primary">x{chip.count}</span>
           </div>
         ))}
       </div>
     );
   };
+  
+  // Apply memoization to the ChipStack component
+  const chipStackPropsComparator = (prevProps, nextProps) => {
+    if (prevProps.stack.length !== nextProps.stack.length) return false;
+    return prevProps.stack.every((value, index) => value === nextProps.stack[index]);
+  };
+  
+  const ChipStack = withMemoization(ChipStackComponent, chipStackPropsComparator);
 
   // Helper to convert an amount into a chip stack representation
   function amountToChipStack(amount) {
@@ -223,30 +272,38 @@ export const Blackjack = () => {
   }, [gameState]);
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] p-0 m-0 relative font-sans">
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 24 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="min-h-screen w-full flex flex-col items-center justify-start bg-background p-0 m-0 relative font-sans"
+      style={{ fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', lineHeight: 1.5 }}
+    >
       {/* Top Bar */}
       <div className="w-full flex flex-col md:flex-row items-center justify-between px-4 md:px-8 pt-6 pb-2 max-w-5xl mx-auto">
         <div className="flex-1 flex justify-center">
-          <h1 className="text-[2.25rem] font-extrabold text-white drop-shadow-lg tracking-wide text-center" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif' }}>
+          <h1 className="text-[2.25rem] font-extrabold text-text-primary drop-shadow-lg tracking-wide text-center font-display" style={{ fontWeight: 700 }}>
             {gameState ? 'Hit or Stand?' : 'Place a Bet!'}
           </h1>
         </div>
         <div className="flex-1 flex justify-end">
-          <div className="bg-gradient-to-r from-black via-gray-900 to-black text-white rounded-xl px-8 py-3 border-2 border-primary shadow-lg flex items-center gap-3 min-w-[220px] justify-center">
+          <AnimatedElement variant="SCALE_IN" delay={0.1} className="bg-surface rounded-xl px-8 py-3 border-2 border-primary shadow-lg flex items-center gap-3 min-w-[220px] justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 16v-4m8-4h-4m-8 0H4" />
             </svg>
-            <span className="text-xl font-bold tracking-wide text-white">
-              Balance: <span className="text-primary">${walletBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-xl font-bold tracking-wide text-text-primary font-base">
+              Balance: <span className="text-primary font-mono">{formatDisplayNumber(walletBalance)} points</span>
             </span>
-          </div>
+          </AnimatedElement>
         </div>
       </div>
 
       {/* Bet Area */}
       {!gameState && (
-        <div className="flex flex-col items-center mt-8 w-full max-w-2xl px-2 sm:px-0">
-          <div className="text-2xl font-bold text-white mb-2">Total Bet: <span className="text-yellow-300">${totalBet.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div>
+        <AnimatedElement variant="FADE_IN_UP" delay={0.3} className="w-full">
+        <div className="flex flex-col items-center mt-8 w-full max-w-2xl px-2 sm:px-0 mx-auto">
+          <div className="text-2xl font-bold text-text-primary mb-2 font-heading">Total Bet: <span className="text-accent font-mono">${totalBet.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div>
 
           {/* Manual Amount Input */}
           <input
@@ -254,7 +311,7 @@ export const Blackjack = () => {
             value={manualBetAmount}
             onChange={handleManualBetAmountChange}
             placeholder="Enter bet amount"
-            className="mb-4 px-4 py-2 rounded-lg bg-gray-700 text-white text-xl text-center placeholder-gray-400 no-spinners"
+            className="mb-4 px-4 py-2 rounded-lg bg-surface text-text-primary text-xl text-center placeholder-text-secondary no-spinners border border-text-secondary font-mono"
             min="0"
             disabled={loading}
           />
@@ -268,21 +325,21 @@ export const Blackjack = () => {
           <ChipStack stack={chipStack} />
           <div className="flex flex-row gap-4 mt-4">
             <button
-              className="px-6 py-2 rounded-xl bg-gray-700 text-white text-lg font-bold border-2 border-white shadow hover:bg-gray-600 transition disabled:opacity-50"
+              className="px-6 py-2 rounded-xl bg-surface text-text-primary text-lg font-bold border-2 border-text-secondary shadow hover:bg-primary/10 transition disabled:opacity-50 font-base"
               onClick={handleUndoChip}
               disabled={loading || chipStack.length === 0}
             >
               Undo
             </button>
             <button
-              className="px-6 py-2 rounded-xl bg-gray-700 text-white text-lg font-bold border-2 border-white shadow hover:bg-gray-600 transition disabled:opacity-50"
+              className="px-6 py-2 rounded-xl bg-surface text-text-primary text-lg font-bold border-2 border-text-secondary shadow hover:bg-primary/10 transition disabled:opacity-50 font-base"
               onClick={handleClearChips}
               disabled={loading || chipStack.length === 0}
             >
               Clear
             </button>
             <button
-              className="px-12 py-3 rounded-2xl bg-black text-white text-2xl font-bold border-4 border-white shadow-lg hover:bg-primary/80 transition disabled:opacity-50"
+              className="px-12 py-3 rounded-2xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base"
               onClick={handleDeal}
               disabled={loading || totalBet < 10 || totalBet > walletBalance}
             >
@@ -290,34 +347,36 @@ export const Blackjack = () => {
             </button>
           </div>
         </div>
+        </AnimatedElement>
       )}
 
       {/* Game Area */}
       {gameState && (
-        <div className="flex flex-col items-center w-full max-w-3xl mt-8 px-2 sm:px-0">
+        <AnimatedElement variant="FADE_IN_UP" delay={0.4} className="w-full">
+        <div className="flex flex-col items-center w-full max-w-3xl mt-8 px-2 sm:px-0 mx-auto">
           {/* Action Buttons or Play Again */}
           {(!gameState.gameOver) && (
             <div className="flex flex-row justify-center items-center w-full space-x-8 mb-8">
-              <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-black text-white text-2xl font-bold border-4 border-white shadow-lg hover:bg-primary/80 transition disabled:opacity-50" onClick={() => handleAction('hit')} disabled={loading}>Hit</button>
-              <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-black text-white text-2xl font-bold border-4 border-white shadow-lg hover:bg-primary/80 transition disabled:opacity-50" onClick={() => handleAction('stand')} disabled={loading}>Stand</button>
-              {gameState.canDouble && <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-black text-white text-2xl font-bold border-4 border-white shadow-lg hover:bg-primary/80 transition disabled:opacity-50" onClick={() => handleAction('double')} disabled={loading}>Double</button>}
-              {gameState.canSplit && <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-black text-white text-2xl font-bold border-4 border-white shadow-lg hover:bg-primary/80 transition disabled:opacity-50" onClick={() => handleAction('split')} disabled={loading}>Split</button>}
+              <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('hit')} disabled={loading}>Hit</button>
+              <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('stand')} disabled={loading}>Stand</button>
+              {gameState.canDouble && <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('double')} disabled={loading}>Double</button>}
+              {gameState.canSplit && <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('split')} disabled={loading}>Split</button>}
             </div>
           )}
           {(gameState.gameOver && !showResultModal) && (
             <div className="flex flex-col items-center w-full mb-8">
-              <h2 className="text-[1.5rem] font-extrabold mb-4 tracking-wide drop-shadow-lg" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif' }}>
+              <h2 className="text-[1.5rem] font-extrabold mb-4 tracking-wide drop-shadow-lg font-display" style={{ fontWeight: 700 }}>
                 {gameState?.results?.[0]?.result === 'win' ? 'You Win!' : gameState?.results?.[0]?.result === 'blackjack' ? 'Blackjack!' : 'You Lose.'}
               </h2>
-              <div className={`mb-4 text-xl font-bold ${gameState?.results?.[0]?.result === 'win' || gameState?.results?.[0]?.result === 'blackjack' ? 'text-green-400' : 'text-red-400'}`} style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif' }}>
-                Winnings: <span className="text-yellow-300">${gameState?.results?.[0]?.winnings}</span>
+              <div className={`mb-4 text-xl font-bold ${gameState?.results?.[0]?.result === 'win' || gameState?.results?.[0]?.result === 'blackjack' ? 'text-success' : 'text-error'} font-base`} style={{ fontWeight: 700 }}>
+                Winnings: <span className="text-accent font-mono">{formatDisplayNumber(gameState?.results?.[0]?.winnings)} points</span>
               </div>
               {/* Container for Play Again and Repeat Bet buttons */}
               <div className="flex flex-row items-center justify-center gap-4">
-                <button className="mt-2 px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', fontSize: '1rem' }} onClick={handlePlayAgain} disabled={!canPlayAgain}>Play Again</button>
+                <button className="mt-2 px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition font-base" style={{ fontWeight: 700, fontSize: '1rem' }} onClick={handlePlayAgain} disabled={!canPlayAgain}>Play Again</button>
                 {canRepeatBet && (
                   <button
-                    className="mt-2 px-6 py-2 rounded-xl bg-green-600 text-white font-bold text-lg shadow-lg hover:bg-green-500 transition"
+                    className="mt-2 px-6 py-2 rounded-xl bg-secondary text-white font-bold text-lg shadow-lg hover:bg-secondary/90 transition font-base"
                     onClick={() => {
                       setShowResultModal(false);
                       setGameState(null); // Clear previous game state immediately
@@ -325,7 +384,7 @@ export const Blackjack = () => {
                     }}
                     disabled={!canRepeatBet}
                   >
-                    Repeat Bet (${lastBetAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
+                    Repeat Bet ({formatDisplayNumber(lastBetAmount)})
                   </button>
                 )}
               </div>
@@ -334,7 +393,7 @@ export const Blackjack = () => {
 
           {/* Dealer Hand */}
           <div className="flex flex-col items-center mb-8">
-            <div className="text-white text-3xl font-extrabold mb-2 drop-shadow-lg">Dealer's Hand{gameState.dealerHand && ` (${calculateHandValue(gameState.dealerHand, gameState.gameOver)})`}</div>
+            <div className="text-text-primary text-3xl font-extrabold mb-2 drop-shadow-lg font-heading">Dealer's Hand{gameState.dealerHand && ` (${calculateHandValue(gameState.dealerHand, gameState.gameOver)})`}</div>
             <div className="flex flex-row items-center justify-center">
               {gameState.dealerHand?.map((card, idx) => <Card key={idx} card={card} />)}
             </div>
@@ -342,7 +401,7 @@ export const Blackjack = () => {
 
           {/* Player Hand(s) */}
           <div className="flex flex-col items-center">
-            <div className="text-white text-3xl font-extrabold mb-2 drop-shadow-lg">
+            <div className="text-text-primary text-3xl font-extrabold mb-2 drop-shadow-lg font-heading">
               Your Hand
               {gameState.playerHands && (
                 gameState.playerHands.length > 1
@@ -351,52 +410,55 @@ export const Blackjack = () => {
               )}
             </div>
             {gameState.playerHands?.map((hand, handIdx) => (
-              <div key={handIdx} className={`flex flex-row items-center justify-center mb-2 ${gameState.playerHands.length > 1 && gameState.currentHand === handIdx ? 'ring-4 ring-yellow-400 rounded-xl' : ''}`}>
+              <div key={handIdx} className={`flex flex-row items-center justify-center mb-2 ${gameState.playerHands.length > 1 && gameState.currentHand === handIdx ? 'ring-4 ring-accent rounded-xl' : ''}`}>
                 {hand.map((card, idx) => <Card key={idx} card={card} />)}
-                {gameState.playerHands.length > 1 && <span className="ml-4 text-lg text-yellow-200 font-bold">Hand {handIdx + 1}</span>}
+                {gameState.playerHands.length > 1 && <span className="ml-4 text-lg text-accent font-bold">Hand {handIdx + 1}</span>}
               </div>
             ))}
           </div>
         </div>
+        </AnimatedElement>
       )}
 
       {/* Error */}
-      {error && <div className="text-red-400 text-center mt-4 text-lg font-bold bg-black bg-opacity-60 px-4 py-2 rounded-xl border-2 border-red-400 shadow-lg">{error}</div>}
+      {error && <div className="text-error text-center mt-4 text-lg font-bold bg-surface bg-opacity-60 px-4 py-2 rounded-xl border-2 border-error shadow-lg font-base">{error}</div>}
 
-      {/* Result Modal Placeholder */}
-      {showResultModal && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
-          <div className="modal-casino relative max-w-sm w-full text-center bg-gradient-to-br from-black/80 via-gray-900/80 to-gray-800/80 backdrop-blur-md border border-primary/60 shadow-2xl rounded-2xl p-8 font-sans" style={{ fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', borderRadius: 16 }}>
-            <button
-              className="absolute top-3 right-3 text-2xl text-white bg-black bg-opacity-40 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70 transition"
-              onClick={() => setShowResultModal(false)}
-              aria-label="Close"
-            >
-              ×
-            </button>
-            <h2 className="text-[1.5rem] font-extrabold mb-4 tracking-wide drop-shadow-lg" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif' }}>{gameState?.results?.[0]?.result === 'win' ? 'You Win!' : gameState?.results?.[0]?.result === 'blackjack' ? 'Blackjack!' : 'You Lose.'}</h2>
-            <div className={`mb-4 text-xl font-bold ${gameState?.results?.[0]?.result === 'win' || gameState?.results?.[0]?.result === 'blackjack' ? 'text-green-400' : 'text-red-400'}`} style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif' }}>Winnings: <span className="text-yellow-300">${gameState?.results?.[0]?.winnings}</span></div>
-            {/* Container for Play Again and Repeat Bet buttons in Modal */}
-            <div className="flex flex-row items-center justify-center gap-4 mt-2">
-              <button className="px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition" style={{ fontWeight: 700, fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', fontSize: '1rem' }} onClick={handlePlayAgain} disabled={!canPlayAgain}>Play Again</button>
-              {canRepeatBet && (
-                <button
-                  className="px-6 py-2 rounded-xl bg-green-600 text-white font-bold text-lg shadow-lg hover:bg-green-500 transition"
-                  onClick={() => {
-                    setShowResultModal(false);
-                    setGameState(null); // Clear previous game state immediately
-                    handleStartGame(lastBetAmount);
-                  }}
-                  disabled={!canRepeatBet}
-                >
-                  Repeat Bet (${lastBetAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
-                </button>
-              )}
-            </div>
-          </div>
+      {/* Result Modal */}
+      <RadixDialog
+        open={showResultModal}
+        onOpenChange={setShowResultModal}
+        title={gameState?.results?.[0]?.result === 'win' ? 'You Win!' : gameState?.results?.[0]?.result === 'blackjack' ? 'Blackjack!' : 'You Lose.'}
+        className="text-center"
+      >
+        <div className={`mb-4 text-xl font-bold ${gameState?.results?.[0]?.result === 'win' || gameState?.results?.[0]?.result === 'blackjack' ? 'text-success' : 'text-error'} font-base`} style={{ fontWeight: 700 }}>
+          Winnings: <span className="text-accent font-mono">{formatDisplayNumber(gameState?.results?.[0]?.winnings)} points</span>
         </div>
-      )}
-    </div>
+        {/* Container for Play Again and Repeat Bet buttons */}
+        <div className="flex flex-row items-center justify-center gap-4 mt-4">
+          <button 
+            className="px-6 py-2 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition font-base" 
+            style={{ fontWeight: 700, fontSize: '1rem' }} 
+            onClick={handlePlayAgain} 
+            disabled={!canPlayAgain}
+          >
+            Play Again
+          </button>
+          {canRepeatBet && (
+            <button
+              className="px-6 py-2 rounded-xl bg-secondary text-white font-bold text-lg shadow-lg hover:bg-secondary/90 transition font-base"
+              onClick={() => {
+                setShowResultModal(false);
+                setGameState(null); // Clear previous game state immediately
+                handleStartGame(lastBetAmount);
+              }}
+              disabled={!canRepeatBet}
+            >
+              Repeat Bet ({formatDisplayNumber(lastBetAmount)})
+            </button>
+          )}
+        </div>
+      </RadixDialog>
+    </motion.div>
   );
 
   // Helper to calculate hand value (for display)
@@ -426,4 +488,4 @@ export const Blackjack = () => {
     }
     return value;
   }
-}; 
+};

@@ -2,17 +2,17 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL;
 // Define WebSocket URL from environment variable
-const WS_URL = process.env.REACT_APP_WS_URL;
+// const WS_URL = process.env.REACT_APP_WS_URL;
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 // TODO: Replace with dynamic guild selection for multi-guild support
 const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID || 'YOUR_MAIN_GUILD_ID';
 
 // Helper to inject guildId into params/body/headers
-const withGuild = (config = {}) => ({
+const withGuild = (config = {}, guildId = MAIN_GUILD_ID) => ({
   ...config,
-  params: { ...(config.params || {}), guildId: MAIN_GUILD_ID },
-  headers: { ...(config.headers || {}), 'x-guild-id': MAIN_GUILD_ID }
+  params: { ...(config.params || {}), guildId },
+  headers: { ...(config.headers || {}), 'x-guild-id': guildId }
 });
 
 // User and Wallet APIs
@@ -98,48 +98,11 @@ export const updateUserPreferences = async (discordId, preferences) => {
   return response.data;
 };
 
-// WebSocket setup
+// WebSocket setup - temporarily disabled
 export const setupWebSocket = (onMessage, discordId) => {
-  // Use the WS_URL environment variable
-  const ws = new WebSocket(`${WS_URL}`);
-  
-  ws.onopen = () => {
-    // console.log('WebSocket Connected');
-    // Send authentication message
-    if (discordId) {
-      ws.send(JSON.stringify({
-        type: 'AUTH',
-        discordId,
-        guildId: MAIN_GUILD_ID
-      }));
-    }
-  };
-
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      // console.log('WebSocket message received:', data);
-      onMessage(data);
-    } catch (error) {
-      // console.error('Error parsing WebSocket message:', error);
-    }
-  };
-
-  ws.onerror = (error) => {
-    // console.error('WebSocket Error:', error);
-  };
-
-  ws.onclose = () => {
-    // console.log('WebSocket Disconnected');
-    // Attempt to reconnect after 5 seconds
-    setTimeout(() => {
-      // console.log('Attempting to reconnect WebSocket...');
-      setupWebSocket(onMessage, discordId);
-    }, 5000);
-  };
-
-  return ws;
-}; 
+  // Return null to indicate WebSocket is disabled
+  return null;
+};
 
 // Fetch all users (for superadmin)
 export const getAllUsers = async (page = 1, limit = 10) => {
@@ -214,4 +177,74 @@ export const getBiggestWinsLeaderboard = async (page = 1, limit = 10) => {
     // console.error('Error fetching biggest wins leaderboard:', error);
     throw error;
   }
-}; 
+};
+
+// Balance History Graph
+export const getBalanceHistory = async (discordId, limit = 500, startDate, endDate, guildId = MAIN_GUILD_ID) => {
+  const response = await axios.get(`${API_URL}/api/statistics/${discordId}/balance-history`, 
+    withGuild({ params: { limit, startDate, endDate } }, guildId));
+  return response.data;
+};
+
+// Gambling Performance Graph
+export const getGamblingPerformance = async (discordId, startDate, endDate, guildId = MAIN_GUILD_ID) => {
+  const response = await axios.get(`${API_URL}/api/statistics/${discordId}/gambling-performance`, 
+    withGuild({ params: { startDate, endDate } }, guildId));
+  return response.data;
+};
+
+// Game Type Distribution Graph
+export const getGameDistribution = async (discordId, startDate, endDate, guildId = MAIN_GUILD_ID) => {
+  const response = await axios.get(`${API_URL}/api/statistics/${discordId}/game-distribution`, 
+    withGuild({ params: { startDate, endDate } }, guildId));
+  return response.data;
+};
+
+// Transaction Type Analysis Graph
+export const getTransactionAnalysis = async (discordId, limit = 500, startDate, endDate, guildId = MAIN_GUILD_ID) => {
+  const response = await axios.get(`${API_URL}/api/statistics/${discordId}/transaction-analysis`, 
+    withGuild({ params: { limit, startDate, endDate } }, guildId));
+  return response.data;
+};
+
+// Game Comparison Matrix Graph
+export const getGameComparison = async (discordId, startDate, endDate, guildId = MAIN_GUILD_ID) => {
+  const response = await axios.get(`${API_URL}/api/statistics/${discordId}/game-comparison`, 
+    withGuild({ params: { startDate, endDate } }, guildId));
+  return response.data;
+};
+
+// Time of Day Heatmap
+export const getTimeOfDayHeatmap = async (discordId, startDate, endDate, guildId = MAIN_GUILD_ID) => {
+  const response = await axios.get(`${API_URL}/api/statistics/${discordId}/time-of-day-heatmap`, 
+    withGuild({ params: { startDate, endDate } }, guildId));
+  return response.data;
+};
+
+// Daily Profit & Loss
+export const getDailyProfitLoss = async (discordId, startDate, endDate, guildId = MAIN_GUILD_ID) => {
+  const response = await axios.get(`${API_URL}/api/statistics/${discordId}/daily-profit-loss`, 
+    withGuild({ params: { startDate, endDate } }, guildId));
+  return response.data;
+};
+
+// Top Games by Net Profit
+export const getTopGamesByProfit = async (discordId, startDate, endDate, guildId = MAIN_GUILD_ID) => {
+  const response = await axios.get(`${API_URL}/api/statistics/${discordId}/top-games-by-profit`, 
+    withGuild({ params: { startDate, endDate } }, guildId));
+  return response.data;
+};
+
+// Risk Score Trend
+export const getRiskScoreTrend = async (discordId, startDate, endDate, guildId = MAIN_GUILD_ID) => {
+  const response = await axios.get(`${API_URL}/api/statistics/${discordId}/risk-score-trend`, 
+    withGuild({ params: { startDate, endDate } }, guildId));
+  return response.data;
+};
+
+// Favorite Game Over Time
+export const getFavoriteGameTrend = async (discordId, startDate, endDate, guildId = MAIN_GUILD_ID) => {
+  const response = await axios.get(`${API_URL}/api/statistics/${discordId}/favorite-game-trend`, 
+    withGuild({ params: { startDate, endDate } }, guildId));
+  return response.data;
+};

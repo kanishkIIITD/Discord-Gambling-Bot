@@ -4,10 +4,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import Confetti from 'react-confetti';
-import Modal from 'react-modal';
 import SlotMachine from '../components/SlotMachine';
 import { Howl } from 'howler';
 import { getUserPreferences } from '../services/api';
+import { formatDisplayNumber } from '../utils/numberFormat';
+import RadixDialog from '../components/RadixDialog';
+// import PageTransition from '../components/PageTransition';
+import AnimatedElement from '../components/AnimatedElement';
+import { useAnimation } from '../contexts/AnimationContext';
+import { motion } from 'framer-motion';
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 // TODO: Replace with dynamic guild selection for multi-guild support
@@ -22,7 +27,7 @@ const symbolImages = {
   '💎': '/slots_5.png',
   '7️⃣': '/slots_6.png',
 };
-const STOP_DELAYS = [0, 0.4, 0.8];
+// const STOP_DELAYS = [0, 0.4, 0.8];
 
 // Sound effects
 const spinSound = new Howl({ src: ['/sounds/slots_spin.mp3'], volume: 0.2 });
@@ -36,8 +41,9 @@ function getRandomSymbols() {
 }
 
 export const Slots = () => {
+  // const { getVariants } = useAnimation();
   const { user } = useAuth();
-  const { walletBalance, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance } = useDashboard();
+  const { walletBalance, setSuppressWalletBalance, setPrevWalletBalance } = useDashboard();
 
   const [betAmount, setBetAmount] = useState('');
   const [isSpinning, setIsSpinning] = useState(false);
@@ -48,7 +54,7 @@ export const Slots = () => {
   const [isJackpot, setIsJackpot] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: undefined, height: undefined });
   const [jackpotPool, setJackpotPool] = useState(0);
-  const [freeSpins, setFreeSpins] = useState(0);
+  // const [freeSpins, setFreeSpins] = useState(0);
   const [showFreeSpinModal, setShowFreeSpinModal] = useState(false);
   const [autoSpinEnabled, setAutoSpinEnabled] = useState(false);
   const [autoSpinCount, setAutoSpinCount] = useState(1);
@@ -113,27 +119,27 @@ export const Slots = () => {
     }
     // console.log('[DEBUG] handleAllReelsAnimationComplete fired');
     // Retrieve response data and original bet amount from the ref
-    const { won, winnings, isJackpot, freeSpins, usedFreeSpin, winType, amount: betAmountUsed } = responseRef.current || {};
+    const { won, winnings, isJackpot, usedFreeSpin, winType, amount: betAmountUsed } = responseRef.current || {};
     let messageText = '';
     if (isJackpot) {
-      messageText = `JACKPOT! 🎉 You won ${Math.round(winnings)} points!`;
+      messageText = `JACKPOT! 🎉 You won ${formatDisplayNumber(winnings)} points!`;
       jackpotSound.play();
     } else if (winType === 'two-sevens') {
-      messageText = `Two 7️⃣! You win 5x your bet: ${Math.round(winnings)} points!`;
+      messageText = `Two 7️⃣! You win 5x your bet: ${formatDisplayNumber(winnings)} points!`;
       winSound.play();
     } else if (winType === 'two-matching') {
-      messageText = `Two matching symbols! You win 2x your bet: ${Math.round(winnings)} points!`;
+      messageText = `Two matching symbols! You win 2x your bet: ${formatDisplayNumber(winnings)} points!`;
       winSound.play();
     } else if (winType === 'three-of-a-kind') {
-      messageText = `Three of a kind! You win ${Math.round(winnings)} points!`;
+      messageText = `Three of a kind! You win ${formatDisplayNumber(winnings)} points!`;
       winSound.play();
     } else if (won) {
-      messageText = `You won ${Math.round(winnings)} points!`;
+      messageText = `You won ${formatDisplayNumber(winnings)} points!`;
       winSound.play();
     } else if (usedFreeSpin) {
       messageText = `You used a free spin!`;
     } else if (betAmountUsed) {
-      messageText = `You lost ${Math.round(betAmountUsed)} points.`;
+      messageText = `You lost ${formatDisplayNumber(betAmountUsed)} points.`;
     }
     setResultMessage(messageText);
     toast[won || isJackpot ? 'success' : 'error'](messageText);
@@ -226,18 +232,25 @@ export const Slots = () => {
   }, []);
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-start bg-[#18191C] bg-[length:100%_100%] p-0 m-0 relative font-sans" style={{ fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', lineHeight: 1.5 }}>
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 24 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="min-h-screen w-full flex flex-col items-center justify-start bg-background p-0 m-0 relative font-sans"
+      style={{ fontFamily: 'Inter, Roboto, Nunito Sans, sans-serif', lineHeight: 1.5 }}
+    >
       <div className="w-full max-w-2xl mx-auto px-2 sm:px-6 lg:px-8 py-8 flex flex-col items-center">
-        <h1 className="text-3xl font-bold text-text-primary mb-2 tracking-tight text-center">Slots</h1>
+        <h1 className="text-3xl font-bold text-text-primary mb-2 tracking-tight text-center font-display">Slots</h1>
         {/* Jackpot Pool Display */}
-        <div className="flex flex-col items-center my-6 w-full">
-          <div className="bg-gradient-to-r from-yellow-300 to-yellow-500 rounded-xl shadow-lg px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 border-2 border-yellow-400 w-full max-w-lg">
+        <AnimatedElement variant="SCALE_IN" delay={0.3} className="flex flex-col items-center my-6 w-full">
+          <div className="bg-gradient-to-r from-accent to-accent/80 rounded-xl shadow-lg px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 border-2 border-accent w-full max-w-lg">
             <span className="text-3xl">💰</span>
-            <span className="text-xl sm:text-2xl font-bold text-yellow-900 tracking-wide">Jackpot Pool:</span>
-            <span className="text-xl sm:text-2xl font-mono text-yellow-900">{jackpotPool.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points</span>
+            <span className="text-xl sm:text-2xl font-bold text-text-primary tracking-wide font-heading">Jackpot Pool:</span>
+            <span className="text-xl sm:text-2xl font-mono text-text-primary">{formatDisplayNumber(jackpotPool)} points</span>
           </div>
-        </div>
-        <div className="w-full bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-6 text-center">
+        </AnimatedElement>
+        <AnimatedElement variant="FADE_IN_UP" delay={0.4} className="w-full bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-6 text-center">
           {/* Confetti for Jackpot */}
           {isJackpot && !isSpinning && windowSize.width && windowSize.height && (
             <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={180} recycle={false} />
@@ -255,22 +268,24 @@ export const Slots = () => {
             symbolImages={symbolImages}
           />
           {/* Free Spin Modal */}
-          <Modal
-            isOpen={showFreeSpinModal}
-            onRequestClose={() => setShowFreeSpinModal(false)}
-            className="bg-white rounded-lg shadow-xl p-8 max-w-sm mx-auto mt-32 text-center outline-none"
-            overlayClassName="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center"
-            ariaHideApp={false}
+          <RadixDialog
+            open={showFreeSpinModal}
+            onOpenChange={setShowFreeSpinModal}
+            title="🆓 Free Spin!"
+            className="text-center"
           >
-            <div className="text-3xl mb-4">🆓 Free Spin!</div>
-            <div className="text-lg mb-6">Congratulations! Your next spin is <span className="font-bold text-green-600">FREE</span>!</div>
-            <button
-              onClick={() => setShowFreeSpinModal(false)}
-              className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary/90 focus:outline-none"
-            >
-              OK
-            </button>
-          </Modal>
+            <div className="text-lg mb-6 text-text-primary font-base">
+              Congratulations! Your next spin is <span className="font-bold text-success">FREE</span>!
+            </div>
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowFreeSpinModal(false)}
+                className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary/90 focus:outline-none font-base transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </RadixDialog>
           {/* Auto Spin Controls */}
           <div className="flex items-center justify-center gap-4 mb-2">
             <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -284,7 +299,7 @@ export const Slots = () => {
                 disabled={isSpinning || autoSpinProgress > 0}
                 className="form-checkbox h-5 w-5 text-primary"
               />
-              <span className="text-text-primary font-medium">Auto Spin</span>
+              <span className="text-text-primary font-medium font-base">Auto Spin</span>
             </label>
             <input
               type="number"
@@ -293,11 +308,11 @@ export const Slots = () => {
               value={autoSpinCount}
               onChange={e => setAutoSpinCount(Math.max(1, Math.min(50, Number(e.target.value))))}
               disabled={!autoSpinEnabled || isSpinning || autoSpinProgress > 0}
-              className="w-16 px-2 py-1 border border-border rounded-md bg-background text-sm no-spinners text-center"
+              className="w-16 px-2 py-1 border border-text-secondary rounded-md bg-background text-sm no-spinners text-center text-text-primary font-mono"
             />
-            <span className="text-text-secondary">spins</span>
+            <span className="text-text-secondary font-base">spins</span>
             {autoSpinProgress > 0 && (
-              <span className="ml-2 text-primary font-semibold">Auto-spinning: {autoSpinProgress}/{autoSpinCount}</span>
+              <span className="ml-2 text-primary font-semibold font-base">Auto-spinning: {autoSpinProgress}/{autoSpinCount}</span>
             )}
           </div>
           <form
@@ -314,7 +329,7 @@ export const Slots = () => {
             className="space-y-4 w-full max-w-xs mx-auto"
           >
             <div>
-              <label htmlFor="betAmount" className="block text-sm font-medium text-text-secondary">Bet Amount</label>
+              <label htmlFor="betAmount" className="block text-sm font-medium text-text-secondary font-heading">Bet Amount</label>
               <input
                 type="number"
                 id="betAmount"
@@ -323,7 +338,7 @@ export const Slots = () => {
                 onChange={(e) => setBetAmount(e.target.value)}
                 required
                 min="1"
-                className="mt-1 block w-full px-3 py-2 text-base bg-background border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md no-spinners text-center"
+                className="mt-1 block w-full px-3 py-2 text-base bg-background border-text-secondary focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md no-spinners text-center text-text-primary font-mono"
                 placeholder="e.g., 100"
                 disabled={isSpinning || autoSpinProgress > 0}
               />
@@ -332,7 +347,7 @@ export const Slots = () => {
               <button
                 type="submit"
                 disabled={isSpinning || autoSpinProgress > 0 || !betAmount || parseInt(betAmount, 10) <= 0 || parseInt(betAmount, 10) > walletBalance}
-                className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${(isSpinning || autoSpinProgress > 0) ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
+                className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${(isSpinning || autoSpinProgress > 0) ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary font-base`}
               >
                 {(isSpinning || autoSpinProgress > 0)
                   ? (autoSpinProgress > 0 ? `Auto-spinning... (${autoSpinProgress}/${autoSpinCount})` : 'Spinning...')
@@ -344,10 +359,10 @@ export const Slots = () => {
           {/* {resultMessage && (
             <div className="mt-4 text-lg font-semibold text-text-primary text-center">{resultMessage}</div>
           )} */}
-        </div>
+        </AnimatedElement>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
-export default Slots; 
+export default Slots;

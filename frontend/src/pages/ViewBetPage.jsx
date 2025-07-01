@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { BetDetails } from './BetDetails';
+import { motion } from 'framer-motion';
 
 const ViewBetPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const betIdParam = searchParams.get('betId') || '';
   const [searchBetId, setSearchBetId] = useState(betIdParam);
   const [betCanceled, setBetCanceled] = useState(false);
@@ -36,29 +37,35 @@ const ViewBetPage = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
-      <h1 className="text-3xl font-bold text-text-primary mb-8 tracking-tight text-center">Find Bet by ID</h1>
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 24 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full"
+    >
+      <h1 className="text-3xl font-bold text-text-primary mb-8 tracking-tight text-center font-display">Find Bet by ID</h1>
       <form
         className="flex flex-col sm:flex-row gap-4 items-center justify-center mb-10 w-full"
         onSubmit={handleSearch}
       >
         <input
           type="text"
-          className="w-full sm:w-80 px-3 py-2 rounded border border-border bg-background text-text-primary focus:outline-none focus:ring-primary focus:border-primary"
+          className="w-full sm:w-80 px-3 py-2 rounded border border-border bg-background text-text-primary focus:outline-none focus:ring-primary focus:border-primary font-base"
           placeholder="Enter Bet ID..."
           value={searchBetId}
           onChange={e => setSearchBetId(e.target.value)}
         />
         <button
           type="submit"
-          className="px-6 py-2 rounded bg-primary text-white font-semibold hover:bg-primary/90"
+          className="px-6 py-2 rounded bg-primary text-white font-semibold hover:bg-primary/90 font-base"
           disabled={!searchBetId.trim()}
         >
           Search
         </button>
         <button
           type="button"
-          className="px-6 py-2 rounded bg-surface text-text-primary border border-border font-semibold hover:bg-primary/5"
+          className="px-6 py-2 rounded bg-surface text-text-primary border border-border font-semibold hover:bg-primary/5 font-base"
           onClick={handleClear}
           disabled={!searchBetId}
         >
@@ -73,7 +80,7 @@ const ViewBetPage = () => {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

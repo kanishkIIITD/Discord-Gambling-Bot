@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserPreferences, updateUserPreferences } from '../services/api';
 import { toast } from 'react-hot-toast';
+import { Checkbox } from '../components/Checkbox';
+import { motion } from 'framer-motion';
 
 export const Preferences = () => {
   const { user } = useAuth();
@@ -83,16 +85,22 @@ export const Preferences = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <h1 className="text-3xl font-bold text-text-primary mb-8 tracking-tight text-center">Preferences</h1>
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 24 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full"
+    >
+      <h1 className="text-3xl font-bold text-text-primary mb-8 tracking-tight text-center font-display">Preferences</h1>
 
       <div className="bg-card rounded-lg shadow-lg p-4 sm:p-6 space-y-6">
         <form onSubmit={handleSavePreferences} className="space-y-6">
           <div>
-            <h2 className="text-2xl font-semibold text-text-primary mb-4 tracking-wide">Display Settings</h2>
+            <h2 className="text-2xl font-semibold text-text-primary mb-4 tracking-wide font-heading">Display Settings</h2>
             <div className="space-y-4">
               <div>
-                <label htmlFor="itemsPerPage" className="block text-sm font-medium text-text-secondary mb-1">Items per page (Tables)</label>
+                <label htmlFor="itemsPerPage" className="block text-sm font-medium text-text-secondary mb-1 font-base">Items per page (Tables)</label>
                 <input
                   type="number"
                   id="itemsPerPage"
@@ -101,37 +109,33 @@ export const Preferences = () => {
                   onChange={(e) => setItemsPerPage(parseInt(e.target.value, 10))}
                   min="5"
                   max="100"
-                  className="mt-1 block w-full md:w-auto px-3 py-2 text-base bg-background border border-border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm no-spinners"
+                  className="mt-1 block w-full md:w-auto px-3 py-2 text-base bg-background border border-border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm no-spinners font-base"
                 />
               </div>
             </div>
           </div>
 
           <div>
-            <h2 className="text-2xl font-semibold text-text-primary mb-4 tracking-wide">Transaction/Betting Settings</h2>
+            <h2 className="text-2xl font-semibold text-text-primary mb-4 tracking-wide font-heading">Transaction/Betting Settings</h2>
             <div className="flex items-center">
-              <input
-                id="confirmBetPlacement"
-                name="confirmBetPlacement"
-                type="checkbox"
+              <Checkbox
                 checked={confirmBetPlacement}
-                onChange={(e) => setConfirmBetPlacement(e.target.checked)}
-                className="h-4 w-4 text-primary border-border rounded focus:ring-primary"
+                onCheckedChange={setConfirmBetPlacement}
+                label="Require confirmation before placing a bet."
               />
-              <label htmlFor="confirmBetPlacement" className="ml-2 block text-sm text-text-secondary">Require confirmation before placing a bet.</label>
             </div>
           </div>
 
           {/* Slot Machine Settings - Professional Card Section */}
           <div className="mt-8">
             <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl shadow p-6 border border-primary/20">
-              <h2 className="text-xl font-bold text-primary mb-4 tracking-wide flex items-center gap-2">
+              <h2 className="text-xl font-bold text-primary mb-4 tracking-wide flex items-center gap-2 font-heading">
                 <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>
                 Slot Machine Settings
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="slotAutoSpinDelay" className="block text-sm font-medium text-text-secondary mb-1">Auto-Spin Delay (ms)</label>
+                  <label htmlFor="slotAutoSpinDelay" className="block text-sm font-medium text-text-secondary mb-1 font-base">Auto-Spin Delay (ms)</label>
                   <input
                     type="number"
                     id="slotAutoSpinDelay"
@@ -141,11 +145,11 @@ export const Preferences = () => {
                     min={0}
                     max={5000}
                     step={50}
-                    className="mt-1 block w-full px-3 py-2 text-base bg-background border border-border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm no-spinners"
+                    className="mt-1 block w-full px-3 py-2 text-base bg-background border border-border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm no-spinners font-base"
                   />
                 </div>
                 <div>
-                  <label htmlFor="slotAutoSpinDefaultCount" className="block text-sm font-medium text-text-secondary mb-1">Default Auto-Spin Count</label>
+                  <label htmlFor="slotAutoSpinDefaultCount" className="block text-sm font-medium text-text-secondary mb-1 font-base">Default Auto-Spin Count</label>
                   <input
                     type="number"
                     id="slotAutoSpinDefaultCount"
@@ -154,7 +158,7 @@ export const Preferences = () => {
                     onChange={e => setSlotAutoSpinDefaultCount(Number(e.target.value))}
                     min={1}
                     max={50}
-                    className="mt-1 block w-full px-3 py-2 text-base bg-background border border-border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm no-spinners"
+                    className="mt-1 block w-full px-3 py-2 text-base bg-background border border-border rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm no-spinners font-base"
                   />
                 </div>
               </div>
@@ -166,13 +170,13 @@ export const Preferences = () => {
             <button
               type="submit"
               disabled={isSaving || loading}
-              className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${isSaving ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
+              className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white font-base ${isSaving ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
             >
               {isSaving ? 'Saving...' : 'Save Preferences'}
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </motion.div>
   );
 }; 

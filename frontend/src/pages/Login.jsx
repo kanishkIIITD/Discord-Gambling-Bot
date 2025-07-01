@@ -1,6 +1,26 @@
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { Navigation } from '../components/Navigation';
+import { motion } from 'framer-motion';
+import OptimizedImage from '../components/OptimizedImage';
+
+const containerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.6,
+      ease: 'easeOut',
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
+};
 
 export const Login = () => {
   const { login } = useAuth();
@@ -8,60 +28,78 @@ export const Login = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
           <div className="w-full max-w-md">
-            <div className="bg-card rounded-lg shadow p-8 space-y-8">
-              <div className="text-center space-y-2">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent tracking-tight">
+            <motion.div
+              className="bg-card rounded-lg shadow p-8 space-y-8"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <motion.div className="text-center space-y-2" variants={itemVariants}>
+                <motion.h1
+                  className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent tracking-tight font-display"
+                  animate={{ scale: [1, 1.03, 1] }}
+                  transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+                >
                   Gambling Bot
-                </h1>
-                <p className="text-text-secondary leading-relaxed tracking-wide">
+                </motion.h1>
+                <p className="text-text-secondary leading-relaxed tracking-wide font-accent">
                   Your ultimate Discord gambling companion
                 </p>
-              </div>
+              </motion.div>
 
-              <div className="space-y-6">
+              <motion.div className="space-y-6" variants={itemVariants}>
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-border"></div>
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-card text-text-secondary tracking-wide">
+                    <span className="px-4 bg-card text-text-secondary tracking-wide font-base">
                       Sign in to continue
                     </span>
                   </div>
                 </div>
 
-                <button
+                <motion.button
                   onClick={login}
-                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary tracking-wide"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary tracking-wide transition-transform font-base"
                 >
-                  <img 
+                  <OptimizedImage 
                     src="/discord-logo.svg" 
                     alt="Discord" 
-                    className="h-6 w-6 mr-2"
+                    width={24} 
+                    height={24} 
+                    className="mr-2" 
+                    ariaLabel="Discord logo"
                   />
                   <span>Continue with Discord</span>
-                </button>
+                </motion.button>
 
-                <div className="text-center space-y-4">
-                  <p className="text-sm text-text-secondary leading-relaxed tracking-wide">
+                <motion.div className="text-center space-y-4" variants={itemVariants}>
+                  <p className="text-sm text-text-secondary leading-relaxed tracking-wide font-base">
                     By continuing, you agree to our{' '}
-                    <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
-                    {' '}and{' '}
-                    <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
+                    <Link to="/terms" className="text-primary hover:underline">
+                      Terms of Service
+                    </Link>{' '}
+                    and{' '}
+                    <Link to="/privacy" className="text-primary hover:underline">
+                      Privacy Policy
+                    </Link>
                   </p>
-                  <p className="text-xs text-text-secondary tracking-wide">
+                  <p className="text-xs text-text-secondary tracking-wide font-base">
                     Must be 18+ to use this service
                   </p>
-                </div>
-              </div>
-            </div>
+                </motion.div>
+              </motion.div>
+            </motion.div>
           </div>
         </div>
       </main>
     </div>
   );
-}; 
+};

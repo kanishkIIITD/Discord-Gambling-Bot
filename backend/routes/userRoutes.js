@@ -1578,7 +1578,7 @@ router.post('/:discordId/penalize-liar', requireGuildId, async (req, res) => {
     const user = req.user;
     const wallet = req.wallet;
     
-    const penaltyAmount = 10000000; // 10 million
+    const penaltyAmount = 1000000; // 1 million
     let deductedAmount;
 
     if (wallet.balance >= penaltyAmount) {
@@ -3960,7 +3960,7 @@ router.post('/:discordId/beg', async (req, res) => {
     let outcome, amount = 0, message;
     if (roll < 0.65) {
       // Small coin gain
-      amount = Math.floor(Math.random() * 50000) + 10000;
+      amount = Math.floor(Math.random() * 5000) + 1000;
       wallet.balance += amount;
       outcome = 'success';
       const texts = [
@@ -4001,7 +4001,7 @@ router.post('/:discordId/beg', async (req, res) => {
     } else if (roll < 0.97) {
       // Negative event
       outcome = 'negative';
-      amount = Math.floor(Math.random() * 20000) + 5000;
+      amount = Math.floor(Math.random() * 2500) + 500;
       wallet.balance = Math.max(0, wallet.balance - amount);
       const texts = [
         `A thief snatched ${amount.toLocaleString('en-US')} points from you!`,
@@ -4021,7 +4021,7 @@ router.post('/:discordId/beg', async (req, res) => {
       message = texts[Math.floor(Math.random() * texts.length)];
     } else {
       // Rare big reward
-      amount = Math.floor(Math.random() * 5000000) + 5000000;
+      amount = Math.floor(Math.random() * 50000) + 5000;
       wallet.balance += amount;
       outcome = 'jackpot';
       const texts = [

@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { ConfirmModal } from '../components/ConfirmModal';
+import RadixDialog from '../components/RadixDialog';
 import { InformationCircleIcon, PlusCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { motion } from 'framer-motion';
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
@@ -19,8 +22,34 @@ const CreateBetPage = () => {
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // Animation variants
+  const pageVariants = {
+    initial: { opacity: 0, y: 20 },
+    animate: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.1, 0.25, 1.0],
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    initial: { opacity: 0, y: 10 },
+    animate: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: [0.25, 0.1, 0.25, 1.0]
+      }
+    }
+  };
+
   if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
-    return <div className="max-w-2xl mx-auto px-4 py-8 text-center text-error text-lg font-semibold">Access denied. Admins only.</div>;
+    return <div className="max-w-2xl mx-auto px-4 py-8 text-center text-error text-lg font-semibold font-base">Access denied. Admins only.</div>;
   }
 
   const handleOptionChange = (idx, value) => {
@@ -133,17 +162,32 @@ const CreateBetPage = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-      <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center">Create Bet</h1>
-      <form onSubmit={handleSubmit} className="bg-card rounded-2xl shadow-2xl p-8 space-y-8 border border-border relative" aria-label="Create Bet Form">
-        <div>
-          <h2 className="text-lg font-semibold text-primary mb-2 flex items-center gap-2">Bet Description</h2>
+    <motion.div 
+      className="min-h-screen max-w-2xl mx-auto px-4 py-8"
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+    >
+      <motion.h1 
+        className="text-3xl font-bold text-text-primary mb-6 tracking-tight text-center font-display"
+        variants={itemVariants}
+      >
+        Create Bet
+      </motion.h1>
+      <motion.form 
+        onSubmit={handleSubmit} 
+        className="bg-card rounded-2xl shadow-2xl p-8 space-y-8 border border-border relative" 
+        aria-label="Create Bet Form"
+        variants={itemVariants}
+      >
+        <motion.div variants={itemVariants}>
+          <h2 className="text-lg font-semibold text-primary mb-2 flex items-center gap-2 font-heading">Bet Description</h2>
           <hr className="mb-3 border-border" />
-          <label className="block text-sm font-medium text-text-secondary mb-1" htmlFor="description">Description <span className="text-error">*</span></label>
+          <label className="block text-sm font-medium text-text-secondary mb-1 font-base" htmlFor="description">Description <span className="text-error">*</span></label>
           <input
             id="description"
             type="text"
-            className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+            className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all font-base"
             value={description}
             onChange={e => e.target.value.length <= MAX_DESCRIPTION_LENGTH && setDescription(e.target.value)}
             required
@@ -152,23 +196,29 @@ const CreateBetPage = () => {
             aria-required="true"
             aria-label="Bet Description"
           />
-          <div className="text-xs text-text-secondary mt-1 flex justify-between">
+          <div className="text-xs text-text-secondary mt-1 flex justify-between font-base">
             <span>{description.length}/{MAX_DESCRIPTION_LENGTH} characters</span>
             {!description.trim() && <span className="text-error">Required</span>}
           </div>
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-primary mb-2 flex items-center gap-2">Bet Options</h2>
+        </motion.div>
+        <motion.div variants={itemVariants}>
+          <h2 className="text-lg font-semibold text-primary mb-2 flex items-center gap-2 font-heading">Bet Options</h2>
           <hr className="mb-3 border-border" />
-          <label className="block text-sm font-medium text-text-secondary mb-1">Options <span className="text-error">*</span></label>
+          <label className="block text-sm font-medium text-text-secondary mb-1 font-base">Options <span className="text-error">*</span></label>
           <div className="space-y-2 transition-all">
             {options.map((opt, idx) => {
               const error = getOptionError(opt, idx);
               return (
-                <div key={idx} className="flex items-center gap-2 group transition-all">
+                <motion.div 
+                  key={idx} 
+                  className="flex items-center gap-2 group transition-all"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: idx * 0.05 }}
+                >
                   <input
                     type="text"
-                    className={`flex-1 px-3 py-2 rounded border bg-background text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all ${error ? 'border-error' : 'border-border'}`}
+                    className={`flex-1 px-3 py-2 rounded border bg-background text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all font-base ${error ? 'border-error' : 'border-border'}`}
                     value={opt}
                     onChange={e => handleOptionChange(idx, e.target.value)}
                     required
@@ -180,84 +230,101 @@ const CreateBetPage = () => {
                   {options.length > 1 && (
                     <button type="button" onClick={() => handleRemoveOption(idx)} className="text-error p-1 rounded hover:bg-error/10 transition-colors" aria-label={`Remove Option ${idx + 1}`}> <TrashIcon className="h-5 w-5" /> </button>
                   )}
-                  {error && <span className="text-xs text-error ml-2">{error}</span>}
-                </div>
+                  {error && <span className="text-xs text-error ml-2 font-base">{error}</span>}
+                </motion.div>
               );
             })}
           </div>
           <button
             type="button"
             onClick={handleAddOption}
-            className="mt-3 px-3 py-1 rounded bg-primary text-white hover:bg-primary/90 flex items-center gap-1 font-medium transition-transform duration-150 active:scale-95"
+            className="mt-3 px-3 py-1 rounded bg-primary text-white hover:bg-primary/90 flex items-center gap-1 font-medium transition-transform duration-150 active:scale-95 font-base"
             aria-label="Add Option"
           >
             <PlusCircleIcon className="h-5 w-5" /> Add Option
           </button>
-          <div className="text-xs text-text-secondary mt-1">{options.filter(opt => opt.trim()).length}/2+ options required, {MAX_OPTION_LENGTH} chars max each, must be unique.</div>
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-primary mb-2 flex items-center gap-2">Closing Time <span className="text-xs text-text-secondary font-normal">(optional)</span>
+          <div className="text-xs text-text-secondary mt-1 font-base">{options.filter(opt => opt.trim()).length}/2+ options required, {MAX_OPTION_LENGTH} chars max each, must be unique.</div>
+        </motion.div>
+        <motion.div variants={itemVariants}>
+          <h2 className="text-lg font-semibold text-primary mb-2 flex items-center gap-2 font-heading">Closing Time <span className="text-xs text-text-secondary font-normal font-base">(optional)</span>
             <span className="ml-1" title="If set, users can only bet until this time."><InformationCircleIcon className="h-4 w-4 text-info inline" /></span>
           </h2>
           <hr className="mb-3 border-border" />
-          <label className="block text-sm font-medium text-text-secondary mb-1" htmlFor="closingTime">Closing Time</label>
-          <input
+          <label className="block text-sm font-medium text-text-secondary mb-1 font-base" htmlFor="closingTime">Closing Time</label>
+          <DatePicker
             id="closingTime"
-            type="datetime-local"
-            className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-            value={closingTime}
-            onChange={e => setClosingTime(e.target.value)}
+            selected={closingTime ? new Date(closingTime) : null}
+            onChange={date => setClosingTime(date ? date.toISOString() : '')}
+            showTimeSelect
+            timeFormat="HH:mm"
+            timeIntervals={15}
+            dateFormat="yyyy-MM-dd HH:mm"
+            minDate={new Date()}
+            className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all font-base"
+            placeholderText="Select closing date and time"
             aria-label="Closing Time"
           />
-          {closingTime && (
-            <div className="text-xs text-info mt-1">Closes: {new Date(closingTime).toLocaleString()}</div>
-          )}
-        </div>
-        <div className="flex gap-2 mt-4">
-          <button
-            type="submit"
-            disabled={loading || !canSubmit}
-            className={`flex-1 py-2 px-4 rounded bg-primary text-white font-semibold flex items-center justify-center ${loading || !canSubmit ? 'opacity-60 cursor-not-allowed' : 'hover:bg-primary/90'} transition-all`}
-            aria-label="Create Bet"
-          >
-            {loading ? <span className="animate-spin mr-2 h-4 w-4 border-t-2 border-b-2 border-white rounded-full"></span> : null}
-            {loading ? 'Creating...' : 'Create Bet'}
-          </button>
+          <div className="text-xs text-text-secondary mt-1 font-base">If set, users can only bet until this time. Leave blank for no time limit.</div>
+        </motion.div>
+
+        {/* Confirmation Dialog */}
+        <RadixDialog
+          open={showConfirm}
+          onOpenChange={setShowConfirm}
+          title="Confirm Bet Creation"
+          description="Are you sure you want to create this bet? This action cannot be undone."
+          className="max-w-md"
+        >
+          <div className="mb-4 text-text-secondary">
+            <p className="mb-2"><strong>Description:</strong> {description}</p>
+            <p className="mb-2"><strong>Options:</strong> {options.filter(opt => opt.trim()).join(', ')}</p>
+            {closingTime && (
+              <p className="mb-2"><strong>Closing Time:</strong> {new Date(closingTime).toLocaleString()}</p>
+            )}
+            {!closingTime && (
+              <p className="mb-2"><strong>No closing time set</strong></p>
+            )}
+          </div>
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setShowConfirm(false)}
+              className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              className="px-4 py-2 rounded bg-primary text-white hover:bg-primary/90 transition-colors font-medium"
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : 'Create Bet'}
+            </button>
+          </div>
+        </RadixDialog>
+
+        <motion.div className="flex justify-end gap-3 pt-4" variants={itemVariants}>
           <button
             type="button"
             onClick={handleClear}
+            className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
             disabled={loading}
-            className="flex-1 py-2 px-4 rounded bg-surface text-text-secondary border border-border font-semibold hover:bg-primary/5 transition-colors"
-            aria-label="Clear Form"
           >
             Clear
           </button>
-        </div>
-        <div className="text-xs text-text-secondary mt-2">Fields marked <span className="text-error">*</span> are required.</div>
-        <ConfirmModal
-          open={showConfirm}
-          title="Confirm Bet Creation"
-          message={
-            <div className="space-y-2 text-left">
-              <div><span className="font-semibold text-text-primary">Description:</span> {description}</div>
-              <div><span className="font-semibold text-text-primary">Options:</span>
-                <ul className="list-disc ml-6">
-                  {options.filter(opt => opt.trim()).map((opt, idx) => (
-                    <li key={idx}>{opt}</li>
-                  ))}
-                </ul>
-              </div>
-              {closingTime && <div><span className="font-semibold text-text-primary">Closing Time:</span> {new Date(closingTime).toLocaleString()}</div>}
-            </div>
-          }
-          onConfirm={handleConfirm}
-          onCancel={() => setShowConfirm(false)}
-          confirmText={loading ? 'Creating...' : 'Confirm'}
-          cancelText="Cancel"
-          loading={loading}
-        />
-      </form>
-    </div>
+          <button
+            type="submit"
+            className={`px-4 py-2 rounded text-white transition-colors font-medium ${canSubmit ? 'bg-primary hover:bg-primary/90' : 'bg-gray-400 cursor-not-allowed'}`}
+            disabled={!canSubmit || loading}
+          >
+            {loading ? 'Creating...' : 'Create Bet'}
+          </button>
+        </motion.div>
+      </motion.form>
+    </motion.div>
   );
 };
-export default CreateBetPage; 
+
+export default CreateBetPage;

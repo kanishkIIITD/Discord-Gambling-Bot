@@ -4,6 +4,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { useDashboard } from '../contexts/DashboardContext';
 import { GiftIcon, UserIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { motion } from 'framer-motion';
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
@@ -104,19 +105,25 @@ export const GiftPoints = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10 animate-fade-in">
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 24 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="max-w-2xl mx-auto px-4 py-10 animate-fade-in"
+    >
       <div className="flex flex-col items-center mb-6">
         <div className="bg-primary/10 rounded-full p-3 mb-2">
           <GiftIcon className="h-10 w-10 text-primary" aria-hidden="true" />
         </div>
-        <h1 className="text-3xl font-bold text-text-primary tracking-tight text-center">Gift Points</h1>
-        <p className="text-text-secondary mt-2 text-center max-w-md">Send your points to another Discord user instantly and securely.</p>
+        <h1 className="text-3xl font-bold text-text-primary tracking-tight text-center font-display">Gift Points</h1>
+        <p className="text-text-secondary mt-2 text-center max-w-md font-base">Send your points to another Discord user instantly and securely.</p>
       </div>
 
       <div className="bg-card rounded-xl shadow-lg p-8 space-y-8 border border-border">
         <div className="flex items-center justify-between bg-surface/60 rounded-lg px-4 py-3">
-          <span className="text-text-secondary">Your current balance:</span>
-          <span className="flex items-center gap-1 font-semibold text-primary text-lg">
+          <span className="text-text-secondary font-base">Your current balance:</span>
+          <span className="flex items-center gap-1 font-semibold text-primary text-lg font-mono">
             <CurrencyDollarIcon className="h-5 w-5 text-primary" aria-hidden="true" />
             {walletBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} points
           </span>
@@ -124,7 +131,7 @@ export const GiftPoints = () => {
 
         <form onSubmit={handleGift} className="space-y-6">
           <div>
-            <label htmlFor="recipientUsername" className="block text-sm font-medium text-text-secondary flex items-center gap-1">
+            <label htmlFor="recipientUsername" className="block text-sm font-medium text-text-secondary flex items-center gap-1 font-base">
               <UserIcon className="h-5 w-5 text-text-secondary" aria-hidden="true" />
               Recipient Username (search)
             </label>
@@ -136,7 +143,7 @@ export const GiftPoints = () => {
               value={userSearch}
               onChange={e => setUserSearch(e.target.value)}
               autoComplete="off"
-              className="mt-1 block w-full pl-3 pr-3 py-2 text-base bg-background border border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
+              className="mt-1 block w-full pl-3 pr-3 py-2 text-base bg-background border border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md font-base"
               placeholder="Search by username"
               onBlur={() => setTimeout(() => setShowUserDropdown(false), 150)}
               onFocus={() => userSearch.length >= 2 && setShowUserDropdown(true)}
@@ -149,23 +156,23 @@ export const GiftPoints = () => {
                 {filteredUsers.map(u => (
                   <li
                     key={u.discordId}
-                    className="px-4 py-2 cursor-pointer hover:bg-primary/10 text-text-primary"
+                    className="px-4 py-2 cursor-pointer hover:bg-primary/10 text-text-primary font-base"
                     onMouseDown={() => {
                       setRecipientId(u.discordId);
                       setUserSearch(u.username);
                       setShowUserDropdown(false);
                     }}
                   >
-                    {u.username} <span className="text-xs text-text-tertiary">({u.discordId})</span>
+                    <span className="font-option">{u.username}</span> <span className="text-xs text-text-tertiary font-mono">({u.discordId})</span>
                   </li>
                 ))}
               </ul>
             )}
-            {searchLoading && <div className="text-xs text-text-tertiary mt-1">Searching...</div>}
-            <p className="text-xs text-text-tertiary mt-1">You can search by username or enter Discord ID below.</p>
+            {searchLoading && <div className="text-xs text-text-tertiary mt-1 font-base">Searching...</div>}
+            <p className="text-xs text-text-tertiary mt-1 font-base">You can search by username or enter Discord ID below.</p>
           </div>
           <div>
-            <label htmlFor="amount" className="block text-sm font-medium text-text-secondary flex items-center gap-1">
+            <label htmlFor="amount" className="block text-sm font-medium text-text-secondary flex items-center gap-1 font-base">
               <CurrencyDollarIcon className="h-5 w-5 text-text-secondary" aria-hidden="true" />
               Amount
             </label>
@@ -178,7 +185,7 @@ export const GiftPoints = () => {
                 onChange={(e) => setAmount(e.target.value)}
                 required
                 min="1"
-                className="block w-full pl-10 pr-3 py-2 text-base bg-background border border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md no-spinners"
+                className="block w-full pl-10 pr-3 py-2 text-base bg-background border border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md no-spinners font-base"
                 placeholder="Enter amount"
                 autoComplete="off"
               />
@@ -186,13 +193,13 @@ export const GiftPoints = () => {
                 <CurrencyDollarIcon className="h-5 w-5" aria-hidden="true" />
               </span>
             </div>
-            <p className="text-xs text-text-tertiary mt-1">You can send up to your current balance.</p>
+            <p className="text-xs text-text-tertiary mt-1 font-base">You can send up to your current balance.</p>
           </div>
           <div>
             <button
               type="submit"
               disabled={isGifting || amount <= 0 || amount > walletBalance || !recipientId}
-              className={`w-full inline-flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent shadow-sm text-base font-semibold rounded-lg text-white ${isGifting ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-150`}
+              className={`w-full inline-flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent shadow-sm text-base font-semibold rounded-lg text-white font-base ${isGifting ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-150`}
             >
               {isGifting ? (
                 <>
@@ -209,6 +216,6 @@ export const GiftPoints = () => {
           </div>
         </form>
       </div>
-    </div>
+    </motion.div>
   );
 }; 

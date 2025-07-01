@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.15",
+    "@tsparticles/engine": "^3.8.1",
     "express-session": "^1.18.1",
     "framer-motion": "^12.15.0",
     "howler": "^2.2.4",

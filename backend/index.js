@@ -23,6 +23,7 @@ const serverless = require('serverless-http');
 const Duel = require('./models/Duel');
 const Wallet = require('./models/Wallet');
 const serverRoutes = require('./routes/serverRoutes');
+const statisticsRoutes = require('./routes/statisticsRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -78,6 +79,7 @@ wss.on('connection', (ws, request) => {
 setWebSocketServer(wss);
 
 // Middleware to parse JSON bodies
+// Wehen updating cors, make sure to update the serverless.yml file
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
@@ -134,6 +136,7 @@ app.use('/api/gambling', gamblingRoutes);
 app.use('/api/misc', miscRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/servers', serverRoutes);
+app.use('/api/statistics', statisticsRoutes);
 
 app.get('/', (req, res) => {
   res.send('Hello from the backend!');

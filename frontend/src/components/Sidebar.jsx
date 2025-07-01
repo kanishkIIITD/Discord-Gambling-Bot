@@ -1,13 +1,48 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
-export const Sidebar = () => {
+export const Sidebar = ({ onCollapse, collapsed, isMobile }) => {
   const location = useLocation();
   const [expandedSections, setExpandedSections] = useState({});
-  const [collapsed, setCollapsed] = useState(false); // Sidebar collapse state
   const { user } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false); // For mobile sidebar
+  const sidebarRef = useRef(null);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  
+  // Handle touch gestures for mobile swipe
+  const handleTouchStart = (e) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+  
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    if (isLeftSwipe && !collapsed) {
+      // Close sidebar on left swipe when open
+      onCollapse(true);
+    } else if (isRightSwipe && collapsed) {
+      // Open sidebar on right swipe when closed
+      onCollapse(false);
+    }
+    
+    // Reset values
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  // Toggle sidebar collapse state
+  const toggleCollapse = () => {
+    onCollapse(!collapsed);
+  };
 
   // Expand section if any child link is active on load
   useEffect(() => {
@@ -18,13 +53,16 @@ export const Sidebar = () => {
       }
     });
     setExpandedSections(initialExpanded);
-  }, [location.pathname]); // Re-run when location changes
+  }, [location.pathname, location.search]); // Re-run when location or search params change
 
   const isActive = (path) => {
-    // Check for exact match for single items
-    if (location.pathname === path) return true;
+    // Extract pathname from path if it contains query parameters
+    const pathWithoutQuery = path.split('?')[0];
+    
+    // Check for exact match for single items (ignoring query parameters)
+    if (location.pathname === pathWithoutQuery) return true;
     // Check if path is a prefix for section links (e.g., /dashboard/betting)
-    if (path.endsWith('/') && location.pathname.startsWith(path)) return true;
+    if (pathWithoutQuery.endsWith('/') && location.pathname.startsWith(pathWithoutQuery)) return true;
     // Check if current path is a child of a section path (e.g. /dashboard/betting/active is child of /dashboard/betting)
     if (sectionPaths[path] && location.pathname.startsWith(sectionPaths[path])) return true;
     return false;
@@ -83,6 +121,14 @@ export const Sidebar = () => {
       ]
     },
     {
+      title: 'STATISTICS',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
+      ),
+      path: '/dashboard/statistics?range=7days',
+      isDirect: true
+    },
+    {
       title: 'LEADERBOARD',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20v-6m0 0V4m0 10l-4 4m4-4l4 4m-4-4l-4-4m4 4l4-4"></path></svg>
@@ -110,7 +156,13 @@ export const Sidebar = () => {
   const sectionPaths = menuItems.reduce((acc, section) => {
     if (section.items) {
       section.items.forEach(item => {
-        acc[item.path] = section.path; // Assuming section could have a base path too, adjust if needed
+        // Extract pathname without query parameters
+        const itemPathWithoutQuery = item.path.split('?')[0];
+        const sectionPathWithoutQuery = section.path ? section.path.split('?')[0] : null;
+        
+        // Map both the full path and the path without query
+        acc[item.path] = section.path;
+        acc[itemPathWithoutQuery] = sectionPathWithoutQuery;
       });
     }
     return acc;
@@ -118,107 +170,122 @@ export const Sidebar = () => {
 
   // Adjust isActive to correctly identify active section based on child routes
   const isSectionActive = (section) => {
-    return section.items ? section.items.some(item => location.pathname.startsWith(item.path)) : false;
+    if (!section.items) return false;
+    return section.items.some(item => location.pathname.startsWith(item.path));
   };
 
   return (
     <>
-      {/* Mobile sidebar toggle button */}
-      <button
-        className="fixed z-40 bottom-6 left-6 md:hidden bg-primary text-white p-3 rounded-full shadow-lg focus:outline-none"
-        onClick={() => setMobileOpen(true)}
-        aria-label="Open sidebar"
+      {/* Sidebar */}
+      <motion.aside
+        ref={sidebarRef}
+        className={`h-full bg-card border-r border-border-primary overflow-y-auto ${collapsed ? 'w-16' : 'w-64'} ${isMobile ? 'shadow-lg' : ''}`}
+        initial={{ opacity: 0 }}
+        animate={{ 
+          opacity: 1,
+          width: collapsed ? 64 : 256,
+          x: isMobile && collapsed ? -300 : 0 // Slide out of view when collapsed on mobile
+        }}
+        transition={{ 
+          type: 'spring', 
+          stiffness: 300, 
+          damping: 30 
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-      </button>
-      {/* Sidebar overlay for mobile */}
-      <div
-        className={`fixed inset-0 z-50 bg-black bg-opacity-40 transition-opacity duration-200 md:hidden ${mobileOpen ? 'block' : 'hidden'}`}
-        onClick={() => setMobileOpen(false)}
-        aria-hidden="true"
-      />
-      {/* Sidebar itself */}
-      <div
-        className={`transition-all duration-200 h-screen fixed left-0 top-16 overflow-y-auto max-h-[calc(100vh-4rem)] border-r border-border bg-card z-50
-          ${collapsed ? 'w-16' : 'w-64'}
-          ${mobileOpen ? 'block' : 'hidden'} md:block
-        `}
-      >
-        {/* Collapse/Expand Button (desktop only) */}
-        <div className="hidden md:flex items-center justify-end p-2">
-          <button
-            onClick={() => setCollapsed((prev) => !prev)}
-            className="p-2 rounded hover:bg-primary/10 focus:outline-none"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <svg
-              className={`w-5 h-5 text-text-secondary transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4l-8 8 8 8" />
-            </svg>
-          </button>
-        </div>
-        {/* Mobile close button */}
-        <div className="md:hidden flex items-center justify-end p-2">
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="p-2 rounded hover:bg-primary/10 focus:outline-none"
-            aria-label="Close sidebar"
-          >
-            <svg className="w-6 h-6 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
+        
         <div className="p-2">
           {menuItems.map((section, index) => (
             section.isDirect ? (
-              <Link
+              <motion.div
                 key={index}
-                to={section.path}
-                className={`flex items-center px-2 py-2 mb-2 rounded-lg transition-colors text-sm font-semibold uppercase tracking-wider ${
-                  location.pathname === section.path
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
-                } ${collapsed ? 'justify-center' : ''}`}
-                title={collapsed ? section.title : undefined}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
               >
-                {section.icon}
-                {!collapsed && section.title}
-              </Link>
-            ) : (
-              <div key={index} className="mb-2 last:mb-0">
-                <button
-                  onClick={() => toggleSection(section.title)}
-                  className={`w-full flex items-center px-2 py-2 rounded-lg transition-colors justify-between ${
-                    isSectionActive(section)
-                      ? 'bg-primary/10 text-primary'
-                      : expandedSections[section.title]
-                        ? 'bg-card hover:bg-primary/5 text-text-primary'
-                        : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
-                  } ${collapsed ? 'justify-center' : ''}`}
-                  title={collapsed ? section.title : undefined}
+                <motion.div
+                  whileHover={{ scale: 1.02, x: 3 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <div className={`flex items-center ${collapsed ? 'justify-center w-full' : ''}`}>
-                    {section.icon}
+                  <Link
+                    to={section.path}
+                    className={`flex items-center px-2 py-2 mb-2 rounded-lg text-sm font-semibold uppercase tracking-wider font-heading ${
+                      isActive(section.path)
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                    } ${collapsed ? 'justify-center' : ''}`}
+                    title={collapsed ? section.title : undefined}
+                  >
+                    <motion.div
+                      animate={{ scale: location.pathname === section.path ? 1.1 : 1 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+                    >
+                      {section.icon}
+                    </motion.div>
                     {!collapsed && (
-                      <h3 className={`text-sm font-semibold uppercase tracking-wider ${
-                        isSectionActive(section) ? 'text-primary' : ''
-                      }`}>
+                      <motion.span
+                        className="font-heading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                      >
                         {section.title}
-                      </h3>
+                      </motion.span>
+                    )}
+                  </Link>
+                </motion.div>
+              </motion.div>
+            ) : (
+                <motion.div 
+                  key={index} 
+                  className="mb-2 last:mb-0"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <motion.button
+                    onClick={() => toggleSection(section.title)}
+                    className={`w-full flex items-center px-2 py-2 rounded-lg justify-between ${
+                      isSectionActive(section)
+                        ? 'bg-primary/10 text-primary'
+                        : expandedSections[section.title]
+                          ? 'bg-card hover:bg-primary/5 text-text-primary'
+                          : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                    } ${collapsed ? 'justify-center' : ''}`}
+                    title={collapsed ? section.title : undefined}
+                    whileHover={{ scale: 1.02, x: 3 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                  <div className={`flex items-center ${collapsed ? 'justify-center w-full' : ''}`}>
+                    <motion.div
+                      animate={{ scale: isSectionActive(section) ? 1.1 : 1 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+                    >
+                      {section.icon}
+                    </motion.div>
+                    {!collapsed && (
+                      <motion.h3 
+                        className={`text-sm font-semibold uppercase tracking-wider font-heading ${
+                          isSectionActive(section) ? 'text-primary' : ''
+                        }`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {section.title}
+                      </motion.h3>
                     )}
                   </div>
                   {!collapsed && (
-                    <svg
-                      className={`w-4 h-4 transition-transform duration-200 text-text-secondary ${
-                        expandedSections[section.title] ? 'rotate-180' : ''
-                      }`}
+                    <motion.svg
+                      className="w-4 h-4 text-text-secondary"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
+                      animate={{ rotate: expandedSections[section.title] ? 180 : 0 }}
+                      transition={{ duration: 0.3, type: 'spring', stiffness: 300 }}
                     >
                       <path
                         strokeLinecap="round"
@@ -226,64 +293,109 @@ export const Sidebar = () => {
                         strokeWidth={2}
                         d="M19 9l-7 7-7-7"
                       />
-                    </svg>
+                    </motion.svg>
                   )}
-                </button>
-                <div
-                  className={`overflow-hidden transition-all duration-200 ease-in-out ${
-                    expandedSections[section.title] && !collapsed ? 'max-h-96' : 'max-h-0'
-                  }`}
-                >
-                  <div className={`space-y-1 mt-1 pl-6 ${collapsed ? 'hidden' : ''}`}>
-                    {section.items.map((item, itemIndex) => (
-                      <Link
-                        key={itemIndex}
-                        to={item.path}
-                        className={`flex items-center px-2 py-2 text-sm rounded-lg transition-colors ${
-                          isActive(item.path)
-                            ? 'bg-primary/20 text-primary font-medium'
-                            : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
-                        }`}
-                        title={collapsed ? item.name : undefined}
-                      >
-                        {item.name}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+                </motion.button>
+                <AnimatePresence>
+                  {expandedSections[section.title] && !collapsed && (
+                    <motion.div 
+                      className="overflow-hidden"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
+                    >
+                      <div className="space-y-1 mt-1 pl-6">
+                        {section.items.map((item, itemIndex) => (
+                          <motion.div
+                            key={itemIndex}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: itemIndex * 0.05 }}
+                          >
+                            <motion.div
+                              whileHover={{ scale: 1.02, x: 3 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              <Link
+                                to={item.path}
+                                className={`flex items-center px-2 py-2 text-sm rounded-lg transition-colors font-base ${
+                                  isActive(item.path)
+                                    ? 'bg-primary/20 text-primary font-medium'
+                                    : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                                }`}
+                                title={collapsed ? item.name : undefined}
+                              >
+                                <motion.span
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  transition={{ duration: 0.2 }}
+                                >
+                                  {item.name}
+                                </motion.span>
+                              </Link>
+                            </motion.div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 {/* When collapsed, show section items as tooltips only on icon hover (optional, for accessibility) */}
                 {collapsed && (
                   <div className="absolute left-16 z-50">
                     {/* Optionally, you could render a tooltip here if desired */}
                   </div>
                 )}
-              </div>
+              </motion.div>
             )
           ))}
           {/* Super Admin Section - only for superadmins */}
           {user?.role === 'superadmin' && (
-            <div className="mb-2 last:mb-0">
-              <Link
-                to="/dashboard/superadmin"
-                className={`w-full flex items-center px-2 py-2 rounded-lg transition-colors ${
-                  location.pathname === '/dashboard/superadmin'
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
-                } ${collapsed ? 'justify-center' : ''}`}
-                title={collapsed ? 'Super Admin' : undefined}
+            <motion.div 
+              className="mb-2 last:mb-0"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: menuItems.length * 0.05 }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.02, x: 3 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <span className={`flex items-center ${collapsed ? 'justify-center w-full' : ''}`}>
-                  {/* Shield/Star icon for super admin */}
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2l3 7h7l-5.5 4.5L17 21l-5-3-5 3 1.5-7.5L2 9h7z" />
-                  </svg>
-                  {!collapsed && <span className="text-sm font-semibold uppercase tracking-wider">Super Admin</span>}
-                </span>
-              </Link>
-            </div>
+                <Link
+                  to="/dashboard/superadmin"
+                  className={`w-full flex items-center px-2 py-2 rounded-lg transition-colors ${
+                    isActive('/dashboard/superadmin')
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                  } ${collapsed ? 'justify-center' : ''}`}
+                  title={collapsed ? 'Super Admin' : undefined}
+                >
+                  <motion.div
+                    animate={{ scale: isActive('/dashboard/superadmin') ? 1.1 : 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+                  >
+                    {/* Shield/Star icon for super admin */}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2l3 7h7l-5.5 4.5L17 21l-5-3-5 3 1.5-7.5L2 9h7z" />
+                    </svg>
+                  </motion.div>
+                  {!collapsed && (
+                    <motion.span 
+                      className="text-sm font-semibold uppercase tracking-wider font-heading"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      Super Admin
+                    </motion.span>
+                  )}
+                </Link>
+              </motion.div>
+            </motion.div>
           )}
         </div>
-      </div>
+      </motion.aside>
     </>
   );
-}; 
+};

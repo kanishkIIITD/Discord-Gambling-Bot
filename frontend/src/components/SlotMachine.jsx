@@ -60,12 +60,19 @@ export default function SlotMachine({
 
   // Symbol image renderer (optional)
   const SymbolImage = ({ symbol }) => {
-    if (!symbolImages || !symbolImages[symbol]) return symbol;
+    if (!symbolImages || !symbolImages[symbol]) {
+      return (
+        <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-text-primary bg-surface border border-text-secondary rounded">
+          {symbol}
+        </div>
+      );
+    }
     return (
       <img
         src={symbolImages[symbol]}
         alt={symbol}
-        className="h-12 w-12 object-contain mx-auto"
+        className="w-full h-full object-contain"
+        draggable={false}
       />
     );
   };
@@ -80,12 +87,11 @@ export default function SlotMachine({
           const finalY = -((finalIndex - 0) * SYMBOL_HEIGHT);
           // Only animate from top if spinning and spinKey !== lastAnimatedSpinKey.current
           const shouldAnimate = spinning && spinKey !== lastAnimatedSpinKey.current;
-          {/* console.log(`[DEBUG] Reel ${i+1} render: spinKey=${spinKey}, spinning=${spinning}, shouldAnimate=${shouldAnimate}, initial=`, shouldAnimate ? { y: 0 } : { y: finalY }, 'animate=', { y: finalY }); */}
           return (
             <div
               key={i}
               className="w-16"
-              style={{ height: SYMBOL_HEIGHT * visibleRows, overflow: 'hidden', position: 'relative', background: 'var(--color-bg, #18191C)', borderRadius: 8, border: '1px solid var(--color-border, #333)', boxShadow: '0 2px 8px #0002' }}
+              style={{ height: SYMBOL_HEIGHT * visibleRows, overflow: 'hidden', position: 'relative', background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--text-secondary)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
             >
               <motion.div
                 key={spinKey + '-' + i}

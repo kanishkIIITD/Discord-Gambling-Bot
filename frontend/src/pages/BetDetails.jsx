@@ -11,6 +11,8 @@ import { useAuth } from '../contexts/AuthContext'; // Import useAuth to get user
 import { ConfirmModal } from '../components/ConfirmModal';
 import ReactPaginate from 'react-paginate';
 import axios from 'axios';
+import { formatDisplayNumber } from '../utils/numberFormat';
+import RadixDialog from '../components/RadixDialog';
 
 // --- TEMP: Main Guild ID for single-guild mode ---
 const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
@@ -312,12 +314,12 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   return (
     <>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight">Bet Details</h1>
+        <h1 className="text-3xl font-bold text-text-primary mb-6 tracking-tight font-display">Bet Details</h1>
         <div className="bg-card rounded-lg shadow-lg p-6 mb-8 space-y-4">
-          <h2 className="text-2xl font-semibold text-text-primary tracking-wide">{bet.description}</h2>
-          <div className="text-text-secondary leading-relaxed tracking-wide grid grid-cols-1 md:grid-cols-2 gap-4">
-            <p><strong>Bet ID:</strong> {bet._id}</p>
-            <p><strong>Status:</strong> <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+          <h2 className="text-2xl font-semibold text-text-primary tracking-wide font-accent">{bet.description}</h2>
+          <div className="text-text-secondary leading-relaxed tracking-wide grid grid-cols-1 md:grid-cols-2 gap-4 font-base">
+            <p><strong>Bet ID:</strong> <span className="font-mono">{bet._id}</span></p>
+            <p><strong>Status:</strong> <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full font-heading ${
                                 bet.status === 'open' ? 'bg-success/20 text-success' :
                                 bet.status === 'closed' ? 'bg-warning/20 text-warning' :
                                 bet.status === 'resolved' ? 'bg-info/20 text-info' : 'bg-gray-500/20 text-gray-400'
@@ -326,32 +328,37 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
             {bet.createdAt && <p><strong>Created At:</strong> {new Date(bet.createdAt).toLocaleString()}</p>}
             {bet.closingTime && <p><strong>Closing Time:</strong> {new Date(bet.closingTime).toLocaleString()}</p>}
             <p className="col-span-full"><strong>Options:</strong> {bet.options.join(', ')}</p>
-            {bet.status === 'resolved' && bet.winningOption && <p className="col-span-full text-lg font-semibold text-success"><strong>Winning Option:</strong> {bet.winningOption}</p>}
+            {bet.status === 'resolved' && bet.winningOption && <p className="col-span-full text-lg font-semibold text-success font-heading"><strong>Winning Option:</strong> {bet.winningOption}</p>}
           </div>
           {/* Pot and per-option totals - Professional, consistent style */}
           <div className="mt-4 bg-surface rounded-lg p-6 shadow flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="text-lg font-semibold text-text-primary">Total Pot</div>
-              <div className="text-2xl font-bold text-primary font-mono">{(totalPot || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-base font-medium text-text-secondary">points</span></div>
+              <div className="text-lg font-semibold text-text-primary font-heading">Total Pot</div>
+              <div className="text-2xl font-bold text-primary font-mono">{formatDisplayNumber(totalPot)} <span className="text-base font-medium text-text-secondary font-base">points</span></div>
             </div>
             <div className="divide-y divide-border">
               {bet.options.map(option => {
-                const amount = (optionTotals && optionTotals[option]) || 0;
-                const percent = totalPot > 0 ? ((amount / totalPot) * 100) : 0;
+                // Ensure proper type conversion for calculations
+                const amount = parseFloat((optionTotals && optionTotals[option]) || 0);
+                const total = parseFloat(totalPot) || 0;
+                const percent = total > 0 ? ((amount / total) * 100) : 0;
                 // Find the leading option
-                const maxAmount = optionTotals ? Math.max(...Object.values(optionTotals)) : 0;
+                const maxAmount = optionTotals ? Math.max(...Object.values(optionTotals).map(val => parseFloat(val) || 0)) : 0;
                 const isLeading = amount === maxAmount && amount > 0;
                 return (
                   <div key={option} className="py-3 flex flex-col gap-1">
                     <div className="flex items-center justify-between">
-                      <span className={`font-medium text-sm ${isLeading ? 'text-primary' : 'text-text-secondary'}`}>{option}</span>
-                      <span className={`font-mono text-base ${isLeading ? 'text-primary font-bold' : 'text-text-primary'}`}>{amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts</span>
-                      <span className="ml-2 text-xs text-text-secondary">({percent.toFixed(1)}%)</span>
+                      <span className={`font-medium text-sm font-accent ${isLeading ? 'text-primary' : 'text-text-secondary'}`}>{option}</span>
+                      <span className={`font-mono text-base ${isLeading ? 'text-primary font-bold' : 'text-text-primary'}`}>{formatDisplayNumber(amount)} pts</span>
+                      <span className="ml-2 text-xs text-text-secondary font-base">({percent.toFixed(1)}%)</span>
                     </div>
                     <div className="w-full h-2 bg-border rounded overflow-hidden">
                       <div
-                        className={`h-full rounded transition-all duration-300 ${isLeading ? 'bg-primary/80' : 'bg-primary/40'}`}
-                        style={{ width: `${percent}%` }}
+                        className="h-full rounded transition-all duration-300"
+                        style={{ 
+                          width: `${Math.min(percent, 100)}%`,
+                          backgroundColor: isLeading ? 'var(--primary)' : 'var(--primary)',
+                          opacity: isLeading ? 1 : 0.8                        }}
                       ></div>
                     </div>
                   </div>
@@ -363,35 +370,40 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
           {user && (user.role === 'admin' || user.role === 'superadmin') && (
             <div className="mt-6 flex flex-wrap gap-2">
               <button
-                className="px-3 py-1 rounded bg-primary text-white font-semibold hover:bg-primary/90 disabled:opacity-60"
+                className="px-3 py-1 rounded text-white font-semibold hover:opacity-90 disabled:opacity-60 transition-all duration-200 font-base"
+                style={{ backgroundColor: 'var(--primary)' }}
                 onClick={handleCloseBet}
                 disabled={adminActionLoading || bet.status !== 'open'}
               >
                 Close
               </button>
               <button
-                className="px-3 py-1 rounded bg-primary text-white font-semibold hover:bg-primary/90 disabled:opacity-60"
+                className="px-3 py-1 rounded text-white font-semibold hover:opacity-90 disabled:opacity-60 transition-all duration-200 font-base"
+                style={{ backgroundColor: 'var(--secondary)' }}
                 onClick={handleShowResolveModal}
                 disabled={adminActionLoading || bet.status !== 'closed'}
               >
                 Resolve
               </button>
               <button
-                className="px-3 py-1 rounded bg-error text-white font-semibold hover:bg-error/90 disabled:opacity-60"
+                className="px-3 py-1 rounded text-white font-semibold hover:opacity-90 disabled:opacity-60 transition-all duration-200 font-base"
+                style={{ backgroundColor: '#ef4444' }}
                 onClick={handleCancelBet}
                 disabled={adminActionLoading || bet.status !== 'open'}
               >
                 Cancel
               </button>
               <button
-                className="px-3 py-1 rounded bg-surface text-text-primary border border-border font-semibold hover:bg-primary/5 disabled:opacity-60"
+                className="px-3 py-1 rounded text-text-primary border font-semibold hover:bg-primary/5 disabled:opacity-60 transition-all duration-200 font-base"
+                style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--primary)' }}
                 onClick={handleShowEditModal}
                 disabled={adminActionLoading || bet.status !== 'open'}
               >
                 Edit
               </button>
               <button
-                className="px-3 py-1 rounded bg-surface text-text-primary border border-border font-semibold hover:bg-primary/5 disabled:opacity-60"
+                className="px-3 py-1 rounded text-text-primary border font-semibold hover:bg-primary/5 disabled:opacity-60 transition-all duration-200 font-base"
+                style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--primary)' }}
                 onClick={handleShowExtendModal}
                 disabled={adminActionLoading || bet.status !== 'open'}
               >
@@ -400,7 +412,8 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
               {/* Refund button: show for open/closed, not resolved/cancelled/refunded */}
               {['open', 'closed'].includes(bet.status) && (
                 <button
-                  className="px-3 py-1 rounded bg-warning text-white font-semibold hover:bg-warning/90 disabled:opacity-60"
+                  className="px-3 py-1 rounded text-white font-semibold hover:opacity-90 disabled:opacity-60 transition-all duration-200 font-base"
+                  style={{ backgroundColor: '#f59e0b' }}
                   onClick={() => setShowRefundModal(true)}
                   disabled={adminActionLoading}
                 >
@@ -414,16 +427,16 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
         {/* Place Bet Form - Only show if bet is open */}
         {bet.status === 'open' && bet.options.length > 0 && ( // Ensure there are options to bet on
             <div className="bg-card rounded-lg shadow-lg p-6 mb-8">
-                <h3 className="text-xl font-semibold text-text-primary mb-4 tracking-wide">Place Your Bet</h3>
+                <h3 className="text-xl font-semibold text-text-primary mb-4 tracking-wide font-heading">Place Your Bet</h3>
                 <form onSubmit={handlePlaceBet} className="space-y-4">
                     <div>
-                        <label htmlFor="betOption" className="block text-sm font-medium text-text-secondary">Select Option</label>
+                        <label htmlFor="betOption" className="block text-sm font-medium text-text-secondary font-base">Select Option</label>
                         <select
                             id="betOption"
                             name="betOption"
                             value={selectedOption}
                             onChange={(e) => setSelectedOption(e.target.value)}
-                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base bg-background border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTcgMTBMMTIgMTVMMTcgMTBaIiBmaWxsPSIjQzdDOUQxIi8+Cjwvc3ZnPg==')] bg-no-repeat bg-[right_0.75rem_center]"
+                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base bg-background border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTcgMTBMMTIgMTVMMTcgMTBaIiBmaWxsPSIjQzdDOUQxIi8+Cjwvc3ZnPg==')] bg-no-repeat bg-[right_0.75rem_center] font-base"
                         >
                             {bet.options.map(option => (
                                 <option key={option} value={option}>{option}</option>
@@ -431,7 +444,7 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
                         </select>
                     </div>
                     <div>
-                         <label htmlFor="betAmount" className="block text-sm font-medium text-text-secondary">Amount</label>
+                         <label htmlFor="betAmount" className="block text-sm font-medium text-text-secondary font-base">Amount</label>
                          <input
                             type="number"
                             id="betAmount"
@@ -439,7 +452,7 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
                             value={betAmount}
                             onChange={(e) => setBetAmount(e.target.value)}
                             min="1"
-                            className="mt-1 block w-full pl-3 pr-3 py-2 text-base bg-background border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md no-spinners"
+                            className="mt-1 block w-full pl-3 pr-3 py-2 text-base bg-background border-border focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md no-spinners font-base"
                             placeholder="e.g., 100"
                          />
                      </div>
@@ -447,7 +460,7 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
                          <button
                              type="submit"
                              disabled={isPlacingBet || !selectedOption || betAmount <= 0 || betAmount > walletBalance}
-                             className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${isPlacingBet ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
+                             className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white font-base ${isPlacingBet ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
                          >
                              {isPlacingBet ? 'Placing Bet...' : 'Place Bet'}
                          </button>
@@ -457,169 +470,180 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
          )}
 
          <div className="bg-card rounded-lg shadow-lg p-6">
-             <h3 className="text-xl font-semibold text-text-primary mb-4 tracking-wide">Placed Bets ({placedBetsTotal})</h3>
+             <h3 className="text-xl font-semibold text-text-primary mb-4 tracking-wide font-heading">Placed Bets ({placedBetsTotal})</h3>
               {placedBets.length > 0 ? (
                  <>
                    <div className="overflow-x-auto">
                      <table className="min-w-full divide-y divide-border">
                        <thead className="bg-surface">
                            <tr>
-                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Bettor</th>
-                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Amount</th>
-                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Option</th>
-                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">Placed At</th>
+                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider font-heading">Bettor</th>
+                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider font-heading">Amount</th>
+                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider font-heading">Option</th>
+                               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider font-heading">Placed At</th>
                            </tr>
                        </thead>
                        <tbody className="divide-y divide-border">
                            {placedBets.map(placedBet => (
                                <tr key={placedBet._id} className="hover:bg-primary/5">
-                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{placedBet.bettor.username}</td>
-                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{placedBet.amount}</td>
-                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{placedBet.option}</td>
-                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">{new Date(placedBet.placedAt).toLocaleString()}</td>
+                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-base">{placedBet.bettor.username}</td>
+                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-mono">{formatDisplayNumber(placedBet.amount)}</td>
+                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-accent">{placedBet.option}</td>
+                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-base">{new Date(placedBet.placedAt).toLocaleString()}</td>
                                </tr>
                            ))}
                        </tbody>
                      </table>
                    </div>
+                   {/* Only show pagination when there are more than 1 page */}
+                   {Math.ceil(placedBetsTotal / (userPreferences?.itemsPerPage || 10)) > 1 && (
                    <div className="flex justify-center mt-4">
                      <ReactPaginate
                        previousLabel={"Prev"}
                        nextLabel={"Next"}
                        breakLabel={"..."}
                        breakClassName={"px-2 py-1"}
-                       pageCount={Math.ceil(placedBetsTotal / (userPreferences?.itemsPerPage || 10)) || 1}
+                         pageCount={Math.ceil(placedBetsTotal / (userPreferences?.itemsPerPage || 10))}
                        marginPagesDisplayed={1}
                        pageRangeDisplayed={3}
                        onPageChange={selected => setPlacedBetsPage(selected.selected + 1)}
                        forcePage={placedBetsPage - 1}
                        containerClassName={"flex gap-1 items-center"}
                        pageClassName={""}
-                       pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10"}
+                         pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10 font-base"}
                        activeClassName={""}
                        activeLinkClassName={"bg-primary text-white"}
                        previousClassName={""}
-                       previousLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
+                         previousLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500 font-base"}
                        nextClassName={""}
-                       nextLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500"}
+                         nextLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500 font-base"}
                        disabledClassName={"opacity-50 cursor-not-allowed"}
                      />
                    </div>
+                   )}
                  </>
               ) : (
-                 <p className="text-text-secondary leading-relaxed tracking-wide">No bets have been placed yet.</p>
+                 <p className="text-text-secondary leading-relaxed tracking-wide font-base">No bets have been placed yet.</p>
               )}
           </div>
 
       </div>
       {/* Modals for admin actions */}
-      {showResolveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-lg shadow-lg p-6 max-w-sm w-full">
-            <h2 className="text-xl font-bold text-text-primary mb-4">Resolve Bet</h2>
-            <label className="block mb-2 text-text-secondary">Select Winning Option:</label>
-            <select
-              className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary mb-4"
-              value={resolveOption}
-              onChange={e => setResolveOption(e.target.value)}
+      <RadixDialog
+        open={showResolveModal}
+        onOpenChange={setShowResolveModal}
+        title="Resolve Bet"
+      >
+        <div>
+          <label className="block mb-2 text-text-secondary font-base">Select Winning Option:</label>
+          <select
+            className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary mb-4 font-base"
+            value={resolveOption}
+            onChange={e => setResolveOption(e.target.value)}
+          >
+            {bet.options.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={handleResolveBet}
+              className="flex-1 py-2 px-4 rounded text-white font-semibold hover:opacity-90 transition-all duration-200 font-base"
+              style={{ backgroundColor: 'var(--secondary)' }}
+              disabled={adminActionLoading}
             >
-              {bet.options.map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={handleResolveBet}
-                className="flex-1 py-2 px-4 rounded bg-primary text-white font-semibold hover:bg-primary/90"
-                disabled={adminActionLoading}
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => setShowResolveModal(false)}
-                className="flex-1 py-2 px-4 rounded bg-surface text-text-primary border border-border font-semibold hover:bg-primary/5"
-                disabled={adminActionLoading}
-              >
-                Cancel
-              </button>
-            </div>
+              Confirm
+            </button>
+            <button
+              onClick={() => setShowResolveModal(false)}
+              className="flex-1 py-2 px-4 rounded text-text-primary border font-semibold hover:bg-primary/5 transition-all duration-200 font-base"
+              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--primary)' }}
+              disabled={adminActionLoading}
+            >
+              Cancel
+            </button>
           </div>
         </div>
-      )}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-lg shadow-lg p-6 max-w-sm w-full">
-            <h2 className="text-xl font-bold text-text-primary mb-4">Edit Bet</h2>
-            <label className="block mb-2 text-text-secondary">Description:</label>
-            <input
-              className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary mb-2"
-              value={editDescription}
-              onChange={e => setEditDescription(e.target.value)}
-            />
-            <label className="block mb-2 text-text-secondary">Options (comma separated):</label>
-            <input
-              className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary mb-2"
-              value={editOptions}
-              onChange={e => setEditOptions(e.target.value)}
-            />
-            <label className="block mb-2 text-text-secondary">Duration (minutes, optional):</label>
-            <input
-              className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary mb-2"
-              type="number"
-              min="1"
-              value={editDuration}
-              onChange={e => setEditDuration(e.target.value)}
-            />
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={handleEditBet}
-                className="flex-1 py-2 px-4 rounded bg-primary text-white font-semibold hover:bg-primary/90"
-                disabled={adminActionLoading}
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="flex-1 py-2 px-4 rounded bg-surface text-text-primary border border-border font-semibold hover:bg-primary/5"
-                disabled={adminActionLoading}
-              >
-                Cancel
-              </button>
-            </div>
+      </RadixDialog>
+      <RadixDialog
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
+        title="Edit Bet"
+      >
+        <div>
+          <label className="block mb-2 text-text-secondary font-base">Description:</label>
+          <input
+            className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary mb-2 font-base"
+            value={editDescription}
+            onChange={e => setEditDescription(e.target.value)}
+          />
+          <label className="block mb-2 text-text-secondary font-base">Options (comma separated):</label>
+          <input
+            className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary mb-2 font-base"
+            value={editOptions}
+            onChange={e => setEditOptions(e.target.value)}
+          />
+          <label className="block mb-2 text-text-secondary font-base">Duration (minutes, optional):</label>
+          <input
+            className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary mb-2 font-base"
+            type="number"
+            min="1"
+            value={editDuration}
+            onChange={e => setEditDuration(e.target.value)}
+          />
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={handleEditBet}
+              className="flex-1 py-2 px-4 rounded text-white font-semibold hover:opacity-90 transition-all duration-200 font-base"
+              style={{ backgroundColor: 'var(--primary)' }}
+              disabled={adminActionLoading}
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setShowEditModal(false)}
+              className="flex-1 py-2 px-4 rounded text-text-primary border font-semibold hover:bg-primary/5 transition-all duration-200 font-base"
+              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--primary)' }}
+              disabled={adminActionLoading}
+            >
+              Cancel
+            </button>
           </div>
         </div>
-      )}
-      {showExtendModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-lg shadow-lg p-6 max-w-sm w-full">
-            <h2 className="text-xl font-bold text-text-primary mb-4">Extend Bet</h2>
-            <label className="block mb-2 text-text-secondary">Additional Minutes:</label>
-            <input
-              className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary mb-2"
-              type="number"
-              min="1"
-              value={extendMinutes}
-              onChange={e => setExtendMinutes(e.target.value)}
-            />
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={handleExtendBet}
-                className="flex-1 py-2 px-4 rounded bg-primary text-white font-semibold hover:bg-primary/90"
-                disabled={adminActionLoading || !extendMinutes}
-              >
-                Extend
-              </button>
-              <button
-                onClick={() => setShowExtendModal(false)}
-                className="flex-1 py-2 px-4 rounded bg-surface text-text-primary border border-border font-semibold hover:bg-primary/5"
-                disabled={adminActionLoading}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+      </RadixDialog>
+      <RadixDialog
+        open={showExtendModal}
+        onOpenChange={setShowExtendModal}
+        title="Extend Bet"
+        className="max-w-sm w-full p-6"
+      >
+        <label className="block mb-2 text-text-secondary font-base">Additional Minutes:</label>
+        <input
+          className="w-full px-3 py-2 rounded border border-border bg-background text-text-primary mb-2 font-base"
+          type="number"
+          min="1"
+          value={extendMinutes}
+          onChange={e => setExtendMinutes(e.target.value)}
+        />
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={handleExtendBet}
+            className="flex-1 py-2 px-4 rounded text-white font-semibold hover:opacity-90 transition-all duration-200 font-base"
+            style={{ backgroundColor: 'var(--primary)' }}
+            disabled={adminActionLoading || !extendMinutes}
+          >
+            Extend
+          </button>
+          <button
+            onClick={() => setShowExtendModal(false)}
+            className="flex-1 py-2 px-4 rounded text-text-primary border font-semibold hover:bg-primary/5 transition-all duration-200 font-base"
+            style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--primary)' }}
+            disabled={adminActionLoading}
+          >
+            Cancel
+          </button>
         </div>
-      )}
+      </RadixDialog>
       {showCancelModal && (
         <ConfirmModal
           open={showCancelModal}
@@ -646,4 +670,4 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
       )}
     </>
   );
-}; 
+};
