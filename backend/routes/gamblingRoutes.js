@@ -7,7 +7,6 @@ const BlackjackGame = require('../models/BlackjackGame');
 const { validateBetAmount, handleGamblingError } = require('../middleware/gamblingMiddleware');
 const { updateWalletBalance, createGamblingResponse, calculateMultiplier, getNumbersCoveredByBet, updateUserWinStreak } = require('../utils/gamblingUtils');
 const Transaction = require('../models/Transaction');
-const { broadcastToUser } = require('../utils/websocketService');
 const { requireGuildId } = require('../middleware/auth');
 
 // Apply requireGuildId to all routes
@@ -35,7 +34,7 @@ router.use('/:discordId', async (req, res, next) => {
 });
 
 // Play coinflip
-router.post('/:discordId/coinflip', validateBetAmount, async (req, res) => {
+router.post('/:discordId/coinflip', validateBetAmount, async (req, res, next) => {
   try {
     const { choice, amount } = req.body;
     const wallet = req.wallet;
@@ -55,12 +54,8 @@ router.post('/:discordId/coinflip', validateBetAmount, async (req, res) => {
       won ? `Choice: ${choice}, Result: ${result}` : ''
     );
 
-    // Send WebSocket updates
+    // Get latest transaction for response
     const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
-    if (latestTransaction) {
-      broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
-    }
-    broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: newBalance });
 
     // Update win streak
     await updateUserWinStreak(user.discordId, won, req.guildId);
@@ -72,7 +67,7 @@ router.post('/:discordId/coinflip', validateBetAmount, async (req, res) => {
 });
 
 // Play dice
-router.post('/:discordId/dice', validateBetAmount, async (req, res) => {
+router.post('/:discordId/dice', validateBetAmount, async (req, res, next) => {
   try {
     const { bet_type, number, amount } = req.body;
     const wallet = req.wallet;
@@ -126,12 +121,8 @@ router.post('/:discordId/dice', validateBetAmount, async (req, res) => {
       won ? `${bet_type}${number ? ` (${number})` : ''}, Roll: ${roll}` : ''
     );
 
-    // Send WebSocket updates
+    // Get latest transaction for response
     const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
-    if (latestTransaction) {
-      broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
-    }
-    broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: newBalance });
 
     // Update win streak
     await updateUserWinStreak(user.discordId, won, req.guildId);
@@ -143,7 +134,7 @@ router.post('/:discordId/dice', validateBetAmount, async (req, res) => {
 });
 
 // Play slots
-router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
+router.post('/:discordId/slots', validateBetAmount, async (req, res, next) => {
   try {
     const { amount } = req.body;
     const wallet = req.wallet;
@@ -158,7 +149,7 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
 
     // Slot symbols and their weights
     const symbols = ['🍒', '🍊', '🍋', '🍇', '💎', '7️⃣'];
-    const weights = [28, 24, 19, 14, 10, 5]; // percentages
+    const weights = [25, 22, 20, 18, 10, 5]; // percentages
 
     // Generate three random symbols
     const getRandomSymbol = () => {
@@ -208,12 +199,12 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
       // Three of a kind
       winType = 'three-of-a-kind';
       switch (reels[0]) {
-        case '7️⃣': multiplier = 50; break;
-        case '💎': multiplier = 25; break;
-        case '🍇': multiplier = 12.11; break;
-        case '🍋': multiplier = 8.22; break;
-        case '🍊': multiplier = 6.65; break;
-        case '🍒': multiplier = 5.0; break;
+        case '7️⃣': multiplier = 60; break;
+        case '💎': multiplier = 28; break;
+        case '🍇': multiplier = 14; break;
+        case '🍋': multiplier = 9; break;
+        case '🍊': multiplier = 7; break;
+        case '🍒': multiplier = 5.5; break;
       }
       winnings = amount * multiplier;
     } else if (
@@ -231,6 +222,19 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
       // Any two matching symbols (except 7️⃣)
       multiplier = 1.2;
       winType = 'two-matching';
+      winnings = amount * multiplier;
+    } else if (reels.filter(s => s === '💎').length === 1) {
+      // Single-symbol bonus (e.g. one 💎 anywhere)
+      multiplier = 0.5;
+      winnings = amount * multiplier;
+      winType = 'single-diamond';
+    } else if (
+      reels.filter(s => s === '7️⃣').length === 1 &&
+      new Set(reels).size === 3
+    ) {
+      // One‑seven consolation
+      multiplier = 0.1;
+      winType = 'one-seven';
       winnings = amount * multiplier;
     }
 
@@ -259,11 +263,8 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
     );
     await wallet.save();
 
-    // CONSOLIDATED BROADCAST:
+    // Get latest transaction for response
     const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
-    if (latestTransaction) {
-      broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
-    }
 
     // Add to jackpot if lost and not a free spin
     if (!won && !usedFreeSpin) {
@@ -283,18 +284,17 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res) => {
     const newBalance = updatedWallet.balance;
     const jackpot = await Jackpot.findOne({ guildId: req.guildId }) || { currentAmount: 0 };
 
-    // Send WebSocket update for balance
-    broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: newBalance });
+    // Update balance in response
     await updateUserWinStreak(user.discordId, winnings > 0, req.guildId);
 
     res.json(createGamblingResponse({ reels, isJackpot, jackpotAmount, jackpotPool: jackpot.currentAmount, usedFreeSpin, freeSpins: wallet.freeSpins }, won, winnings, newBalance));
   } catch (error) {
-    handleGamblingError(error, req, res);
+    handleGamblingError(error, req, res, next);
   }
 });
 
 // Play blackjack
-router.post('/:discordId/blackjack', async (req, res) => {
+router.post('/:discordId/blackjack', async (req, res, next) => {
   try {
     const { amount, action } = req.body;
     const wallet = req.wallet;
@@ -678,12 +678,8 @@ router.post('/:discordId/blackjack', async (req, res) => {
       )
     });
 
-    // Send WebSocket updates
+    // Get latest transaction for response
     const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
-    if (latestTransaction) {
-      broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
-    }
-    broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
   } catch (error) {
     console.error('Error in blackjack:', error);
     res.status(500).json({ message: 'Server error.' });
@@ -691,7 +687,7 @@ router.post('/:discordId/blackjack', async (req, res) => {
 });
 
 // Play roulette
-router.post('/:discordId/roulette', validateBetAmount, async (req, res) => {
+router.post('/:discordId/roulette', validateBetAmount, async (req, res, next) => {
   try {
     const { bets } = req.body; // Array of bets: [{ type, number, amount }]
     const wallet = req.wallet;
@@ -833,13 +829,6 @@ router.post('/:discordId/roulette', validateBetAmount, async (req, res) => {
       req.guildId
     );
 
-    // Send WebSocket updates
-    const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
-    if (latestTransaction) {
-      broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: latestTransaction });
-    }
-    broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: newBalance });
-
     // Update win streak: win if totalWinnings > 0
     await updateUserWinStreak(user.discordId, totalWinnings > 0, req.guildId);
 
@@ -912,9 +901,7 @@ router.post('/:discordId/jackpot/contribute', async (req, res) => {
     });
     await transaction.save();
 
-    // Send WebSocket updates
-    broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction });
-    broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
+    // Transaction recorded
 
     res.json({
       contribution: amount,
@@ -978,8 +965,7 @@ router.post('/:discordId/redeem-golden-ticket', async (req, res) => {
       guildId: req.guildId
     });
     await transaction.save();
-    broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction });
-    broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
+    // Transaction recorded
     res.json({ message: `You redeemed a Golden Ticket for ${payout.toLocaleString('en-US')} points!`, payout, newBalance: wallet.balance, jackpotPool: jackpot.currentAmount });
   } catch (error) {
     console.error('Error redeeming golden ticket:', error);
@@ -1001,4 +987,4 @@ router.get('/:discordId/golden-tickets', async (req, res) => {
 });
 
 // Export only the router
-module.exports = router; 
+module.exports = router;

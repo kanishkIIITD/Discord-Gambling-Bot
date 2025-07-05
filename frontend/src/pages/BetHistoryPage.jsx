@@ -1,9 +1,18 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { getTransactionHistory, getUserPreferences } from '../services/api';
-import ReactPaginate from 'react-paginate';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
+import ReactPaginate from 'react-paginate';
 import { motion, AnimatePresence } from 'framer-motion';
+import LoadingSpinner from '../components/LoadingSpinner';
+
+// Zustand stores
+import { useUserStore } from '../store/useUserStore';
+import { useGuildStore } from '../store/useGuildStore';
+import { useUIStore } from '../store/useUIStore';
+
+// Import Zustand-integrated React Query hooks
+import { useZustandQuery } from '../hooks/useZustandQuery';
+import * as api from '../services/api';
 import { formatDisplayNumber } from '../utils/numberFormat';
 
 const GAME_TYPE_FILTERS = [
@@ -33,14 +42,12 @@ const buttonMotion = {
 };
 
 const BetHistoryPage = () => {
-  const { user } = useAuth();
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [userPreferences, setUserPreferences] = useState(null);
+  const user = useUserStore(state => state.user);
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const isGuildSwitching = useGuildStore(state => state.isGuildSwitching);
+  const { isLoading, getError } = useUIStore();
+  
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [gameTypeFilter, setGameTypeFilter] = useState(GAME_TYPE_FILTERS[0]);
   const [resultFilter, setResultFilter] = useState(RESULT_FILTERS[0]);
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0]);
@@ -48,39 +55,54 @@ const BetHistoryPage = () => {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const sortMenuRef = useRef(null);
   const [expandedRows, setExpandedRows] = useState({});
+  
+  // Define loading keys
+  const LOADING_KEYS = {
+    PREFERENCES: 'bet-history-preferences',
+    TRANSACTIONS: 'bet-history-transactions'
+  };
+  
+  // Get user preferences using Zustand Query
+  const { 
+    data: userPreferences = {}, 
+    isLoading: preferencesLoading, 
+    error: preferencesError 
+  } = useZustandQuery(
+    ['userPreferences', user?.discordId, selectedGuildId],
+    () => api.getUserPreferences(user?.discordId),
+    {
+      enabled: !!user?.discordId && !!selectedGuildId && !isGuildSwitching,
+      staleTime: 1000 * 60, // 1 minute
+      refetchOnMount: true,
+      refetchOnWindowFocus: true
+    },
+    LOADING_KEYS.PREFERENCES
+  );
 
-  useEffect(() => {
-    const fetchUserPreferences = async () => {
-      if (!user?.discordId) return;
-      try {
-        setLoading(true);
-        const data = await getUserPreferences(user.discordId);
-        setUserPreferences(data);
-      } catch (err) {
-        setError('Failed to load preferences.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUserPreferences();
-  }, [user]);
-
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      if (!user?.discordId || !userPreferences) return;
-      try {
-        setLoading(true);
-        const response = await getTransactionHistory(user.discordId, 1, 500); // Fetch a large batch for client-side filtering
-        setTransactions(response.transactions);
-        setTotalCount(response.transactions.length);
-      } catch (err) {
-        setError('Failed to load bet history.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTransactions();
-  }, [user, userPreferences]);
+  // Get transaction history using Zustand Query
+  const { 
+    data: transactionData = { transactions: [] }, 
+    isLoading: transactionsLoading, 
+    error: transactionsError 
+  } = useZustandQuery(
+    ['transactionHistory', user?.discordId, selectedGuildId],
+    () => api.getTransactionHistory(user?.discordId, 1, 500),
+    {
+      enabled: !!user?.discordId && !!selectedGuildId && !isGuildSwitching,
+      staleTime: 1000 * 30, // 30 seconds
+      refetchOnMount: true,
+      refetchOnWindowFocus: true
+    },
+    LOADING_KEYS.TRANSACTIONS
+  );
+  
+  // Determine if we're loading any data
+  const isDataLoading = isLoading(LOADING_KEYS.PREFERENCES) || isLoading(LOADING_KEYS.TRANSACTIONS) || isGuildSwitching;
+  const loadingError = getError(LOADING_KEYS.TRANSACTIONS) || getError(LOADING_KEYS.PREFERENCES);
+  
+  // Extract data from the query result
+  const transactions = transactionData?.transactions || [];
+  const totalCount = transactions.length;
 
   useEffect(() => {
     if (!showSortMenu) return;
@@ -168,15 +190,30 @@ const BetHistoryPage = () => {
   };
 
   // UI
-  if (loading) {
+  if (isDataLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" color="primary" message="Loading bet history..." />
       </div>
     );
   }
-  if (error) {
-    return <div className="min-h-screen bg-background text-error flex items-center justify-center">{error}</div>;
+  if (loadingError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="bg-card p-6 rounded-lg shadow-lg max-w-lg w-full">
+          <h2 className="text-2xl font-bold text-text-primary mb-4">Error Loading Bet History</h2>
+          <div className="bg-error/10 border border-error/30 rounded-md p-4 mb-6">
+            <p className="text-error font-medium">{loadingError.message || 'Failed to load bet history data'}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // Animation variants for table body
@@ -368,7 +405,7 @@ const BetHistoryPage = () => {
             scrollbar-width: none;
           }
         `}</style>
-        {totalPagesCalc > 1 && !loading && !error && (
+        {totalPagesCalc > 1 && !isDataLoading && !loadingError && (
           <div className="flex flex-wrap justify-center mt-6 w-full">
             <ReactPaginate
               previousLabel={"Prev"}

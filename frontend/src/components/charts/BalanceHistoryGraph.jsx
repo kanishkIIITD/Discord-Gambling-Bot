@@ -1,16 +1,16 @@
 import React, { useMemo, useEffect, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUserStore, useUIStore } from '../../store';
 import { formatDisplayNumber } from '../../utils/numberFormat';
 import useChartDataCache from '../../hooks/useChartDataCache';
 import withOptimizedChart from '../../utils/withOptimizedChart';
 import useChartPerformance from '../../hooks/useChartPerformance';
 import { getBalanceHistory } from '../../services/api';
+import ChartLoadingSpinner from './ChartLoadingSpinner';
 
 const BalanceHistoryGraph = ({ dateRange, targetUserId, guildId }) => {
-  const { user } = useAuth();
-  const { theme } = useTheme();
+  const user = useUserStore(state => state.user);
+  const theme = useUIStore(state => state.theme);
   const { startRenderTimer, stopRenderTimer } = useChartPerformance('BalanceHistoryGraph');
   
   // Define the fetch function for balance history
@@ -227,8 +227,8 @@ const BalanceHistoryGraph = ({ dateRange, targetUserId, guildId }) => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="h-64">
+        <ChartLoadingSpinner size="lg" message="Loading balance history..." />
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getDiscordCommands } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export const Help = () => {
   const [commands, setCommands] = useState([]);
@@ -31,7 +32,7 @@ export const Help = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" color="primary" message="Loading commands..." />
       </div>
     );
   }
@@ -115,4 +116,4 @@ export const Help = () => {
       </div>
     </motion.div>
   );
-}; 
+};

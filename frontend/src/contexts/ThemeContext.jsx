@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const ThemeContext = createContext();
 
@@ -11,7 +11,8 @@ export const useTheme = () => {
 };
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(() => {
+  // Use a more stable initialization approach with useCallback
+  const getInitialTheme = useCallback(() => {
     // Check localStorage for saved theme preference
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
@@ -22,29 +23,39 @@ export const ThemeProvider = ({ children }) => {
       return 'dark';
     }
     return 'light';
-  });
+  }, []);
 
+  const [theme, setTheme] = useState(getInitialTheme);
+
+  // Memoize the toggle function to prevent unnecessary re-renders
+  const toggleTheme = useCallback(() => {
+    setTheme(prevTheme => {
+      const newTheme = prevTheme === 'light' ? 'dark' : 'light';
+      // Update localStorage immediately to ensure consistency
+      localStorage.setItem('theme', newTheme);
+      return newTheme;
+    });
+  }, []);
+
+  // Apply theme to document and localStorage when it changes
   useEffect(() => {
     // Update data-theme attribute on document
     document.documentElement.setAttribute('data-theme', theme);
-    // Save to localStorage
+    // Save to localStorage (redundant with the toggle function, but ensures consistency)
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
-  };
-
-  const value = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = React.useMemo(() => ({
     theme,
     toggleTheme,
     isDark: theme === 'dark',
     isLight: theme === 'light'
-  };
+  }), [theme, toggleTheme]);
 
   return (
     <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
-}; 
+};

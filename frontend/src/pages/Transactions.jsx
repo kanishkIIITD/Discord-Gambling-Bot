@@ -1,68 +1,94 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { getTransactionHistory, getUserPreferences } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { useTransactionHistory, useUserPreferences } from '../hooks/useQueryHooks';
 import ReactPaginate from 'react-paginate';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDisplayNumber } from '../utils/numberFormat';
-
-// --- TEMP: Main Guild ID for single-guild mode ---
-// const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+import LoadingSpinner from '../components/LoadingSpinner';
+import { useUserStore, useGuildStore } from '../store';
+import { useLoading } from '../hooks/useLoading';
 
 export const Transactions = () => {
-  const { user } = useAuth();
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { user } = useUserStore();
+  const { selectedGuildId, isGuildSwitching } = useGuildStore();
   const [currentPage, setCurrentPage] = useState(1);
-  const [userPreferences, setUserPreferences] = useState(null);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
   const [filter, setFilter] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
+  
+  // Define loading keys
+  const LOADING_KEYS = {
+    PREFERENCES: 'transactions-preferences',
+    TRANSACTIONS: 'transactions-data',
+    GUILD_SWITCHING: 'transactions-guild-switching'
+  };
+  
+  // Get loading context
+  const { isLoading, startLoading, stopLoading, setError, getError } = useLoading();
+  
+  // Get user preferences using React Query
+  const { 
+    data: userPreferences, 
+    isLoading: preferencesLoading,
+    error: preferencesError 
+  } = useUserPreferences(user?.discordId);
 
   const ITEMS_PER_PAGE = 10; // Default items per page if preferences are not loaded yet
-  // const MAX_TOTAL_ITEMS = 500; // Set the maximum number of items to display from the top
-
+  
+  // Get transaction history using React Query
+  const { 
+    data: transactionData, 
+    isLoading: transactionsLoading, 
+    error: transactionsError 
+  } = useTransactionHistory(
+    user?.discordId, 
+    currentPage, 
+    userPreferences?.itemsPerPage || ITEMS_PER_PAGE
+  );
+  
+  // Update loading states in LoadingContext
   useEffect(() => {
-    const fetchUserPreferences = async () => {
-      if (!user?.discordId) return;
-      try {
-        setLoading(true);
-        const data = await getUserPreferences(user.discordId);
-        setUserPreferences(data);
-      } catch (err) {
-        setError('Failed to load preferences.');
-      } finally {
-        setLoading(false);
+    if (preferencesLoading) {
+      startLoading(LOADING_KEYS.PREFERENCES);
+    } else {
+      stopLoading(LOADING_KEYS.PREFERENCES);
+      if (preferencesError) {
+        setError(LOADING_KEYS.PREFERENCES, preferencesError);
       }
-    };
-    fetchUserPreferences();
-  }, [user]);
-
-  useEffect(() => {
-    const fetchTransactions = async (page, limit) => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch both transactions and totalCount from backend
-        const res = await getTransactionHistory(user.discordId, page, limit);
-        setTransactions(res.transactions);
-        setTotalCount(res.totalCount || 0);
-        // Calculate total pages based on totalCount and items per page, capped at 50
-        const effectiveItemsPerPage = userPreferences?.itemsPerPage || ITEMS_PER_PAGE;
-        const maxPages = 50;
-        const calculatedPages = Math.ceil((res.totalCount || 0) / effectiveItemsPerPage);
-        setTotalPages(Math.min(calculatedPages, maxPages));
-      } catch (err) {
-        setError('Failed to fetch transactions.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (user?.discordId && userPreferences) {
-      fetchTransactions(currentPage, userPreferences.itemsPerPage || ITEMS_PER_PAGE);
     }
-  }, [user, currentPage, filter, userPreferences]);
+  }, [preferencesLoading, preferencesError, startLoading, stopLoading, setError]);
+  
+  useEffect(() => {
+    if (transactionsLoading) {
+      startLoading(LOADING_KEYS.TRANSACTIONS);
+    } else {
+      stopLoading(LOADING_KEYS.TRANSACTIONS);
+      if (transactionsError) {
+        setError(LOADING_KEYS.TRANSACTIONS, transactionsError);
+      }
+    }
+  }, [transactionsLoading, transactionsError, startLoading, stopLoading, setError]);
+  
+  useEffect(() => {
+    if (isGuildSwitching) {
+      startLoading(LOADING_KEYS.GUILD_SWITCHING);
+    } else {
+      stopLoading(LOADING_KEYS.GUILD_SWITCHING);
+    }
+  }, [isGuildSwitching, startLoading, stopLoading]);
+  
+  // Determine if we're loading any data
+  const isDataLoading = isLoading(LOADING_KEYS.PREFERENCES) || isLoading(LOADING_KEYS.TRANSACTIONS) || isLoading(LOADING_KEYS.GUILD_SWITCHING);
+  
+  // Extract data from the query result
+  const transactions = transactionData?.transactions || [];
+  const totalCount = transactionData?.totalCount || 0;
+  
+  // Calculate total pages
+  const effectiveItemsPerPage = userPreferences?.itemsPerPage || ITEMS_PER_PAGE;
+  const maxPages = 50;
+  const totalPages = Math.min(Math.ceil(totalCount / effectiveItemsPerPage), maxPages);
+  
+  // Get any errors from LoadingContext
+  const loadingError = getError(LOADING_KEYS.PREFERENCES) || getError(LOADING_KEYS.TRANSACTIONS);
 
   // react-paginate expects 0-based page index
   const handlePageChange = (selectedItem) => {
@@ -77,16 +103,31 @@ export const Transactions = () => {
     }));
   };
 
-  if (loading) {
+  if (isDataLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" color="primary" message="Loading transactions..." />
       </div>
     );
   }
 
-  if (error) {
-    return <div className="min-h-screen bg-background text-error flex items-center justify-center">{error}</div>;
+  if (loadingError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="bg-card p-6 rounded-lg shadow-lg max-w-lg w-full">
+          <h2 className="text-2xl font-bold text-text-primary mb-4">Error Loading Transactions</h2>
+          <div className="bg-error/10 border border-error/30 rounded-md p-4 mb-6">
+            <p className="text-error font-medium">{loadingError.message || 'Failed to load transaction data'}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -123,7 +164,6 @@ export const Transactions = () => {
                         }) : 'Invalid Date';
 
                     const amountColorClass = transaction.amount >= 0 ? 'text-success' : 'text-error';
-
                     const transactionTypeLabel = () => {
                       switch (transaction.type) {
                         case 'bet': return 'Bet Placed';
@@ -213,7 +253,7 @@ export const Transactions = () => {
           scrollbar-width: none;
         }
       `}</style>
-      {totalPages > 1 && (
+      {totalPages > 1 && !isDataLoading && !loadingError && (
         <div className="flex flex-wrap justify-center mt-6 w-full">
           <ReactPaginate
             previousLabel={"Prev"}
@@ -240,4 +280,4 @@ export const Transactions = () => {
       )}
     </motion.div>
   );
-}; 
+};

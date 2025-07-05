@@ -42,9 +42,9 @@ router.get('/discord/callback',
   }
 );
 
-// --- Only requireGuildId for routes that need it ---
-// Get current user
-router.get('/me', requireGuildId, verifyToken, async (req, res) => {
+// --- Routes that don't require guildId ---
+// Get current user - no guild ID required for basic authentication
+router.get('/me', verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-__v');
     if (!user) {
@@ -56,9 +56,50 @@ router.get('/me', requireGuildId, verifyToken, async (req, res) => {
   }
 });
 
-// Logout route
-router.post('/logout', requireGuildId, verifyToken, (req, res) => {
+// Lightweight heartbeat endpoint for quick auth and guild checks
+router.get('/heartbeat', verifyToken, async (req, res) => {
+  // console.log('[Heartbeat] Received heartbeat request');
+  try {
+    // Find user with minimal projection (only necessary fields)
+    // console.log('[Heartbeat] Finding user with ID:', req.user.id);
+    const user = await User.findById(req.user.id)
+      .select('discordId username discriminator avatar')
+      .lean();
+    
+    if (!user) {
+      // console.log('[Heartbeat] User not found with ID:', req.user.id);
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // console.log('[Heartbeat] User found:', user.discordId, user.username);
+    
+    // Fetch guilds from Discord API
+    const { getUserGuilds } = require('../utils/discordClient');
+    // console.log('[Heartbeat] Fetching guilds for user:', user.discordId);
+    const guilds = await getUserGuilds(user.discordId);
+    // console.log('[Heartbeat] Fetched guilds count:', guilds ? guilds.length : 0);
+    
+    // Return minimal user data and guilds for quick client-side validation
+    const response = {
+      user: {
+        discordId: user.discordId,
+        username: user.username,
+        discriminator: user.discriminator,
+        avatar: user.avatar
+      },
+      guilds: guilds
+    };
+    
+    // console.log('[Heartbeat] Sending response with guilds count:', response.guilds.length);
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching heartbeat data', error: error.message });
+  }
+});
+
+// Logout route - no guild ID required for logout
+router.post('/logout', verifyToken, (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
-module.exports = router; 
+module.exports = router;

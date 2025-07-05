@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 const REEL_COUNT = 3;
 const SYMBOLS = ['🍒', '🍊', '🍋', '🍇', '💎', '7️⃣'];
 const SPIN_ROUNDS = 10; // How many full rounds each reel spins
-const SYMBOL_HEIGHT = 64; // px, adjust to match CSS
+const SYMBOL_HEIGHT = 58 // px, adjust to match CSS
 
 function buildReelArray(finalSymbol, visibleRows) {
   // Repeat the symbols for smooth spinning
@@ -12,11 +12,19 @@ function buildReelArray(finalSymbol, visibleRows) {
   for (let i = 0; i < SPIN_ROUNDS; i++) {
     repeated.push(...SYMBOLS);
   }
-  // Add enough symbols at the end so the final symbol is centered in the visible area
-  repeated.push(finalSymbol);
+  
+  // Make sure finalSymbol is valid
+  const validSymbol = SYMBOLS.includes(finalSymbol) ? finalSymbol : SYMBOLS[0];
+  
+  // Add the final symbol at the end so it's centered in the visible area
+  repeated.push(validSymbol);
+  
+  // Add additional symbols after the final one for proper display
+  const symbolIndex = SYMBOLS.indexOf(validSymbol);
   for (let k = 1; k < visibleRows; k++) {
-    repeated.push(SYMBOLS[(SYMBOLS.indexOf(finalSymbol) + k) % SYMBOLS.length]);
+    repeated.push(SYMBOLS[(symbolIndex + k) % SYMBOLS.length]);
   }
+  
   return repeated;
 }
 
@@ -81,20 +89,25 @@ export default function SlotMachine({
     <div className="flex flex-col items-center gap-6 p-6 bg-card rounded-lg shadow-lg max-w-md mx-auto">
       <div className="flex gap-4 mb-4">
         {reels.map((finalSymbol, i) => {
-          const symbol = finalSymbol || SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+          // Ensure we have a valid symbol from our symbol set
+          const symbol = SYMBOLS.includes(finalSymbol) ? finalSymbol : SYMBOLS[0];
+          
+          // Build the reel array with the validated symbol
           const reelArray = buildReelArray(symbol, visibleRows);
           const finalIndex = reelArray.length - visibleRows;
-          const finalY = -((finalIndex - 0) * SYMBOL_HEIGHT);
-          // Only animate from top if spinning and spinKey !== lastAnimatedSpinKey.current
+          const finalY = -((finalIndex) * SYMBOL_HEIGHT);
+          
+          // Only animate from top if spinning and this is a new spin
           const shouldAnimate = spinning && spinKey !== lastAnimatedSpinKey.current;
+          
           return (
             <div
-              key={i}
+              key={`reel-${i}-${spinKey}`} // Include symbol in key to prevent position jumping
               className="w-16"
               style={{ height: SYMBOL_HEIGHT * visibleRows, overflow: 'hidden', position: 'relative', background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--text-secondary)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
             >
               <motion.div
-                key={spinKey + '-' + i}
+                key={`motion-${spinKey}-${i}`} // Include symbol in motion key
                 initial={shouldAnimate ? { y: 0 } : { y: finalY }}
                 animate={{ y: finalY }}
                 transition={shouldAnimate ? {
@@ -108,7 +121,7 @@ export default function SlotMachine({
               >
                 {reelArray.map((symbol, j) => (
                   <div
-                    key={j}
+                    key={`symbol-${j}-${symbol}-${spinKey}`} // Include spinKey to ensure uniqueness across spins
                     className="h-16 flex items-center justify-center text-4xl"
                     style={{ height: SYMBOL_HEIGHT }}
                   >
@@ -122,4 +135,4 @@ export default function SlotMachine({
       </div>
     </div>
   );
-} 
+}

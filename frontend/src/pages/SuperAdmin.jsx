@@ -1,16 +1,16 @@
 import React, { useEffect, useState, Fragment, useRef, useLayoutEffect } from 'react';
-import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
+import { Navigate } from 'react-router-dom';
+import axios from '../services/axiosConfig';
 import { CheckIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
-import { getUserPreferences } from '../services/api';
 import ReactPaginate from 'react-paginate';
 import toast from 'react-hot-toast';
 import { UserIcon } from '@heroicons/react/24/outline';
 import RadixDialog from '../components/RadixDialog';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+import { useUserStore, useGuildStore } from '../store';
+import { useUserSearch, useUpdateUserRole, useGiveawayPoints, useAllUsers, useUserPreferences } from '../hooks/useQueryHooks';
+import { useLoading } from '../hooks/useLoading';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const ROLE_OPTIONS = [
   { value: 'all', label: 'All Roles' },
@@ -20,10 +20,28 @@ const ROLE_OPTIONS = [
 ];
 
 export const SuperAdmin = () => {
-  const { user } = useAuth();
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const isGuildSwitching = useGuildStore(state => state.isGuildSwitching);
+  const user = useUserStore(state => state.user);
+  const { startLoading, stopLoading, setError: setLoadingError, isLoading, getError, withLoading } = useLoading();
+  
+  // Debug logging for user role
+  // console.log('[SuperAdmin] Current user:', user);
+  // console.log('[SuperAdmin] User role:', user?.role);
+  // console.log('[SuperAdmin] Selected guild ID:', selectedGuildId);
+  // console.log('[SuperAdmin] Is guild switching:', isGuildSwitching);
+  // console.log('[SuperAdmin] Can access superadmin page:', user && user.role === 'superadmin');
+  
+  // Define loading keys
+  const LOADING_KEYS = {
+    USERS: 'admin-users-list',
+    PREFERENCES: 'admin-preferences',
+    UPDATE_ROLE: 'update-user-role',
+    GIVEAWAY: 'giveaway-points'
+  };
+  
   const [allUsers, setAllUsers] = useState([]); // Store all users for filtering
   const [users, setUsers] = useState([]); // Users to display on current page
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [updating, setUpdating] = useState({}); // { userId: boolean }
@@ -50,45 +68,66 @@ export const SuperAdmin = () => {
   const [userSearch, setUserSearch] = useState('');
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [filteredUsers, setFilteredUsers] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
+  // const [searchLoading, setSearchLoading] = useState(false);
   const inputRef = useRef(null);
   const [searchSelectedUser, setSearchSelectedUser] = useState(null);
   const [showRoleFilterMenu, setShowRoleFilterMenu] = useState(false);
   const roleFilterMenuRef = useRef(null);
   const userRoleDropdownRefs = useRef({});
 
-  // Fetch all users once (for filtering)
+  // Use React Query hooks for fetching data
+  const { 
+    data: preferencesData, 
+    isLoading: preferencesLoading,
+    error: preferencesError 
+  } = useUserPreferences(user?.discordId);
+  
+  const { 
+    data: usersData, 
+    isLoading: usersLoading, 
+    error: usersError 
+  } = useAllUsers();
+  
+  // Update state when preferences data changes
   useEffect(() => {
-    const fetchUserPreferencesAndUsers = async () => {
-      setLoading(true);
+    if (preferencesData) {
+      setUserPreferences(preferencesData);
+      setItemsPerPage(preferencesData.itemsPerPage || 10);
+    }
+  }, [preferencesData]);
+  
+  // Update state when users data changes
+  useEffect(() => {
+    if (usersData?.data) {
+      setAllUsers(usersData.data);
+    }
+  }, [usersData]);
+  
+  // Integrate with LoadingContext
+  useEffect(() => {
+    if (preferencesLoading) {
+      startLoading(LOADING_KEYS.PREFERENCES);
+    } else {
+      stopLoading(LOADING_KEYS.PREFERENCES);
+    }
+    
+    if (usersLoading) {
+      startLoading(LOADING_KEYS.USERS);
+    } else {
+      stopLoading(LOADING_KEYS.USERS);
+    }
+    
+    // Set errors if queries have errors
+    if (preferencesError) {
+      setLoadingError(LOADING_KEYS.PREFERENCES, preferencesError);
+    }
+    
+    if (usersError) {
+      setLoadingError(LOADING_KEYS.USERS, usersError);
       setError(null);
-      try {
-        let prefs = userPreferences;
-        if (!prefs && user?.discordId) {
-          prefs = await getUserPreferences(user.discordId);
-          setUserPreferences(prefs);
-        }
-        if (prefs) {
-          setItemsPerPage(prefs.itemsPerPage || 10);
-          console.log('Fetching users with guildId:', MAIN_GUILD_ID);
-          // Fetch all users (no pagination)
-          const { data } = await axios.get(
-            `${process.env.REACT_APP_API_URL}/api/users`,
-            { params: { page: 1, limit: 10000, guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
-          );
-          console.log('SuperAdmin users API data:', data);
-          setAllUsers(data.data);
-        }
-      } catch (err) {
-        setError(null);
-        toast.error('Failed to load users.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUserPreferencesAndUsers();
-    // eslint-disable-next-line
-  }, [user, userPreferences?.itemsPerPage]);
+      toast.error('Failed to load users.');
+    }
+  }, [preferencesLoading, usersLoading, preferencesError, usersError, startLoading, stopLoading, setLoadingError]);
 
   // Filter and paginate users on the frontend
   useEffect(() => {
@@ -156,20 +195,22 @@ export const SuperAdmin = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openDropdown]);
 
+  // Use React Query mutation hook for role updates
+  const updateRoleMutation = useUpdateUserRole();
+  
   const handleRoleChange = async (userId, newRole) => {
     setUpdating((prev) => ({ ...prev, [userId]: true }));
     setError(null);
     setSuccess(null);
+    
     try {
-      await axios.patch(
-        `${process.env.REACT_APP_API_URL}/api/admin/users/${userId}/role`,
-        { role: newRole, guildId: MAIN_GUILD_ID },
-        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
-      );
-      setAllUsers((prev) => prev.map(u => u._id === userId ? { ...u, role: newRole } : u));
-      setSuccess(null);
-      toast.success('Role updated successfully.');
-    } catch (err) {
+      await withLoading(LOADING_KEYS.UPDATE_ROLE, async () => {
+        await updateRoleMutation.mutateAsync({ userId, newRole });
+        setAllUsers((prev) => prev.map(u => u._id === userId ? { ...u, role: newRole } : u));
+        setSuccess(null);
+        toast.success('Role updated successfully.');
+      });
+    } catch (error) {
       setError(null);
       toast.error('Failed to update role.');
     } finally {
@@ -199,6 +240,9 @@ export const SuperAdmin = () => {
     setGiveawaySuccess(null);
   };
 
+  // Use React Query mutation hook for giveaway
+  const giveawayMutation = useGiveawayPoints();
+
   const handleGiveaway = async () => {
     if (!giveawayAmount || isNaN(giveawayAmount) || Number(giveawayAmount) < 1) {
       setGiveawayError('Enter a valid amount.');
@@ -207,28 +251,25 @@ export const SuperAdmin = () => {
     setGiveawayLoading(true);
     setGiveawayError(null);
     setGiveawaySuccess(null);
+    
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/users/${giveawayUser.discordId}/giveaway`,
-        { amount: Number(giveawayAmount) },
-        {
-          headers: {
-            'x-guild-id': MAIN_GUILD_ID,
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          }
-        }
-      );
-      setGiveawaySuccess('Points given successfully!');
-      setGiveawayAmount('');
-      setTimeout(() => {
-        setShowGiveawayModal(false);
-        setGiveawayUser(null);
+      await withLoading(LOADING_KEYS.GIVEAWAY, async () => {
+        await giveawayMutation.mutateAsync({ 
+          discordId: giveawayUser.discordId, 
+          amount: Number(giveawayAmount) 
+        });
+        
+        setGiveawaySuccess('Points given successfully!');
         setGiveawayAmount('');
-        setGiveawayError(null);
-        setGiveawaySuccess(null);
-        toast.success('Points given successfully!');
-      }, 800);
+        setTimeout(() => {
+          setShowGiveawayModal(false);
+          setGiveawayUser(null);
+          setGiveawayAmount('');
+          setGiveawayError(null);
+          setGiveawaySuccess(null);
+          toast.success('Points given successfully!');
+        }, 800);
+      });
     } catch (err) {
       setGiveawayError(err.response?.data?.message || 'Failed to give points.');
     } finally {
@@ -236,31 +277,29 @@ export const SuperAdmin = () => {
     }
   };
 
-  const handleUserSearch = async (query) => {
-    if (!query || query.length < 2) {
-      setFilteredUsers([]);
-      return;
-    }
-    setSearchLoading(true);
-    try {
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/users/search-users`,
-        {
-          params: { q: encodeURIComponent(query), guildId: MAIN_GUILD_ID },
-          headers: { 'x-guild-id': MAIN_GUILD_ID }
-        }
-      );
-      setFilteredUsers(res.data.data || []);
-    } catch (err) {
-      setFilteredUsers([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
+  // Use React Query hook for user search
+  const {
+    data: searchResults,
+    isLoading: searchLoading,
+    isFetching: isSearchFetching
+  } = useUserSearch(userSearch, {
+    staleTime: 30000, // 30 seconds
+    cacheTime: 300000, // 5 minutes
+    refetchOnWindowFocus: false
+  });
 
+  // Update filtered users when search results change
+  useEffect(() => {
+    if (searchResults?.data) {
+      setFilteredUsers(searchResults.data || []);
+    } else {
+      setFilteredUsers([]);
+    }
+  }, [searchResults]);
+
+  // Show/hide dropdown based on search length
   useEffect(() => {
     if (userSearch.length >= 2) {
-      handleUserSearch(userSearch);
       setShowUserDropdown(true);
     } else {
       setFilteredUsers([]);
@@ -284,9 +323,13 @@ export const SuperAdmin = () => {
     setPage(1);
   };
 
-  // Only allow superadmin
+  // Combined loading state
+  const isPageLoading = isLoading(LOADING_KEYS.USERS) || isLoading(LOADING_KEYS.PREFERENCES);
+  
+  // Only allow superadmin - redirect if not superadmin
   if (!user || user.role !== 'superadmin') {
-    return <div className="max-w-2xl mx-auto px-4 py-8 text-center text-error text-lg font-semibold">Access denied. Super admin only.</div>;
+    // Redirect to dashboard if user is not superadmin
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Helper to calculate dropdown position
@@ -420,9 +463,9 @@ export const SuperAdmin = () => {
           {searchLoading && <div className="text-xs text-text-tertiary mt-1 font-base">Searching...</div>}
         </div>
       </form>
-      {loading ? (
+      {isPageLoading ? (
         <div className="flex justify-center items-center py-8">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
+          <LoadingSpinner size="lg" color="primary" message="Loading users..." />
         </div>
       ) : error ? (
         null
@@ -596,9 +639,14 @@ export const SuperAdmin = () => {
           <button
             className="px-4 py-2 bg-primary text-white rounded-md font-medium font-base"
             onClick={handleGiveaway}
-            disabled={giveawayLoading}
+            disabled={giveawayLoading || isLoading(LOADING_KEYS.GIVEAWAY)}
           >
-            {giveawayLoading ? 'Giving...' : 'Give Points'}
+            {isLoading(LOADING_KEYS.GIVEAWAY) ? (
+              <span className="flex items-center">
+                <span className="mr-2">Giving</span>
+                <LoadingSpinner size="sm" color="white" />
+              </span>
+            ) : 'Give Points'}
           </button>
         </div>
       </RadixDialog>

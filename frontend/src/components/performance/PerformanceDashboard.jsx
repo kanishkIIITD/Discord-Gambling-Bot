@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { chartPerformanceStore } from '../../hooks/useChartPerformance';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUIStore } from '../../store';
 import ReactECharts from 'echarts-for-react';
 import './PerformanceDashboard.css';
 
@@ -11,7 +11,7 @@ import './PerformanceDashboard.css';
  * This component is only available in development mode.
  */
 const PerformanceDashboard = () => {
-  const { theme } = useTheme();
+  const theme = useUIStore(state => state.theme);
   const [metrics, setMetrics] = useState({});
   const [showDashboard, setShowDashboard] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(2000);

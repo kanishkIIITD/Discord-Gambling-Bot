@@ -1,8 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
-import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { PerformanceProvider } from './contexts/PerformanceContext';
+import { Routes, Route } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useScrollToTop } from './hooks/useScrollToTop';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -12,7 +9,16 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 // Import lazyLoad utility
 import { lazyLoad } from './utils/lazyLoad';
-import { AnimationProvider } from './contexts/AnimationContext';
+import { GuildSwitchingOverlay } from './components/GuildSwitchingOverlay';
+import AppLayout from './layouts/AppLayout';
+import LoadingSpinner from './components/LoadingSpinner';
+// Import Zustand stores
+import { useUserStore, useGuildStore, useUIStore } from './store';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import queryClient from './services/queryClient';
+// Import guild switching effect hook
+import { useGuildSwitchingEffect, useUserProfile } from './hooks/useQueryHooks';
 
 // Import performance monitoring
 import { initPerformanceMonitor } from './utils/performanceMonitor';
@@ -22,6 +28,7 @@ import { DashboardLayout } from './layouts/DashboardLayout';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { AuthCallback } from './pages/AuthCallback';
+import { NoGuildsPage } from './pages/NoGuildsPage';
 
 // Import chart performance dashboard (only used in development)
 const PerformanceDashboard = process.env.NODE_ENV === 'development' 
@@ -30,8 +37,8 @@ const PerformanceDashboard = process.env.NODE_ENV === 'development'
 
 // Loading fallback component
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+  <div className="flex items-center justify-center min-h-screen z-10">
+    <LoadingSpinner size="lg" color="primary" message="Loading..." />
   </div>
 );
 
@@ -91,16 +98,20 @@ function AppRoutes() {
       <Route path="/bot-permissions" element={<BotPermissions />} />
       <Route path="/commands" element={<HelpMenu />} />
       <Route path="/support" element={<Support />} />
+      <Route path="/no-guilds" element={<NoGuildsPage />} />
       
       {/* Protected dashboard routes */}
       <Route 
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <DashboardLayout />
+            <AppLayout />
           </ProtectedRoute>
         }
       >
+        <Route 
+          element={<DashboardLayout />}
+        >
         <Route index element={<Dashboard />} />
         <Route path="betting/:betId" element={<BetDetails />} />
         <Route path="wallet/transactions" element={<Transactions />} />
@@ -136,31 +147,83 @@ function AppRoutes() {
         
         {/* Statistics route */}
         <Route path="statistics" element={<StatisticsDashboard />} />
+        </Route>
       </Route>
     </Routes>
   );
 }
 
 function App() {
+  // Initialize stores and check authentication on app load
+  const checkAuth = useUserStore(state => state.checkAuth);
+  const fetchGuilds = useGuildStore(state => state.fetchGuilds);
+  const initializeTheme = useUIStore(state => state.initializeTheme);
+  const initializeGuildStore = useGuildStore(state => state.initialize);
+  
+  // Use guild switching effect to handle query invalidation
+  useGuildSwitchingEffect();
+  
+  // Get user data for profile fetching
+  const user = useUserStore(state => state.user);
+  
+  // Use user profile hook to ensure role is updated when switching guilds
+  useUserProfile(user?.discordId);
+  
+  // Fetch guilds when user is authenticated
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const guilds = useGuildStore(state => state.guilds);
+  
+  // Debug guild switching state
+  const isGuildSwitching = useGuildStore(state => state.isGuildSwitching);
+  const pendingGuildSwitch = useGuildStore(state => state.pendingGuildSwitch);
+  
+  useEffect(() => {
+    // console.log('[App] Guild switching state changed:', {
+    //   isGuildSwitching,
+    //   selectedGuildId,
+    //   pendingGuildSwitch
+    // });
+  }, [isGuildSwitching, selectedGuildId, pendingGuildSwitch]);
+  
+  useEffect(() => {
+    // Check authentication status when app loads
+    checkAuth();
+    
+    // Initialize theme from Zustand store to document (only once on mount)
+    initializeTheme();
+    
+    // Initialize guild store
+    initializeGuildStore();
+  }, []); // Remove store functions from dependency array to prevent infinite loops
+  
+  // Fetch guilds when user is authenticated
+  useEffect(() => {
+    // console.log('[App] User state:', { 
+    //   user: user?.discordId, 
+    //   selectedGuildId, 
+    //   guildsCount: guilds.length 
+    // });
+    
+    if (user?.discordId) {
+      // console.log('[App] Fetching guilds for user:', user.discordId);
+      fetchGuilds(user.discordId);
+    }
+  }, [user?.discordId, selectedGuildId, guilds.length]); // Remove fetchGuilds from dependency array
+  
   return (
     <>
       <Toaster position="top-right" containerClassName="z-[9999]" />
-      <Router>
+      <QueryClientProvider client={queryClient}>
         <ErrorBoundary>
-          <ThemeProvider>
-            <AnimationProvider>
-              <AuthProvider>
-                <PerformanceProvider>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <AppRoutes />
-                    {process.env.NODE_ENV === 'development' && <PerformanceDashboard />}
-                  </Suspense>
-                </PerformanceProvider>
-              </AuthProvider>
-            </AnimationProvider>
-          </ThemeProvider>
+          {/* Guild switching overlay - highest priority, outside Suspense */}
+          <GuildSwitchingOverlay />
+          <Suspense fallback={<LoadingFallback />}>
+            <AppRoutes />
+            {process.env.NODE_ENV === 'development' && <PerformanceDashboard />}
+          </Suspense>
+          {process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}
         </ErrorBoundary>
-      </Router>
+      </QueryClientProvider>
       <Analytics />
       <SpeedInsights />
     </>

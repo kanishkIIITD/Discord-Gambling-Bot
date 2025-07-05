@@ -1,44 +1,122 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-// Sidebar and DashboardNavigation are now part of DashboardLayout
-// import { Sidebar } from '../components/Sidebar'; // Removed
-// import { DashboardNavigation } from '../components/DashboardNavigation'; // Removed
-// import { getWalletBalance } from '../services/api'; // Removed getWalletBalance
-import { getBetDetails, getPlacedBetsForBet, placeBet, closeBet, resolveBet, cancelBet, editBet, extendBet, getUserPreferences, refundBet } from '../services/api';
-import { useDashboard } from '../contexts/DashboardContext';
+import { closeBet, resolveBet, cancelBet, editBet, extendBet, refundBet } from '../services/api';
 import { toast } from 'react-hot-toast'; // Import toast for notifications
-import { useAuth } from '../contexts/AuthContext'; // Import useAuth to get user discordId
 import { ConfirmModal } from '../components/ConfirmModal';
 import ReactPaginate from 'react-paginate';
-import axios from 'axios';
 import { formatDisplayNumber } from '../utils/numberFormat';
 import RadixDialog from '../components/RadixDialog';
+import { useQueryClient } from '@tanstack/react-query';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+// Import Zustand stores
+import { useUserStore } from '../store/useUserStore';
+import { useWalletStore } from '../store/useWalletStore';
+import { useGuildStore } from '../store/useGuildStore';
+import { useUIStore } from '../store/useUIStore';
+
+// Import Zustand-integrated React Query hooks
+import { useZustandQuery, useZustandMutation } from '../hooks/useZustandQuery';
+import * as api from '../services/api';
 
 export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
+  // Use Zustand stores instead of Context
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
   const { betId: routeBetId } = useParams();
   const betId = propBetId || routeBetId;
-  const { user } = useAuth(); // Get user for discordId
-  const [bet, setBet] = useState(null);
-  const [placedBets, setPlacedBets] = useState([]);
-  const [userPreferences, setUserPreferences] = useState(null);
+  const user = useUserStore(state => state.user); // Get user for discordId
+  const queryClient = useQueryClient();
+  
+  // Debug logging for user role
+  // console.log('[BetDetails] Current user:', user);
+  // console.log('[BetDetails] User role:', user?.role);
+  // console.log('[BetDetails] Selected guild ID:', selectedGuildId);
+  // console.log('[BetDetails] Can access admin controls:', user && (user.role === 'admin' || user.role === 'superadmin'));
+  
+  // Define loading keys
+  const LOADING_KEYS = {
+    BET_DETAILS: 'bet-details',
+    PLACED_BETS: 'placed-bets',
+    PLACE_BET: 'place-bet'
+  };
+  
+  // Use Zustand-integrated React Query hooks
   const [placedBetsPage, setPlacedBetsPage] = useState(1);
-  const [placedBetsTotal, setPlacedBetsTotal] = useState(0);
   const [placedBetsPageSize, setPlacedBetsPageSize] = useState(10);
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  // const [walletBalance, setWalletBalance] = useState(0); // Removed
+  
+  const { data: bet, isLoading: betLoading, error: betError } = useZustandQuery(
+    ['betDetails', betId, selectedGuildId],
+    () => api.getBetDetails(betId, selectedGuildId),
+    {
+      enabled: !!betId && !!selectedGuildId,
+      staleTime: 1000 * 30, // 30 seconds
+      refetchOnMount: true,
+      refetchOnWindowFocus: true
+    },
+    LOADING_KEYS.BET_DETAILS
+  );
+  
+  const { 
+    data: placedBetsData, 
+    isLoading: placedBetsLoading,
+    error: placedBetsError 
+  } = useZustandQuery(
+    ['placedBets', betId, selectedGuildId, placedBetsPage, placedBetsPageSize],
+    () => api.getPlacedBetsForBet(betId, placedBetsPage, placedBetsPageSize, selectedGuildId),
+    {
+      enabled: !!betId && !!selectedGuildId,
+      keepPreviousData: true,
+      staleTime: 1000 * 30, // 30 seconds
+      refetchOnMount: true,
+      refetchOnWindowFocus: true
+    },
+    LOADING_KEYS.PLACED_BETS
+  );
+  
+  const { data: userPreferences } = useZustandQuery(
+    ['userPreferences', user?.discordId],
+    () => api.getUserPreferences(user?.discordId),
+    {
+      enabled: !!user?.discordId
+    }
+  );
+  
+  // Loading states are now handled automatically by useZustandQuery
+  
+  // Extract data from React Query results
+  const placedBets = placedBetsData?.data || [];
+  const placedBetsTotal = placedBetsData?.totalCount || 0;
+  const isDataLoading = betLoading || placedBetsLoading;
+  const loadingError = betError || placedBetsError;
+
+
 
   // State for placing a bet
   const [selectedOption, setSelectedOption] = useState('');
   const [betAmount, setBetAmount] = useState('');
-  const [isPlacingBet, setIsPlacingBet] = useState(false);
+  
+  // Use the place bet mutation with Zustand integration
+  const placeBetMutation = useZustandMutation(
+    (params) => api.placeBet(params.betId, params.bettorDiscordId, params.option, params.amount, params.guildId),
+    {
+      onSuccess: () => {
+        // Invalidate queries to refresh data
+        // Invalidate all placed bets queries for this bet (with any pagination)
+        queryClient.invalidateQueries({
+          queryKey: ['placedBets', betId, selectedGuildId],
+          exact: false
+        });
+        queryClient.invalidateQueries(['betDetails', betId, selectedGuildId]);
+        queryClient.invalidateQueries(['walletBalance']);
+      }
+    },
+    LOADING_KEYS.PLACE_BET
+  );
+  const isPlacingBet = placeBetMutation.isLoading;
 
-  // Consume walletBalance and activeBets from context
-  const { walletBalance, activeBets } = useDashboard();
+  // Get wallet balance and actions from Zustand store
+  const walletBalance = useWalletStore(state => state.balance);
+  const fetchBalance = useWalletStore(state => state.fetchBalance);
 
   const [adminActionLoading, setAdminActionLoading] = useState(false);
   const [showResolveModal, setShowResolveModal] = useState(false);
@@ -55,58 +133,19 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   // The backend now provides these totals directly
   const { optionTotals, totalPot } = bet || {};
 
-  // Fetch user preferences for pagination
-  useEffect(() => {
-    const fetchPreferences = async () => {
-      if (user?.discordId) {
-        try {
-          const prefs = await getUserPreferences(user.discordId);
-          setUserPreferences(prefs);
-        } catch (e) {
-          setUserPreferences({ itemsPerPage: 10 });
-        }
-      } else {
-        setUserPreferences({ itemsPerPage: 10 });
-      }
-    };
-    fetchPreferences();
-    // eslint-disable-next-line
-  }, [user?.discordId]);
-
   // Reset to first page if itemsPerPage changes
   useEffect(() => {
-    setPlacedBetsPage(1);
-  }, [userPreferences?.itemsPerPage]);
+    if (userPreferences) {
+      setPlacedBetsPage(1);
+    }
+  }, [userPreferences]);
 
+  // Set default selected option when bet data is loaded
   useEffect(() => {
-    const fetchBetDetails = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const betRes = await axios.get(
-          `${process.env.REACT_APP_API_URL}/api/bets/${betId}`,
-          { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
-        );
-        setBet(betRes.data);
-        if (betRes.data && betRes.data.status === 'open' && betRes.data.options.length > 0) {
-            setSelectedOption(betRes.data.options[0]);
-        }
-        // Fetch placed bets for this bet
-        const placedRes = await axios.get(
-          `${process.env.REACT_APP_API_URL}/api/bets/${betId}/placed`,
-          { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
-        );
-        setPlacedBets(placedRes.data.data);
-        setPlacedBetsTotal(placedRes.data.totalCount || (placedRes.data.data ? placedRes.data.data.length : 0));
-      } catch (err) {
-        console.error('Error fetching bet details:', err);
-        setError('Failed to fetch bet details.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBetDetails();
-  }, [betId]);
+    if (bet && bet.status === 'open' && bet.options.length > 0) {
+      setSelectedOption(bet.options[0]);
+    }
+  }, [bet]);
 
   // Removed wallet balance fetch as it's handled in DashboardLayout
   // useEffect(() => {
@@ -137,7 +176,7 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
             return;
         }
         if (amount > walletBalance) {
-             toast.error('Insufficient balance.');
+            toast.error('Insufficient balance.');
              return;
         }
         if (bet.status !== 'open') {
@@ -150,32 +189,41 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
               return;
          }
 
-        setIsPlacingBet(true);
         try {
-            const response = await axios.post(
-                `${process.env.REACT_APP_API_URL}/api/bets/${betId}/place`,
-                { bettorDiscordId: user.discordId, option: selectedOption, amount: amount, guildId: MAIN_GUILD_ID },
-                { headers: { 'x-guild-id': MAIN_GUILD_ID } }
-            );
-            toast.success(response.data.message || 'Bet placed successfully!');
+            // Loading state is handled automatically by useZustandMutation
+            await placeBetMutation.mutateAsync({
+                betId,
+                bettorDiscordId: user.discordId,
+                option: selectedOption,
+                amount: amount,
+                guildId: selectedGuildId
+            });
+            
+            toast.success('Bet placed successfully!');
             setBetAmount(''); // Clear input after placing bet
-
-            // Refetch placed bets for this specific bet to update the list
-            const placedBetsRes = await axios.get(
-                `${process.env.REACT_APP_API_URL}/api/bets/${betId}/placed`,
-                { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
-            );
-            setPlacedBets(placedBetsRes.data.data);
-            setPlacedBetsTotal(placedBetsRes.data.totalCount || (placedBetsRes.data.data ? placedBetsRes.data.data.length : 0));
-
-            // Balance update is handled by WebSocket in DashboardLayout
+            
+            // Force a refetch of the placed bets data
+            queryClient.refetchQueries({
+              queryKey: ['placedBets', betId, selectedGuildId],
+              exact: false
+            });
+            
+            // Also invalidate the specific query with pagination
+            queryClient.invalidateQueries({
+              queryKey: ['placedBets', betId, selectedGuildId, placedBetsPage, placedBetsPageSize],
+              exact: true
+            });
+            
+            // Refresh wallet balance after successful bet placement
+            if (user?.discordId && selectedGuildId) {
+                await fetchBalance(user.discordId, selectedGuildId);
+            }
 
         } catch (error) {
             console.error('Error placing bet:', error);
             const errorMessage = error.response?.data?.message || 'Failed to place bet.';
             toast.error(errorMessage);
-        } finally {
-            setIsPlacingBet(false);
+            // Error handling is done automatically by useZustandMutation
         }
     };
 
@@ -183,11 +231,11 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const handleCloseBet = async () => {
     setAdminActionLoading(true);
     try {
-      await closeBet(betId);
+      await closeBet(betId, user.discordId, selectedGuildId);
       toast.success('Bet closed successfully.');
-      // Refresh bet details
-      const betData = await getBetDetails(betId);
-      setBet(betData);
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries(['betDetails', betId, selectedGuildId]);
+      // Data will be refreshed by React Query
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to close bet.');
     } finally {
@@ -202,12 +250,16 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const handleResolveBet = async () => {
     setAdminActionLoading(true);
     try {
-      await resolveBet(betId, resolveOption, user.discordId);
+      await resolveBet(betId, resolveOption, user.discordId, selectedGuildId);
       toast.success('Bet resolved successfully.');
       setShowResolveModal(false);
-      // Refresh bet details
-      const betData = await getBetDetails(betId);
-      setBet(betData);
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries(['betDetails', betId, selectedGuildId]);
+      queryClient.invalidateQueries(['walletBalance']);
+      // Refresh wallet balance after resolving bet
+      if (user?.discordId && selectedGuildId) {
+        await fetchBalance(user.discordId, selectedGuildId);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to resolve bet.');
     } finally {
@@ -223,8 +275,15 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
     setShowCancelModal(false);
     setAdminActionLoading(true);
     try {
-      await cancelBet(betId, user.discordId);
+      await cancelBet(betId, user.discordId, selectedGuildId);
       toast.success('Bet cancelled successfully.');
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries(['betDetails', betId, selectedGuildId]);
+      queryClient.invalidateQueries(['walletBalance']);
+      // Refresh wallet balance after cancelling bet
+      if (user?.discordId && selectedGuildId) {
+        await fetchBalance(user.discordId, selectedGuildId);
+      }
       // Call the callback function to signal the parent
       if (onBetCanceled) {
         onBetCanceled();
@@ -245,12 +304,11 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const handleEditBet = async () => {
     setAdminActionLoading(true);
     try {
-      await editBet(betId, user.discordId, editDescription, editOptions, editDuration ? Number(editDuration) : undefined);
+      await editBet(betId, user.discordId, editDescription, editOptions, editDuration ? Number(editDuration) : undefined, selectedGuildId);
       toast.success('Bet edited successfully.');
       setShowEditModal(false);
-      // Refresh bet details
-      const betData = await getBetDetails(betId);
-      setBet(betData);
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries(['betDetails', betId, selectedGuildId]);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to edit bet.');
     } finally {
@@ -265,12 +323,11 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const handleExtendBet = async () => {
     setAdminActionLoading(true);
     try {
-      await extendBet(betId, user.discordId, Number(extendMinutes));
+      await extendBet(betId, user.discordId, Number(extendMinutes), selectedGuildId);
       toast.success('Bet extended successfully.');
       setShowExtendModal(false);
-      // Refresh bet details
-      const betData = await getBetDetails(betId);
-      setBet(betData);
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries(['betDetails', betId, selectedGuildId]);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to extend bet.');
     } finally {
@@ -281,12 +338,16 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
   const handleRefundBet = async () => {
     setAdminActionLoading(true);
     try {
-      await refundBet(betId, user.discordId);
+      await refundBet(betId, user.discordId, selectedGuildId);
       toast.success('Bet refunded successfully.');
       setShowRefundModal(false);
-      // Refresh bet details
-      const betData = await getBetDetails(betId);
-      setBet(betData);
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries(['betDetails', betId, selectedGuildId]);
+      queryClient.invalidateQueries(['walletBalance']);
+      // Refresh wallet balance after refunding bet
+      if (user?.discordId && selectedGuildId) {
+        await fetchBalance(user.discordId, selectedGuildId);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to refund bet.');
     } finally {
@@ -294,17 +355,32 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
     }
   };
 
-  // Loading is now handled by DashboardLayout, but we can keep this for local data loading
-  if (loading) {
+  // Loading is now handled by LoadingContext
+  if (isDataLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" color="primary" message="Loading bet details..." />
       </div>
     );
   }
 
-  if (error) {
-    return <div className="min-h-screen bg-background text-error flex items-center justify-center">{error}</div>;
+  if (loadingError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="bg-card p-6 rounded-lg shadow-lg max-w-lg w-full">
+          <h2 className="text-2xl font-bold text-text-primary mb-4">Error Loading Bet Details</h2>
+          <div className="bg-error/10 border border-error/30 rounded-md p-4 mb-6">
+            <p className="text-error font-medium">{loadingError.message || 'Failed to load bet details'}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!bet) {
@@ -369,6 +445,7 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
           {/* Admin Controls */}
           {user && (user.role === 'admin' || user.role === 'superadmin') && (
             <div className="mt-6 flex flex-wrap gap-2">
+              {/* {console.log('[BetDetails] Rendering admin controls for user with role:', user.role)} */}
               <button
                 className="px-3 py-1 rounded text-white font-semibold hover:opacity-90 disabled:opacity-60 transition-all duration-200 font-base"
                 style={{ backgroundColor: 'var(--primary)' }}
@@ -489,7 +566,7 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-base">{placedBet.bettor.username}</td>
                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-mono">{formatDisplayNumber(placedBet.amount)}</td>
                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-accent">{placedBet.option}</td>
-                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-base">{new Date(placedBet.placedAt).toLocaleString()}</td>
+                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary font-base">{new Date(placedBet.placedAt || placedBet.createdAt).toLocaleString()}</td>
                                </tr>
                            ))}
                        </tbody>
@@ -503,20 +580,23 @@ export const BetDetails = ({ betId: propBetId, onBetCanceled }) => {
                        nextLabel={"Next"}
                        breakLabel={"..."}
                        breakClassName={"px-2 py-1"}
-                         pageCount={Math.ceil(placedBetsTotal / (userPreferences?.itemsPerPage || 10))}
+                       pageCount={Math.ceil(placedBetsTotal / (userPreferences?.itemsPerPage || 10))}
                        marginPagesDisplayed={1}
                        pageRangeDisplayed={3}
-                       onPageChange={selected => setPlacedBetsPage(selected.selected + 1)}
+                       onPageChange={(selected) => {
+                         setPlacedBetsPage(selected.selected + 1);
+                         // React Query will automatically refetch with the new page
+                       }}
                        forcePage={placedBetsPage - 1}
                        containerClassName={"flex gap-1 items-center"}
                        pageClassName={""}
-                         pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10 font-base"}
+                       pageLinkClassName={"px-2 py-1 rounded bg-card text-text-secondary hover:bg-primary/10 font-base"}
                        activeClassName={""}
                        activeLinkClassName={"bg-primary text-white"}
                        previousClassName={""}
-                         previousLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500 font-base"}
+                       previousLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500 font-base"}
                        nextClassName={""}
-                         nextLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500 font-base"}
+                       nextLinkClassName={"px-3 py-1 rounded bg-primary text-white disabled:bg-gray-300 disabled:text-gray-500 font-base"}
                        disabledClassName={"opacity-50 cursor-not-allowed"}
                      />
                    </div>

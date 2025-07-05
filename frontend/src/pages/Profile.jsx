@@ -1,81 +1,149 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { getUserProfile } from '../services/api';
-import { getUserStats } from '../services/api';
-import axios from 'axios';
+import React from 'react';
 import { formatDisplayNumber } from '../utils/numberFormat';
 import { motion } from 'framer-motion';
-
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+import { useUserStore, useGuildStore } from '../store';
+import { useZustandQuery } from '../hooks/useZustandQuery';
+import { useLoading } from '../hooks/useLoading';
+import LoadingSpinner from '../components/LoadingSpinner';
+import * as api from '../services/api';
 
 export const Profile = () => {
-  const { user } = useAuth();
-  const [profileData, setProfileData] = useState(null);
-  const [statsData, setStatsData] = useState(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setProfileLoading(true);
-      setError(null);
-      try {
-        const res = await axios.get(
-          `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/profile`,
-          { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
-        );
-        setProfileData(res.data);
-      } catch (err) {
-        setError('Failed to fetch profile.');
-      } finally {
-        setProfileLoading(false);
-      }
-    };
-    if (user?.discordId) {
-      fetchProfile();
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const isGuildSwitching = useGuildStore(state => state.isGuildSwitching);
+  const guilds = useGuildStore(state => state.guilds);
+  const user = useUserStore(state => state.user);
+  const { isLoading, getError } = useLoading();
+  
+  // Debug logging
+  // console.log('[Profile] Component rendered with:', {
+  //   user: user?.discordId,
+  //   selectedGuildId,
+  //   guildsCount: guilds.length,
+  //   isGuildSwitching
+  // });
+  
+  // Define loading keys
+  const LOADING_KEYS = {
+    PROFILE: 'user-profile',
+    STATS: 'user-stats'
+  };
+  
+  // Check if we have the required data to make API calls
+  const hasRequiredData = !!user?.discordId && !!selectedGuildId;
+  
+  // Check if guilds are still being fetched (we have selectedGuildId but no guilds yet)
+  const guildsStillLoading = !!selectedGuildId && guilds.length === 0;
+  
+  // Use Zustand-integrated React Query hooks instead of direct API calls
+  const queryEnabled = hasRequiredData && !guildsStillLoading;
+  // console.log('[Profile] Query enabled:', queryEnabled, 'for user:', user?.discordId, 'guild:', selectedGuildId, 'guildsStillLoading:', guildsStillLoading);
+  
+  const { 
+    data: profileData, 
+    error: profileError,
+    isLoading: profileLoading, 
+    isFetching: profileFetching
+  } = useZustandQuery(
+    ['userProfile', user?.discordId, selectedGuildId],
+    () => api.getUserProfile(user?.discordId),
+    {
+      enabled: queryEnabled,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      refetchInterval: isGuildSwitching ? false : undefined,
+    },
+    LOADING_KEYS.PROFILE
+  );
+  
+  const { 
+    data: statsData, 
+    error: statsError,
+    isLoading: statsLoading, 
+    isFetching: statsFetching
+  } = useZustandQuery(
+    ['userStats', user?.discordId, selectedGuildId],
+    () => api.getUserStats(user?.discordId),
+    {
+      enabled: queryEnabled,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      refetchInterval: isGuildSwitching ? false : undefined,
+    },
+    LOADING_KEYS.STATS
+  );
+  
+  // Combined loading state - check both Zustand loading states and React Query loading states
+  const isPageLoading = !hasRequiredData || 
+                       guildsStillLoading ||
+                       isLoading(LOADING_KEYS.PROFILE) || 
+                       isLoading(LOADING_KEYS.STATS) ||
+                       profileLoading || 
+                       statsLoading ||
+                       profileFetching || 
+                       statsFetching;
+  
+  // console.log('[Profile] Loading states:', {
+  //   hasRequiredData,
+  //   guildsStillLoading,
+  //   user: user?.discordId,
+  //   selectedGuildId,
+  //   profileLoading: isLoading(LOADING_KEYS.PROFILE),
+  //   statsLoading: isLoading(LOADING_KEYS.STATS),
+  //   profileQueryLoading: profileLoading,
+  //   statsQueryLoading: statsLoading,
+  //   profileFetching,
+  //   statsFetching,
+  //   isPageLoading,
+  //   profileData: !!profileData,
+  //   statsData: !!statsData
+  // });
+  
+  if (isPageLoading) {
+    let loadingMessage = "Loading profile...";
+    
+    if (!user?.discordId) {
+      loadingMessage = "Waiting for user authentication...";
+    } else if (!selectedGuildId) {
+      loadingMessage = "Waiting for guild selection...";
+    } else if (guildsStillLoading) {
+      loadingMessage = "Loading guild data...";
     }
-  }, [user]);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      setStatsLoading(true);
-      setError(null);
-      try {
-        const res = await axios.get(
-          `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/stats`,
-          { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }
-        );
-        setStatsData(res.data);
-      } catch (err) {
-        setError('Failed to fetch stats.');
-      } finally {
-        setStatsLoading(false);
-      }
-    };
-    if (user?.discordId) {
-      fetchStats();
-    }
-  }, [user]);
-
-  if (profileLoading || statsLoading) {
+    
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" color="primary" message={loadingMessage} />
       </div>
     );
   }
 
+  const profileErrorMsg = getError(LOADING_KEYS.PROFILE);
+  const statsErrorMsg = getError(LOADING_KEYS.STATS);
+  const error = profileErrorMsg || statsErrorMsg || profileError || statsError;
+  
   if (error) {
-    return <div className="min-h-screen bg-background text-error flex items-center justify-center">{error}</div>;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="bg-card p-6 rounded-lg shadow-lg max-w-lg w-full">
+          <h2 className="text-2xl font-bold text-text-primary mb-4">Error Loading Profile</h2>
+          <div className="bg-error/10 border border-error/30 rounded-md p-4 mb-6">
+            <p className="text-error font-medium">{error.message || 'Failed to load profile data'}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!profileData || !statsData) {
     return <div className="min-h-screen bg-background text-text-secondary flex items-center justify-center">Profile data not found.</div>;
   }
 
-  const { user: userData, wallet, betting: profileBetting, gambling: profileGambling } = profileData;
+  const { user: userData, wallet, betting: profileBetting } = profileData;
   const { betting, gambling, currentWinStreak, maxWinStreak, jackpotWins, dailyBonusesClaimed, giftsSent, giftsReceived } = statsData;
 
   return (
@@ -162,4 +230,4 @@ export const Profile = () => {
       </div>
     </motion.div>
   );
-}; 
+};

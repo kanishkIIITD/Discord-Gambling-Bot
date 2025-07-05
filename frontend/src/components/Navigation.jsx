@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useUserStore } from '../store';
 import { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { ThemeToggle } from './ThemeToggle';
 import { motion, useSpring } from 'framer-motion';
@@ -18,7 +18,8 @@ const tabList = [
 ];
 
 export const Navigation = () => {
-  const { user, logout } = useAuth();
+  const user = useUserStore(state => state.user);
+  const logout = useUserStore(state => state.logout);
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
@@ -153,8 +154,8 @@ export const Navigation = () => {
               </Link>
             )}
 
-            {/* Theme Toggle */}
-            <ThemeToggle />
+            {/* Theme Toggle - Using key to ensure proper re-rendering */}
+            <ThemeToggle key="theme-toggle-nav" />
 
             {/* Mobile menu button */}
             <button

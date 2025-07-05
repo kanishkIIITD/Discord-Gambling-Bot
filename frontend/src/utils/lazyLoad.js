@@ -1,11 +1,12 @@
 import React, { lazy, Suspense } from 'react';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 /**
  * Default fallback component shown while the lazy component is loading
  */
 const DefaultLoadingFallback = () => (
   <div className="flex items-center justify-center p-4 min-h-[200px]">
-    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+    <LoadingSpinner size="md" color="primary" />
   </div>
 );
 

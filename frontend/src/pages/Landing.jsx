@@ -7,6 +7,7 @@ import RadixDialog from '../components/RadixDialog';
 import PageTransition from '../components/PageTransition';
 import AnimatedElement from '../components/AnimatedElement';
 import { useAnimation } from '../contexts/AnimationContext';
+import TiltedCard from '../components/TiltedCard';
 
 // Using RadixDialog instead of custom PolicyModal
 
@@ -44,24 +45,60 @@ export const Landing = () => {
 
         {/* Features Section */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 mb-8 md:mb-16 stagger-container">
-          <AnimatedElement variant="FADE_IN_UP" delay={0.1} className="bg-card p-4 md:p-6 rounded-lg shadow-lg floating">
-            <h3 className="text-lg md:text-xl font-semibold text-text-primary mb-3 md:mb-4 tracking-wide font-heading">Easy Betting</h3>
-            <p className="text-text-secondary leading-relaxed tracking-wide text-sm md:text-base font-base">
-              Create and manage bets with simple Discord commands. Perfect for GTA RP events and competitions.
-            </p>
-          </AnimatedElement>
-          <AnimatedElement variant="FADE_IN_UP" delay={0.2} className="bg-card p-4 md:p-6 rounded-lg shadow-lg floating">
-            <h3 className="text-lg md:text-xl font-semibold text-text-primary mb-3 md:mb-4 tracking-wide font-heading">Point System</h3>
-            <p className="text-text-secondary leading-relaxed tracking-wide text-sm md:text-base font-base">
-              Earn and spend points through various activities. Keep track of your balance with our intuitive dashboard.
-            </p>
-          </AnimatedElement>
-          <AnimatedElement variant="FADE_IN_UP" delay={0.3} className="bg-card p-4 md:p-6 rounded-lg shadow-lg floating">
-            <h3 className="text-lg md:text-xl font-semibold text-text-primary mb-3 md:mb-4 tracking-wide font-heading">Community Focus</h3>
-            <p className="text-text-secondary leading-relaxed tracking-wide text-sm md:text-base font-base">
-              Built for GTA RP communities. Foster engagement and excitement through virtual gambling activities.
-            </p>
-          </AnimatedElement>
+            <TiltedCard
+              containerHeight="fit"
+              containerWidth="fit"
+              rotateAmplitude={12}
+              scaleOnHover={1.2}
+              showMobileWarning={false}
+              showTooltip={true}
+              captionText="Easy Betting Feature"
+              displayOverlayContent={true}
+              overlayContent={
+                <div className="w-full h-full bg-card p-4 md:p-6 rounded-lg shadow-lg flex flex-col justify-center">
+                  <h3 className="text-lg md:text-xl font-semibold text-text-primary mb-3 md:mb-4 tracking-wide font-heading">Easy Betting</h3>
+                  <p className="text-text-secondary leading-relaxed tracking-wide text-sm md:text-base font-base">
+                    Create and manage bets with simple Discord commands. Perfect for GTA RP events and competitions.
+                  </p>
+                </div>
+              }
+            />
+          <TiltedCard
+            containerHeight="fit"
+            containerWidth="fit"
+            rotateAmplitude={12}
+            scaleOnHover={1.2}
+            showMobileWarning={false}
+            showTooltip={true}
+            captionText="Point System Feature"
+            displayOverlayContent={true}
+            overlayContent={
+              <div className="w-full h-full bg-card p-4 md:p-6 rounded-lg shadow-lg flex flex-col justify-center">
+                <h3 className="text-lg md:text-xl font-semibold text-text-primary mb-3 md:mb-4 tracking-wide font-heading">Point System</h3>
+                <p className="text-text-secondary leading-relaxed tracking-wide text-sm md:text-base font-base">
+                  Earn and spend points through various activities. Keep track of your balance with our intuitive dashboard.
+                </p>
+              </div>
+            }
+          />
+          <TiltedCard
+            containerHeight="fit"
+            containerWidth="fit"
+            rotateAmplitude={12}
+            scaleOnHover={1.2}
+            showMobileWarning={false}
+            showTooltip={true}
+            captionText="Community Focus Feature"
+            displayOverlayContent={true}
+            overlayContent={
+              <div className="w-full h-full bg-card p-4 md:p-6 rounded-lg shadow-lg flex flex-col justify-center">
+                <h3 className="text-lg md:text-xl font-semibold text-text-primary mb-3 md:mb-4 tracking-wide font-heading">Community Focus</h3>
+                <p className="text-text-secondary leading-relaxed tracking-wide text-sm md:text-base font-base">
+                  Built for GTA RP communities. Foster engagement and excitement through virtual gambling activities.
+                </p>
+              </div>
+            }
+          />
         </div>
 
         {/* CTA Section */}

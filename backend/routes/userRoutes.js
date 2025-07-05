@@ -4,12 +4,12 @@ const User = require('../models/User');
 const Wallet = require('../models/Wallet');
 const PlacedBet = require('../models/PlacedBet');
 const Transaction = require('../models/Transaction');
-const { broadcastToUser } = require('../utils/websocketService'); // Import WebSocket service
 const UserPreferences = require('../models/UserPreferences');
 const Duel = require('../models/Duel');
 const { requireGuildId } = require('../middleware/auth');
 const { calculateTimeoutCost, isValidTimeoutDuration, isOnTimeoutCooldown, getRemainingCooldown, BASE_COST_PER_MINUTE, BALANCE_PERCENTAGE } = require('../utils/timeoutUtils');
 const { auth, requireSuperAdmin } = require('../middleware/auth');
+const { getUserGuilds } = require('../utils/discordClient');
 
 // Rarity weights for buffs
 const baseWeights = {
@@ -33,6 +33,33 @@ const rarityOrder = [
   'uncommon',
   'common'
 ];
+
+// --- GET USER GUILDS ENDPOINT ---
+router.get('/:discordId/guilds', auth, async (req, res) => {
+  // console.log('[UserRoutes] Received request for user guilds, discordId:', req.params.discordId);
+  try {
+    const { discordId } = req.params;
+    // console.log('[UserRoutes] Authenticated user:', req.user.discordId, 'Role:', req.user.role);
+    
+    // Verify that the authenticated user is requesting their own guilds
+    if (req.user.discordId !== discordId && req.user.role !== 'superadmin') {
+      // console.log('[UserRoutes] Unauthorized access attempt. Requester:', req.user.discordId, 'Target:', discordId);
+      return res.status(403).json({ message: 'You can only request your own guilds.' });
+    }
+    
+    // console.log('[UserRoutes] Authorization passed, fetching guilds for:', discordId);
+    // Get the guilds the user has access to
+    const userGuilds = await getUserGuilds(discordId);
+    // console.log('[UserRoutes] Guilds fetched successfully, count:', userGuilds ? userGuilds.length : 0);
+    
+    res.json({
+      guilds: userGuilds
+    });
+  } catch (error) {
+    console.error('[UserRoutes] Error fetching user guilds:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
 
 // --- TIMEOUT ENDPOINT ---
 router.post('/:userId/timeout', requireGuildId, async (req, res) => {
@@ -1166,10 +1193,6 @@ router.post('/:userId/daily', async (req, res) => {
     });
     await transaction.save();
 
-    // Send WebSocket updates
-    broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction });
-    broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
-
     res.json({
       message: 'Daily bonus claimed successfully!',
       amount: bonusAmount,
@@ -1238,13 +1261,6 @@ router.post('/:userId/gift', async (req, res) => {
       guildId: req.guildId
     });
     await recipientTransaction.save();
-
-    // Send WebSocket updates to both users
-    broadcastToUser(sender.discordId, { type: 'TRANSACTION', transaction: senderTransaction });
-    broadcastToUser(sender.discordId, { type: 'BALANCE_UPDATE', balance: senderWallet.balance });
-    
-    broadcastToUser(recipient.discordId, { type: 'TRANSACTION', transaction: recipientTransaction });
-    broadcastToUser(recipient.discordId, { type: 'BALANCE_UPDATE', balance: recipientWallet.balance });
 
     res.json({
       message: 'Gift sent successfully!',
@@ -1491,8 +1507,10 @@ router.get('/:discordId/bets', async (req, res) => {
         pipeline.push({ $match: { $expr: { $and: [ { $eq: ['$bet.status', 'resolved'] }, { $eq: ['$option', '$bet.winningOption'] } ] } } });
       } else if (req.query.result === 'lost') {
         pipeline.push({ $match: { $expr: { $and: [ { $eq: ['$bet.status', 'resolved'] }, { $ne: ['$option', '$bet.winningOption'] } ] } } });
+      } else if (req.query.result === 'refunded') {
+        pipeline.push({ $match: { 'bet.status': 'refunded' } });
       } else if (req.query.result === 'pending') {
-        pipeline.push({ $match: { 'bet.status': { $ne: 'resolved' } } });
+        pipeline.push({ $match: { 'bet.status': { $nin: ['resolved', 'refunded'] } } });
       }
     }
     // Sorting
@@ -1522,7 +1540,7 @@ router.get('/:discordId/bets', async (req, res) => {
 });
 
 // Update username for a user
-router.post('/:discordId/update-username', async (req, res) => {
+router.post('/:discordId/update-username', requireGuildId, async (req, res) => {
   try {
     const { username } = req.body;
     if (!username || typeof username !== 'string' || username.length < 2) {
@@ -1931,7 +1949,7 @@ router.get('/:discordId/work-stats', async (req, res) => {
 // --- BAIL SYSTEM ---
 router.post('/:discordId/bail', async (req, res) => {
   // Debug: log entry and params
-  console.log('[BAIL] Called with payer discordId:', req.params.discordId, 'body:', req.body);
+  // console.log('[BAIL] Called with payer discordId:', req.params.discordId, 'body:', req.body);
   if (!req.user) {
     console.error('[BAIL] req.user is missing!');
     return res.status(401).json({ message: 'User not authenticated (req.user missing).' });
@@ -1939,11 +1957,11 @@ router.post('/:discordId/bail', async (req, res) => {
   try {
     const payer = req.user;
     const { targetDiscordId } = req.body;
-    console.log('[BAIL] payer:', payer.discordId, 'target:', targetDiscordId);
+    // console.log('[BAIL] payer:', payer.discordId, 'target:', targetDiscordId);
     if (!targetDiscordId) return res.status(400).json({ message: 'No target user specified.' });
     if (targetDiscordId === payer.discordId) return res.status(400).json({ message: 'You cannot bail yourself out.' });
     const targetUser = await User.findOne({ discordId: targetDiscordId, guildId: req.guildId });
-    console.log('[BAIL] targetUser:', targetUser && targetUser.discordId, 'jailedUntil:', targetUser && targetUser.jailedUntil);
+    // console.log('[BAIL] targetUser:', targetUser && targetUser.discordId, 'jailedUntil:', targetUser && targetUser.jailedUntil);
     if (!targetUser) return res.status(404).json({ message: 'Target user not found.' });
     if (!targetUser.jailedUntil || targetUser.jailedUntil < new Date()) {
       return res.status(400).json({ message: 'Target user is not currently jailed.' });
@@ -1953,7 +1971,7 @@ router.post('/:discordId/bail', async (req, res) => {
     const minutesLeft = Math.ceil((targetUser.jailedUntil - now) / 60000);
     const bailCost = 10000 + minutesLeft * 1000;
     const payerWallet = await Wallet.findOne({ user: payer._id, guildId: req.guildId });
-    console.log('[BAIL] payerWallet balance:', payerWallet && payerWallet.balance, 'bailCost:', bailCost);
+    // console.log('[BAIL] payerWallet balance:', payerWallet && payerWallet.balance, 'bailCost:', bailCost);
     if (!payerWallet || payerWallet.balance < bailCost) {
       return res.status(400).json({ message: `You need ${bailCost.toLocaleString('en-US')} points to bail this user out.` });
     }
@@ -1969,11 +1987,9 @@ router.post('/:discordId/bail', async (req, res) => {
       guildId: req.guildId
     });
     await transaction.save();
-    broadcastToUser(payer.discordId, { type: 'TRANSACTION', transaction });
-    broadcastToUser(payer.discordId, { type: 'BALANCE_UPDATE', balance: payerWallet.balance });
     targetUser.jailedUntil = null;
     await targetUser.save();
-    console.log('[BAIL] Bail successful.');
+    // console.log('[BAIL] Bail successful.');
     res.json({
       message: `You bailed out <@${targetDiscordId}> for ${bailCost.toLocaleString('en-US')} points!`,
       bailCost,
@@ -1987,14 +2003,14 @@ router.post('/:discordId/bail', async (req, res) => {
 
 // --- BAIL ALL SYSTEM ---
 router.post('/:discordId/bail-all', async (req, res) => {
-  console.log('[BAIL-ALL] Called with payer discordId:', req.params.discordId, 'body:', req.body);
+  // console.log('[BAIL-ALL] Called with payer discordId:', req.params.discordId, 'body:', req.body);
   if (!req.user) {
     console.error('[BAIL-ALL] req.user is missing!');
     return res.status(401).json({ message: 'User not authenticated (req.user missing).' });
   }
   try {
     const payer = req.user;
-    console.log('[BAIL-ALL] payer:', payer.discordId);
+    // console.log('[BAIL-ALL] payer:', payer.discordId);
     
     // Get all currently jailed users in the guild
     const now = new Date();
@@ -2062,11 +2078,7 @@ router.post('/:discordId/bail-all', async (req, res) => {
           bailCost: bailCost,
           minutesLeft: minutesLeft
         });
-        // Broadcast to the freed user
-        broadcastToUser(jailedUser.discordId, { 
-          type: 'BAILED_OUT', 
-          message: `You have been bailed out by <@${payer.discordId}>!` 
-        });
+
       } catch (error) {
         console.error(`[BAIL-ALL] Error bailing user ${jailedUser.discordId}:`, error);
         failedUsers.push({
@@ -2090,10 +2102,6 @@ router.post('/:discordId/bail-all', async (req, res) => {
       guildId: req.guildId
     });
     await transaction.save();
-
-    // Broadcast updates to payer
-    broadcastToUser(payer.discordId, { type: 'TRANSACTION', transaction });
-    broadcastToUser(payer.discordId, { type: 'BALANCE_UPDATE', balance: payerWallet.balance });
 
     let responseMsg = `Successfully bailed out ${bailedUsers.length} users for ${totalCost.toLocaleString('en-US')} points!`;
     if (failedUsers.length > 0) {
@@ -3053,12 +3061,10 @@ router.post('/:discordId/sell', async (req, res) => {
           guildId: req.guildId
         });
         await transactionSell.save();
-        broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: transactionSell });
       }
       
       await user.save();
       await wallet.save();
-      broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
       
       return res.json({ 
         results, 
@@ -3114,12 +3120,10 @@ router.post('/:discordId/sell', async (req, res) => {
           guildId: req.guildId
         });
         await transactionSell.save();
-        broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction: transactionSell });
       }
       
       await user.save();
       await wallet.save();
-      broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
       
       return res.json({ results, newBalance: wallet.balance });
     }
@@ -3164,8 +3168,6 @@ router.post('/:discordId/sell', async (req, res) => {
     });
     await transaction.save();
 
-    broadcastToUser(user.discordId, { type: 'TRANSACTION', transaction });
-    broadcastToUser(user.discordId, { type: 'BALANCE_UPDATE', balance: wallet.balance });
 
     res.json({ 
       message: `Successfully sold ${count}x ${item.name} for ${value.toLocaleString()} points!`,
@@ -3482,9 +3484,6 @@ router.post('/:discordId/trade', async (req, res) => {
           guildId: req.guildId
         });
         await transaction2.save();
-        
-        broadcastToUser(sender.discordId, { type: 'TRANSACTION', transaction });
-        broadcastToUser(receiver.discordId, { type: 'TRANSACTION', transaction: transaction2 });
       }
       
       await sender.save();
@@ -3569,9 +3568,6 @@ router.post('/:discordId/trade', async (req, res) => {
           guildId: req.guildId
         });
         await transaction2.save();
-        
-        broadcastToUser(sender.discordId, { type: 'TRANSACTION', transaction });
-        broadcastToUser(receiver.discordId, { type: 'TRANSACTION', transaction: transaction2 });
       }
       
       await sender.save();
@@ -3643,8 +3639,7 @@ router.post('/:discordId/trade', async (req, res) => {
       guildId: req.guildId
     });
     await transaction2.save();
-    broadcastToUser(sender.discordId, { type: 'TRANSACTION', transaction });
-    broadcastToUser(receiver.discordId, { type: 'TRANSACTION', transaction: transaction2 });
+
     res.json({ message: `Traded ${count}x ${item.name} to <@${targetDiscordId}>.` });
   } catch (error) {
     console.error('Error trading inventory item:', error);
@@ -4355,7 +4350,7 @@ router.post('/:userId/reset-timeout', requireGuildId, async (req, res) => {
         await user.save();
 
         // Log the timeout reset
-        console.log(`Timeout reset for user ${userId} in guild ${guildId}`);
+        // console.log(`Timeout reset for user ${userId} in guild ${guildId}`);
 
         res.json({ 
             message: 'Timeout duration reset successfully',
@@ -4580,4 +4575,4 @@ router.get('/duel/:duelId', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

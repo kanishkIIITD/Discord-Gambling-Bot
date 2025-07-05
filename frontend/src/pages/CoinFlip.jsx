@@ -1,25 +1,115 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useDashboard } from '../contexts/DashboardContext';
-import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
-import axios from 'axios';
 import { formatDisplayNumber } from '../utils/numberFormat';
 import OptimizedImage from '../components/OptimizedImage';
+import { useWalletBalance } from '../hooks/useQueryHooks';
+import { useZustandMutation } from '../hooks/useZustandQuery';
+import LoadingSpinner from '../components/LoadingSpinner';
+import * as api from '../services/api';
 
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+// Import Zustand stores
+import { useUserStore } from '../store/useUserStore';
+import { useGuildStore } from '../store/useGuildStore';
+import { useLoading } from '../hooks/useLoading';
+import { useAnimation } from '../hooks/useAnimation';
+
+// Define loading keys
+const LOADING_KEYS = {
+  FLIP_COIN: 'coinflip'
+};
 
 export const CoinFlip = () => {
-  const { user } = useAuth();
-  const { walletBalance, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance } = useDashboard();
+  // Get state from Zustand stores
+  const user = useUserStore(state => state.user);
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  
+  const { startLoading, stopLoading, setError, isLoading, withLoading } = useLoading();
+  const { animationsEnabled } = useAnimation();
+  
+  // Use React Query for wallet balance with proper guild context
+  const { data: walletData, refetch: refetchWalletBalance } = useWalletBalance(user?.discordId);
+  const walletBalance = walletData?.balance || 0;
+  
+  // Local state for optimistic balance updates
+  const [optimisticBalance, setOptimisticBalance] = useState(walletBalance);
+  const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
+  
+  // Update optimistic balance when real balance changes
+  useEffect(() => {
+    if (!isOptimisticUpdate) {
+      setOptimisticBalance(walletBalance);
+    }
+  }, [walletBalance, isOptimisticUpdate]);
+  
+  // Create coinflip mutation using Zustand-integrated React Query
+  const { mutate: coinflipMutation, isLoading: isCoinflipLoading } = useZustandMutation(
+    async ({ amount, choice }) => {
+      return api.playCoinflip(user.discordId, amount, choice, selectedGuildId);
+    },
+    {
+      onMutate: (variables) => {
+        // Step 1: Optimistically deduct the bet amount to show immediate deduction
+        const { amount } = variables;
+        setOptimisticBalance(prevBalance => prevBalance - amount);
+        setIsOptimisticUpdate(true);
+        
+        // Store the result for animation completion
+        setPendingResult(null);
+        
+        // Start the animation
+        setIsFlipping(true);
+        setOutcome(null);
+        setResultMessage('');
+      },
+      onSuccess: (data, variables) => {
+        // Store the result for animation completion
+        setPendingResult(data);
+      },
+      onError: (error, variables) => {
+        // Revert optimistic update on error
+        const { amount } = variables;
+        setOptimisticBalance(prevBalance => prevBalance + amount);
+        setIsOptimisticUpdate(false);
+        
+        // Handle error
+        console.error('Coin flip error:', error);
+        toast.error(error.message || 'Failed to flip coin.');
+        setIsFlipping(false);
+        setPendingResult(null);
+      }
+    },
+    LOADING_KEYS.FLIP_COIN
+  );
+  
   const [betAmount, setBetAmount] = useState('');
   const [selectedSide, setSelectedSide] = useState('');
   const [isFlipping, setIsFlipping] = useState(false);
   const [outcome, setOutcome] = useState(null); // 'heads', 'tails', or null
   const [resultMessage, setResultMessage] = useState('');
-  const [choiceAtFlip, setChoiceAtFlip] = useState(null); // Store the choice made when flip started
   const [pendingResult, setPendingResult] = useState(null); // Store API result until animation finishes
+
+  // Handle animation completion and balance update
+  useEffect(() => {
+    if (pendingResult && !isFlipping) {
+      const { result, won, winnings, newBalance } = pendingResult;
+      const resultAmount = pendingResult.amount || parseInt(betAmount, 10);
+      
+      // Update UI state
+      setOutcome(result);
+      setResultMessage(won ? `You won ${formatDisplayNumber(winnings)} points!` : `You lost ${formatDisplayNumber(resultAmount)} points.`);
+      setPendingResult(null);
+      
+      // Step 2: Sync with real balance after animation completion
+      refetchWalletBalance();
+      setIsOptimisticUpdate(false);
+      
+      // Show toast notification
+      toast[won ? 'success' : 'error'](
+        won ? `You won ${formatDisplayNumber(winnings)} points!` : `You lost ${formatDisplayNumber(resultAmount)} points.`
+      );
+    }
+  }, [pendingResult, isFlipping, refetchWalletBalance, betAmount]);
 
   const handleFlip = async (e) => {
     e.preventDefault();
@@ -34,7 +124,9 @@ export const CoinFlip = () => {
       return;
     }
 
-    if (amount > walletBalance) {
+    // Use optimistic balance for validation
+    const currentBalance = isOptimisticUpdate ? optimisticBalance : walletBalance;
+    if (amount > currentBalance) {
       toast.error('Insufficient balance.');
       return;
     }
@@ -44,41 +136,12 @@ export const CoinFlip = () => {
       return;
     }
 
-    setIsFlipping(true);
-    setOutcome(null);
-    setResultMessage('');
-    setChoiceAtFlip(selectedSide);
-    setPendingResult(null);
-    setPrevWalletBalance(walletBalance);
-    setSuppressWalletBalance(true);
-
-    try {
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/coinflip`,
-        { amount: amount, choice: selectedSide, guildId: MAIN_GUILD_ID },
-        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
-      );
-      const { result, won, winnings } = response.data;
-      setPendingResult({ result, won, winnings, amount });
-
-      // Wait for animation duration (e.g., 1.5s)
-      setTimeout(() => {
-        setOutcome(result);
-        setResultMessage(won ? `You won ${formatDisplayNumber(winnings)} points!` : `You lost ${formatDisplayNumber(amount)} points.`);
-        setIsFlipping(false);
-        setPendingResult(null);
-        setSuppressWalletBalance(false); // Allow balance to update
-        toast[won ? 'success' : 'error'](won ? `You won ${formatDisplayNumber(winnings)} points!` : `You lost ${formatDisplayNumber(amount)} points.`);
-      }, 1500);
-    } catch (error) {
-      console.error('Coin flip error:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to flip coin.';
-      toast.error(errorMessage);
-      setIsFlipping(false);
-      setPendingResult(null);
-      setSuppressWalletBalance(false);
-    }
+    // Use the Zustand-integrated mutation
+    coinflipMutation({ amount, choice: selectedSide });
   };
+
+  // Use optimistic balance for display
+  const displayBalance = isOptimisticUpdate ? optimisticBalance : walletBalance;
 
   return (
     <motion.div
@@ -104,6 +167,12 @@ export const CoinFlip = () => {
             initial={{ scale: 1, rotateY: 0 }}
               animate={isFlipping ? { rotateY: 360 * 3 } : { rotateY: 0 }}
               transition={{ duration: isFlipping ? 1.5 : 0.5, ease: "easeInOut" }}
+              onAnimationComplete={() => {
+                // Animation completed - update balance and show result
+                if (isFlipping) {
+                  setIsFlipping(false);
+                }
+              }}
           >
               {isFlipping || !outcome ? (
                 <OptimizedImage 
@@ -191,14 +260,29 @@ export const CoinFlip = () => {
           <div>
             <button
               type="submit"
-              disabled={isFlipping || !betAmount || !selectedSide || parseInt(betAmount, 10) <= 0 || parseInt(betAmount, 10) > walletBalance}
-              className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white font-base ${isFlipping ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
+              disabled={isCoinflipLoading || isFlipping || !betAmount || !selectedSide}
+              className={`w-full py-3 px-4 rounded-md font-medium transition-colors font-base ${
+                isCoinflipLoading || isFlipping || !betAmount || !selectedSide
+                  ? 'bg-text-secondary/20 cursor-not-allowed text-text-secondary'
+                  : 'bg-primary hover:bg-primary/90 text-white'
+              }`}
             >
-              {isFlipping ? 'Flipping...' : 'Flip Coin'}
+              {isCoinflipLoading ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <LoadingSpinner size="sm" color="white" />
+                  <span>Processing...</span>
+                </div>
+              ) : isFlipping ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  <span>Flipping...</span>
+                </div>
+              ) : (
+                'Flip Coin'
+              )}
             </button>
           </div>
         </form>
-
         </div>
       </div>
     </motion.div>

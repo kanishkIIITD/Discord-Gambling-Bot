@@ -1,16 +1,16 @@
 import React, { useMemo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getTransactionAnalysis } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUserStore, useUIStore } from '../../store';
 import { formatDisplayNumber } from '../../utils/numberFormat';
 import useChartDataCache from '../../hooks/useChartDataCache';
 import withOptimizedChart from '../../utils/withOptimizedChart';
 import useChartPerformance from '../../hooks/useChartPerformance';
+import ChartLoadingSpinner from './ChartLoadingSpinner';
 
 const TransactionTypeAnalysisChart = ({ dateRange, targetUserId, guildId }) => {
-  const { user } = useAuth();
-  const { theme } = useTheme();
+  const user = useUserStore(state => state.user);
+  const theme = useUIStore(state => state.theme);
   const { startRenderTimer, stopRenderTimer } = useChartPerformance('TransactionTypeAnalysisChart');
 
   // A professional, harmonious color palette using our theme colors
@@ -218,8 +218,8 @@ const TransactionTypeAnalysisChart = ({ dateRange, targetUserId, guildId }) => {
     return (
     <div className="w-full h-full">
       {loading ? (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="h-64">
+        <ChartLoadingSpinner size="lg" message="Loading transaction data..." />
       </div>
       ) : error ? (
         <div className="flex flex-col justify-center items-center h-64 text-text-secondary">

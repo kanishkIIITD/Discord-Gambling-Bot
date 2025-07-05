@@ -1,11 +1,20 @@
 import { useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { useLoading } from './useLoading';
 
 /**
- * Custom hook for displaying toast notifications
+ * Custom hook for displaying toast notifications with LoadingContext integration
  * @returns {Object} Toast notification methods
  */
 export const useToast = () => {
+  // Get loading context methods
+  const { startLoading, stopLoading, setError: setLoadingError, withLoading } = useLoading();
+  
+  // Define loading keys for toast operations
+  const LOADING_KEYS = {
+    TOAST_PROMISE: 'toast.promise',
+  };
+
   // Default toast options
   const defaultOptions = {
     duration: 4000,
@@ -77,9 +86,22 @@ export const useToast = () => {
   }, []);
 
   // Promise toast that shows loading, success, or error based on promise resolution
-  const promise = useCallback((promise, messages = {}, options = {}) => {
+  // Now integrated with LoadingContext
+  const promise = useCallback((promise, messages = {}, options = {}, loadingKey = LOADING_KEYS.TOAST_PROMISE) => {
+    // Start loading state
+    startLoading(loadingKey);
+    
     return toast.promise(
-      promise,
+      promise.then(result => {
+        // Stop loading on success
+        stopLoading(loadingKey);
+        return result;
+      }).catch(err => {
+        // Set error and stop loading on failure
+        setLoadingError(loadingKey, err);
+        stopLoading(loadingKey);
+        throw err;
+      }),
       {
         loading: messages.loading || 'Loading...',
         success: messages.success || 'Success!',
@@ -90,7 +112,38 @@ export const useToast = () => {
         ...options,
       }
     );
-  }, []);
+  }, [startLoading, stopLoading, setLoadingError]);
+
+  // Promise with loading context - alternative approach using withLoading
+  const promiseWithLoading = useCallback(async (asyncFn, messages = {}, options = {}, loadingKey = LOADING_KEYS.TOAST_PROMISE) => {
+    const toastId = toast.loading(messages.loading || 'Loading...', {
+      ...defaultOptions,
+      ...options,
+    });
+    
+    try {
+      // Use withLoading to handle the async function
+      const result = await withLoading(loadingKey, asyncFn);
+      
+      // Update toast on success
+      toast.success(messages.success || 'Success!', {
+        id: toastId,
+        ...defaultOptions,
+        ...options,
+      });
+      
+      return result;
+    } catch (err) {
+      // Update toast on error
+      toast.error(messages.error || err.message || 'An error occurred', {
+        id: toastId,
+        ...defaultOptions,
+        ...options,
+      });
+      
+      throw err;
+    }
+  }, [withLoading]);
 
   // Dismiss a specific toast by ID
   const dismiss = useCallback((toastId) => {
@@ -127,9 +180,11 @@ export const useToast = () => {
     loading,
     custom,
     promise,
+    promiseWithLoading,
     dismiss,
     dismissAll,
     update,
+    LOADING_KEYS,
   };
 };
 

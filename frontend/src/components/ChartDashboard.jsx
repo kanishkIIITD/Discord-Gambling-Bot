@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { LazyChart } from '../utils/chartOptimizer';
+import ChartLoadingSpinner from './charts/ChartLoadingSpinner';
 
 // Lazy load chart components
 const DailyProfitLossChart = lazy(() => import('./charts/DailyProfitLossChart'));
@@ -30,8 +31,8 @@ const ChartDashboard = ({ dateRange, targetUserId, guildId }) => {
 
   // Loading fallback component for charts
   const ChartLoadingFallback = () => (
-    <div className="flex justify-center items-center h-64 w-full">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
+    <div className="h-64 w-full">
+      <ChartLoadingSpinner size="lg" />
     </div>
   );
 

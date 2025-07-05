@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef, lazy, Suspense, useMemo } from 'rea
 import { format, subDays, startOfDay, endOfDay, isValid, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
 import { FixedSizeList as List } from 'react-window';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Checkbox } from '../components/Checkbox';
+import { useUserSearch } from '../hooks/useQueryHooks';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { useUserStore, useGuildStore } from '../store';
+import { useLoading } from '../hooks/useLoading';
 
 // Lazy load chart components
 const BalanceHistoryGraph = lazy(() => import('../components/charts/BalanceHistoryGraph'));
@@ -36,9 +38,6 @@ const chartDescriptions = {
   'risk-score-trend': 'Monitor how your risk-taking behavior changes over time based on bet size relative to balance.',
   'favorite-game-trend': 'Track how your game preferences change over time with a trend of most played games.',
 };
-
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
 
 // Tab configuration
 const tabs = [
@@ -148,9 +147,11 @@ const tabs = [
 ];
 
 export const StatisticsDashboard = () => {
+  const { startLoading, stopLoading, setError, isLoading, getError } = useLoading();
+  const { selectedGuildId, isGuildSwitching } = useGuildStore();
+  const { user } = useUserStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
   
   // Parse URL parameters
   const queryParams = new URLSearchParams(location.search);
@@ -172,7 +173,7 @@ export const StatisticsDashboard = () => {
   const [userSearch, setUserSearch] = useState(userParam);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [filteredUsers, setFilteredUsers] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
+  // const [searchLoading, setSearchLoading] = useState(false);
   const inputRef = useRef(null);
 
   // Date range options
@@ -241,30 +242,40 @@ export const StatisticsDashboard = () => {
     return { startDate: format(start, 'yyyy-MM-dd'), endDate: format(end, 'yyyy-MM-dd') };
   }, [dateRange, customStartDate, customEndDate]);
 
-  // User search functionality
-  const handleUserSearch = async (query) => {
-    if (!query || query.length < 2) {
-      setFilteredUsers([]);
-      return;
+  // User search using React Query with LoadingContext integration
+  const {
+    data: searchResults,
+    isLoading: searchLoading,
+    isFetching: isSearchFetching,
+    error: searchError
+  } = useUserSearch(userSearch, {
+    staleTime: 30000, // 30 seconds
+    cacheTime: 300000, // 5 minutes
+    refetchOnWindowFocus: false
+  });
+  
+  // Update loading state for user search
+  useEffect(() => {
+    if (searchLoading || isSearchFetching) {
+      startLoading(LOADING_KEYS.USER_SEARCH);
+    } else {
+      stopLoading(LOADING_KEYS.USER_SEARCH);
+      if (searchError) {
+        setError(LOADING_KEYS.USER_SEARCH, searchError);
+      }
     }
-    setSearchLoading(true);
-    try {
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/users/search-users`,
-        {
-          params: { q: encodeURIComponent(query), guildId: MAIN_GUILD_ID },
-          headers: { 'x-guild-id': MAIN_GUILD_ID }
-        }
-      );
-      setFilteredUsers(res.data.data || []);
-    } catch (err) {
-      setFilteredUsers([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
+  }, [searchLoading, isSearchFetching, searchError, startLoading, stopLoading, setError]);
 
-  // Debounced user search
+  // Update filtered users when search results change
+  useEffect(() => {
+    if (searchResults?.data) {
+      setFilteredUsers(searchResults.data || []);
+    } else {
+      setFilteredUsers([]);
+    }
+  }, [searchResults]);
+
+  // Show/hide dropdown based on search length
   useEffect(() => {
     if (userSearch.length < 2) {
       setFilteredUsers([]);
@@ -272,11 +283,9 @@ export const StatisticsDashboard = () => {
       setSelectedUser(null);
       return;
     }
-    const delayDebounce = setTimeout(() => {
-      handleUserSearch(userSearch);
-      setShowUserDropdown(true);
-    }, 300);
-    return () => clearTimeout(delayDebounce);
+    
+    // Show dropdown when search is valid
+    setShowUserDropdown(true);
   }, [userSearch]);
 
   const handleSuggestionSelect = (u) => {
@@ -326,18 +335,24 @@ export const StatisticsDashboard = () => {
   const targetUser = selectedUser || user;
 
   // Compute the guildId to use
-  const computedGuildId = showArchived ? `archived_${MAIN_GUILD_ID}` : MAIN_GUILD_ID;
+  const computedGuildId = showArchived ? `archived_${selectedGuildId}` : selectedGuildId;
 
   // Ref for tab container
   const tabsRef = useRef(null);
 
+  // Define loading keys
+  const LOADING_KEYS = {
+    USER_SEARCH: 'statistics-user-search',
+    CHART_DATA: 'statistics-chart-data'
+  };
+
   // Loading fallback component
   const LoadingFallback = () => (
     <div className="flex justify-center items-center h-80">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <LoadingSpinner size="lg" color="primary" message="Loading chart data..." />
     </div>
   );
-
+  
   // When toggling showArchived, update URL param
   const handleToggleArchived = () => {
     setShowArchived((prev) => {
@@ -394,10 +409,15 @@ export const StatisticsDashboard = () => {
                       type="button" 
                       onClick={handleClearSearch}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                      disabled={isLoading(LOADING_KEYS.USER_SEARCH)}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
+                      {isLoading(LOADING_KEYS.USER_SEARCH) ? (
+                        <LoadingSpinner size="xs" color="primary" />
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      )}
                     </button>
                   )}
                   {showUserDropdown && filteredUsers.length > 0 && (

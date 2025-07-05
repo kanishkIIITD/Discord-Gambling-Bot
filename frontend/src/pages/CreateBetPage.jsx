@@ -1,25 +1,36 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import { Navigate } from 'react-router-dom';
+import axios from '../services/axiosConfig';
 import { toast } from 'react-hot-toast';
 import RadixDialog from '../components/RadixDialog';
 import { InformationCircleIcon, PlusCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { motion } from 'framer-motion';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+// Zustand stores
+import { useUserStore } from '../store/useUserStore';
+import { useGuildStore } from '../store/useGuildStore';
+import { useUIStore } from '../store/useUIStore';
+import { useZustandMutation } from '../hooks/useZustandQuery';
 
 const MAX_DESCRIPTION_LENGTH = 100;
 const MAX_OPTION_LENGTH = 100;
 
+// Define loading keys for this component
+const LOADING_KEYS = {
+  CREATE_BET: 'createbet.create'
+};
+
 const CreateBetPage = () => {
-  const { user } = useAuth();
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const isGuildSwitching = useGuildStore(state => state.isGuildSwitching);
+  const user = useUserStore(state => state.user);
+  const { startLoading, stopLoading, isLoading, setError } = useUIStore();
   const [description, setDescription] = useState('');
   const [options, setOptions] = useState(['']);
   const [closingTime, setClosingTime] = useState('');
-  const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   // Animation variants
@@ -49,7 +60,7 @@ const CreateBetPage = () => {
   };
 
   if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
-    return <div className="max-w-2xl mx-auto px-4 py-8 text-center text-error text-lg font-semibold font-base">Access denied. Admins only.</div>;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleOptionChange = (idx, value) => {
@@ -110,9 +121,10 @@ const CreateBetPage = () => {
     setShowConfirm(true);
   };
 
+  // Implementation of the bet creation logic using Zustand for loading state management
   const handleConfirm = async () => {
     setShowConfirm(false);
-    setLoading(true);
+    startLoading(LOADING_KEYS.CREATE_BET);
     try {
       let durationMinutes;
       if (closingTime) {
@@ -125,7 +137,7 @@ const CreateBetPage = () => {
         options: cleanOptions,
         creatorDiscordId: user.discordId,
         ...(durationMinutes ? { durationMinutes } : {}),
-        guildId: MAIN_GUILD_ID
+        guildId: selectedGuildId
       };
       await axios.post(
         `${process.env.REACT_APP_API_URL}/api/bets`,
@@ -133,16 +145,18 @@ const CreateBetPage = () => {
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
-            'x-guild-id': MAIN_GUILD_ID
+            'x-guild-id': selectedGuildId
           }
         }
       );
       toast.success('Bet created successfully!');
       handleClear();
+      stopLoading(LOADING_KEYS.CREATE_BET);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create bet.');
-    } finally {
-      setLoading(false);
+      const errorMessage = err.response?.data?.message || 'Failed to create bet.';
+      toast.error(errorMessage);
+      setError(LOADING_KEYS.CREATE_BET, errorMessage);
+      stopLoading(LOADING_KEYS.CREATE_BET);
     }
   };
 
@@ -290,17 +304,22 @@ const CreateBetPage = () => {
               type="button"
               onClick={() => setShowConfirm(false)}
               className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-              disabled={loading}
+              disabled={isLoading(LOADING_KEYS.CREATE_BET)}
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleConfirm}
-              className="px-4 py-2 rounded bg-primary text-white hover:bg-primary/90 transition-colors font-medium"
-              disabled={loading}
+              className="px-4 py-2 rounded bg-primary text-white hover:bg-primary/90 transition-colors font-medium flex items-center justify-center gap-2"
+              disabled={isLoading(LOADING_KEYS.CREATE_BET)}
             >
-              {loading ? 'Creating...' : 'Create Bet'}
+              {isLoading(LOADING_KEYS.CREATE_BET) ? (
+                <>
+                  <LoadingSpinner size="sm" color="white" />
+                  Creating...
+                </>
+              ) : 'Create Bet'}
             </button>
           </div>
         </RadixDialog>
@@ -310,16 +329,21 @@ const CreateBetPage = () => {
             type="button"
             onClick={handleClear}
             className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
-            disabled={loading}
+            disabled={isLoading(LOADING_KEYS.CREATE_BET)}
           >
             Clear
           </button>
           <button
             type="submit"
-            className={`px-4 py-2 rounded text-white transition-colors font-medium ${canSubmit ? 'bg-primary hover:bg-primary/90' : 'bg-gray-400 cursor-not-allowed'}`}
-            disabled={!canSubmit || loading}
+            className={`px-4 py-2 rounded text-white transition-colors font-medium flex items-center justify-center gap-2 ${canSubmit ? 'bg-primary hover:bg-primary/90' : 'bg-gray-400 cursor-not-allowed'}`}
+            disabled={!canSubmit || isLoading(LOADING_KEYS.CREATE_BET)}
           >
-            {loading ? 'Creating...' : 'Create Bet'}
+            {isLoading(LOADING_KEYS.CREATE_BET) ? (
+              <>
+                <LoadingSpinner size="sm" color="white" />
+                Creating...
+              </>
+            ) : 'Create Bet'}
           </button>
         </motion.div>
       </motion.form>

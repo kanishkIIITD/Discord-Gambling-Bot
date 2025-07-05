@@ -8,6 +8,11 @@ export const DashboardContext = createContext({
   setSuppressWalletBalance: () => {},
   prevWalletBalance: 0,
   setPrevWalletBalance: () => {},
+  // Loading state management
+  loadingKeys: {},
+  isLoading: () => false,
+  getError: () => null,
+  withLoading: async (key, fn) => await fn(),
 });
 
 // Custom hook to use the DashboardContext
@@ -17,4 +22,4 @@ export const useDashboard = () => {
     throw new Error('useDashboard must be used within a DashboardProvider');
   }
   return context;
-}; 
+};

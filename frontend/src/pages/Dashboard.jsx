@@ -1,69 +1,97 @@
-import { useAuth } from '../contexts/AuthContext';
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useMemo } from 'react';
 import React from 'react';
-import {
-  getTransactionHistory,
-  getUpcomingBets,
-  getUserStats
-} from '../services/api';
 import { Link, useNavigate } from 'react-router-dom';
-import { useDashboard } from '../contexts/DashboardContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { formatDisplayNumber } from '../utils/numberFormat';
-// import LiveBettingUpdates from '../components/LiveBettingUpdates';
+import LoadingSpinner from '../components/LoadingSpinner';
+
+// Import the centralized dashboard data hook
+import useDashboardData from '../hooks/useDashboardData';
+
+// Import Zustand stores for additional data
+import { useUserStore } from '../store/useUserStore';
+import { useUIStore } from '../store/useUIStore';
+
+// Import Zustand-integrated React Query hooks for additional data
+import { useZustandQuery } from '../hooks/useZustandQuery';
+import * as api from '../services/api';
 
 // Import components
 const ChartTicker = lazy(() => import('../components/ChartTicker'));
 
 export const Dashboard = () => {
-  const { user } = useAuth();
+  // Use the centralized dashboard data hook
+  const { 
+    isLoading: isDashboardLoading,
+    user,
+    selectedGuildId,
+    walletBalance,
+    activeBets,
+    isGuildSwitching
+  } = useDashboardData();
+  
   const navigate = useNavigate();
-  const [transactions, setTransactions] = useState([]);
-  const [upcomingBets, setUpcomingBets] = useState([]);
-  const [userStats, setUserStats] = useState(null);
-  const [dataLoaded, setDataLoaded] = useState(false);
   const [chartsLoaded, setChartsLoaded] = useState(false);
   const [expandedRows, setExpandedRows] = useState({});
-  const { walletBalance, activeBets } = useDashboard();
 
+  // Define loading keys for additional data fetching
+  const LOADING_KEYS = {
+    USER_STATS: 'user-stats',
+    TRANSACTIONS: 'transactions'
+  };
+  
+  // Use Zustand-integrated React Query hooks for additional data
+  const { data: userStats, isLoading: userStatsLoading } = useZustandQuery(
+    ['userStats', user?.discordId],
+    () => api.getUserStats(user.discordId),
+    {
+      enabled: !!user?.discordId && !!selectedGuildId,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true
+    },
+    LOADING_KEYS.USER_STATS
+  );
+  
+  const { data: transactionsData, isLoading: transactionsLoading } = useZustandQuery(
+    ['transactions', user?.discordId, 1, 5],
+    () => api.getTransactionHistory(user.discordId, 1, 5),
+    {
+      enabled: !!user?.discordId && !!selectedGuildId,
+      keepPreviousData: true
+    },
+    LOADING_KEYS.TRANSACTIONS
+  );
+  
+  // Memoize transactions to prevent infinite re-renders
+  const transactions = useMemo(() => {
+    return transactionsData?.transactions || [];
+  }, [transactionsData?.transactions]);
+  
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // First load essential data for the UI
-        const [stats, historyResponse, upcoming] = await Promise.all([
-          getUserStats(user.discordId),
-          getTransactionHistory(user.discordId, 1, 5),
-          getUpcomingBets()
-        ]);
-
-        setTransactions(historyResponse.transactions);
-        setUpcomingBets(upcoming);
-        setUserStats(stats);
-        setDataLoaded(true);
-        
-        // Signal that charts can start loading after essential data is displayed
-        setTimeout(() => {
-          setChartsLoaded(true);
-        }, 100);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        setDataLoaded(true); // Still mark as loaded to show UI even if there's an error
-      }
-    };
-
-    if (user?.discordId) {
-      fetchData();
+    // Signal that charts can start loading after essential data is displayed
+    if (userStats && transactions.length > 0) {
+      setTimeout(() => {
+        setChartsLoaded(true);
+      }, 100);
     }
-  }, [user, activeBets]);
+  }, [userStats, transactions]);
 
-  // Loading Spinner
-  if (!dataLoaded) {
+  // Loading Spinner - only show if dashboard data is still loading
+  // BUT don't show it during guild switching (let the guild switching overlay handle it)
+  if (isDashboardLoading && !isGuildSwitching) {
+    // console.log('[Dashboard] Showing loading spinner - dashboard data loading');
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
+        <LoadingSpinner size="lg" color="primary" message="Loading dashboard data..." />
       </div>
     );
   }
+  
+  // Show basic dashboard even if some data is missing
+  const hasUserData = !!user;
+  const hasStats = !!userStats;
+  const hasTransactions = transactions.length > 0;
+  const hasActiveBets = activeBets && activeBets.length > 0;
 
   const toggleExpand = (rowIndex) => {
     setExpandedRows((prev) => ({
@@ -94,7 +122,7 @@ export const Dashboard = () => {
         </p>
 
         {/* Stats Summary Grid */}
-        {userStats && (
+        {hasStats && (
           <motion.div
             className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
             initial="hidden"
@@ -138,21 +166,18 @@ export const Dashboard = () => {
           </motion.div>
         )}
         
-        {/* Live Betting Updates */}
-        <motion.div
-          className="mb-8"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: { opacity: 0 },
-            visible: {
-              opacity: 1,
-              transition: { delay: 0.2 }
-            }
-          }}
-        >
-          {/* <LiveBettingUpdates /> */}
-        </motion.div>
+        {/* Show message if no stats available */}
+        {!hasStats && hasUserData && (
+          <motion.div
+            className="bg-card p-6 rounded-lg shadow-lg mb-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <p className="text-text-secondary text-center">Loading your statistics...</p>
+          </motion.div>
+        )}
+
         
         {/* Dashboard Charts with Ticker */}
         <motion.div
@@ -170,10 +195,7 @@ export const Dashboard = () => {
           <h2 className="text-2xl font-bold text-text-primary mb-4 tracking-tight font-display">Your Stats</h2>
           <Suspense fallback={
             <div className="flex justify-center items-center h-32 bg-card rounded-lg shadow-lg p-4">
-              <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mb-2" />
-                <p className="text-text-secondary text-sm">Loading charts...</p>
-              </div>
+              <LoadingSpinner size="md" color="primary" message="Loading charts..." />
             </div>
           }>
             {/* Only render charts when essential data is loaded */}
@@ -184,7 +206,7 @@ export const Dashboard = () => {
         {/* Active Bets Table */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-text-primary mb-4 tracking-tight font-display">Active Bets</h2>
-          {activeBets.length > 0 ? (
+          {hasActiveBets ? (
             <div className="bg-card rounded-lg shadow-lg overflow-hidden">
               <div className="overflow-x-auto scrollbar-hide">
                 <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
@@ -257,7 +279,7 @@ export const Dashboard = () => {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
             >
-              No active bets at the moment.
+              {hasUserData ? 'No active bets at the moment.' : 'Loading active bets...'}
             </motion.p>
           )}
         </div>
@@ -265,6 +287,7 @@ export const Dashboard = () => {
         {/* Recent Transactions */}
         <div>
           <h2 className="text-2xl font-bold text-text-primary mb-4 tracking-tight font-display">Recent Activity</h2>
+          {hasTransactions ? (
           <div className="bg-card rounded-lg shadow-lg overflow-hidden">
             <div className="overflow-x-auto scrollbar-hide">
               <table className="min-w-full divide-y divide-border text-xs sm:text-sm">
@@ -319,7 +342,6 @@ export const Dashboard = () => {
                         <td className="px-6 py-4 text-center font-base">{formattedDate}</td>
                         <td className="px-6 py-4 text-center font-accent">{typeMap[tx.type] || 'Unknown'}</td>
                         <td className="px-6 py-4 text-center font-base">
-                          {/* {tx.description || '---'} */}
                           {displayDesc}
                           {shouldTruncate && (
                             <button
@@ -339,7 +361,6 @@ export const Dashboard = () => {
                   })}
                 </tbody>
               </table>
-            </div>
           </div>
 
           <div>
@@ -353,6 +374,19 @@ export const Dashboard = () => {
               </Link>
             </motion.div>
           </div>
+            </div>
+          ) : (
+            <motion.div
+              className="bg-card rounded-lg shadow-lg p-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4 }}
+            >
+              <p className="text-text-secondary text-center">
+                {hasUserData ? 'No recent activity to display.' : 'Loading recent activity...'}
+              </p>
+            </motion.div>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>

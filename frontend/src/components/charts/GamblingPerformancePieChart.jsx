@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { getGamblingPerformance } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUserStore, useUIStore } from '../../store';
 import { formatDisplayNumber } from '../../utils/numberFormat';
+import ChartLoadingSpinner from './ChartLoadingSpinner';
 
 const GamblingPerformancePieChart = ({ dateRange, targetUserId, guildId }) => {
-  const { user } = useAuth();
-  const { theme } = useTheme();
+  const user = useUserStore(state => state.user);
+  const theme = useUIStore(state => state.theme);
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -126,8 +126,8 @@ const GamblingPerformancePieChart = ({ dateRange, targetUserId, guildId }) => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="h-64">
+        <ChartLoadingSpinner size="lg" message="Loading performance data..." />
       </div>
     );
   }

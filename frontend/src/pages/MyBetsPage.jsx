@@ -1,28 +1,34 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { getMyPlacedBets, getUserPreferences } from '../services/api';
 import ReactPaginate from 'react-paginate';
 import { Listbox } from '@headlessui/react';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDisplayNumber } from '../utils/numberFormat';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+// Zustand stores
+import { useUserStore } from '../store/useUserStore';
+import { useGuildStore } from '../store/useGuildStore';
+import { useUIStore } from '../store/useUIStore';
+import { useZustandQuery } from '../hooks/useZustandQuery';
+
+// API functions
+import * as api from '../services/api';
 
 const RESULT_FILTERS = [
   { value: 'all', label: 'All Results' },
   { value: 'won', label: 'Won' },
   { value: 'lost', label: 'Lost' },
   { value: 'pending', label: 'Pending' },
+  { value: 'refunded', label: 'Refunded' },
 ];
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Statuses' },
   { value: 'open', label: 'Open' },
   { value: 'closed', label: 'Closed' },
   { value: 'resolved', label: 'Resolved' },
+  { value: 'refunded', label: 'Refunded' },
 ];
 const SORT_OPTIONS = [
   { value: 'amount', label: 'Amount' },
@@ -36,68 +42,64 @@ const buttonMotion = {
 };
 
 const MyBetsPage = () => {
-  const { user } = useAuth();
-  const [bets, setBets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [userPreferences, setUserPreferences] = useState(null);
+  const user = useUserStore(state => state.user);
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const isGuildSwitching = useGuildStore(state => state.isGuildSwitching);
+  const { isLoading, getError } = useUIStore();
+  
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [resultFilter, setResultFilter] = useState(RESULT_FILTERS[0]);
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTERS[0]);
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0]);
   const [sortOrder, setSortOrder] = useState('desc');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const sortMenuRef = useRef(null);
+  
+  // Define loading keys
+  const LOADING_KEYS = {
+    PREFERENCES: 'my-bets-preferences',
+    BETS: 'my-bets-data'
+  };
 
-  useEffect(() => {
-    const fetchUserPreferences = async () => {
-      if (!user?.discordId) return;
-      try {
-        setLoading(true);
-        const data = await getUserPreferences(user.discordId);
-        setUserPreferences(data);
-      } catch (err) {
-        setError('Failed to load preferences.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUserPreferences();
-  }, [user]);
+  // Fetch user preferences using Zustand Query
+  const { 
+    data: userPreferences = {},
+    isLoading: preferencesLoading,
+    error: preferencesError
+  } = useZustandQuery(
+    ['userPreferences', user?.discordId],
+    () => api.getUserPreferences(user?.discordId),
+    {
+      enabled: !!user?.discordId && !!selectedGuildId && !isGuildSwitching,
+      staleTime: 1000 * 60, // 1 minute
+      refetchOnMount: true,
+      refetchOnWindowFocus: true
+    },
+    LOADING_KEYS.PREFERENCES
+  );
 
-  useEffect(() => {
-    const fetchMyBets = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await axios.get(
-          `${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/bets`,
-          {
-            params: {
-              page,
-              limit: userPreferences.itemsPerPage,
-              guildId: MAIN_GUILD_ID,
-              result: resultFilter.value,
-              status: statusFilter.value,
-              sortBy: sortBy.value,
-              sortOrder,
-            },
-            headers: { 'x-guild-id': MAIN_GUILD_ID }
-          }
-        );
-        setBets(res.data.data);
-        setTotalCount(res.data.totalCount);
-      } catch (err) {
-        setError('Failed to fetch your bets.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (user?.discordId && userPreferences) {
-      fetchMyBets();
-    }
-  }, [user, page, userPreferences, resultFilter, statusFilter, sortBy, sortOrder]);
+  // Fetch bets using Zustand Query
+  const {
+    data: betsData = { data: [], totalCount: 0 },
+    isLoading: betsLoading,
+    error: betsError
+  } = useZustandQuery(
+    ['myPlacedBets', user?.discordId, selectedGuildId, page, userPreferences?.itemsPerPage || 10, resultFilter.value, statusFilter.value, sortBy.value, sortOrder],
+    () => api.getMyPlacedBets(user?.discordId, page, userPreferences?.itemsPerPage || 10, resultFilter.value, statusFilter.value, sortBy.value, sortOrder, selectedGuildId),
+    {
+      enabled: !!user?.discordId && !!selectedGuildId && !isGuildSwitching && !!userPreferences,
+      staleTime: 1000 * 30, // 30 seconds
+      refetchOnMount: true,
+      refetchOnWindowFocus: true
+    },
+    LOADING_KEYS.BETS
+  );
+
+  // Extract data from the query results
+  const bets = betsData?.data || [];
+  const totalCount = betsData?.totalCount || 0;
+  const isDataLoading = isLoading(LOADING_KEYS.PREFERENCES) || isLoading(LOADING_KEYS.BETS) || isGuildSwitching;
+  const loadingError = getError(LOADING_KEYS.PREFERENCES) || getError(LOADING_KEYS.BETS);
 
   useEffect(() => {
     if (!showSortMenu) return;
@@ -131,10 +133,29 @@ const MyBetsPage = () => {
     setShowSortMenu(false);
   };
 
-  if (loading) {
+  if (isDataLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" color="primary" message="Loading your bets..." />
+      </div>
+    );
+  }
+  
+  if (loadingError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="bg-card p-6 rounded-lg shadow-lg max-w-lg w-full">
+          <h2 className="text-2xl font-bold text-text-primary mb-4">Error Loading Bets</h2>
+          <div className="bg-error/10 border border-error/30 rounded-md p-4 mb-6">
+            <p className="text-error font-medium">{loadingError.message || 'Failed to load your bets data'}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -263,6 +284,7 @@ const MyBetsPage = () => {
                   paginatedBets.map((bet, index) => {
                     const betStatus = bet.bet?.status || '-';
                     const isResolved = betStatus === 'resolved';
+                    const isRefunded = betStatus === 'refunded';
                     const isWon = isResolved && bet.option === bet.bet?.winningOption;
                     const statusColorClass = bet.status === 'open' 
                       ? 'bg-success/20 text-success' 
@@ -270,6 +292,8 @@ const MyBetsPage = () => {
                       ? 'bg-warning/20 text-warning'
                       : bet.status === 'resolved' 
                       ? 'bg-info/20 text-info' 
+                      : bet.status === 'refunded'
+                      ? 'bg-secondary/20 text-secondary'
                       : 'bg-text-secondary/20 text-text-secondary';
                     return (
                       <motion.tr
@@ -285,11 +309,13 @@ const MyBetsPage = () => {
                         <td className="px-2 sm:px-6 py-2 sm:py-3 break-words max-w-[100px] sm:max-w-none text-sm text-text-secondary tracking-wide text-center font-accent">{bet.option}</td>
                         <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm text-text-secondary tracking-wide text-center">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColorClass} font-heading`}>
-                            {betStatus.charAt(0).toUpperCase() + betStatus.slice(1)}
+                            {betStatus === 'refunded' ? 'Refunded' : betStatus.charAt(0).toUpperCase() + betStatus.slice(1)}
                           </span>
                         </td>
                         <td className="px-2 sm:px-6 py-2 sm:py-3 whitespace-nowrap text-sm tracking-wide text-center">
-                          {isResolved ? (
+                          {isRefunded ? (
+                            <span className="text-secondary font-semibold font-heading">Refunded</span>
+                          ) : isResolved ? (
                             isWon ? <span className="text-success font-semibold font-heading">Won</span> : <span className="text-error font-semibold font-heading">Lost</span>
                           ) : (
                             <span className="text-text-secondary font-base">Pending</span>
@@ -335,7 +361,7 @@ const MyBetsPage = () => {
           scrollbar-width: none;
         }
       `}</style>
-      {totalPages > 1 && !loading && !error && (
+      {totalPages > 1 && !isDataLoading && !loadingError && (
         <div className="flex flex-wrap justify-center mt-6 w-full">
           <ReactPaginate
             previousLabel={"Prev"}
@@ -363,4 +389,4 @@ const MyBetsPage = () => {
     </motion.div>
   );
 };
-export default MyBetsPage; 
+export default MyBetsPage;

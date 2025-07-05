@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePerformance } from '../contexts/PerformanceContext';
 import ReactECharts from 'echarts-for-react';
-import { useTheme } from '../contexts/ThemeContext';
+import { useUIStore } from '../store';
 
 /**
  * Component for displaying performance metrics in a dashboard
@@ -18,7 +18,7 @@ const PerformanceDashboard = () => {
     toggleMonitoring,
     toggleAutoRefresh
   } = usePerformance();
-  const { theme } = useTheme();
+  const theme = useUIStore(state => state.theme);
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('summary');
   

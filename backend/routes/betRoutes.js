@@ -6,27 +6,8 @@ const PlacedBet = require('../models/PlacedBet');
 const User = require('../models/User');
 const Wallet = require('../models/Wallet');
 const Transaction = require('../models/Transaction');
-const WebSocket = require('ws');
 const { updateUserWinStreak } = require('../utils/gamblingUtils');
-const { requireAdmin, auth, requireGuildId, requireBetCreatorOrAdmin } = require('../middleware/auth');
-const { broadcastToUser } = require('../utils/websocketService');
-
-// Get the WebSocket server instance
-let wss;
-const setWebSocketServer = (server) => {
-  wss = server;
-};
-
-// Function to broadcast to all clients
-const broadcastToAll = (data) => {
-  if (wss) {
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify(data));
-      }
-    });
-  }
-};
+const { requireAdmin, auth, requireGuildId, requireBetCreatorOrAdmin, requireBetCreatorOrAnyAdmin } = require('../middleware/auth');
 
 // Middleware to find user (needed for bet creation, placing, etc.)
 router.use(async (req, res, next) => {
@@ -58,10 +39,6 @@ function scheduleBetClosure(bet) {
       if (freshBet && freshBet.status === 'open') {
         freshBet.status = 'closed';
         await freshBet.save();
-        broadcastToAll({
-          type: 'BET_CLOSED',
-          betId: freshBet._id
-        });
       }
     } catch (err) {
       console.error('Error auto-closing bet:', err);
@@ -101,12 +78,6 @@ router.post('/', async (req, res) => {
 
     await newBet.save();
     
-    // Broadcast new bet to all clients
-    broadcastToAll({
-      type: 'BET_CREATED',
-      bet: newBet
-    });
-
     // Schedule automatic closure if needed
     if (newBet.closingTime) {
       scheduleBetClosure(newBet);
@@ -258,7 +229,7 @@ router.get('/:betId', async (req, res) => {
     }
 
     const placedBetsStats = await PlacedBet.aggregate([
-      { $match: { bet: bet._id } },
+      { $match: { bet: bet._id, guildId: req.guildId } },
       { $group: { _id: '$option', totalAmount: { $sum: '$amount' } } },
     ]);
 
@@ -311,7 +282,6 @@ router.post('/:betId/place', async (req, res) => {
     if (bet.closingTime && new Date() > bet.closingTime) {
       bet.status = 'closed';
       await bet.save({ session });
-      broadcastToAll({ type: 'BET_CLOSED', betId: bet._id });
       throw { status: 400, message: 'Bet is closed as the closing time has passed.' };
     }
 
@@ -365,22 +335,14 @@ router.post('/:betId/place', async (req, res) => {
 
     // Commit transaction
     await session.commitTransaction();
-
-    // Broadcast updates (outside of transaction)
-    broadcastToAll({
-      type: 'BET_UPDATED',
-      bet: await Bet.findById(betId).populate('creator', 'discordId').where({ guildId: req.guildId })
-    });
-
-    broadcastToUser(bettorDiscordId, {
-      type: 'BALANCE_UPDATE',
-      balance: wallet.balance
-    });
     
     res.status(201).json({ message: 'Bet placed successfully.' });
 
   } catch (error) {
-    await session.abortTransaction();
+    // Only abort transaction if it hasn't been committed yet
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     console.error('Error placing bet:', error);
     if (error.status) {
       res.status(error.status).json({ message: error.message });
@@ -403,7 +365,7 @@ router.get('/:betId/placed', requireGuildId, async (req, res) => {
     const [placedBets, totalCount] = await Promise.all([
       PlacedBet.find({ bet: betId, guildId: req.guildId })
         .populate('bettor', 'username')
-        .sort({ createdAt: -1 })
+        .sort({ placedAt: -1 })
         .skip(skip)
         .limit(limit),
       PlacedBet.countDocuments({ bet: betId, guildId: req.guildId })
@@ -422,7 +384,7 @@ router.get('/:betId/placed', requireGuildId, async (req, res) => {
 });
 
 // Close betting for a specific event
-router.put('/:betId/close', requireBetCreatorOrAdmin, async (req, res) => {
+router.put('/:betId/close', requireBetCreatorOrAnyAdmin, async (req, res) => {
   try {
     const betId = req.params.betId;
     const bet = await Bet.findById(betId).where({ guildId: req.guildId });
@@ -438,12 +400,6 @@ router.put('/:betId/close', requireBetCreatorOrAdmin, async (req, res) => {
     bet.notified = true;
     await bet.save();
 
-    // Broadcast bet closure
-    broadcastToAll({
-      type: 'BET_CLOSED',
-      betId: bet._id
-    });
-
     // Cancel any scheduled closure timer
     cancelBetClosure(bet._id);
 
@@ -456,7 +412,7 @@ router.put('/:betId/close', requireBetCreatorOrAdmin, async (req, res) => {
 });
 
 // Cancel a bet (creator or admin only)
-router.delete('/:betId', requireBetCreatorOrAdmin, async (req, res) => {
+router.delete('/:betId', requireBetCreatorOrAnyAdmin, async (req, res) => {
   try {
     const betId = req.params.betId;
     const { creatorDiscordId } = req.body;
@@ -483,7 +439,7 @@ router.delete('/:betId', requireBetCreatorOrAdmin, async (req, res) => {
 });
 
 // Edit a bet (creator or admin only)
-router.put('/:betId/edit', requireBetCreatorOrAdmin, async (req, res) => {
+router.put('/:betId/edit', requireBetCreatorOrAnyAdmin, async (req, res) => {
   try {
     const betId = req.params.betId;
     const { creatorDiscordId, description, options, durationMinutes } = req.body;
@@ -528,7 +484,7 @@ router.put('/:betId/edit', requireBetCreatorOrAdmin, async (req, res) => {
 });
 
 // Extend a bet's duration (creator or admin only)
-router.put('/:betId/extend', requireBetCreatorOrAdmin, async (req, res) => {
+router.put('/:betId/extend', requireBetCreatorOrAnyAdmin, async (req, res) => {
   try {
     const betId = req.params.betId;
     const { creatorDiscordId, additionalMinutes } = req.body;
@@ -569,10 +525,10 @@ router.put('/:betId/extend', requireBetCreatorOrAdmin, async (req, res) => {
 });
 
 // Resolve a betting event (creator or admin only)
-router.put('/:betId/resolve', requireBetCreatorOrAdmin, async (req, res) => {
+router.put('/:betId/resolve', requireBetCreatorOrAnyAdmin, async (req, res) => {
     try {
       const betId = req.params.betId;
-      const { winningOption, resolverDiscordId } = req.body;
+      const { winningOption, creatorDiscordId } = req.body;
 
       const bet = await Bet.findById(betId).where({ guildId: req.guildId });
 
@@ -623,32 +579,12 @@ router.put('/:betId/resolve', requireBetCreatorOrAdmin, async (req, res) => {
 
             // Update win streak for winner
             await updateUserWinStreak(placedBet.bettor.discordId, true);
-
-            // Broadcast balance update to the winning user
-            if (wss) {
-              const client = Array.from(wss.clients).find(
-                c => c.discordId === placedBet.bettor.discordId
-              );
-              if (client && client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({
-                  type: 'BALANCE_UPDATE',
-                  balance: bettorWallet.balance
-                }));
-              }
-            }
           }
         } else {
           // Update win streak for losers
           await updateUserWinStreak(placedBet.bettor.discordId, false);
         }
       }
-
-      // Broadcast bet resolution
-      broadcastToAll({
-        type: 'BET_RESOLVED',
-        betId: bet._id,
-        winner: winningOption
-      });
 
       res.json({ message: 'Bet resolved successfully.', bet });
 
@@ -659,7 +595,7 @@ router.put('/:betId/resolve', requireBetCreatorOrAdmin, async (req, res) => {
 });
 
 // Refund a bet (creator, admin, or superadmin only)
-router.post('/:betId/refund', requireBetCreatorOrAdmin, async (req, res) => {
+router.post('/:betId/refund', requireBetCreatorOrAnyAdmin, async (req, res) => {
   try {
     const { betId } = req.params;
     const { creatorDiscordId, guildId } = req.body;
@@ -700,4 +636,4 @@ router.post('/:betId/refund', requireBetCreatorOrAdmin, async (req, res) => {
 });
 
 // Export timer functions for use in other endpoints
-module.exports = { router, setWebSocketServer, scheduleBetClosure, cancelBetClosure };
+module.exports = { router, scheduleBetClosure, cancelBetClosure };

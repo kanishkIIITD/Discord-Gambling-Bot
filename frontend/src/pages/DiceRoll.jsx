@@ -1,21 +1,21 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useDashboard } from '../contexts/DashboardContext';
-import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
-import axios from 'axios';
-// import Dice from 'react-dice-roll';
+import axios from '../services/axiosConfig';
 import './Dice3D.css';
 import { Howl } from 'howler';
 import { formatDisplayNumber } from '../utils/numberFormat';
 import OptimizedImage from '../components/OptimizedImage';
 import withMemoization from '../utils/withMemoization';
-import PageTransition from '../components/PageTransition';
 import AnimatedElement from '../components/AnimatedElement';
-import { useAnimation } from '../contexts/AnimationContext';
+import { useQueryClient } from '@tanstack/react-query';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+// Import Zustand stores and hooks
+import { useUserStore, useWalletStore, useGuildStore } from '../store';
+import { useLoading } from '../hooks/useLoading';
+import { useAnimation } from '../hooks/useAnimation';
+import { useWalletBalance } from '../hooks/useQueryHooks';
 
 // Map dice value to cube rotation (degrees)
 const faceRotations = {
@@ -80,10 +80,25 @@ function Dice3DComponent({ value, rolling }) {
 // Apply memoization to the Dice3D component
 const Dice3D = withMemoization(Dice3DComponent);
 
+// Define loading keys for DiceRoll component
+const LOADING_KEYS = {
+  ROLL_DICE: 'diceroll.roll'
+};
+
 export const DiceRoll = () => {
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
   const { getVariants } = useAnimation();
-  const { user } = useAuth();
-  const { walletBalance, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance } = useDashboard();
+  const user = useUserStore(state => state.user);
+  
+  // Use React Query for wallet balance like other components
+  const { data: walletData, refetch: refetchWalletBalance } = useWalletBalance(user?.discordId);
+  const walletBalance = walletData?.balance || 0;
+  
+  const updateBalanceOptimistically = useWalletStore(state => state.updateBalanceOptimistically);
+  const [prevWalletBalance, setPrevWalletBalance] = useState(walletBalance);
+  const [suppressWalletBalance, setSuppressWalletBalance] = useState(false);
+  const queryClient = useQueryClient();
+  const { withLoading, isLoading } = useLoading();
 
   const [betAmount, setBetAmount] = useState('');
   const [betType, setBetType] = useState(''); // 'specific', 'high', 'low', 'even', 'odd'
@@ -96,8 +111,8 @@ export const DiceRoll = () => {
   const [cheatValue, setCheatValue] = useState(null); // For forcing dice face
   const [pendingResult, setPendingResult] = useState(null); // Store result to roll to
 
-  const handleRoll = async (e) => {
-    e.preventDefault();
+  // Refactored: handleRollImplementation no longer expects an event
+  const handleRollImplementation = async () => {
     if (!user?.discordId) {
       toast.error('User not authenticated.');
       return;
@@ -123,7 +138,8 @@ export const DiceRoll = () => {
     setResult(null);
     setResultMessage('');
     setPrevWalletBalance(walletBalance);
-    setSuppressWalletBalance(true);
+    // Optimistically update the wallet balance
+    updateBalanceOptimistically(walletBalance - amount);
     setCheatValue(null); // Reset before roll
     setPendingResult(null);
     setRollingAnim(true);
@@ -135,15 +151,21 @@ export const DiceRoll = () => {
     try {
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/dice`,
-        { amount: amount, bet_type: betType, number: betType === 'specific' ? parseInt(specificNumber, 10) : undefined, guildId: MAIN_GUILD_ID },
-        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
+        { amount: amount, bet_type: betType, number: betType === 'specific' ? parseInt(specificNumber, 10) : undefined, guildId: selectedGuildId },
+        { headers: { 'x-guild-id': selectedGuildId } }
       );
       const { roll, won, winnings, newBalance } = response.data;
       setResult(roll);
       setPendingResult({ roll, won, winnings, amount });
       setCheatValue(roll); // This will trigger the useEffect below
+      
+      // Update wallet balance with the new balance from the API
+      if (newBalance !== undefined) {
+        updateBalanceOptimistically(newBalance);
+      }
+      
       // Animate dice: cycle faces for 1s, then show result
-      let animFrames = 10; // 20 frames at 50ms = 0.5s
+      let animFrames = 10; // 10 frames at 50ms = 0.5s
       let frame = 0;
       const anim = setInterval(() => {
         setDiceValue(Math.floor(Math.random() * 6) + 1);
@@ -164,7 +186,10 @@ export const DiceRoll = () => {
       const errorMessage = error.response?.data?.message || 'Failed to roll dice.';
       toast.error(errorMessage);
       setIsRolling(false);
-      setSuppressWalletBalance(false);
+      
+      // Revert the optimistic update on error
+      refetchWalletBalance();
+      
       // Stop sound if error
       if (diceSound.playing()) {
         diceSound.fade(diceSound.volume(), 0, 200);
@@ -172,11 +197,21 @@ export const DiceRoll = () => {
       }
     }
   };
+  // Wrap the implementation with loading state management
+  const handleRoll = () => withLoading(LOADING_KEYS.ROLL_DICE, handleRollImplementation);
+  // New: handle form submit, prevent default, then call handleRoll
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    handleRoll();
+  };
 
   // Handle animation end using onRoll
   const handleDiceRollEnd = () => {
     setIsRolling(false);
-    setSuppressWalletBalance(false);
+    
+    // Now that animation is complete, refresh wallet balance
+    refetchWalletBalance();
+    
     if (pendingResult) {
       const { won, winnings, amount } = pendingResult;
       let messageText = '';
@@ -196,7 +231,8 @@ export const DiceRoll = () => {
       // Delay to let the final face show
       setTimeout(() => {
         setIsRolling(false);
-        setSuppressWalletBalance(false);
+        // Now that animation is complete, refresh wallet balance
+        refetchWalletBalance();
         if (pendingResult) {
           const { won, winnings, amount } = pendingResult;
           let messageText = '';
@@ -210,7 +246,7 @@ export const DiceRoll = () => {
         }
       }, 600);
     }
-  }, [rollingAnim, isRolling, result, pendingResult]);
+  }, [rollingAnim, isRolling, result, pendingResult, user?.discordId, selectedGuildId, refetchWalletBalance]);
 
   return (
     <motion.div
@@ -228,7 +264,7 @@ export const DiceRoll = () => {
           {/* Dice Animation Area using Framer Motion */}
           <Dice3D value={diceValue} rolling={rollingAnim} />
 
-          <form onSubmit={handleRoll} className="space-y-4 font-base">
+          <form onSubmit={handleFormSubmit} className="space-y-4 font-base">
             <div>
               <label htmlFor="betAmount" className="block text-sm font-medium text-text-secondary font-heading">Bet Amount</label>
               <input
@@ -286,11 +322,19 @@ export const DiceRoll = () => {
             <div>
               <button
                 type="submit"
-                disabled={isRolling || !betAmount || !betType || parseInt(betAmount, 10) <= 0 || parseInt(betAmount, 10) > walletBalance || (betType === 'specific' && (isNaN(parseInt(specificNumber, 10)) || parseInt(specificNumber, 10) < 1 || parseInt(specificNumber, 10) > 6))}
-                className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${isRolling ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary font-base`}
+                disabled={isRolling || isLoading(LOADING_KEYS.ROLL_DICE) || !betAmount || !betType || parseInt(betAmount, 10) <= 0 || parseInt(betAmount, 10) > walletBalance || (betType === 'specific' && (isNaN(parseInt(specificNumber, 10)) || parseInt(specificNumber, 10) < 1 || parseInt(specificNumber, 10) > 6))}
+                className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${isRolling || isLoading(LOADING_KEYS.ROLL_DICE) ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary font-base`}
+
               >
-                {isRolling ? 'Rolling...' : 'Roll Dice'}
+                {isLoading(LOADING_KEYS.ROLL_DICE) ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Processing...
+                  </>
+                ) : isRolling ? 'Rolling...' : 'Roll Dice'}
               </button>
+              
+
             </div>
           </form>
 

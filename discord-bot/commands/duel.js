@@ -115,7 +115,7 @@ module.exports = {
         interaction.client.activeDuelMessages.set(duelId, { message: sentMessage, channelId: sentMessage.channelId, guildId });
         setTimeout(async () => {
           try {
-            console.log(`[DUEL TIMEOUT] Attempting to disable buttons for duelId: ${duelId}`);
+            // console.log(`[DUEL TIMEOUT] Attempting to disable buttons for duelId: ${duelId}`);
             // --- Check if duel is still pending ---
             let duelStatus = null;
             try {
@@ -127,7 +127,7 @@ module.exports = {
               console.warn(`[DUEL TIMEOUT] Could not fetch duel status for duelId: ${duelId}:`, statusErr?.response?.data?.message || statusErr.message);
             }
             if (duelStatus !== 'pending') {
-              console.log(`[DUEL TIMEOUT] Duel ${duelId} is not pending (status: ${duelStatus}), skipping button disable.`);
+              // console.log(`[DUEL TIMEOUT] Duel ${duelId} is not pending (status: ${duelStatus}), skipping button disable.`);
               return;
             }
             // Disable buttons
@@ -158,7 +158,7 @@ module.exports = {
             } catch (refundErr) {
               console.warn(`[DUEL TIMEOUT] Backend refund failed or duel already resolved for duelId: ${duelId}:`, refundErr?.response?.data?.message || refundErr.message);
             }
-            console.log(`[DUEL TIMEOUT] Disabled buttons for duelId: ${duelId}`);
+            // console.log(`[DUEL TIMEOUT] Disabled buttons for duelId: ${duelId}`);
           } catch (err) {
             console.warn(`[DUEL TIMEOUT] Failed to disable buttons for duelId: ${duelId}:`, err.message);
           }

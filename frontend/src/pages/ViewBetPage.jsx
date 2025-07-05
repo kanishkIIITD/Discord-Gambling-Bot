@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { BetDetails } from './BetDetails';
 import { motion } from 'framer-motion';
+import { useUIStore } from '../store/useUIStore';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const ViewBetPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -9,6 +11,14 @@ const ViewBetPage = () => {
   const betIdParam = searchParams.get('betId') || '';
   const [searchBetId, setSearchBetId] = useState(betIdParam);
   const [betCanceled, setBetCanceled] = useState(false);
+  
+  // Fix: Select individual functions to prevent infinite loops
+  const startLoading = useUIStore(state => state.startLoading);
+  const stopLoading = useUIStore(state => state.stopLoading);
+  const isLoading = useUIStore(state => state.isLoading);
+  
+  // Define loading key for bet search
+  const LOADING_KEY = 'bet-search';
 
   // Keep input in sync with query param
   useEffect(() => {
@@ -27,13 +37,18 @@ const ViewBetPage = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchBetId.trim()) {
+      startLoading(LOADING_KEY);
       setSearchParams({ betId: searchBetId.trim() });
+      // Stop loading after a short delay to allow BetDetails to take over loading state
+      setTimeout(() => stopLoading(LOADING_KEY), 300);
     }
   };
 
   const handleClear = () => {
+    startLoading(LOADING_KEY);
     setSearchBetId('');
     setSearchParams({});
+    stopLoading(LOADING_KEY);
   };
 
   return (
@@ -58,16 +73,21 @@ const ViewBetPage = () => {
         />
         <button
           type="submit"
-          className="px-6 py-2 rounded bg-primary text-white font-semibold hover:bg-primary/90 font-base"
-          disabled={!searchBetId.trim()}
+          className="px-6 py-2 rounded bg-primary text-white font-semibold hover:bg-primary/90 font-base flex items-center justify-center"
+          disabled={!searchBetId.trim() || isLoading(LOADING_KEY)}
         >
-          Search
+          {isLoading(LOADING_KEY) ? (
+            <>
+              <LoadingSpinner size="sm" className="mr-2" />
+              Searching...
+            </>
+          ) : 'Search'}
         </button>
         <button
           type="button"
           className="px-6 py-2 rounded bg-surface text-text-primary border border-border font-semibold hover:bg-primary/5 font-base"
           onClick={handleClear}
-          disabled={!searchBetId}
+          disabled={!searchBetId || isLoading(LOADING_KEY)}
         >
           Clear
         </button>
@@ -84,4 +104,4 @@ const ViewBetPage = () => {
   );
 };
 
-export default ViewBetPage; 
+export default ViewBetPage;

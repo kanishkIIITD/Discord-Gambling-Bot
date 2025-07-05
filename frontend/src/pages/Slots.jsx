@@ -1,22 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useDashboard } from '../contexts/DashboardContext';
-import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
-import axios from 'axios';
+import axios from '../services/axiosConfig';
 import Confetti from 'react-confetti';
 import SlotMachine from '../components/SlotMachine';
 import { Howl } from 'howler';
 import { getUserPreferences } from '../services/api';
 import { formatDisplayNumber } from '../utils/numberFormat';
 import RadixDialog from '../components/RadixDialog';
-// import PageTransition from '../components/PageTransition';
 import AnimatedElement from '../components/AnimatedElement';
-import { useAnimation } from '../contexts/AnimationContext';
 import { motion } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
+import { useJackpotPool, useWalletBalance } from '../hooks/useQueryHooks';
+import { Checkbox } from '../components/Checkbox';
+import ElasticSlider from '../components/ElasticSlider';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-// --- TEMP: Main Guild ID for single-guild mode ---
-// TODO: Replace with dynamic guild selection for multi-guild support
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+// Import Zustand stores and compatibility hooks
+import { useUserStore, useWalletStore, useGuildStore } from '../store';
+import { useLoading } from '../hooks/useLoading';
+import { useAnimation } from '../hooks/useAnimation';
+
 const REEL_COUNT = 3;
 const slotSymbols = ['🍒', '🍊', '🍋', '🍇', '💎', '7️⃣'];
 const symbolImages = {
@@ -29,10 +32,19 @@ const symbolImages = {
 };
 // const STOP_DELAYS = [0, 0.4, 0.8];
 
-// Sound effects
-const spinSound = new Howl({ src: ['/sounds/slots_spin.mp3'], volume: 0.2 });
-const winSound = new Howl({ src: ['/sounds/slots_win.mp3'], volume: 0.3 });
-const jackpotSound = new Howl({ src: ['/sounds/slots_jackpot.mp3'], volume: 0.5 });
+// Sound effects with default volumes
+const DEFAULT_SPIN_VOLUME = 0.2;
+const DEFAULT_WIN_VOLUME = 0.3;
+const DEFAULT_JACKPOT_VOLUME = 0.5;
+
+const spinSound = new Howl({ src: ['/sounds/slots_spin.mp3'], volume: DEFAULT_SPIN_VOLUME });
+const winSound = new Howl({ src: ['/sounds/slots_win.mp3'], volume: DEFAULT_WIN_VOLUME });
+const jackpotSound = new Howl({ src: ['/sounds/slots_jackpot.mp3'], volume: DEFAULT_JACKPOT_VOLUME });
+
+// Define loading keys for Slots component
+const LOADING_KEYS = {
+  SPIN: 'slots.spin',
+};
 
 function getRandomSymbols() {
   return Array(REEL_COUNT)
@@ -41,9 +53,19 @@ function getRandomSymbols() {
 }
 
 export const Slots = () => {
-  // const { getVariants } = useAnimation();
-  const { user } = useAuth();
-  const { walletBalance, setSuppressWalletBalance, setPrevWalletBalance } = useDashboard();
+  // Get state from Zustand stores
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const user = useUserStore(state => state.user);
+  
+  // Use React Query for wallet balance like other components
+  const { data: walletData, refetch: refetchWalletBalance } = useWalletBalance(user?.discordId);
+  const walletBalance = walletData?.balance || 0;
+  
+  const updateBalanceOptimistically = useWalletStore(state => state.updateBalanceOptimistically);
+  
+  const queryClient = useQueryClient();
+  const { startLoading, stopLoading, setError, isLoading, withLoading } = useLoading();
+  const { animationsEnabled } = useAnimation();
 
   const [betAmount, setBetAmount] = useState('');
   const [isSpinning, setIsSpinning] = useState(false);
@@ -62,7 +84,11 @@ export const Slots = () => {
   const autoSpinRef = useRef({ running: false });
   const responseRef = useRef(null);
   const spinPromiseResolveRef = useRef(null);
+  const currentSpinSoundRef = useRef(null);
 
+  // Sound volume controls
+  const [soundVolume, setSoundVolume] = useState(50); // 0-100 scale for the slider
+  
   // Slot machine settings from user preferences
   const [slotAutoSpinDelay, setSlotAutoSpinDelay] = useState(300); // ms
   const [slotAutoSpinDefaultCount, setSlotAutoSpinDefaultCount] = useState(1);
@@ -76,6 +102,11 @@ export const Slots = () => {
         setSlotAutoSpinDelay(prefs.slotAutoSpinDelay ?? 300);
         setSlotAutoSpinDefaultCount(prefs.slotAutoSpinDefaultCount ?? 1);
         setAutoSpinCount(prefs.slotAutoSpinDefaultCount ?? 1);
+        
+        // Only set sound volume if it's the first load (initial mount)
+        if (prefs.defaultSoundVolume !== undefined) {
+          setSoundVolume(prefs.defaultSoundVolume);
+        }
       } catch (e) {
         // fallback to defaults
       }
@@ -92,38 +123,48 @@ export const Slots = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Use React Query for jackpot pool
+  const { data: jackpotData, refetch: refetchJackpot } = useJackpotPool(user?.discordId);
+  
+  // Update jackpot pool when data changes
   useEffect(() => {
-    async function fetchJackpot() {
-      try {
-        const response = await axios.get(
-          `${process.env.REACT_APP_API_URL}/api/gambling/${user?.discordId || ''}/jackpot`,
-          {
-            params: { guildId: MAIN_GUILD_ID },
-            headers: { 'x-guild-id': MAIN_GUILD_ID }
-          }
-        );
-        setJackpotPool(response.data.currentAmount || 0);
-      } catch (e) {
-        setJackpotPool(0);
-      }
+    if (jackpotData) {
+      setJackpotPool(jackpotData.currentAmount || 0);
     }
-    fetchJackpot();
-  }, [user?.discordId]);
+  }, [jackpotData]);
 
-  // Handler for when a single reel's animation completes
+  // Handler for when all reels' animations complete
   const handleAllReelsAnimationComplete = () => {
     // Fade out the spin sound over 300ms, then stop it
-    if (spinSound.playing()) {
-      spinSound.fade(spinSound.volume(), 0, 300);
-      setTimeout(() => spinSound.stop(), 300);
+    if (currentSpinSoundRef.current && currentSpinSoundRef.current.playing()) {
+      const soundToFade = currentSpinSoundRef.current;
+      soundToFade.fade(soundToFade.volume(), 0, 300);
+      setTimeout(() => {
+        if (soundToFade && soundToFade.playing()) {
+          soundToFade.stop();
+        }
+        // Clear the reference if it still points to this sound
+        if (currentSpinSoundRef.current === soundToFade) {
+          currentSpinSoundRef.current = null;
+        }
+      }, 300);
     }
-    // console.log('[DEBUG] handleAllReelsAnimationComplete fired');
+    
     // Retrieve response data and original bet amount from the ref
     const { won, winnings, isJackpot, usedFreeSpin, winType, amount: betAmountUsed } = responseRef.current || {};
+    
+    // Make sure the displayed reels match the actual result
+    if (reelResults && reelResults.length === REEL_COUNT) {
+      // Ensure the displayed symbols match what the server returned
+      setFinalReelSymbols([...reelResults]);
+    }
+    
+    // Set appropriate message based on result
     let messageText = '';
     if (isJackpot) {
       messageText = `JACKPOT! 🎉 You won ${formatDisplayNumber(winnings)} points!`;
       jackpotSound.play();
+      setIsJackpot(true); // Ensure jackpot state is set for confetti
     } else if (winType === 'two-sevens') {
       messageText = `Two 7️⃣! You win 5x your bet: ${formatDisplayNumber(winnings)} points!`;
       winSound.play();
@@ -141,19 +182,37 @@ export const Slots = () => {
     } else if (betAmountUsed) {
       messageText = `You lost ${formatDisplayNumber(betAmountUsed)} points.`;
     }
+    
     setResultMessage(messageText);
     toast[won || isJackpot ? 'success' : 'error'](messageText);
-    setSuppressWalletBalance(false);
+    
+    // Now that animation is complete, refresh wallet balance
+    refetchWalletBalance();
+    // Invalidate jackpot pool query to refresh it
+    queryClient.invalidateQueries(['jackpotPool', user.discordId, selectedGuildId]);
+    
     // If not in auto-spin mode, reset isSpinning after animation completes
     if (!autoSpinRef.current.running) {
       setIsSpinning(false);
     }
-    // Do NOT set isSpinning or autoSpinProgress here for auto-spin; let runAutoSpin handle it
+    
+    // Resolve the promise to continue auto-spin sequence if active
     if (spinPromiseResolveRef.current) {
       spinPromiseResolveRef.current();
       spinPromiseResolveRef.current = null;
     }
   };
+
+  // Effect to update sound volumes when soundVolume changes
+  useEffect(() => {
+    const volumeFactor = soundVolume / 100;
+    spinSound.volume(DEFAULT_SPIN_VOLUME * volumeFactor);
+    winSound.volume(DEFAULT_WIN_VOLUME * volumeFactor);
+    jackpotSound.volume(DEFAULT_JACKPOT_VOLUME * volumeFactor);
+    if (currentSpinSoundRef.current) {
+      currentSpinSoundRef.current.volume(DEFAULT_SPIN_VOLUME * volumeFactor);
+    }
+  }, [soundVolume]);
 
   // Auto-spin handler
   const runAutoSpin = async (count) => {
@@ -163,9 +222,20 @@ export const Slots = () => {
       if (!autoSpinRef.current.running) break;
       setAutoSpinProgress(i + 1);
       await new Promise((resolve) => setTimeout(resolve, 100));
+      
+      // Make sure previous spin sound has stopped before starting a new one
+      if (currentSpinSoundRef.current && currentSpinSoundRef.current.playing()) {
+        currentSpinSoundRef.current.stop();
+        currentSpinSoundRef.current = null;
+      }
+      
       await handleSpin(null, true);
+      
+      // Only wait if there are more spins to go
       if (i < count - 1) {
-        await new Promise((resolve) => setTimeout(resolve, slotAutoSpinDelay));
+        // For very short delays, ensure the sound has time to play
+        const effectiveDelay = Math.max(slotAutoSpinDelay, 200);
+        await new Promise((resolve) => setTimeout(resolve, effectiveDelay));
       }
     }
     setAutoSpinProgress(0);
@@ -198,32 +268,59 @@ export const Slots = () => {
       setResultMessage('');
       setSpinKey(prev => prev + 1);
       setIsJackpot(false);
-      setPrevWalletBalance(walletBalance);
-      setSuppressWalletBalance(true);
-      try {
-        spinSound.stop();
-        spinSound.volume(0.2);
-        spinSound.seek(0);
-        spinSound.play();
-        const response = await axios.post(
-          `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/slots`,
-          { amount: amount, guildId: MAIN_GUILD_ID },
-          { headers: { 'x-guild-id': MAIN_GUILD_ID } }
-        );
-        const { reels: finalReels, ...restOfResponse } = response.data;
-        responseRef.current = { ...restOfResponse, amount: amount };
-        setFinalReelSymbols(finalReels);
-        setReelResults(finalReels);
-      } catch (error) {
-        const errorMessage = error.response?.data?.message || 'Failed to spin slots.';
-        setTimeout(() => {
-          setResultMessage(errorMessage);
-          toast.error(errorMessage);
-          if (!isAuto) setIsSpinning(false);
-          setSuppressWalletBalance(false);
-          resolve();
-        }, 0);
-      }
+      
+      // Optimistically update the wallet balance
+      const newBalance = walletBalance - amount;
+      updateBalanceOptimistically(newBalance);
+      
+      // Use withLoading to handle loading state
+      await withLoading(LOADING_KEYS.SPIN, async () => {
+        try {
+          // Stop any currently playing spin sound
+          if (currentSpinSoundRef.current && currentSpinSoundRef.current.playing()) {
+            currentSpinSoundRef.current.stop();
+          }
+          
+          // Create a new instance of the spin sound for each spin to avoid issues with reusing the same sound object
+          const volumeFactor = soundVolume / 100;
+          const newSpinSound = new Howl({ 
+            src: ['/sounds/slots_spin.mp3'], 
+            volume: DEFAULT_SPIN_VOLUME * volumeFactor
+          });
+          
+          // Play the new sound instance
+          newSpinSound.play();
+          currentSpinSoundRef.current = newSpinSound;
+          
+          const response = await axios.post(
+            `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/slots`,
+            { amount: amount, guildId: selectedGuildId },
+            { headers: { 'x-guild-id': selectedGuildId } }
+          );
+          const { reels: finalReels, ...restOfResponse } = response.data;
+          
+          // Validate that the received reels contain valid symbols
+          const validatedReels = finalReels.map(symbol => {
+            return slotSymbols.includes(symbol) ? symbol : slotSymbols[0];
+          });
+          
+          responseRef.current = { ...restOfResponse, amount: amount };
+          setFinalReelSymbols(validatedReels);
+          setReelResults(validatedReels);
+          // Don't invalidate wallet balance query here - will do it after animation completes
+        } catch (error) {
+          const errorMessage = error.response?.data?.message || 'Failed to spin slots.';
+          setTimeout(() => {
+            setResultMessage(errorMessage);
+            toast.error(errorMessage);
+            if (!isAuto) setIsSpinning(false);
+            // Refresh wallet balance after error
+            refetchWalletBalance();
+            resolve();
+          }, 0);
+          throw error; // Rethrow to let withLoading handle the error state
+        }
+      });
     });
   };
 
@@ -286,21 +383,36 @@ export const Slots = () => {
               </button>
             </div>
           </RadixDialog>
+          {/* Sound Volume Control */}
+          <div className="flex flex-col items-center justify-center gap-2 mb-4">
+            <h3 className="text-text-primary font-medium mb-1">Sound Volume</h3>
+            <div className="w-full max-w-xs">
+              <ElasticSlider
+                leftIcon={<span className="text-lg">🔈</span>}
+                rightIcon={<span className="text-lg">🔊</span>}
+                startingValue={0}
+                defaultValue={soundVolume}
+                maxValue={100}
+                isStepped
+                stepSize={5}
+                className="mx-auto"
+                onChange={value => setSoundVolume(value)}
+                key={`volume-slider-${soundVolume}`} // Add key to force re-render when defaultValue changes
+              />
+            </div>
+          </div>
+          
           {/* Auto Spin Controls */}
           <div className="flex items-center justify-center gap-4 mb-2">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={autoSpinEnabled}
-                onChange={e => {
-                  setAutoSpinEnabled(e.target.checked);
-                  if (!e.target.checked) setAutoSpinProgress(0);
-                }}
-                disabled={isSpinning || autoSpinProgress > 0}
-                className="form-checkbox h-5 w-5 text-primary"
-              />
-              <span className="text-text-primary font-medium font-base">Auto Spin</span>
-            </label>
+            <Checkbox
+              checked={autoSpinEnabled}
+              onCheckedChange={checked => {
+                setAutoSpinEnabled(checked);
+                if (!checked) setAutoSpinProgress(0);
+              }}
+              label="Auto Spin"
+              disabled={isSpinning || autoSpinProgress > 0}
+            />
             <input
               type="number"
               min={1}
@@ -346,10 +458,15 @@ export const Slots = () => {
             <div>
               <button
                 type="submit"
-                disabled={isSpinning || autoSpinProgress > 0 || !betAmount || parseInt(betAmount, 10) <= 0 || parseInt(betAmount, 10) > walletBalance}
-                className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${(isSpinning || autoSpinProgress > 0) ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary font-base`}
+                disabled={isSpinning || isLoading(LOADING_KEYS.SPIN) || autoSpinProgress > 0 || !betAmount || parseInt(betAmount, 10) <= 0 || parseInt(betAmount, 10) > walletBalance}
+                className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${(isSpinning || isLoading(LOADING_KEYS.SPIN) || autoSpinProgress > 0) ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary font-base`}
               >
-                {(isSpinning || autoSpinProgress > 0)
+                {isLoading(LOADING_KEYS.SPIN) ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Processing...
+                  </>
+                ) : (isSpinning || autoSpinProgress > 0)
                   ? (autoSpinProgress > 0 ? `Auto-spinning... (${autoSpinProgress}/${autoSpinCount})` : 'Spinning...')
                   : 'Spin Reels'}
               </button>

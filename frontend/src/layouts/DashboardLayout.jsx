@@ -1,135 +1,24 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Outlet } from 'react-router-dom'; // Import Outlet
-import { useAuth } from '../contexts/AuthContext';
 import { Sidebar } from '../components/Sidebar';
 import { DashboardNavigation } from '../components/DashboardNavigation';
-import { getWalletBalance, getActiveBets, getClosedBets } from '../services/api'; // Import necessary API functions
-import { DashboardContext } from '../contexts/DashboardContext'; // Assuming you have a DashboardContext
-// import useWebSocket from '../hooks/useWebSocket';
 import PerformanceDashboard from '../components/PerformanceDashboard';
+import useDashboardData from '../hooks/useDashboardData';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export const DashboardLayout = () => {
-  const { user } = useAuth();
-  const [walletBalance, setWalletBalance] = useState(0); // Wallet balance state
-  const [activeBets, setActiveBets] = useState([]); // Add state for active bets
-  // Add loading state for the layout's data fetches
-  const [loading, setLoading] = useState(true);
-  const [suppressWalletBalance, setSuppressWalletBalance] = useState(false);
-  const [prevWalletBalance, setPrevWalletBalance] = useState(0);
-  const [pendingWalletBalance, setPendingWalletBalance] = useState(null);
+  // Use the optimized dashboard data hook
+  const { 
+    isLoading,
+    isInitialLoadComplete,
+    isGuildSwitching,
+    loadingKeys,
+  } = useDashboardData();
+  
   const navRef = useRef(null);
-  const [navHeight, setNavHeight] = useState(0);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false); // Track dropdown state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 768); // Start collapsed on mobile
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768); // Track mobile state
-  
-  // Initialize WebSocket connection
-  // const wsUrl = process.env.REACT_APP_WS_URL;
-  // const { 
-  //   isConnected: wsConnected, 
-  //   lastMessage: wsMessage,
-  //   connectionStatus: wsStatus,
-  //   send: wsSend
-  // } = useWebSocket(wsUrl, {
-  //   reconnectAttempts: 10,
-  //   debug: process.env.NODE_ENV === 'development'
-  // });
-
-  // When suppression is enabled, store the previous balance
-  useEffect(() => {
-    if (suppressWalletBalance) {
-      setPrevWalletBalance(walletBalance);
-    }
-    // eslint-disable-next-line
-  }, [suppressWalletBalance]);
-
-  // When suppression is turned off, apply pendingWalletBalance if set
-  useEffect(() => {
-    if (!suppressWalletBalance && pendingWalletBalance !== null) {
-      setWalletBalance(pendingWalletBalance);
-      setPendingWalletBalance(null);
-    }
-  }, [suppressWalletBalance, pendingWalletBalance]);
-
-  // Handle WebSocket messages
-  // useEffect(() => {
-  //   if (wsMessage) {
-  //     try {
-  //       // Process different message types
-  //       switch (wsMessage.type) {
-  //         case 'BALANCE_UPDATE':
-  //           if (suppressWalletBalance) {
-  //             // Store the update for later if balance updates are suppressed
-  //             setPendingWalletBalance(wsMessage.data.balance);
-  //           } else {
-  //             setWalletBalance(wsMessage.data.balance);
-  //           }
-  //           break;
-  //         case 'BET_UPDATE':
-  //           // Refresh active bets when a bet is updated
-  //           fetchActiveBets();
-  //           break;
-  //         case 'NOTIFICATION':
-  //           // Handle notifications if needed
-  //           break;
-  //         default:
-  //           // Handle unknown message types
-  //           console.log('Unknown WebSocket message type:', wsMessage.type);
-  //       }
-  //     } catch (error) {
-  //       console.error('Error processing WebSocket message:', error);
-  //     }
-  //   }
-  // }, [wsMessage, suppressWalletBalance]);
-
-  // Send authentication message when WebSocket connects
-  // useEffect(() => {
-  //   if (wsConnected && user?.discordId) {
-  //     wsSend({
-  //       type: 'AUTHENTICATE',
-  //       data: {
-  //         discordId: user.discordId,
-  //         guildId: process.env.REACT_APP_MAIN_GUILD_ID
-  //       }
-  //     });
-  //   }
-  // }, [wsConnected, user, wsSend]);
-
-  // Fetch active bets function
-  const fetchActiveBets = async () => {
-    if (!user?.discordId) return;
-    try {
-      const [openBets, closedBets] = await Promise.all([
-        getActiveBets(),
-        getClosedBets()
-      ]);
-      setActiveBets([...openBets, ...closedBets]); // Combine open and closed bets
-    } catch (error) {
-      console.error('Error fetching bets:', error);
-    }
-  };
-
-  // Fetch initial data (balance and active bets)
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user?.discordId) return;
-      try {
-        setLoading(true); // Set loading before fetching
-        const [balanceData, openBets, closedBets] = await Promise.all([
-          getWalletBalance(user.discordId),
-          getActiveBets(),
-          getClosedBets()
-        ]);
-        setWalletBalance(balanceData.balance);
-        setActiveBets([...openBets, ...closedBets]); // Combine open and closed bets
-      } catch (error) {
-        console.error('Error fetching initial dashboard data:', error);
-      } finally {
-        setLoading(false); // Unset loading after fetching
-      }
-    };
-    fetchData();
-  }, [user]); // Fetch when user changes
 
   // Listen for nav height changes on resize - simplified
   useEffect(() => {
@@ -138,7 +27,7 @@ export const DashboardLayout = () => {
     // Simple height update without complex calculations
     const updateNavHeight = () => {
       const height = navRef.current.offsetHeight;
-      setNavHeight(height);
+      // We're not using navHeight anymore, but keeping the ref for potential future use
     };
     
     // Initial set
@@ -177,26 +66,51 @@ export const DashboardLayout = () => {
     document.documentElement.style.setProperty('--sidebar-width', sidebarCollapsed ? '4rem' : '16rem');
   }, [sidebarCollapsed]);
   
+  // Track if we've shown the dashboard at least once
+  const [hasShownDashboard, setHasShownDashboard] = useState(false);
+  
+  // Once we've shown the dashboard, don't go back to the loading screen
+  // unless we're switching guilds
+  useEffect(() => {
+    if (isInitialLoadComplete && !hasShownDashboard) {
+      setHasShownDashboard(true);
+    }
+  }, [isInitialLoadComplete, hasShownDashboard]);
+  
+  // Only show loading screen for initial load, not during guild switching
+  const shouldShowLoadingScreen = 
+    (!hasShownDashboard && isLoading) && !isGuildSwitching;
+  
   // Add loading screen for the layout
-  if (loading) {
+  if (shouldShowLoadingScreen) {
+    // console.log('[DashboardLayout] Showing loading spinner - dashboard loading');
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <LoadingSpinner 
+          size="lg" 
+          color="primary" 
+          message="Loading dashboard..." 
+        />
       </div>
     );
   }
-  
-  // Define a constant for the spacing between nav and content/sidebar
-  const navContentSpacing = 0; // Remove spacing to prevent overlap
 
   return (
-    <div className="min-h-screen bg-background">
+    <motion.div 
+      className="min-h-screen bg-background"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ 
+        duration: 0.6,
+        ease: "easeOut",
+        delay: 0.1
+      }}
+    >
       {/* Navigation bar at the top */}
       <header ref={navRef} className="w-full sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border shadow-sm">
         <DashboardNavigation 
-          walletBalance={walletBalance} 
-          setWalletBalance={setWalletBalance} 
-          onProfileMenuToggle={setProfileMenuOpen}
+          suppressWalletBalance={false}
+          onProfileMenuToggle={() => {}}
           onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
       </header>
@@ -242,11 +156,14 @@ export const DashboardLayout = () => {
         >
           {/* Main content area */}
           <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 bg-background min-h-screen">
-            <div className="h-full rounded-lg">
-              <DashboardContext.Provider value={{ walletBalance, activeBets, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance }}>
-                <Outlet />
-              </DashboardContext.Provider>
-            </div>
+            <motion.div 
+              className="h-full rounded-lg"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4 }}>
+              {/* Using Zustand stores directly instead of DashboardContext.Provider */}
+              <Outlet />
+            </motion.div>
           </main>
         </div>
       </div>
@@ -271,6 +188,6 @@ export const DashboardLayout = () => {
       
       {/* Performance Dashboard (only in development mode) */}
       {process.env.NODE_ENV === 'development' && <PerformanceDashboard />}
-    </div>
+    </motion.div>
   );
 };

@@ -1,7 +1,13 @@
 import { Navigation } from '../components/Navigation';
 import { motion } from 'framer-motion';
+import { useLoading } from '../hooks/useLoading';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export const BotPermissions = () => {
+  const { isLoading } = useLoading();
+  
+  // Define loading key for bot permissions page
+  const LOADING_KEY = 'bot-permissions';
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -76,8 +82,14 @@ export const BotPermissions = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary tracking-wide transition-colors font-base"
+                disabled={isLoading(LOADING_KEY)}
               >
-                Add to Discord
+                {isLoading(LOADING_KEY) ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Adding...
+                  </>
+                ) : 'Add to Discord'}
               </motion.a>
             </div>
 
@@ -111,4 +123,4 @@ export const BotPermissions = () => {
       </motion.div>
     </div>
   );
-}; 
+};

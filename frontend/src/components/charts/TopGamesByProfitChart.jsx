@@ -1,13 +1,13 @@
 import React, { useMemo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUserStore, useUIStore } from '../../store';
 import { formatDisplayNumber } from '../../utils/numberFormat';
 import useChartDataCache from '../../hooks/useChartDataCache';
 import withOptimizedChart from '../../utils/withOptimizedChart';
 import useChartPerformance from '../../hooks/useChartPerformance';
 import { getTopGamesByProfit } from '../../services/api';
 import { Checkbox } from '../../components/Checkbox';
+import ChartLoadingSpinner from './ChartLoadingSpinner';
 
 // Symlog transformation helpers
 function symlog(x) {
@@ -20,8 +20,8 @@ function invSymlog(y) {
 }
 
 const TopGamesByProfitChart = ({ dateRange, targetUserId, guildId }) => {
-  const { user } = useAuth();
-  const { theme } = useTheme();
+  const user = useUserStore(state => state.user);
+  const theme = useUIStore(state => state.theme);
   const { startRenderTimer, stopRenderTimer } = useChartPerformance('TopGamesByProfitChart');
   
   const [useLogScale, setUseLogScale] = React.useState(true);
@@ -236,8 +236,8 @@ const TopGamesByProfitChart = ({ dateRange, targetUserId, guildId }) => {
         />
       </div>
       {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="h-64">
+          <ChartLoadingSpinner size="lg" message="Loading profit data..." />
         </div>
       ) : error ? (
         <div className="flex flex-col justify-center items-center h-64 text-text-secondary">

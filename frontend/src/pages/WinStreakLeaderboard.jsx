@@ -1,13 +1,12 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { getUserPreferences } from '../services/api';
-import axios from 'axios';
+import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import ReactPaginate from 'react-paginate';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useWinStreakLeaderboard, useUserPreferences } from '../hooks/useQueryHooks';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { useUserStore, useGuildStore } from '../store';
+import { useLoading } from '../hooks/useLoading';
 
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
 
 const SORT_OPTIONS = [
   { value: 'max', label: 'Max Streak' },
@@ -16,57 +15,77 @@ const SORT_OPTIONS = [
 ];
 
 export const WinStreakLeaderboard = () => {
-  const { user } = useAuth();
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [userPreferences, setUserPreferences] = useState(null);
+  const user = useUserStore(state => state.user);
   const [sortBy, setSortBy] = useState('max');
   const [sortOrder, setSortOrder] = useState('desc');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const sortMenuRef = useRef(null);
-
+  
+  // Define loading keys
+  const LOADING_KEYS = {
+    PREFERENCES: 'win-streak-preferences',
+    LEADERBOARD: 'win-streak-leaderboard',
+    GUILD_SWITCHING: 'win-streak-guild-switching'
+  };
+  
+  // Get loading context
+  const { isLoading, startLoading, stopLoading, setError, getError } = useLoading();
+  
+  // Use React Query hooks
+  const { data: userPreferencesData, isLoading: preferencesLoading, error: preferencesError } = useUserPreferences(user?.discordId);
+  const userPreferences = userPreferencesData || { itemsPerPage: 10 }; // Default to 10 items per page
+  
+  const { 
+    data: leaderboardData, 
+    isLoading: leaderboardLoading, 
+    error: leaderboardError 
+  } = useWinStreakLeaderboard(
+    page, 
+    userPreferences.itemsPerPage, 
+    sortBy, 
+    sortOrder
+  );
+  
+  // Get guild switching state
+  const isGuildSwitching = useGuildStore(state => state.isGuildSwitching);
+  
+  // Update loading states in LoadingContext
   useEffect(() => {
-    const fetchUserPreferences = async () => {
-      if (!user?.discordId) return;
-      try {
-        setLoading(true);
-        const data = await getUserPreferences(user.discordId);
-        setUserPreferences(data);
-      } catch (err) {
-        setError('Failed to load preferences.');
-      } finally {
-        setLoading(false);
+    if (preferencesLoading) {
+      startLoading(LOADING_KEYS.PREFERENCES);
+    } else {
+      stopLoading(LOADING_KEYS.PREFERENCES);
+      if (preferencesError) {
+        setError(LOADING_KEYS.PREFERENCES, preferencesError);
       }
-    };
-    fetchUserPreferences();
-  }, [user]);
-
+    }
+  }, [preferencesLoading, preferencesError, startLoading, stopLoading, setError]);
+  
   useEffect(() => {
-    const fetchLeaderboard = async () => {
-      if (!userPreferences) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await axios.get(
-          `${process.env.REACT_APP_API_URL}/api/users/leaderboard/winstreaks`,
-          {
-            params: { page, limit: userPreferences.itemsPerPage, sortBy, sortOrder, guildId: MAIN_GUILD_ID },
-            headers: { 'x-guild-id': MAIN_GUILD_ID }
-          }
-        );
-        setLeaderboard(res.data.data);
-        setTotalCount(res.data.totalCount);
-      } catch (err) {
-        setError('Failed to load win streak leaderboard.');
-      } finally {
-        setLoading(false);
+    if (leaderboardLoading) {
+      startLoading(LOADING_KEYS.LEADERBOARD);
+    } else {
+      stopLoading(LOADING_KEYS.LEADERBOARD);
+      if (leaderboardError) {
+        setError(LOADING_KEYS.LEADERBOARD, leaderboardError);
       }
-    };
-    fetchLeaderboard();
-  }, [page, userPreferences, sortBy, sortOrder]);
+    }
+  }, [leaderboardLoading, leaderboardError, startLoading, stopLoading, setError]);
+  
+  useEffect(() => {
+    if (isGuildSwitching) {
+      startLoading(LOADING_KEYS.GUILD_SWITCHING);
+    } else {
+      stopLoading(LOADING_KEYS.GUILD_SWITCHING);
+    }
+  }, [isGuildSwitching, startLoading, stopLoading]);
+  
+  // Derived state from React Query
+  const leaderboard = leaderboardData?.data || [];
+  const totalCount = leaderboardData?.totalCount || 0;
+  const loading = isLoading(LOADING_KEYS.PREFERENCES) || isLoading(LOADING_KEYS.LEADERBOARD) || isLoading(LOADING_KEYS.GUILD_SWITCHING);
+  const error = getError(LOADING_KEYS.LEADERBOARD) || getError(LOADING_KEYS.PREFERENCES);
 
   useEffect(() => {
     if (!showSortMenu) return;
@@ -101,13 +120,28 @@ export const WinStreakLeaderboard = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" color="primary" message="Loading win streak leaderboard..." />
       </div>
     );
   }
 
   if (error) {
-    return <div className="min-h-screen bg-background text-error flex items-center justify-center">{error}</div>;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="bg-card p-6 rounded-lg shadow-lg max-w-lg w-full">
+          <h2 className="text-2xl font-bold text-text-primary mb-4">Error Loading Win Streak Leaderboard</h2>
+          <div className="bg-error/10 border border-error/30 rounded-md p-4 mb-6">
+            <p className="text-error font-medium">{error.message || 'Failed to load win streak leaderboard data'}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -248,4 +282,4 @@ export const WinStreakLeaderboard = () => {
       )}
     </motion.div>
   );
-}; 
+};

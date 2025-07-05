@@ -1,46 +1,66 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { getUserPreferences, updateUserPreferences } from '../services/api';
+import React, { useState } from 'react';
+import { useUserStore, useGuildStore } from '../store';
+import { useUserPreferences, useUpdateUserPreferences } from '../hooks/useQueryHooks';
+import { useLoading } from '../hooks/useLoading';
 import { toast } from 'react-hot-toast';
 import { Checkbox } from '../components/Checkbox';
 import { motion } from 'framer-motion';
+import ElasticSlider from '../components/ElasticSlider';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export const Preferences = () => {
-  const { user } = useAuth();
-  const [preferences, setPreferences] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const user = useUserStore(state => state.user);
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const isGuildSwitching = useGuildStore(state => state.isGuildSwitching);
   const [isSaving, setIsSaving] = useState(false);
+  const { startLoading, stopLoading, setError, isLoading, getError, withLoading } = useLoading();
 
+  // Define loading keys
+  const LOADING_KEYS = {
+    PREFERENCES: 'user-preferences',
+    SAVE_PREFERENCES: 'save-preferences'
+  };
+
+  // Fetch user preferences using the React Query hook with LoadingContext integration
+  const { data: preferences, isLoading: queryLoading, error: queryError } = useUserPreferences(user?.discordId);
+  const updatePreferencesMutation = useUpdateUserPreferences();
+  
+  // Start loading when query is loading or guild is switching
+  React.useEffect(() => {
+    if (queryLoading || isGuildSwitching) {
+      startLoading(LOADING_KEYS.PREFERENCES);
+    } else {
+      stopLoading(LOADING_KEYS.PREFERENCES);
+    }
+    
+    // Set error if query has error
+    if (queryError) {
+      setError(LOADING_KEYS.PREFERENCES, queryError);
+    }
+  }, [queryLoading, isGuildSwitching, queryError, startLoading, stopLoading, setError]);
+  
+  // Combined loading state
+  const isPageLoading = isLoading(LOADING_KEYS.PREFERENCES);
+  
   // State for form inputs
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [confirmBetPlacement, setConfirmBetPlacement] = useState(true);
+  const [itemsPerPage, setItemsPerPage] = useState(preferences?.itemsPerPage || 10);
+  const [confirmBetPlacement, setConfirmBetPlacement] = useState(preferences?.confirmBetPlacement ?? true);
   // Slot machine advanced settings
-  const [slotAutoSpinDelay, setSlotAutoSpinDelay] = useState(300); // ms
-  const [slotAutoSpinDefaultCount, setSlotAutoSpinDefaultCount] = useState(1);
-
-  useEffect(() => {
-    const fetchPreferences = async () => {
-      if (!user?.discordId) return;
-      try {
-        setLoading(true);
-        const data = await getUserPreferences(user.discordId);
-        setPreferences(data);
-        // Set form input states based on fetched preferences
-        setItemsPerPage(data.itemsPerPage);
-        setConfirmBetPlacement(data.confirmBetPlacement);
-        setSlotAutoSpinDelay(data.slotAutoSpinDelay ?? 300);
-        setSlotAutoSpinDefaultCount(data.slotAutoSpinDefaultCount ?? 1);
-      } catch (err) {
-        console.error('Error fetching user preferences:', err);
-        setError('Failed to load preferences.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPreferences();
-  }, [user]);
+  const [slotAutoSpinDelay, setSlotAutoSpinDelay] = useState(preferences?.slotAutoSpinDelay ?? 300); // ms
+  const [slotAutoSpinDefaultCount, setSlotAutoSpinDefaultCount] = useState(preferences?.slotAutoSpinDefaultCount ?? 1);
+  // Sound settings
+  const [defaultSoundVolume, setDefaultSoundVolume] = useState(preferences?.defaultSoundVolume ?? 50); // 0-100 scale
+  
+  // Update form state when preferences data changes
+  React.useEffect(() => {
+    if (preferences) {
+      setItemsPerPage(preferences.itemsPerPage);
+      setConfirmBetPlacement(preferences.confirmBetPlacement);
+      setSlotAutoSpinDelay(preferences.slotAutoSpinDelay ?? 300);
+      setSlotAutoSpinDefaultCount(preferences.slotAutoSpinDefaultCount ?? 1);
+      setDefaultSoundVolume(preferences.defaultSoundVolume ?? 50);
+    }
+  }, [preferences]);
 
   const handleSavePreferences = async (e) => {
     e.preventDefault();
@@ -48,17 +68,24 @@ export const Preferences = () => {
       toast.error('User not authenticated.');
       return;
     }
-    setIsSaving(true);
+    
     try {
-      const updatedPrefs = {
-        itemsPerPage,
-        confirmBetPlacement,
-        slotAutoSpinDelay,
-        slotAutoSpinDefaultCount,
-      };
-      const response = await updateUserPreferences(user.discordId, updatedPrefs);
-      setPreferences(response.preferences); // Update state with saved preferences
-      toast.success(response.message || 'Preferences saved successfully!');
+      // Use withLoading to wrap the save operation
+      await withLoading(LOADING_KEYS.SAVE_PREFERENCES, async () => {
+        setIsSaving(true);
+        const updatedPrefs = {
+          itemsPerPage,
+          confirmBetPlacement,
+          slotAutoSpinDelay,
+          slotAutoSpinDefaultCount,
+          defaultSoundVolume,
+        };
+        await updatePreferencesMutation.mutateAsync({
+          discordId: user.discordId,
+          preferences: updatedPrefs
+        });
+        toast.success('Preferences saved successfully!');
+      });
     } catch (error) {
       console.error('Error saving preferences:', error);
       const errorMessage = error.response?.data?.message || 'Failed to save preferences.';
@@ -68,16 +95,32 @@ export const Preferences = () => {
     }
   };
 
-  if (loading) {
+  if (isPageLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" color="primary" message="Loading preferences..." />
       </div>
     );
   }
 
-  if (error) {
-    return <div className="min-h-screen bg-background text-error flex items-center justify-center">{error}</div>;
+  const preferencesError = getError(LOADING_KEYS.PREFERENCES);
+  if (preferencesError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="bg-card p-6 rounded-lg shadow-lg max-w-lg w-full">
+          <h2 className="text-2xl font-bold text-text-primary mb-4">Error Loading Preferences</h2>
+          <div className="bg-error/10 border border-error/30 rounded-md p-4 mb-6">
+            <p className="text-error font-medium">{preferencesError.message || 'Failed to load preferences'}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!preferences) {
@@ -165,18 +208,64 @@ export const Preferences = () => {
             </div>
           </div>
 
+          {/* Sound Settings */}
+          <div className="mt-8">
+            <div className="bg-gradient-to-r from-secondary/10 to-secondary/5 rounded-xl shadow p-6 border border-secondary/20">
+              <h2 className="text-xl font-bold text-secondary mb-4 tracking-wide flex items-center gap-2 font-heading">
+                <svg className="w-6 h-6 text-secondary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+                Sound Settings
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="defaultSoundVolume" className="block text-sm font-medium text-text-secondary mb-1 font-base">Default Sound Volume</label>
+                  <div className="flex items-center gap-4 mt-4">
+                    <div className="w-full">
+                      <ElasticSlider
+                        leftIcon={<span className="text-lg">🔈</span>}
+                        rightIcon={<span className="text-lg">🔊</span>}
+                        startingValue={0}
+                        defaultValue={defaultSoundVolume}
+                        maxValue={100}
+                        isStepped
+                        stepSize={5}
+                        className="mx-auto"
+                        onChange={value => setDefaultSoundVolume(value)}
+                        key={`volume-slider-${defaultSoundVolume}`} // Add key to force re-render when defaultValue changes
+                      />
+                    </div>
+                    <span className="text-text-primary font-mono w-12 text-right">{defaultSoundVolume}%</span>
+                  </div>
+                  <p className="mt-6 text-sm text-text-secondary">This volume setting will be used as the default for all game sounds.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Save button at the bottom */}
           <div className="mt-8">
             <button
               type="submit"
-              disabled={isSaving || loading}
-              className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white font-base ${isSaving ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
+              disabled={isSaving || isPageLoading || isLoading(LOADING_KEYS.SAVE_PREFERENCES)}
+              className={`w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white font-base ${isSaving || isLoading(LOADING_KEYS.SAVE_PREFERENCES) ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
             >
-              {isSaving ? 'Saving...' : 'Save Preferences'}
+              {isLoading(LOADING_KEYS.SAVE_PREFERENCES) ? (
+                <>
+                  <span className="mr-2">Saving</span>
+                  <span className="flex items-center">
+                    <span className="h-4 w-4 rounded-full animate-pulse bg-white/70 mr-1"></span>
+                    <span className="h-4 w-4 rounded-full animate-pulse bg-white/70 mr-1" style={{ animationDelay: '0.2s' }}></span>
+                    <span className="h-4 w-4 rounded-full animate-pulse bg-white/70" style={{ animationDelay: '0.4s' }}></span>
+                  </span>
+                </>
+              ) : (
+                'Save Preferences'
+              )}
             </button>
           </div>
         </form>
       </div>
     </motion.div>
   );
-}; 
+};

@@ -10,8 +10,8 @@ export const buttonStyles = {
   danger: 'bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-colors duration-200',
   success: 'bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition-colors duration-200',
   outline: 'border border-primary text-primary hover:bg-primary hover:text-white font-bold py-2 px-4 rounded transition-all duration-200',
-  disabled: 'bg-gray-300 text-gray-500 cursor-not-allowed font-bold py-2 px-4 rounded',
-  icon: 'p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200',
+  disabled: 'bg-surface text-text-secondary cursor-not-allowed font-bold py-2 px-4 rounded',
+  icon: 'p-2 rounded-full hover:bg-surface transition-colors duration-200',
   small: 'text-sm py-1 px-3',
   large: 'text-lg py-3 px-6',
 };
@@ -27,7 +27,7 @@ export const cardStyles = {
 export const inputStyles = {
   base: 'w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200',
   error: 'border-red-500 focus:ring-red-500',
-  disabled: 'bg-gray-100 text-gray-500 cursor-not-allowed',
+  disabled: 'bg-surface text-text-secondary cursor-not-allowed',
 };
 
 // Common text styles

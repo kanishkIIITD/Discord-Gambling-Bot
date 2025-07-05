@@ -1,13 +1,21 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { getTopGamesByProfit } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import { useUserStore, useGuildStore } from '../../store';
 import { formatDisplayNumber } from '../../utils/numberFormat';
 import { subDays } from 'date-fns';
 import { useDebounce } from '../../utils/chartOptimizer';
 import useChartDataCache from '../../hooks/useChartDataCache';
+import ChartLoadingSpinner from './ChartLoadingSpinner';
 
 const MiniTopGamesByProfitChart = () => {
-  const { user } = useAuth();
+  const user = useUserStore(state => state.user);
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const isGuildSwitching = useGuildStore(state => state.isGuildSwitching);
+
+  // Intersection Observer for lazy loading
+  const chartRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [shouldRender, setShouldRender] = useState(false);
 
   // Memoize date range to prevent re-creation on every render
   const { startDate, endDate } = useMemo(() => {
@@ -20,12 +28,13 @@ const MiniTopGamesByProfitChart = () => {
   const params = useMemo(() => ({
     userId: user?.discordId || '',
     startDate,
-    endDate
-  }), [user?.discordId, startDate, endDate]);
+    endDate,
+    guildId: selectedGuildId
+  }), [user?.discordId, startDate, endDate, selectedGuildId]);
 
   // Define the fetch function for top games by profit
-  const fetchTopGamesByProfit = async (userId, startDate, endDate) => {
-    return await getTopGamesByProfit(userId, startDate, endDate);
+  const fetchTopGamesByProfit = async (userId, startDate, endDate, guildId) => {
+    return await getTopGamesByProfit(userId, startDate, endDate, guildId);
   };
 
   // Use the chart data cache hook for optimized data fetching
@@ -60,35 +69,81 @@ const MiniTopGamesByProfitChart = () => {
     }));
   }, [debouncedChartData]);
 
+  // Intersection Observer for lazy loading
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+        if (entry.isIntersecting && !shouldRender) {
+          // Debounce the render to prevent excessive re-renders
+          const timer = setTimeout(() => {
+            setShouldRender(true);
+          }, 100);
+          return () => clearTimeout(timer);
+        }
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+
+    if (chartRef.current) {
+      observer.observe(chartRef.current);
+    }
+
+    return () => {
+      if (chartRef.current) {
+        observer.unobserve(chartRef.current);
+      }
+    };
+  }, [shouldRender]);
+
+  // Don't render if not visible or not ready
+  if (!isVisible || !shouldRender) {
+    return (
+      <div ref={chartRef} className="w-full h-full">
+        <h3 className="text-lg font-semibold text-text-primary mb-2 tracking-wide font-heading">
+          Top Games by Net Profit
+        </h3>
+        <div className="h-32 bg-card rounded-lg animate-pulse">
+          <div className="h-full bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-32">
-        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary" />
+      <div ref={chartRef} className="w-full h-full">
+        <h3 className="text-lg font-semibold text-text-primary mb-2 tracking-wide font-heading">
+          Top Games by Net Profit
+        </h3>
+        <div className="h-32">
+          <ChartLoadingSpinner size="sm" message="Loading top games..." />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full">
+    <div ref={chartRef} className="w-full h-full">
       <h3 className="text-lg font-semibold text-text-primary mb-2 tracking-wide font-heading">
         Top Games by Net Profit
       </h3>
       
       {formattedChartData.length > 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-1.5"> {/* Reduced spacing for mini chart */}
           {formattedChartData.map((game, index) => {
             const colorClass = game.isPositive ? 'text-success' : 'text-error';
             
             return (
               <div 
                 key={index} 
-                className="flex items-center justify-between p-3 bg-card rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
+                className="flex items-center justify-between p-2 bg-card rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
               >
                 <div className="flex items-center">
-                  <div className="w-6 text-center font-bold text-text-secondary">{index + 1}</div>
-                  <div className="ml-3 font-medium">{game.formattedName}</div>
+                  <div className="w-5 text-center font-bold text-text-secondary text-sm">{index + 1}</div>
+                  <div className="ml-2 font-medium text-sm">{game.formattedName}</div>
                 </div>
-                <div className={`font-bold ${colorClass}`}>
+                <div className={`font-bold text-sm ${colorClass}`}>
                   {game.formattedProfit}
                 </div>
               </div>
@@ -104,4 +159,7 @@ const MiniTopGamesByProfitChart = () => {
   );
 };
 
-export default React.memo(MiniTopGamesByProfitChart);
+export default React.memo(MiniTopGamesByProfitChart, (prevProps, nextProps) => {
+  // Since this component doesn't take props, always return true to prevent re-renders
+  return true;
+});

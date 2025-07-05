@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useUserStore } from '../store';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Sidebar = ({ onCollapse, collapsed, isMobile }) => {
   const location = useLocation();
   const [expandedSections, setExpandedSections] = useState({});
-  const { user } = useAuth();
+  const user = useUserStore(state => state.user);
   const sidebarRef = useRef(null);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);

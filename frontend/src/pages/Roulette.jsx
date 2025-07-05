@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useDashboard } from '../contexts/DashboardContext';
 import { toast } from 'react-hot-toast';
-import axios from 'axios';
+import axios from '../services/axiosConfig';
 import RouletteTable from '../components/RouletteTable';
 import RouletteWheel from '../components/RouletteWheel';
 import ChipList from '../components/ChipList';
@@ -16,10 +14,16 @@ import { formatDisplayNumber } from '../utils/numberFormat';
 import RadixDialog from '../components/RadixDialog';
 import PageTransition from '../components/PageTransition';
 import AnimatedElement from '../components/AnimatedElement';
-import { useAnimation } from '../contexts/AnimationContext';
+import { useUserPreferences, useWalletBalance } from '../hooks/useQueryHooks';
+import { useQueryClient } from '@tanstack/react-query';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+// Zustand stores
+import { useUserStore } from '../store/useUserStore';
+import { useWalletStore } from '../store/useWalletStore';
+import { useGuildStore } from '../store/useGuildStore';
+import { useLoading } from '../hooks/useLoading';
+import { useAnimation } from '../hooks/useAnimation';
 
 // Using SVG images for better performance and scalability
 const CHIP_OPTIONS = [
@@ -84,10 +88,26 @@ const coinSound = new Howl({ src: ['/sounds/casino_coins.mp3'], volume: 0.3 });
 const winSound = new Howl({ src: ['/sounds/slots_win.mp3'], volume: 0.4 });
 const rouletteSpinSound = new Howl({ src: ['/sounds/roulette_spin.mp3'], volume: 0.5, loop: true });
 
+// Define loading keys for Roulette component
+const LOADING_KEYS = {
+  SPIN: 'roulette.spin'
+};
+
 export const Roulette = () => {
   const { getVariants } = useAnimation();
-  const { user } = useAuth();
-  const { walletBalance, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance } = useDashboard();
+  const user = useUserStore(state => state.user);
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const { updateBalanceOptimistically } = useWalletStore();
+  const queryClient = useQueryClient();
+  const { withLoading, isLoading } = useLoading();
+  
+  // Local state for wallet balance tracking during animations
+  const [prevWalletBalance, setPrevWalletBalance] = useState(0);
+  const [suppressWalletBalance, setSuppressWalletBalance] = useState(false);
+  
+  // Use React Query for wallet balance
+  const { data: walletData } = useWalletBalance(user?.discordId);
+  const walletBalance = walletData?.balance || 0;
   const [selectedChip, setSelectedChip] = useState(CHIP_OPTIONS[0].value);
   const [bets, setBets] = useState({});
   const [spinning, setSpinning] = useState(false);
@@ -173,8 +193,8 @@ export const Roulette = () => {
     return Object.values(bets).reduce((sum, bet) => sum + (bet.amount || 0), 0);
   }, [bets]);
 
-  // Handle spin - memoized to prevent unnecessary re-renders
-  const handleSpin = useCallback(async () => {
+  // Handle spin implementation - memoized to prevent unnecessary re-renders
+  const handleSpinImplementation = useCallback(async () => {
     setError('');
     setResult(null);
     if (!user?.discordId) {
@@ -220,10 +240,15 @@ export const Roulette = () => {
       });
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/roulette`,
-        { bets: payloadBets, guildId: MAIN_GUILD_ID },
-        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
+        { bets: payloadBets, guildId: selectedGuildId },
+        { headers: { 'x-guild-id': selectedGuildId } }
       );
       const { result: resultNum, color, bets: betResults, totalWinnings, newBalance } = response.data;
+      
+      // Update balance optimistically
+      updateBalanceOptimistically(newBalance);
+      
+      // Don't invalidate wallet balance query here - will do it after animation completes
       setWinningBet(String(resultNum));
       setStart(true);
       setTimeout(() => {
@@ -231,7 +256,11 @@ export const Roulette = () => {
         setSpinning(false);
         setStart(false);
         setShowResultModal(true);
+        
+        // Now that animation is complete, invalidate wallet balance query to refresh
+        queryClient.invalidateQueries(['walletBalance', user.discordId, selectedGuildId]);
         setSuppressWalletBalance(false);
+        
         if (totalWinnings > 0) {
           toast.success(`You won ${formatDisplayNumber(totalWinnings)} points!`);
           winSound.stop();
@@ -243,9 +272,17 @@ export const Roulette = () => {
     } catch (err) {
       setStart(false);
       setSuppressWalletBalance(false);
+      // Invalidate queries to refresh the actual balance from server
+      queryClient.invalidateQueries(['walletBalance', user.discordId, selectedGuildId]);
       toast.error(err.response?.data?.message || 'Error placing bet.');
     }
-  });
+  }, [bets, confirmBetPlacement, pendingSpin, prevWalletBalance, queryClient, selectedGuildId, setSuppressWalletBalance, setPrevWalletBalance, totalBet, user, walletBalance, updateBalanceOptimistically]);
+  
+  // Wrap the implementation with loading state management
+  const handleSpin = useCallback(
+    () => withLoading(LOADING_KEYS.SPIN, handleSpinImplementation),
+    [withLoading, handleSpinImplementation]
+  );
 
   // Handle chip selection - memoized to prevent unnecessary re-renders
   const handleChipSelect = useCallback((value) => setSelectedChip(value), []);
@@ -393,9 +430,14 @@ export const Roulette = () => {
               className="btn-primary flex-1 font-base"
               style={{ minHeight: 40, borderRadius: 8, fontWeight: 700 }}
               onClick={handleSpin}
-              disabled={spinning || totalBet <= 0 || totalBet > walletBalance}
+              disabled={spinning || isLoading(LOADING_KEYS.SPIN) || totalBet <= 0 || totalBet > walletBalance}
             >
-              {spinning ? 'Spinning...' : 'Spin'}
+              {isLoading(LOADING_KEYS.SPIN) ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" />
+                  Processing...
+                </>
+              ) : spinning ? 'Spinning...' : 'Spin'}
             </button>
             <button
               className="btn-primary flex-1 bg-error hover:bg-error/80 font-base"

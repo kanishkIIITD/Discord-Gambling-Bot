@@ -15,7 +15,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  * @returns {string} - A unique cache key
  */
 const createCacheKey = (endpoint, params = {}) => {
-  return `${endpoint}:${JSON.stringify(params)}`;
+  // Include the current guild ID in the cache key to ensure different guilds have separate caches
+  const selectedGuildId = localStorage.getItem('selectedGuildId') || 'default';
+  return `${endpoint}:${selectedGuildId}:${JSON.stringify(params)}`;
 };
 
 /**

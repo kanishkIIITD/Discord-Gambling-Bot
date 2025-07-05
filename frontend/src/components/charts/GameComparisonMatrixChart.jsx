@@ -1,16 +1,16 @@
 import React, { useMemo, useEffect, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useUserStore, useUIStore } from '../../store';
 import { formatDisplayNumber } from '../../utils/numberFormat';
 import useChartDataCache from '../../hooks/useChartDataCache';
 import withOptimizedChart from '../../utils/withOptimizedChart';
 import useChartPerformance from '../../hooks/useChartPerformance';
 import { getGameComparison } from '../../services/api';
+import ChartLoadingSpinner from './ChartLoadingSpinner';
 
 const GameComparisonMatrixChart = ({ dateRange, targetUserId, guildId }) => {
-  const { user } = useAuth();
-  const { theme } = useTheme();
+  const user = useUserStore(state => state.user);
+  const theme = useUIStore(state => state.theme);
   const { startRenderTimer, stopRenderTimer } = useChartPerformance('GameComparisonMatrixChart');
   
   // Define the fetch function for game comparison
@@ -248,9 +248,7 @@ const GameComparisonMatrixChart = ({ dateRange, targetUserId, guildId }) => {
     <div className="bg-card p-4 rounded-lg shadow-lg">
       <div className="h-[400px] w-full">
         {loading ? (
-          <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-          </div>
+          <ChartLoadingSpinner size="lg" message="Loading game comparison data..." />
         ) : error ? (
           <div className="flex flex-col justify-center items-center h-full text-text-secondary">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

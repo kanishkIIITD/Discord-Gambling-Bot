@@ -1,24 +1,32 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useDashboard } from '../contexts/DashboardContext';
-import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import axios from '../services/axiosConfig';
 import ChipList from '../components/ChipList';
 import { Howl } from 'howler';
-import { toast } from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { formatDisplayNumber } from '../utils/numberFormat';
 import RadixDialog from '../components/RadixDialog';
 import OptimizedImage from '../components/OptimizedImage';
 import withMemoization from '../utils/withMemoization';
-// import ChipSelector from '../components/ChipSelector'; // Placeholder for chip selector
-// import ResultModal from '../components/ResultModal'; // Placeholder for result modal
 import AnimatedElement from '../components/AnimatedElement';
+import { useQueryClient } from '@tanstack/react-query';
+import { useWalletBalance } from '../hooks/useQueryHooks';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+// Import Zustand stores and compatibility hooks
+import { useUserStore } from '../store/useUserStore';
+import { useWalletStore } from '../store/useWalletStore';
+import { useGuildStore } from '../store/useGuildStore';
+import { useLoading } from '../hooks/useLoading';
+import { useAnimation } from '../hooks/useAnimation';
 
 const coinSound = new Howl({ src: ['/sounds/casino_coins.mp3'], volume: 0.3 });
 const winSound = new Howl({ src: ['/sounds/slots_win.mp3'], volume: 0.4 });
+
+// Define loading keys for Blackjack component
+const LOADING_KEYS = {
+  START_GAME: 'blackjack.start',
+  GAME_ACTION: 'blackjack.action'
+};
 
 // Debounce utility
 function debounce(fn, delay) {
@@ -30,8 +38,18 @@ function debounce(fn, delay) {
 }
 
 export const Blackjack = () => {
-  const { user } = useAuth();
-  const { walletBalance, suppressWalletBalance, setSuppressWalletBalance, prevWalletBalance, setPrevWalletBalance } = useDashboard();
+  // Get state from Zustand stores
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const user = useUserStore(state => state.user);
+  const updateBalanceOptimistically = useWalletStore(state => state.updateBalanceOptimistically);
+  
+  const queryClient = useQueryClient();
+  const { startLoading, stopLoading, setError: setLoadingError, isLoading, withLoading } = useLoading();
+  const { animationsEnabled } = useAnimation();
+  
+  // Use React Query for wallet balance directly like in Roulette
+  const { data: walletData } = useWalletBalance(user?.discordId);
+  const walletBalance = walletData?.balance || 0;
 
   // Game and UI state
   const [betAmount, setBetAmount] = useState('');
@@ -87,46 +105,73 @@ export const Blackjack = () => {
     if (loading || amount < 10 || amount > walletBalance || error) return;
     setLoading(true);
     setError('');
-    setPrevWalletBalance(walletBalance);
-    setSuppressWalletBalance(true);
+    
+    // Optimistically update the wallet balance
+    const newBalance = walletBalance - amount;
+    updateBalanceOptimistically(newBalance);
+    
     lastStartTimeRef.current = Date.now();
-    try {
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/blackjack`,
-        { amount, guildId: MAIN_GUILD_ID },
-        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
-      );
-      setGameState(response.data);
-      setLastBetAmount(amount);
-      setChipStack([]);
-      setLoading(false);
-      setSuppressWalletBalance(false);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to start game.');
-      setLastBetAmount(0); // Clear last bet after failed repeat
-      setLoading(false);
-      setSuppressWalletBalance(false);
-    }
-  }, 400), [loading, walletBalance, error, user, setPrevWalletBalance, setSuppressWalletBalance]);
+    
+    // Use withLoading to handle loading state
+    await withLoading(LOADING_KEYS.START_GAME, async () => {
+      try {
+        const response = await axios.post(
+          `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/blackjack`,
+          { amount, guildId: selectedGuildId },
+          { headers: { 'x-guild-id': selectedGuildId } }
+        );
+        setGameState(response.data);
+        setLastBetAmount(amount);
+        setChipStack([]);
+        setLoading(false);
+        // Now that game start is complete, invalidate wallet balance query to refresh
+        queryClient.invalidateQueries(['walletBalance', user.discordId, selectedGuildId]);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to start game.');
+        setLastBetAmount(0); // Clear last bet after failed repeat
+        setLoading(false);
+        // Invalidate wallet balance query to refresh the balance after error
+        queryClient.invalidateQueries(['walletBalance', user.discordId, selectedGuildId]);
+        throw err; // Rethrow to let withLoading handle the error state
+      }
+    });
+  }, 400), [loading, walletBalance, error, user, updateBalanceOptimistically, withLoading]);
 
   const handleAction = async (action) => {
     setLoading(true);
     setError('');
-    try {
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/blackjack`,
-        { action, guildId: MAIN_GUILD_ID },
-        { headers: { 'x-guild-id': MAIN_GUILD_ID } }
-      );
-      setGameState(response.data);
-      if (response.data.gameOver) {
-        setShowResultModal(true);
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to perform action.');
-    } finally {
-      setLoading(false);
+    
+    // For double action, optimistically update the balance
+    if (action === 'double' && gameState) {
+      const doubleAmount = lastBetAmount;
+      const newBalance = walletBalance - doubleAmount;
+      updateBalanceOptimistically(newBalance);
     }
+    
+    // Use withLoading to handle loading state
+    await withLoading(LOADING_KEYS.GAME_ACTION, async () => {
+      try {
+        const response = await axios.post(
+          `${process.env.REACT_APP_API_URL}/api/gambling/${user.discordId}/blackjack`,
+          { action, guildId: selectedGuildId },
+          { headers: { 'x-guild-id': selectedGuildId } }
+        );
+        setGameState(response.data);
+        // Now that action is complete, invalidate wallet balance query to refresh
+        queryClient.invalidateQueries(['walletBalance', user.discordId, selectedGuildId]);
+        
+        if (response.data.gameOver) {
+          setShowResultModal(true);
+        }
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to perform action.');
+        // Invalidate wallet balance query to refresh the balance after error
+        queryClient.invalidateQueries(['walletBalance', user.discordId, selectedGuildId]);
+        throw err; // Rethrow to let withLoading handle the error state
+      } finally {
+        setLoading(false);
+      }
+    });
   };
 
   // --- PATCH: Disable Repeat Bet and Play Again if loading, error, or insufficient balance ---
@@ -339,12 +384,17 @@ export const Blackjack = () => {
               Clear
             </button>
             <button
-              className="px-12 py-3 rounded-2xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base"
-              onClick={handleDeal}
-              disabled={loading || totalBet < 10 || totalBet > walletBalance}
-            >
-              Bet
-            </button>
+                className="px-12 py-3 rounded-2xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base"
+                onClick={handleDeal}
+                disabled={loading || isLoading(LOADING_KEYS.START_GAME) || totalBet < 10 || totalBet > walletBalance}
+              >
+                {isLoading(LOADING_KEYS.START_GAME) ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Processing...
+                  </>
+                ) : 'Bet'}
+              </button>
           </div>
         </div>
         </AnimatedElement>
@@ -357,10 +407,10 @@ export const Blackjack = () => {
           {/* Action Buttons or Play Again */}
           {(!gameState.gameOver) && (
             <div className="flex flex-row justify-center items-center w-full space-x-8 mb-8">
-              <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('hit')} disabled={loading}>Hit</button>
-              <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('stand')} disabled={loading}>Stand</button>
-              {gameState.canDouble && <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('double')} disabled={loading}>Double</button>}
-              {gameState.canSplit && <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('split')} disabled={loading}>Split</button>}
+              <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('hit')} disabled={loading || isLoading(LOADING_KEYS.GAME_ACTION)}>{isLoading(LOADING_KEYS.GAME_ACTION) ? <LoadingSpinner size="sm" /> : 'Hit'}</button>
+              <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('stand')} disabled={loading || isLoading(LOADING_KEYS.GAME_ACTION)}>{isLoading(LOADING_KEYS.GAME_ACTION) ? <LoadingSpinner size="sm" /> : 'Stand'}</button>
+              {gameState.canDouble && <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('double')} disabled={loading || isLoading(LOADING_KEYS.GAME_ACTION)}>{isLoading(LOADING_KEYS.GAME_ACTION) ? <LoadingSpinner size="sm" /> : 'Double'}</button>}
+              {gameState.canSplit && <button className="flex-1 max-w-xs px-0 py-4 rounded-xl bg-primary text-white text-2xl font-bold border-4 border-primary shadow-lg hover:bg-primary/80 transition disabled:opacity-50 font-base" onClick={() => handleAction('split')} disabled={loading || isLoading(LOADING_KEYS.GAME_ACTION)}>{isLoading(LOADING_KEYS.GAME_ACTION) ? <LoadingSpinner size="sm" /> : 'Split'}</button>}
             </div>
           )}
           {(gameState.gameOver && !showResultModal) && (

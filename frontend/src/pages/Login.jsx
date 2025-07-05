@@ -1,8 +1,8 @@
-import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { Navigation } from '../components/Navigation';
 import { motion } from 'framer-motion';
 import OptimizedImage from '../components/OptimizedImage';
+import { useUserStore } from '../store';
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -23,7 +23,7 @@ const itemVariants = {
 };
 
 export const Login = () => {
-  const { login } = useAuth();
+  const login = useUserStore(state => state.login);
 
   return (
     <div className="min-h-screen bg-background">
@@ -79,6 +79,7 @@ export const Login = () => {
                   />
                   <span>Continue with Discord</span>
                 </motion.button>
+
 
                 <motion.div className="text-center space-y-4" variants={itemVariants}>
                   <p className="text-sm text-text-secondary leading-relaxed tracking-wide font-base">

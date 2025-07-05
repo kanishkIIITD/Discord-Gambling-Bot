@@ -1,14 +1,18 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { getActiveBets, getUserPreferences } from '../services/api';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/20/solid';
 import ReactPaginate from 'react-paginate';
-import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+// Zustand stores
+import { useUserStore } from '../store/useUserStore';
+import { useGuildStore } from '../store/useGuildStore';
+import { useUIStore } from '../store/useUIStore';
+
+// Import Zustand-integrated React Query hooks
+import { useZustandQuery } from '../hooks/useZustandQuery';
+import * as api from '../services/api';
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All Statuses' },
@@ -26,44 +30,58 @@ const buttonMotion = {
 };
 
 const ActiveBetsPage = () => {
-  const { user } = useAuth();
-  const [bets, setBets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const isGuildSwitching = useGuildStore(state => state.isGuildSwitching);
+  const user = useUserStore(state => state.user);
   const [statusFilter, setStatusFilter] = useState(STATUS_FILTERS[0]);
   const [sortBy, setSortBy] = useState(SORT_OPTIONS[0]);
   const [sortOrder, setSortOrder] = useState('asc');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [page, setPage] = useState(1);
-  const [userPreferences, setUserPreferences] = useState(null);
   const navigate = useNavigate();
   const sortMenuRef = useRef(null);
-
-  useEffect(() => {
-    const fetchPrefsAndBets = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        let prefs = userPreferences;
-        if (!prefs && user?.discordId) {
-          prefs = await getUserPreferences(user.discordId);
-          setUserPreferences(prefs);
-        }
-        const [openBets, closedBets] = await Promise.all([
-          axios.get(`${process.env.REACT_APP_API_URL}/api/bets/open`, { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }).then(res => res.data),
-          axios.get(`${process.env.REACT_APP_API_URL}/api/bets/closed`, { params: { guildId: MAIN_GUILD_ID }, headers: { 'x-guild-id': MAIN_GUILD_ID } }).then(res => res.data)
-        ]);
-        setBets([...openBets, ...closedBets]);
-      } catch (err) {
-        setError('Failed to fetch active bets or preferences.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (user?.discordId) {
-      fetchPrefsAndBets();
-    }
-  }, [user]);
+  
+  // Define loading keys
+  const LOADING_KEYS = {
+    BETS: 'active-bets-data',
+    PREFERENCES: 'active-bets-preferences',
+    GUILD_SWITCHING: 'active-bets-guild-switching'
+  };
+  
+  // Get loading state from useUIStore
+  const isLoading = useUIStore(state => state.isLoading);
+  const getError = useUIStore(state => state.getError);
+  
+  // Use Zustand-integrated React Query hooks
+  const { data: bets = [], isLoading: betsLoading, error: betsError } = useZustandQuery(
+    ['activeBets', selectedGuildId],
+    () => api.getActiveBets(selectedGuildId),
+    {
+      enabled: !!selectedGuildId && !isGuildSwitching,
+      staleTime: 1000 * 30, // 30 seconds
+      refetchOnMount: true,
+      refetchOnWindowFocus: true
+    },
+    LOADING_KEYS.BETS
+  );
+  
+  const { data: userPreferences = {}, isLoading: preferencesLoading, error: prefsError } = useZustandQuery(
+    ['userPreferences', user?.discordId],
+    () => api.getUserPreferences(user?.discordId),
+    {
+      enabled: !!user?.discordId && !!selectedGuildId && !isGuildSwitching,
+      staleTime: 1000 * 60, // 1 minute
+      refetchOnMount: true,
+      refetchOnWindowFocus: true
+    },
+    LOADING_KEYS.PREFERENCES
+  );
+  
+  // Combined loading state
+  const isDataLoading = isLoading(LOADING_KEYS.BETS) || isLoading(LOADING_KEYS.PREFERENCES) || isGuildSwitching;
+  
+  // Combine errors
+  const loadingError = getError(LOADING_KEYS.BETS) || getError(LOADING_KEYS.PREFERENCES);
 
   // Reset page to 1 if preferences change (e.g., itemsPerPage)
   useEffect(() => {
@@ -120,10 +138,29 @@ const ActiveBetsPage = () => {
     setShowSortMenu(false);
   };
 
-  if (loading) {
+  if (isDataLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" color="primary" message="Loading active bets..." />
+      </div>
+    );
+  }
+  
+  if (loadingError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="bg-card p-6 rounded-lg shadow-lg max-w-lg w-full">
+          <h2 className="text-2xl font-bold text-text-primary mb-4">Error Loading Bets</h2>
+          <div className="bg-error/10 border border-error/30 rounded-md p-4 mb-6">
+            <p className="text-error font-medium">{loadingError.message || 'Failed to load active bets data'}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -284,7 +321,7 @@ const ActiveBetsPage = () => {
         }
       `}</style>
       {/* Pagination outside the table container */}
-      {totalPages > 1 && !loading && !error && (
+      {totalPages > 1 && !isDataLoading && !loadingError && (
         <div className="flex flex-wrap justify-center mt-6 w-full">
           <ReactPaginate
             previousLabel={"Prev"}
@@ -312,4 +349,4 @@ const ActiveBetsPage = () => {
     </motion.div>
   );
 };
-export default ActiveBetsPage; 
+export default ActiveBetsPage;

@@ -30,19 +30,19 @@ async function timeoutUser(guild, userId, durationSeconds, reason) {
             
             // Apply the extended timeout
             await member.timeout(newTimeoutEnd - now, reason);
-            console.log(`User ${userId} timeout extended: ${existingTimeoutRemaining} + ${Math.ceil(durationSeconds / 60)} = ${totalTimeoutDuration} minutes total`);
+            // console.log(`User ${userId} timeout extended: ${existingTimeoutRemaining} + ${Math.ceil(durationSeconds / 60)} = ${totalTimeoutDuration} minutes total`);
             return { applied: true, existingTimeout: existingTimeoutRemaining, totalTimeout: totalTimeoutDuration };
         } else {
             // No existing timeout, apply the new one
             await member.timeout(durationSeconds * 1000, reason);
             totalTimeoutDuration = Math.ceil(durationSeconds / 60);
-            console.log(`User ${userId} new timeout applied: ${totalTimeoutDuration} minutes`);
+            // console.log(`User ${userId} new timeout applied: ${totalTimeoutDuration} minutes`);
             return { applied: true, totalTimeout: totalTimeoutDuration };
         }
     } catch (error) {
         if (error.code === 10007) {
             // Unknown Member error - user is no longer in the server
-            console.log(`Cannot timeout user ${userId}: User is no longer a member of the server`);
+            // console.log(`Cannot timeout user ${userId}: User is no longer a member of the server`);
             throw new Error('User is no longer a member of this server');
         } else {
             console.error('Error timing out user:', error);
@@ -146,13 +146,13 @@ async function sendLogToChannel(client, guildId, logData) {
 
         const logChannelId = response.data?.logChannelId;
         if (!logChannelId) {
-            console.log(`No log channel set for guild ${guildId}`);
+            // console.log(`No log channel set for guild ${guildId}`);
             return;
         }
 
         const channel = await client.channels.fetch(logChannelId);
         if (!channel) {
-            console.log(`Log channel ${logChannelId} not found in guild ${guildId}`);
+            // console.log(`Log channel ${logChannelId} not found in guild ${guildId}`);
             return;
         }
 

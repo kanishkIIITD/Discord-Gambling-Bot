@@ -1,62 +1,130 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import axios from '../services/axiosConfig';
 import { toast } from 'react-hot-toast';
-import { useDashboard } from '../contexts/DashboardContext';
 import { GiftIcon, UserIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-// --- TEMP: Main Guild ID for single-guild mode ---
-const MAIN_GUILD_ID = process.env.REACT_APP_MAIN_GUILD_ID;
+// Import Zustand stores
+import { useUserStore } from '../store/useUserStore';
+import { useWalletStore } from '../store/useWalletStore';
+import { useGuildStore } from '../store/useGuildStore';
+import { useUIStore } from '../store/useUIStore';
+
+// Import Zustand-integrated React Query hooks
+import { useZustandQuery, useZustandMutation } from '../hooks/useZustandQuery';
+import * as api from '../services/api';
+
+// Define loading keys for this component
+const LOADING_KEYS = {
+  GIFT_POINTS: 'giftpoints.send',
+  USER_SEARCH: 'giftpoints.usersearch'
+};
 
 export const GiftPoints = () => {
-  const { user } = useAuth();
-  const { walletBalance } = useDashboard(); // Get wallet balance from context
+  // Use Zustand stores instead of Context
+  const selectedGuildId = useGuildStore(state => state.selectedGuildId);
+  const user = useUserStore(state => state.user);
+  const walletBalance = useWalletStore(state => state.balance);
+  // Fix: Select isLoading function directly to prevent re-renders
+  const isLoading = useUIStore(state => state.isLoading);
+  
   const [recipientId, setRecipientId] = useState('');
   const [amount, setAmount] = useState('');
-  const [isGifting, setIsGifting] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
   const [userSearch, setUserSearch] = useState('');
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const inputRef = useRef(null);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [filteredUsers, setFilteredUsers] = useState([]);
 
-  const handleUserSearch = async (query) => {
-    if (!query || query.length < 2) {
-      setFilteredUsers([]);
-      return;
-    }
-    setSearchLoading(true);
-    try {
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/users/search-users`,
-        {
-          params: { q: encodeURIComponent(query), guildId: MAIN_GUILD_ID },
-          headers: { 'x-guild-id': MAIN_GUILD_ID }
-        }
-      );
-      setFilteredUsers(res.data.data || []);
-    } catch (err) {
-      setFilteredUsers([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
+  // Memoize the search query function to prevent infinite re-renders
+  const searchQueryFn = useCallback(async () => {
+    if (!userSearch || userSearch.length < 2) return { data: [] };
+    
+    const response = await axios.get(
+      `${process.env.REACT_APP_API_URL}/api/users/search-users`,
+      {
+        params: { q: encodeURIComponent(userSearch), guildId: selectedGuildId },
+        headers: { 'x-guild-id': selectedGuildId }
+      }
+    );
+    return response.data;
+  }, [userSearch, selectedGuildId]);
 
+  // Memoize the query key to prevent unnecessary re-renders
+  const searchQueryKey = useMemo(() => 
+    ['userSearch', userSearch, selectedGuildId], 
+    [userSearch, selectedGuildId]
+  );
+
+  // Use Zustand-integrated React Query hook for user search
+  const {
+    data: searchResults,
+    isLoading: searchLoading,
+    isFetching: isSearchFetching
+  } = useZustandQuery(
+    searchQueryKey,
+    searchQueryFn,
+    {
+      staleTime: 30000, // 30 seconds
+      cacheTime: 300000, // 5 minutes
+      refetchOnWindowFocus: false,
+      enabled: !!selectedGuildId && !!userSearch && userSearch.length >= 2
+    },
+    LOADING_KEYS.USER_SEARCH
+  );
+
+  // Update filtered users when search results change
+  useEffect(() => {
+    if (searchResults?.data) {
+      setFilteredUsers(searchResults.data || []);
+    } else {
+      setFilteredUsers([]);
+    }
+  }, [searchResults]);
+
+  // Show/hide dropdown based on search length
   useEffect(() => {
     if (userSearch.length >= 2) {
-      handleUserSearch(userSearch);
       setShowUserDropdown(true);
     } else {
       setFilteredUsers([]);
       setShowUserDropdown(false);
     }
-    // eslint-disable-next-line
   }, [userSearch]);
 
-  const handleGift = async (e) => {
-    e.preventDefault();
+  // Memoize the gift points mutation function
+  const giftPointsMutationFn = useCallback(async ({ senderDiscordId, recipientDiscordId, amount }) => {
+    const response = await axios.post(
+      `${process.env.REACT_APP_API_URL}/api/users/${senderDiscordId}/gift`,
+      {
+        recipientDiscordId,
+        amount,
+        guildId: selectedGuildId
+      },
+      {
+        headers: { 'x-guild-id': selectedGuildId }
+      }
+    );
+    return response.data;
+  }, [selectedGuildId]);
+
+  // Use the Zustand-integrated gift points mutation hook
+  const { mutate: giftPointsMutate } = useZustandMutation(
+    giftPointsMutationFn,
+    {
+      onSuccess: () => {
+        // Invalidate relevant queries
+        // Note: This would typically be handled by queryClient.invalidateQueries
+        // but since we're using useZustandMutation, we'll handle it differently
+        // The wallet balance will be updated by the wallet store
+      }
+    },
+    LOADING_KEYS.GIFT_POINTS
+  );
+
+  // Implementation of the gift points logic
+  const handleGiftImplementation = async () => {
     if (!user?.discordId) {
       toast.error('User not authenticated.');
       return;
@@ -78,30 +146,35 @@ export const GiftPoints = () => {
         return;
     }
 
-    setIsGifting(true);
-    try {
-      // Call backend API to gift points
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/users/${user.discordId}/gift`, {
+    // Use the mutation to gift points
+    return new Promise((resolve, reject) => {
+      giftPointsMutate({
+        senderDiscordId: user.discordId,
         recipientDiscordId: recipientId,
-        amount: giftAmount,
-        guildId: MAIN_GUILD_ID
+        amount: giftAmount
       }, {
-        headers: { 'x-guild-id': MAIN_GUILD_ID }
+        onSuccess: (data) => {
+          toast.success(data.message || `Successfully gifted ${giftAmount} points to ${recipientId}.`);
+          setRecipientId(''); // Clear form
+          setAmount('');
+          // Wallet balance update is handled by invalidation in the mutation
+          resolve(data);
+        },
+        onError: (error) => {
+          console.error('Error gifting points:', error);
+          const errorMessage = error.response?.data?.message || 'Failed to gift points.';
+          toast.error(errorMessage);
+          reject(error);
+        }
       });
-
-      toast.success(response.data.message || `Successfully gifted ${giftAmount} points to ${recipientId}.`);
-      setRecipientId(''); // Clear form
-      setAmount('');
-
-      // Wallet balance update is handled by WebSocket in DashboardLayout
-
-    } catch (error) {
-      console.error('Error gifting points:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to gift points.';
-      toast.error(errorMessage);
-    } finally {
-      setIsGifting(false);
-    }
+    });
+  };
+  
+  // With useZustandMutation, we don't need to manually wrap with withLoading
+  // as the mutation hook already handles loading states
+  const handleGift = (e) => {
+    e.preventDefault();
+    handleGiftImplementation();
   };
 
   return (
@@ -197,25 +270,25 @@ export const GiftPoints = () => {
           </div>
           <div>
             <button
-              type="submit"
-              disabled={isGifting || amount <= 0 || amount > walletBalance || !recipientId}
-              className={`w-full inline-flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent shadow-sm text-base font-semibold rounded-lg text-white font-base ${isGifting ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-150`}
-            >
-              {isGifting ? (
-                <>
-                  <GiftIcon className="h-5 w-5 animate-spin" aria-hidden="true" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <GiftIcon className="h-5 w-5" aria-hidden="true" />
-                  Send Gift
-                </>
-              )}
-            </button>
+            type="submit"
+            disabled={isLoading(LOADING_KEYS.GIFT_POINTS) || amount <= 0 || amount > walletBalance || !recipientId}
+            className={`w-full inline-flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent shadow-sm text-base font-semibold rounded-lg text-white font-base ${isLoading(LOADING_KEYS.GIFT_POINTS) ? 'bg-primary/50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-150`}
+          >
+            {isLoading(LOADING_KEYS.GIFT_POINTS) ? (
+              <>
+                <LoadingSpinner size="sm" color="white" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <GiftIcon className="h-5 w-5" aria-hidden="true" />
+                Send Gift
+              </>
+            )}
+          </button>
           </div>
         </form>
       </div>
     </motion.div>
   );
-}; 
+};

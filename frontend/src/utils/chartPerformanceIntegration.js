@@ -85,7 +85,7 @@ export const initChartPerformanceIntegration = () => {
     import('./performanceMonitor').then(({ registerMetricCollector }) => {
       if (registerMetricCollector) {
         registerChartPerformanceMonitoring(registerMetricCollector);
-        console.log('Chart performance monitoring integrated successfully');
+        // console.log('Chart performance monitoring integrated successfully');
       }
     }).catch(err => {
       console.warn('Failed to integrate chart performance monitoring:', err);

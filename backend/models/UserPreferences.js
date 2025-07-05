@@ -30,6 +30,13 @@ const userPreferencesSchema = new mongoose.Schema({
     min: 1,
     max: 50
   },
+  // Sound settings
+  defaultSoundVolume: {
+    type: Number,
+    default: 50,
+    min: 0,
+    max: 100
+  },
   // Add other preferences here as we define them
 });
 
@@ -37,4 +44,4 @@ userPreferencesSchema.index({ user: 1, guildId: 1 }, { unique: true });
 
 const UserPreferences = mongoose.model('UserPreferences', userPreferencesSchema);
 
-module.exports = UserPreferences; 
+module.exports = UserPreferences;
