@@ -16,10 +16,23 @@ class ResponseHandler {
             .setTimestamp();
 
         try {
+            // Check if interaction exists and is valid
+            if (!interaction) {
+                logger.error('Interaction object is null or undefined');
+                return;
+            }
+
+            // Handle different interaction states
             if (interaction.deferred && !interaction.replied) {
                 await interaction.editReply({ embeds: [errorEmbed] });
+            } else if (!interaction.replied && interaction.reply) {
+                // If not replied and can reply directly
+                await interaction.reply({ embeds: [errorEmbed] });
+            } else if (interaction.followUp) {
+                // Last resort - try followUp if the method exists
+                await interaction.followUp({ embeds: [errorEmbed] });
             } else {
-                await interaction.followUp({ embeds: [errorEmbed], ephemeral: true });
+                logger.error('Could not respond to interaction - no valid response method available');
             }
         } catch (err) {
             logger.error('Failed to send error reply:', err);
@@ -40,10 +53,23 @@ class ResponseHandler {
         }
 
         try {
+            // Check if interaction exists and is valid
+            if (!interaction) {
+                logger.error('Interaction object is null or undefined');
+                return;
+            }
+
+            // Handle different interaction states
             if (interaction.deferred && !interaction.replied) {
                 await interaction.editReply({ embeds: [successEmbed] });
+            } else if (!interaction.replied && interaction.reply) {
+                // If not replied and can reply directly
+                await interaction.reply({ embeds: [successEmbed] });
+            } else if (interaction.followUp) {
+                // Last resort - try followUp if the method exists
+                await interaction.followUp({ embeds: [successEmbed] });
             } else {
-                await interaction.followUp({ embeds: [successEmbed], ephemeral: true });
+                logger.error('Could not respond to interaction - no valid response method available');
             }
         } catch (err) {
             logger.error('Failed to send success reply:', err);
@@ -64,10 +90,23 @@ class ResponseHandler {
         }
 
         try {
+            // Check if interaction exists and is valid
+            if (!interaction) {
+                logger.error('Interaction object is null or undefined');
+                return;
+            }
+
+            // Handle different interaction states
             if (interaction.deferred && !interaction.replied) {
                 await interaction.editReply({ embeds: [infoEmbed] });
+            } else if (!interaction.replied && interaction.reply) {
+                // If not replied and can reply directly
+                await interaction.reply({ embeds: [infoEmbed] });
+            } else if (interaction.followUp) {
+                // Last resort - try followUp if the method exists
+                await interaction.followUp({ embeds: [infoEmbed] });
             } else {
-                await interaction.followUp({ embeds: [infoEmbed], ephemeral: true });
+                logger.error('Could not respond to interaction - no valid response method available');
             }
         } catch (err) {
             logger.error('Failed to send info reply:', err);
@@ -75,4 +114,4 @@ class ResponseHandler {
     }
 }
 
-module.exports = ResponseHandler; 
+module.exports = ResponseHandler;

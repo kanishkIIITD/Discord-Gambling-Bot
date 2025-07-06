@@ -889,7 +889,7 @@ router.get('/:discordId/wallet', async (req, res) => {
 });
 
 // Get leaderboard (top users by balance)
-router.get('/:discordId/leaderboard', async (req, res) => {
+router.get('/:discordId/leaderboard', requireGuildId, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -1111,6 +1111,15 @@ router.get('/:userId/profile', async (req, res) => {
       totalGambled,
       totalWon: totalGamblingWon
     };
+    
+    // Calculate collection value
+    const collectionValue = (user.inventory || []).reduce((sum, item) => sum + (item.value * item.count), 0);
+    const collectionStats = {
+      totalValue: collectionValue,
+      itemCount: (user.inventory || []).reduce((sum, item) => sum + item.count, 0),
+      uniqueItems: user.inventory ? user.inventory.length : 0
+    };
+    
     // Round off balance
     const roundedBalance = wallet ? Math.round(wallet.balance) : 0;
     const now = new Date();
@@ -1128,7 +1137,8 @@ router.get('/:userId/profile', async (req, res) => {
         balance: roundedBalance
       },
       betting,
-      gambling
+      gambling,
+      collection: collectionStats
     });
   } catch (error) {
     console.error('Error fetching user profile:', error);
@@ -1380,7 +1390,7 @@ router.put('/:discordId/preferences', async (req, res) => {
 });
 
 // Leaderboard: Top Win Streaks
-router.get('/leaderboard/winstreaks', async (req, res) => {
+router.get('/leaderboard/winstreaks', requireGuildId, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -1409,7 +1419,7 @@ router.get('/leaderboard/winstreaks', async (req, res) => {
 });
 
 // Leaderboard: Biggest Wins
-router.get('/leaderboard/biggest-wins', async (req, res) => {
+router.get('/leaderboard/biggest-wins', requireGuildId, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
@@ -2995,6 +3005,13 @@ router.post('/:discordId/sell', async (req, res) => {
           totalValue = (user.inventory || []).reduce((sum, item) => sum + (item.value * item.count), 0);
           break;
 
+        case 'duplicates':
+          const duplicateItems = (user.inventory || []).filter(i => i.count > 1);
+          itemsToSell = duplicateItems.map(item => ({ type: item.type, name: item.name, count: item.count - 1, value: item.value }));
+          totalValue = duplicateItems.reduce((sum, item) => sum + (item.value * (item.count - 1)), 0);
+          actionDescription = `Selling all duplicates (keeping one of each, ${duplicateItems.length} types)`;
+          break;
+
         default:
           return res.status(400).json({ message: 'Invalid action specified.' });
       }
@@ -3125,7 +3142,14 @@ router.post('/:discordId/sell', async (req, res) => {
       await user.save();
       await wallet.save();
       
-      return res.json({ results, newBalance: wallet.balance });
+      return res.json({ 
+        results, 
+        newBalance: wallet.balance,
+        totalValue: actualValue,
+        soldItems: results.filter(r => r.success).map(r => ({ name: r.name, count: r.count })),
+        action: action,
+        message: `<@${user.discordId}> successfully sold ${results.filter(r => r.success).length} items for ${actualValue.toLocaleString()} points!`
+      });
     }
 
     // --- EXISTING SINGLE ITEM LOGIC (for backward compatibility) ---
@@ -3258,6 +3282,13 @@ router.post('/:discordId/sell-preview', async (req, res) => {
         actionDescription = `Selling everything (${user.inventory?.length || 0} types)`;
         break;
 
+      case 'duplicates':
+        const duplicateItems = (user.inventory || []).filter(i => i.count > 1);
+        itemsToPreview = duplicateItems.map(item => ({ type: item.type, name: item.name, count: item.count - 1, value: item.value }));
+        totalValue = duplicateItems.reduce((sum, item) => sum + (item.value * (item.count - 1)), 0);
+        actionDescription = `Selling all duplicates (keeping one of each, ${duplicateItems.length} types)`;
+        break;
+
       default:
         return res.status(400).json({ message: 'Invalid action specified.' });
     }
@@ -3291,7 +3322,7 @@ router.post('/:discordId/sell-preview', async (req, res) => {
 });
 
 // --- COLLECTION LEADERBOARD ---
-router.get('/collection-leaderboard', async (req, res) => {
+router.get('/collection-leaderboard', requireGuildId, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 5;
     const users = await User.find({ guildId: req.guildId });
@@ -3390,6 +3421,12 @@ router.post('/:discordId/trade', async (req, res) => {
         case 'everything':
           itemsToTrade = (sender.inventory || []).map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
           totalValue = (sender.inventory || []).reduce((sum, item) => sum + (item.value * item.count), 0);
+          break;
+
+        case 'duplicates':
+          const duplicateItems = (sender.inventory || []).filter(i => i.count > 1);
+          itemsToTrade = duplicateItems.map(item => ({ type: item.type, name: item.name, count: item.count - 1, value: item.value }));
+          totalValue = duplicateItems.reduce((sum, item) => sum + (item.value * (item.count - 1)), 0);
           break;
 
         default:
@@ -3492,7 +3529,7 @@ router.post('/:discordId/trade', async (req, res) => {
       return res.json({ 
         results, 
         tradedItems: results.filter(r => r.success).map(r => ({ name: r.name, count: r.count })),
-        message: `Successfully traded ${results.filter(r => r.success).length} items to <@${targetDiscordId}>.`,
+        message: `<@${sender.discordId}> successfully traded ${results.filter(r => r.success).length} items to <@${targetDiscordId}>.`,
         action: action
       });
     }
@@ -3733,6 +3770,13 @@ router.post('/:discordId/trade-preview', async (req, res) => {
         itemsToPreview = (sender.inventory || []).map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
         totalValue = (sender.inventory || []).reduce((sum, item) => sum + (item.value * item.count), 0);
         actionDescription = `Trading everything (${sender.inventory?.length || 0} types) to <@${targetDiscordId}>`;
+        break;
+
+      case 'duplicates':
+        const duplicateItems = (sender.inventory || []).filter(i => i.count > 1);
+        itemsToPreview = duplicateItems.map(item => ({ type: item.type, name: item.name, count: item.count - 1, value: item.value }));
+        totalValue = duplicateItems.reduce((sum, item) => sum + (item.value * (item.count - 1)), 0);
+        actionDescription = `Trading all duplicates (keeping one of each, ${duplicateItems.length} types) to <@${targetDiscordId}>`;
         break;
 
       default:

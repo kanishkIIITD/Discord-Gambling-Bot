@@ -6,6 +6,32 @@ const path = require('path');
 // In-memory cooldown map: { userId: { [guildId]: lastUsed } }
 const questionCooldowns = new Map();
 
+// Helper for safe error reply
+async function safeErrorReply(interaction, embed) {
+    try {
+        // Check if interaction exists and is valid
+        if (!interaction) {
+            console.error('Interaction object is null or undefined');
+            return;
+        }
+
+        // Handle different interaction states
+        if (interaction.deferred && !interaction.replied) {
+            await interaction.editReply({ embeds: [embed] });
+        } else if (!interaction.replied && interaction.reply) {
+            // If not replied and can reply directly
+            await interaction.reply({ embeds: [embed] });
+        } else if (interaction.followUp) {
+            // Last resort - try followUp if the method exists
+            await interaction.followUp({ embeds: [embed] });
+        } else {
+            console.error('Could not respond to interaction - no valid response method available');
+        }
+    } catch (err) {
+        console.error('Failed to send error reply:', err);
+    }
+}
+
 // List of cute cat images
 const catImages = [
   path.join(__dirname, '../images/cat1.png'),
@@ -153,7 +179,7 @@ module.exports = {
           .setTitle('⏳ Cooldown')
           .setDescription(`You must wait ${Math.ceil(remaining/60)}m ${remaining%60}s before using this command again in this server.`)
           .setTimestamp();
-        await interaction.editReply({ embeds: [embed] });
+        await safeErrorReply(interaction, embed);
         return;
       }
       // Set cooldown immediately to prevent race condition
@@ -197,7 +223,7 @@ module.exports = {
           .setTitle('❌ Error')
           .setDescription('This command requires being run in a channel where the bot can read messages.')
           .setTimestamp();
-        await interaction.followUp({ embeds: [errorEmbed], ephemeral: true });
+        await safeErrorReply(interaction, errorEmbed);
         // Remove cooldown if we never actually prompted
         questionCooldowns.delete(userId);
         return;
@@ -218,6 +244,9 @@ module.exports = {
 
         // Get current balance before making changes
         const backendUrl = process.env.BACKEND_API_URL;
+        if (!backendUrl) {
+          throw new Error('Backend URL is not configured');
+        }
         const balanceResponse = await axios.get(`${backendUrl}/users/${userId}/wallet`, {
           headers: { 'x-guild-id': interaction.guildId }
         });
@@ -240,7 +269,7 @@ module.exports = {
           if (logicInverted) {
             resultEmbed.setFooter({ text: '🌀 The world feels... off. Truth and lies swapped places.' });
           }
-          await interaction.followUp({ embeds: [resultEmbed] });
+          await safeErrorReply(interaction, resultEmbed);
           return;
         }
         // Make API call to update balance
@@ -261,7 +290,7 @@ module.exports = {
         if (logicInverted) {
           resultEmbed.setFooter({ text: '🌀 The world feels... off. Truth and lies swapped places.' });
         }
-        await interaction.followUp({ embeds: [resultEmbed] });
+        await safeErrorReply(interaction, resultEmbed);
 
         // --- LIE DETECTOR FOR GECKO ---
         if (animalType === 'gecko' && isCorrect) {
@@ -313,7 +342,7 @@ module.exports = {
                   .setTitle('🐍 A Lie is Detected!')
                   .setDescription(penaltyMessage)
                   .setTimestamp();
-                await interaction.followUp({ embeds: [penaltyEmbed] });
+                await safeErrorReply(interaction, penaltyEmbed);
               }
             } catch (penaltyError) {
               console.error('Error during lie penalty:', penaltyError);
@@ -329,7 +358,12 @@ module.exports = {
             .setTitle('⏰ Time\'s Up!')
             .setDescription('You did not answer in time. Try again later.')
             .setTimestamp();
-          await interaction.followUp({ embeds: [timeoutEmbed] });
+          try {
+            // Use safe reply method that works with any interaction state
+            await safeErrorReply(interaction, timeoutEmbed);
+          } catch (replyError) {
+            console.error('Failed to send timeout message:', replyError);
+          }
           return;
         } else if (err.response) {
           // Handle API error response
@@ -338,7 +372,12 @@ module.exports = {
             .setTitle('❌ Error')
             .setDescription(err.response.data?.message || 'Something went wrong with the API call. Please try again later.')
             .setTimestamp();
-          await interaction.followUp({ embeds: [errorEmbed] });
+          try {
+            // Use safe reply method that works with any interaction state
+            await safeErrorReply(interaction, errorEmbed);
+          } catch (replyError) {
+            console.error('Failed to send API error message:', replyError);
+          }
           return;
         } else {
           const errorEmbed = new EmbedBuilder()
@@ -346,20 +385,27 @@ module.exports = {
             .setTitle('❌ Error')
             .setDescription('Something went wrong. Please try again later.')
             .setTimestamp();
-          await interaction.followUp({ embeds: [errorEmbed] });
+          try {
+            // Use safe reply method that works with any interaction state
+            await safeErrorReply(interaction, errorEmbed);
+          } catch (replyError) {
+            console.error('Failed to send general error message:', replyError);
+          }
           return;
         }
       }
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message || 'Something went wrong. Please try again later.';
-      if (!interaction.replied) {
-        await interaction.followUp({ embeds: [new EmbedBuilder()
+      try {
+        await safeErrorReply(interaction, new EmbedBuilder()
           .setColor(0xff7675)
           .setTitle('❌ Error')
           .setDescription(errorMsg)
           .setTimestamp()
-        ], ephemeral: true });
+        );
+      } catch (followUpError) {
+        console.error('Failed to send error message:', followUpError);
       }
     }
   },
-}; 
+};

@@ -19,7 +19,8 @@ module.exports = {
           { name: 'All Common', value: 'all_common' },
           { name: 'All Uncommon', value: 'all_uncommon' },
           { name: 'All Rare+', value: 'all_rare_plus' },
-          { name: 'Everything', value: 'everything' }
+          { name: 'Everything', value: 'everything' },
+          { name: 'Duplicates', value: 'duplicates' }
         )
     )
     .addUserOption(option =>

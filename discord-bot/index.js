@@ -205,6 +205,7 @@ function parseAmount(input) {
 
 // Add an interaction listener
 client.on('interactionCreate', async interaction => {
+	try {
 	if (interaction.isAutocomplete()) {
 		const focusedOption = interaction.options.getFocused(true);
 		if (interaction.commandName === 'placebet') {
@@ -385,7 +386,7 @@ client.on('interactionCreate', async interaction => {
 				});
 
 				// console.log('Sale response:', response.data);
-				const { totalValue, soldItems, newBalance } = response.data;
+				const { soldItems, newBalance, message, totalValue } = response.data;
 
 				// Remove stored preview data
 				interaction.client.sellPreviews.delete(interaction.user.id);
@@ -393,7 +394,7 @@ client.on('interactionCreate', async interaction => {
 				const successEmbed = new EmbedBuilder()
 					.setColor(0x00b894)
 					.setTitle('💰 Sale Completed!')
-					.setDescription(`Successfully sold **${soldItems.length}** items for **${totalValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points!`)
+					.setDescription(message || `<@${interaction.user.id}> successfully sold **${soldItems.length}** items${totalValue ? ` for **${totalValue.toLocaleString()}** points` : ''}!`)
 					.addFields(
 						{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 						{ name: 'Items Sold', value: soldItems.slice(0, 10).map(item => `${item.count}x ${item.name}`).join('\n'), inline: false }
@@ -1369,6 +1370,10 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'leaderboard') {
 		try {
+			if (!backendApiUrl) {
+				throw new Error('Backend URL is not configured');
+			}
+			
 			await interaction.deferReply();
 			const limit = interaction.options.getInteger('limit') || 5;
 			const userId = interaction.user.id;
@@ -1407,15 +1412,28 @@ client.on('interactionCreate', async interaction => {
 
 			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
-			console.error('Error fetching leaderboard:', error.response?.status, error.response?.data, error.config);
-			if (!interaction.replied) {
-				await safeErrorReply(interaction, new EmbedBuilder()
-					.setColor(0xff7675)
-					.setTitle('❌ Error Fetching Leaderboard')
-					.setDescription(error.response?.data?.message || error.message || 'An error occurred while fetching the leaderboard.')
-					.setTimestamp()
-				);
-			}
+			console.error('Error fetching leaderboard:', {
+				status: error.response?.status,
+				statusText: error.response?.statusText,
+				data: error.response?.data,
+				message: error.message,
+				config: {
+					url: error.config?.url,
+					method: error.config?.method,
+					params: error.config?.params,
+					headers: error.config?.headers
+				}
+			});
+			
+			// Create error embed
+			const errorEmbed = new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Error Fetching Leaderboard')
+				.setDescription(error.response?.data?.message || error.message || 'An error occurred while fetching the leaderboard.')
+				.setTimestamp();
+			
+			// Use the improved safeErrorReply function which handles all interaction states
+			await safeErrorReply(interaction, errorEmbed);
 		}
 	} else if (commandName === 'stats') {
 		try {
@@ -1475,7 +1493,7 @@ client.on('interactionCreate', async interaction => {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
 			});
-			const { user, wallet, betting, gambling } = response.data;
+			const { user, wallet, betting, gambling, collection } = response.data;
 
 			const embed = {
 				color: 0x0099ff,
@@ -1483,13 +1501,17 @@ client.on('interactionCreate', async interaction => {
 				fields: [
 					{ name: 'Balance', value: `${wallet.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'Role', value: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User', inline: true },
+					{ name: '📦 Collection Value', value: `${collection.totalValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: '🎲 Betting', value:
 						`Total Bets: ${betting.totalBets.toLocaleString('en-US')}\n` +
 						`Total Wagered: ${betting.totalWagered.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\n` +
 						`Total Won: ${betting.totalWon.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: false },
 					{ name: '🎰 Gambling', value:
 						`Total Gambled: ${gambling.totalGambled.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\n` +
-						`Total Won: ${gambling.totalWon.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: false }
+						`Total Won: ${gambling.totalWon.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: false },
+					{ name: '📦 Collection Stats', value:
+						`Total Items: ${collection.itemCount.toLocaleString('en-US')}\n` +
+						`Unique Items: ${collection.uniqueItems.toLocaleString('en-US')}`, inline: false }
 				],
 				timestamp: new Date()
 			};
@@ -3443,6 +3465,18 @@ client.on('interactionCreate', async interaction => {
 	} else if (commandName === 'refund') {
 		await refundCommand.execute(interaction);
 	}
+	} catch (error) {
+		console.error('Unhandled error in interaction handler:', error);
+		// Use safeErrorReply to handle the error response regardless of interaction state
+		if (interaction && interaction.isCommand()) {
+			await safeErrorReply(interaction, new EmbedBuilder()
+				.setColor(0xff7675)
+				.setTitle('❌ Unexpected Error')
+				.setDescription('An unexpected error occurred while processing your command.')
+				.setTimestamp()
+			);
+		}
+	}
 });
 
 // Log in to Discord with your client's token
@@ -3454,15 +3488,28 @@ process.on('unhandledRejection', error => {
 	console.error('Unhandled promise rejection:', error);
 }); 
 
-// Patch: Helper for safe error reply
+// Helper for safe error reply
 async function safeErrorReply(interaction, embed) {
     try {
+        // Check if interaction exists and is valid
+        if (!interaction) {
+            console.error('Interaction object is null or undefined');
+            return;
+        }
+
+        // Handle different interaction states
         if (interaction.deferred && !interaction.replied) {
             await interaction.editReply({ embeds: [embed] });
-		} else {
+        } else if (!interaction.replied && interaction.reply) {
+            // If not replied and can reply directly
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+        } else if (interaction.followUp) {
+            // Last resort - try followUp if the method exists
             await interaction.followUp({ embeds: [embed], ephemeral: true });
-			}
-		} catch (err) {
+        } else {
+            console.error('Could not respond to interaction - no valid response method available');
+        }
+    } catch (err) {
         console.error('Failed to send error reply:', err);
     }
 } 
