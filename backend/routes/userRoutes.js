@@ -10,6 +10,14 @@ const { requireGuildId } = require('../middleware/auth');
 const { calculateTimeoutCost, isValidTimeoutDuration, isOnTimeoutCooldown, getRemainingCooldown, BASE_COST_PER_MINUTE, BALANCE_PERCENTAGE } = require('../utils/timeoutUtils');
 const { auth, requireSuperAdmin } = require('../middleware/auth');
 const { getUserGuilds } = require('../utils/discordClient');
+const { 
+  selectPunishment,
+  applyPunishment,
+  cleanActivePunishments,
+  getStealCooldownField,
+  getStealCooldownHours,
+  getStealSuccessRate
+} = require('../utils/gamblingUtils');
 
 // Rarity weights for buffs
 const baseWeights = {
@@ -215,12 +223,17 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
   }
 });
 
-// --- STEAL ENDPOINT ---
+// --- ENHANCED STEAL ENDPOINT ---
 router.post('/:userId/steal', requireGuildId, async (req, res) => {
   try {
     const { userId } = req.params;
-    const { targetDiscordId } = req.body;
+    const { targetDiscordId, stealType = 'points', rarity } = req.body;
     const guildId = req.headers['x-guild-id'];
+
+    // Validate steal type
+    if (!['points', 'fish', 'animal', 'item'].includes(stealType)) {
+      return res.status(400).json({ message: 'Invalid steal type. Must be points, fish, animal, or item.' });
+    }
 
     // Get attacker's user and wallet
     let attacker = await User.findOne({ discordId: userId, guildId });
@@ -231,7 +244,13 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
         guildId,
         username: userId,
         role: 'user',
-        stealStats: { success: 0, fail: 0, jail: 0, totalStolen: 0 }
+        stealStats: { 
+          success: 0, fail: 0, jail: 0, totalStolen: 0,
+          pointsSuccess: 0, pointsFail: 0,
+          fishSuccess: 0, fishFail: 0,
+          animalSuccess: 0, animalFail: 0,
+          itemSuccess: 0, itemFail: 0
+        }
       });
       await attacker.save();
     }
@@ -249,6 +268,9 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       await attackerWallet.save();
     }
 
+    // Clean expired punishments
+    cleanActivePunishments(attacker);
+
     // Check if attacker is jailed
     if (attacker.jailedUntil && attacker.jailedUntil > new Date()) {
       const remainingJailTime = Math.ceil((attacker.jailedUntil - new Date()) / (60 * 1000));
@@ -257,15 +279,18 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       });
     }
 
-    // Check cooldown (2 hours)
+    // Check type-specific cooldown
     const now = new Date();
-    const cooldownTime = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
-    if (attacker.stealCooldown && (now - attacker.stealCooldown) < cooldownTime) {
-      const remainingTime = cooldownTime - (now - attacker.stealCooldown);
+    const cooldownField = getStealCooldownField(stealType);
+    const cooldownHours = getStealCooldownHours(stealType);
+    const cooldownTime = cooldownHours * 60 * 60 * 1000; // Convert hours to milliseconds
+    
+    if (attacker[cooldownField] && (now - attacker[cooldownField]) < cooldownTime) {
+      const remainingTime = cooldownTime - (now - attacker[cooldownField]);
       const remainingHours = Math.floor(remainingTime / (60 * 60 * 1000));
       const remainingMinutes = Math.floor((remainingTime % (60 * 60 * 1000)) / (60 * 1000));
       return res.status(429).json({ 
-        message: `You must wait ${remainingHours}h ${remainingMinutes}m before stealing again.`
+        message: `You must wait ${remainingHours}h ${remainingMinutes}m before stealing ${stealType} again.`
       });
     }
 
@@ -292,29 +317,113 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       await targetWallet.save();
     }
 
-    // Check if target has enough balance to steal from
-    if (targetWallet.balance < 1000) {
-      return res.status(400).json({ message: 'Target user has insufficient balance to steal from.' });
+    // Validate target has items to steal based on type
+    if (stealType === 'points') {
+      if (targetWallet.balance < 1000) {
+        return res.status(400).json({ message: 'Target user has insufficient balance to steal from.' });
+      }
+    } else {
+      // Check if target has items of the specified type and rarity
+      const targetItems = target.inventory || [];
+      let availableItems = targetItems.filter(item => item.type === stealType);
+      
+      if (rarity) {
+        availableItems = availableItems.filter(item => item.rarity === rarity);
+      }
+      
+      if (availableItems.length === 0) {
+        const rarityText = rarity ? ` ${rarity}` : '';
+        return res.status(400).json({ 
+          message: `Target user has no${rarityText} ${stealType} to steal.` 
+        });
+      }
     }
 
     // Check for lucky streak buff
     const luckyStreakBuff = (attacker.buffs || []).find(b => b.type === 'lucky_streak' && b.usesLeft > 0);
     
-    // Determine success/failure (30% success rate, or 50% with lucky streak)
-    let successThreshold = 0.3;
+    // Determine success/failure based on steal type
+    let successThreshold = getStealSuccessRate(stealType);
     if (luckyStreakBuff) {
-      successThreshold = 0.5; // 50% success rate with lucky streak
+      successThreshold = Math.min(successThreshold + 0.2, 0.8); // Increase by 20% but cap at 80%
     }
     const isSuccess = Math.random() < successThreshold;
     
     if (isSuccess) {
-      // Success: steal 5-20% of target's balance
-      const stealPercentage = (Math.random() * 0.15) + 0.05; // 5% to 20%
-      const stolenAmount = Math.floor(targetWallet.balance * stealPercentage);
-      
-      // Transfer points
-      targetWallet.balance -= stolenAmount;
-      attackerWallet.balance += stolenAmount;
+      // Success: steal items or points
+      let stolenItems = [];
+      let stolenAmount = 0;
+      let totalValue = 0;
+
+      if (stealType === 'points') {
+        // Steal points (5-20% of target's balance)
+        const stealPercentage = (Math.random() * 0.15) + 0.05; // 5% to 20%
+        stolenAmount = Math.floor(targetWallet.balance * stealPercentage);
+        
+        // Transfer points
+        targetWallet.balance -= stolenAmount;
+        attackerWallet.balance += stolenAmount;
+        totalValue = stolenAmount;
+      } else {
+        // Steal items
+        const targetItems = target.inventory || [];
+        let availableItems = targetItems.filter(item => item.type === stealType);
+        
+        if (rarity) {
+          availableItems = availableItems.filter(item => item.rarity === rarity);
+        }
+        
+        // Select 1-3 random items to steal
+        const numItemsToSteal = Math.min(Math.floor(Math.random() * 3) + 1, availableItems.length);
+        const shuffled = [...availableItems].sort(() => Math.random() - 0.5);
+        const itemsToSteal = shuffled.slice(0, numItemsToSteal);
+        
+        for (const itemToSteal of itemsToSteal) {
+          // Steal 1-50% of the item count (minimum 1)
+          const stealCount = Math.max(1, Math.floor(itemToSteal.count * (Math.random() * 0.5 + 0.1)));
+          const actualStealCount = Math.min(stealCount, itemToSteal.count);
+          
+          // Remove from target
+          const targetItemIndex = target.inventory.findIndex(item => 
+            item.type === itemToSteal.type && item.name === itemToSteal.name
+          );
+          
+          if (targetItemIndex !== -1) {
+            target.inventory[targetItemIndex].count -= actualStealCount;
+            if (target.inventory[targetItemIndex].count <= 0) {
+              target.inventory.splice(targetItemIndex, 1);
+            }
+            
+            // Add to attacker
+            const attackerItemIndex = attacker.inventory.findIndex(item => 
+              item.type === itemToSteal.type && item.name === itemToSteal.name
+            );
+            
+            if (attackerItemIndex !== -1) {
+              attacker.inventory[attackerItemIndex].count += actualStealCount;
+            } else {
+              attacker.inventory.push({
+                type: itemToSteal.type,
+                name: itemToSteal.name,
+                rarity: itemToSteal.rarity,
+                value: itemToSteal.value,
+                count: actualStealCount
+              });
+            }
+            
+            const itemValue = itemToSteal.value * actualStealCount;
+            totalValue += itemValue;
+            
+            stolenItems.push({
+              type: itemToSteal.type,
+              name: itemToSteal.name,
+              rarity: itemToSteal.rarity,
+              count: actualStealCount,
+              value: itemValue
+            });
+          }
+        }
+      }
       
       await targetWallet.save();
       await attackerWallet.save();
@@ -329,20 +438,27 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       
       // Update attacker stats
       attacker.stealStats.success += 1;
-      attacker.stealStats.totalStolen += stolenAmount;
-      attacker.stealCooldown = now;
+      attacker.stealStats.totalStolen += totalValue;
+      attacker[`${stealType}Success`] = (attacker.stealStats[`${stealType}Success`] || 0) + 1;
+      attacker[cooldownField] = now;
       await attacker.save();
+      await target.save();
+      
+      // Calculate new collection value for attacker
+      const newCollectionValue = (attacker.inventory || []).reduce((sum, item) => sum + (item.value * item.count), 0);
       
       // Create transaction records
       await Transaction.create({
         user: attacker._id,
         guildId,
         type: 'steal',
-        amount: stolenAmount,
-        description: `Successfully stole ${stolenAmount.toLocaleString('en-US')} points from ${targetDiscordId}`,
+        amount: totalValue,
+        description: `Successfully stole ${stealType} from ${targetDiscordId}`,
         metadata: {
           targetDiscordId,
-          stolenAmount,
+          stealType,
+          stolenItems,
+          totalValue,
           success: true
         }
       });
@@ -351,16 +467,18 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
         user: target._id,
         guildId,
         type: 'stolen',
-        amount: -stolenAmount,
-        description: `Had ${stolenAmount.toLocaleString('en-US')} points stolen by ${userId}`,
+        amount: -totalValue,
+        description: `Had ${stealType} stolen by ${userId}`,
         metadata: {
           attackerDiscordId: userId,
-          stolenAmount,
+          stealType,
+          stolenItems,
+          totalValue,
           success: true
         }
       });
       
-      let message = `Successfully stole ${stolenAmount.toLocaleString('en-US')} points from ${targetDiscordId}!`;
+      let message = `Successfully stole ${stealType} from ${targetDiscordId}!`;
       if (luckyStreakBuff) {
         message += ` 🍀 Lucky Streak buff used! (${luckyStreakBuff.usesLeft + 1} uses remaining)`;
       }
@@ -368,26 +486,33 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       res.json({
         message: message,
         success: true,
+        stolenItems,
         stolenAmount,
+        totalValue,
         newBalance: attackerWallet.balance,
-        cooldownTime: attacker.stealCooldown
+        newCollectionValue,
+        cooldownTime: attacker[cooldownField],
+        stealType
       });
       
     } else {
-      // Failure: jail time based on what would have been stolen
-      const potentialStealPercentage = (Math.random() * 0.15) + 0.05; // 5% to 20%
-      const potentialStolenAmount = Math.floor(targetWallet.balance * potentialStealPercentage);
-      const jailTimeMinutes = Math.min(14400000000, Math.max(1, Math.ceil(potentialStolenAmount / 10000))); // Cap at ~27 years (8,640,000,000,000,000 ms), minimum 1 minute
-      // Jail Immunity Buff logic
-      const now = new Date();
-      let jailImmunityIdx = -1;
-      if (attacker.buffs && Array.isArray(attacker.buffs)) {
-        jailImmunityIdx = attacker.buffs.findIndex(b => b.type === 'jail_immunity' && (!b.expiresAt || b.expiresAt > now) && (b.usesLeft === undefined || b.usesLeft > 0));
-      }
-      if (jailImmunityIdx >= 0) {
+      // Failure: apply punishment
+      const failureCount = attacker.stealFailureCount || 0;
+      const attemptedValue = stealType === 'points' ? 
+        Math.floor(targetWallet.balance * ((Math.random() * 0.15) + 0.05)) :
+        (target.inventory || []).filter(item => item.type === stealType).reduce((sum, item) => sum + item.value, 0);
+      
+      const punishment = selectPunishment(stealType, failureCount, attemptedValue);
+      
+      // Check for jail immunity buff
+      const jailImmunityBuff = (attacker.buffs || []).find(b => 
+        b.type === 'jail_immunity' && (!b.expiresAt || b.expiresAt > now) && (b.usesLeft === undefined || b.usesLeft > 0)
+      );
+      
+      if (jailImmunityBuff && punishment.type === 'jail') {
         // Use the buff, do not jail
-        if (attacker.buffs[jailImmunityIdx].usesLeft !== undefined) {
-          attacker.buffs[jailImmunityIdx].usesLeft--;
+        if (jailImmunityBuff.usesLeft !== undefined) {
+          jailImmunityBuff.usesLeft--;
         }
         // Remove expired/used up buffs
         attacker.buffs = (attacker.buffs || []).filter(b => {
@@ -396,72 +521,118 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
           if (b.usesLeft !== undefined && b.usesLeft <= 0) return false;
           return true;
         });
+        
         attacker.stealStats.fail += 1;
-        attacker.stealCooldown = now;
+        attacker[`${stealType}Fail`] = (attacker.stealStats[`${stealType}Fail`] || 0) + 1;
+        attacker[cooldownField] = now;
         await attacker.save();
+        
         // Create transaction record (no jail)
         await Transaction.create({
           user: attacker._id,
           guildId,
           type: 'steal',
           amount: 0,
-          description: `Failed to steal from ${targetDiscordId} but jail immunity buff saved them from jail`,
+          description: `Failed to steal ${stealType} from ${targetDiscordId} but jail immunity buff saved them from jail`,
           metadata: {
             targetDiscordId,
-            potentialStolenAmount,
-            jailTimeMinutes,
+            stealType,
+            attemptedValue,
             success: false,
             buffUsed: 'jail_immunity'
           }
         });
+        
         return res.json({
           message: `Steal attempt failed! Your jail immunity buff saved you from jail!`,
           success: false,
-          jailTimeMinutes: 0,
-          cooldownTime: attacker.stealCooldown,
+          punishment: { type: 'jail', severity: 'none' },
+          cooldownTime: attacker[cooldownField],
           buffUsed: 'jail_immunity',
-          buffMessage: 'Your jail immunity buff saved you from jail!'
+          buffMessage: 'Your jail immunity buff saved you from jail!',
+          stealType
         });
       }
-      // Jail the attacker with proper date validation
-      const jailEndTime = new Date(now.getTime() + (jailTimeMinutes * 60 * 1000));
-      // Validate the date before assigning
-      if (isNaN(jailEndTime.getTime())) {
-        console.error('Invalid jail end time calculated:', {
-          now: now.toISOString(),
-          jailTimeMinutes,
-          jailEndTime: 'Invalid Date',
-          userId: req.params.userId,
-          targetDiscordId: req.body.targetDiscordId
-        });
-        return res.status(500).json({ 
-          message: 'Error calculating jail time. Please try again.' 
-        });
+      
+      // Apply punishment
+      applyPunishment(attacker, punishment, stealType, targetDiscordId, attackerWallet);
+      
+      // Calculate bail amount if jailed
+      let bailInfo = null;
+      if (punishment.type === 'jail') {
+        const stealPercentage = (Math.random() * 0.15) + 0.05; // Same as in success case
+        const { calculateBailAmount } = require('../utils/gamblingUtils');
+        bailInfo = calculateBailAmount(
+          targetWallet.balance, 
+          stealPercentage, 
+          stealType, 
+          failureCount, 
+          attackerWallet.balance
+        );
+        
+        // Store bail information in user record
+        attacker.bailInfo = {
+          amount: bailInfo.bailAmount,
+          additionalJailTime: bailInfo.additionalJailTime,
+          stealType: stealType,
+          targetDiscordId: targetDiscordId,
+          calculatedAt: new Date()
+        };
       }
-      attacker.jailedUntil = jailEndTime;
+      
+      // Update stats
       attacker.stealStats.fail += 1;
-      attacker.stealStats.jail += 1;
-      attacker.stealCooldown = now;
+      attacker[`${stealType}Fail`] = (attacker.stealStats[`${stealType}Fail`] || 0) + 1;
+      if (punishment.type === 'jail') {
+        attacker.stealStats.jail += 1;
+      }
+      attacker[cooldownField] = now;
+      
       await attacker.save();
+      await attackerWallet.save();
+      
       // Create transaction record
       await Transaction.create({
         user: attacker._id,
         guildId,
         type: 'steal',
         amount: 0,
-        description: `Failed to steal from ${targetDiscordId} and got jailed for ${jailTimeMinutes} minutes`,
+        description: `Failed to steal ${stealType} from ${targetDiscordId} and got punished`,
         metadata: {
           targetDiscordId,
-          potentialStolenAmount,
-          jailTimeMinutes,
+          stealType,
+          attemptedValue,
+          punishment,
           success: false
         }
       });
+      
+      // Calculate jail time if jailed
+      let jailInfo = null;
+      if (punishment.type === 'jail' && attacker.jailedUntil) {
+        const now = new Date();
+        const jailMinutes = Math.ceil((attacker.jailedUntil - now) / 60000);
+        jailInfo = {
+          minutes: jailMinutes,
+          until: attacker.jailedUntil
+        };
+      }
+
+      // Get punishment description
+      const { getPunishmentDescription } = require('../utils/gamblingUtils');
+      const punishmentDescription = getPunishmentDescription(punishment, stealType);
+
       res.json({
-        message: `Steal attempt failed! You got caught and are jailed for ${jailTimeMinutes} minutes.`,
+        message: `Steal attempt failed! You got caught and are punished.`,
         success: false,
-        jailTimeMinutes,
-        cooldownTime: attacker.stealCooldown
+        punishment: {
+          ...punishment,
+          description: punishmentDescription
+        },
+        bailInfo,
+        jailInfo,
+        cooldownTime: attacker[cooldownField],
+        stealType
       });
     }
     
@@ -2016,10 +2187,18 @@ router.post('/:discordId/bail', async (req, res) => {
     if (!targetUser.jailedUntil || targetUser.jailedUntil < new Date()) {
       return res.status(400).json({ message: 'Target user is not currently jailed.' });
     }
-    // Calculate bail cost (e.g., 10,000 + 1,000 per minute left)
+    // Use stored bail information or fallback to old calculation
     const now = new Date();
     const minutesLeft = Math.ceil((targetUser.jailedUntil - now) / 60000);
-    const bailCost = 10000 + minutesLeft * 1000;
+    
+    let bailCost;
+    if (targetUser.bailInfo && targetUser.bailInfo.amount > 0) {
+      // Use the stored bail amount from the new system
+      bailCost = targetUser.bailInfo.amount;
+    } else {
+      // Fallback to old calculation for users jailed before the update
+      bailCost = 10000 + minutesLeft * 1000;
+    }
     const payerWallet = await Wallet.findOne({ user: payer._id, guildId: req.guildId });
     // console.log('[BAIL] payerWallet balance:', payerWallet && payerWallet.balance, 'bailCost:', bailCost);
     if (!payerWallet || payerWallet.balance < bailCost) {
@@ -2038,6 +2217,13 @@ router.post('/:discordId/bail', async (req, res) => {
     });
     await transaction.save();
     targetUser.jailedUntil = null;
+    targetUser.bailInfo = {
+      amount: 0,
+      additionalJailTime: 0,
+      stealType: null,
+      targetDiscordId: null,
+      calculatedAt: null
+    };
     await targetUser.save();
     // console.log('[BAIL] Bail successful.');
     res.json({
@@ -2102,7 +2288,15 @@ router.post('/:discordId/bail-all', async (req, res) => {
     // Calculate costs and check if payer can afford
     for (const jailedUser of filteredJailedUsers) {
       const minutesLeft = Math.ceil((jailedUser.jailedUntil - now) / 60000);
-      const bailCost = 10000 + minutesLeft * 1000;
+      
+      let bailCost;
+      if (jailedUser.bailInfo && jailedUser.bailInfo.amount > 0) {
+        // Use the stored bail amount from the new system
+        bailCost = jailedUser.bailInfo.amount;
+      } else {
+        // Fallback to old calculation for users jailed before the update
+        bailCost = 10000 + minutesLeft * 1000;
+      }
       totalCost += bailCost;
     }
 
@@ -2117,9 +2311,25 @@ router.post('/:discordId/bail-all', async (req, res) => {
     for (const jailedUser of filteredJailedUsers) {
       try {
         const minutesLeft = Math.ceil((jailedUser.jailedUntil - now) / 60000);
-        const bailCost = 10000 + minutesLeft * 1000;
+        
+        let bailCost;
+        if (jailedUser.bailInfo && jailedUser.bailInfo.amount > 0) {
+          // Use the stored bail amount from the new system
+          bailCost = jailedUser.bailInfo.amount;
+        } else {
+          // Fallback to old calculation for users jailed before the update
+          bailCost = 10000 + minutesLeft * 1000;
+        }
+        
         // Free the user
         jailedUser.jailedUntil = null;
+        jailedUser.bailInfo = {
+          amount: 0,
+          additionalJailTime: 0,
+          stealType: null,
+          targetDiscordId: null,
+          calculatedAt: null
+        };
         await jailedUser.save();
         // Record successful bail
         bailedUsers.push({
@@ -3057,7 +3267,10 @@ router.post('/:discordId/reset-cooldowns', async (req, res) => {
     user.workCooldown = null;
     user.begCooldown = null;
     user.crimeCooldown = null;
-    user.stealCooldown = null;
+    user.stealPointsCooldown = null;
+    user.stealFishCooldown = null;
+    user.stealAnimalCooldown = null;
+    user.stealItemCooldown = null;
     
     // Consume the buff
     cooldownResetBuff.usesLeft--;
@@ -4410,7 +4623,10 @@ router.get('/:discordId/cooldowns', async (req, res) => {
       mysteryboxCooldown: user.mysteryboxCooldown || null,
       duelCooldown,
       meowbarkCooldown: user.meowbarkCooldown || null,
-      stealCooldown: user.stealCooldown || null,
+      stealPointsCooldown: user.stealPointsCooldown || null,
+      stealFishCooldown: user.stealFishCooldown || null,
+      stealAnimalCooldown: user.stealAnimalCooldown || null,
+      stealItemCooldown: user.stealItemCooldown || null,
       jailedUntil: user.jailedUntil || null,
       lastDailyClaim: wallet ? wallet.lastDailyClaim || null : null,
       cooldownTime: user.lastTimeoutAt || null
@@ -4420,21 +4636,71 @@ router.get('/:discordId/cooldowns', async (req, res) => {
   }
 });
 
-// Get steal stats for a user
+// Get enhanced steal stats for a user
 router.get('/:discordId/steal-stats', requireGuildId, async (req, res) => {
   try {
     const user = await User.findOne({ discordId: req.params.discordId, guildId: req.guildId });
     if (!user) return res.status(404).json({ message: 'User not found.' });
     
-    const stealStats = user.stealStats || { success: 0, fail: 0, jail: 0, totalStolen: 0 };
-    const totalAttempts = stealStats.success + stealStats.jail;
+    const stealStats = user.stealStats || { 
+      success: 0, fail: 0, jail: 0, totalStolen: 0,
+      pointsSuccess: 0, pointsFail: 0,
+      fishSuccess: 0, fishFail: 0,
+      animalSuccess: 0, animalFail: 0,
+      itemSuccess: 0, itemFail: 0
+    };
+    
+    const totalAttempts = stealStats.success + stealStats.fail;
     const successRate = totalAttempts > 0 ? ((stealStats.success / totalAttempts) * 100).toFixed(1) : 0;
+    
+    // Calculate type-specific stats
+    const typeStats = {
+      points: {
+        success: stealStats.pointsSuccess || 0,
+        fail: stealStats.pointsFail || 0,
+        total: (stealStats.pointsSuccess || 0) + (stealStats.pointsFail || 0),
+        successRate: 0
+      },
+      fish: {
+        success: stealStats.fishSuccess || 0,
+        fail: stealStats.fishFail || 0,
+        total: (stealStats.fishSuccess || 0) + (stealStats.fishFail || 0),
+        successRate: 0
+      },
+      animal: {
+        success: stealStats.animalSuccess || 0,
+        fail: stealStats.animalFail || 0,
+        total: (stealStats.animalSuccess || 0) + (stealStats.animalFail || 0),
+        successRate: 0
+      },
+      item: {
+        success: stealStats.itemSuccess || 0,
+        fail: stealStats.itemFail || 0,
+        total: (stealStats.itemSuccess || 0) + (stealStats.itemFail || 0),
+        successRate: 0
+      }
+    };
+    
+    // Calculate success rates for each type
+    Object.keys(typeStats).forEach(type => {
+      if (typeStats[type].total > 0) {
+        typeStats[type].successRate = parseFloat(((typeStats[type].success / typeStats[type].total) * 100).toFixed(1));
+      }
+    });
+    
+    // Get active punishments
+    cleanActivePunishments(user);
+    const activePunishments = user.activePunishments || [];
     
     res.json({
       stealStats: {
         ...stealStats,
         totalAttempts,
-        successRate: parseFloat(successRate)
+        successRate: parseFloat(successRate),
+        typeStats,
+        activePunishments,
+        failureCount: user.stealFailureCount || 0,
+        lastStealFailure: user.lastStealFailure
       }
     });
   } catch (error) {

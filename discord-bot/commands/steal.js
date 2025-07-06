@@ -2,12 +2,42 @@ const { SlashCommandBuilder } = require('discord.js');
 const axios = require('axios');
 const { createErrorEmbed, createSuccessEmbed } = require('../utils/discordUtils');
 
+const rarityEmojis = {
+  common: '⚪',
+  uncommon: '🟢',
+  rare: '🔵',
+  epic: '🟣',
+  legendary: '🟡',
+  mythical: '🟠',
+  transcendent: '🌟',
+  og: '🕶️'
+};
+
+const typeEmojis = {
+  points: '💰',
+  fish: '🐟',
+  animal: '🦊',
+  item: '🎁'
+};
+
+const punishmentEmojis = {
+  jail: '🚔',
+  fine: '💸',
+  itemLoss: '📦',
+  cooldown: '⏰',
+  // TODO: Implement these punishment types later
+  // bounty: '🏷️',
+  // marked: '👤',
+  // penalty: '⚠️',
+  // ban: '🚫'
+};
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('steal')
-        .setDescription('Attempt to steal points from another user (30% success rate, 2-hour cooldown)')
+        .setDescription('Enhanced stealing system with multiple targets and punishments')
         .addSubcommand(sub =>
-            sub.setName('do')
+            sub.setName('points')
                 .setDescription('Attempt to steal points from another user')
                 .addUserOption(option =>
                     option.setName('target')
@@ -15,8 +45,71 @@ module.exports = {
                         .setRequired(true))
         )
         .addSubcommand(sub =>
+            sub.setName('fish')
+                .setDescription('Attempt to steal fish from another user')
+                .addUserOption(option =>
+                    option.setName('target')
+                        .setDescription('The user to steal from')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('rarity')
+                        .setDescription('Specific rarity to target (optional)')
+                        .addChoices(
+                            { name: 'Common', value: 'common' },
+                            { name: 'Uncommon', value: 'uncommon' },
+                            { name: 'Rare', value: 'rare' },
+                            { name: 'Epic', value: 'epic' },
+                            { name: 'Legendary', value: 'legendary' },
+                            { name: 'Mythical', value: 'mythical' },
+                            { name: 'Transcendent', value: 'transcendent' },
+                            { name: 'OG', value: 'og' }
+                        ))
+        )
+        .addSubcommand(sub =>
+            sub.setName('animal')
+                .setDescription('Attempt to steal animals from another user')
+                .addUserOption(option =>
+                    option.setName('target')
+                        .setDescription('The user to steal from')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('rarity')
+                        .setDescription('Specific rarity to target (optional)')
+                        .addChoices(
+                            { name: 'Common', value: 'common' },
+                            { name: 'Uncommon', value: 'uncommon' },
+                            { name: 'Rare', value: 'rare' },
+                            { name: 'Epic', value: 'epic' },
+                            { name: 'Legendary', value: 'legendary' },
+                            { name: 'Mythical', value: 'mythical' },
+                            { name: 'Transcendent', value: 'transcendent' },
+                            { name: 'OG', value: 'og' }
+                        ))
+        )
+        .addSubcommand(sub =>
+            sub.setName('item')
+                .setDescription('Attempt to steal items from another user')
+                .addUserOption(option =>
+                    option.setName('target')
+                        .setDescription('The user to steal from')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('rarity')
+                        .setDescription('Specific rarity to target (optional)')
+                        .addChoices(
+                            { name: 'Common', value: 'common' },
+                            { name: 'Uncommon', value: 'uncommon' },
+                            { name: 'Rare', value: 'rare' },
+                            { name: 'Epic', value: 'epic' },
+                            { name: 'Legendary', value: 'legendary' },
+                            { name: 'Mythical', value: 'mythical' },
+                            { name: 'Transcendent', value: 'transcendent' },
+                            { name: 'OG', value: 'og' }
+                        ))
+        )
+        .addSubcommand(sub =>
             sub.setName('stats')
-                .setDescription('View your steal statistics')
+                .setDescription('View your enhanced steal statistics')
         ),
 
     async execute(interaction) {
@@ -24,7 +117,7 @@ module.exports = {
         
         if (subcommand === 'stats') {
             await this.showStats(interaction);
-        } else if (subcommand === 'do') {
+        } else {
             await this.attemptSteal(interaction);
         }
     },
@@ -45,14 +138,39 @@ module.exports = {
             const duration = Date.now() - start;
 
             const { stealStats } = response.data;
-            const embed = createSuccessEmbed('🦹 Steal Statistics')
+            const embed = createSuccessEmbed('🦹 Enhanced Steal Statistics')
                 .addFields(
-                    { name: 'Successful Steals', value: stealStats.success.toString(), inline: true },
-                    { name: 'Times Jailed', value: stealStats.jail.toString(), inline: true },
-                    { name: 'Total Attempts', value: stealStats.totalAttempts.toString(), inline: true },
-                    { name: 'Success Rate', value: `${stealStats.successRate}%`, inline: true },
-                    { name: 'Total Stolen', value: `${stealStats.totalStolen.toLocaleString('en-US')} points`, inline: true }
+                    { name: 'Overall Stats', value: 
+                        `**Total Attempts:** ${stealStats.totalAttempts}\n` +
+                        `**Success Rate:** ${stealStats.successRate}%\n` +
+                        `**Total Stolen:** ${stealStats.totalStolen.toLocaleString('en-US')} points\n` +
+                        `**Failure Count:** ${stealStats.failureCount || 0}`, 
+                        inline: false 
+                    }
                 );
+
+            // Add type-specific stats
+            if (stealStats.typeStats) {
+                const typeStatsText = Object.entries(stealStats.typeStats)
+                    .map(([type, stats]) => {
+                        if (stats.total === 0) return null;
+                        return `${typeEmojis[type]} **${type.charAt(0).toUpperCase() + type.slice(1)}:** ${stats.success}/${stats.total} (${stats.successRate}%)`;
+                    })
+                    .filter(Boolean)
+                    .join('\n');
+                
+                if (typeStatsText) {
+                    embed.addFields({ name: 'Type Breakdown', value: typeStatsText, inline: false });
+                }
+            }
+
+            // Add active punishments if any
+            if (stealStats.activePunishments && stealStats.activePunishments.length > 0) {
+                const punishmentsText = stealStats.activePunishments
+                    .map(p => `${punishmentEmojis[p.type] || '⚠️'} ${p.description} (${p.severity})`)
+                    .join('\n');
+                embed.addFields({ name: 'Active Punishments', value: punishmentsText, inline: false });
+            }
 
             if (duration < 2500) {
                 await interaction.reply({ embeds: [embed] });
@@ -79,15 +197,24 @@ module.exports = {
     },
 
     async attemptSteal(interaction) {
+        const stealType = interaction.options.getSubcommand();
         const targetUser = interaction.options.getUser('target');
+        const rarity = interaction.options.getString('rarity');
         const start = Date.now();
 
         try {
+            const requestBody = {
+                targetDiscordId: targetUser.id,
+                stealType: stealType
+            };
+
+            if (rarity) {
+                requestBody.rarity = rarity;
+            }
+
             const response = await axios.post(
                 `${process.env.BACKEND_API_URL}/users/${interaction.user.id}/steal`,
-                {
-                    targetDiscordId: targetUser.id
-                },
+                requestBody,
                 {
                     headers: {
                         'x-guild-id': interaction.guildId
@@ -98,18 +225,32 @@ module.exports = {
             const duration = Date.now() - start;
 
             const {
-                success, stolenAmount, newBalance,
-                jailTimeMinutes, buffMessage
+                success, stolenItems, stolenAmount, totalValue, newBalance, newCollectionValue,
+                punishment, bailInfo, jailInfo, buffMessage, stealType: responseStealType
             } = response.data;
 
             if (success) {
-                const embed = createSuccessEmbed('🦹 Steal Successful!')
+                const embed = createSuccessEmbed(`${typeEmojis[stealType]} Steal Successful!`)
                     .addFields(
                         { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
-                        { name: 'Amount Stolen', value: `${stolenAmount.toLocaleString('en-US')} points`, inline: true },
-                        { name: 'New Balance', value: `${newBalance.toLocaleString('en-US')} points`, inline: true },
-                        { name: 'Result', value: `You successfully stole from <@${targetUser.id}>!`, inline: false }
+                        { name: 'Type', value: stealType.charAt(0).toUpperCase() + stealType.slice(1), inline: true }
                     );
+
+                if (stealType === 'points') {
+                    embed.addFields(
+                        { name: 'Amount Stolen', value: `${stolenAmount.toLocaleString('en-US')} points`, inline: true },
+                        { name: 'New Balance', value: `${newBalance.toLocaleString('en-US')} points`, inline: true }
+                    );
+                } else if (stolenItems && stolenItems.length > 0) {
+                    const itemsText = stolenItems.map(item => 
+                        `${rarityEmojis[item.rarity] || '⚪'} **${item.name}** (x${item.count}) - ${item.value.toLocaleString('en-US')} pts`
+                    ).join('\n');
+                    embed.addFields(
+                        { name: 'Items Stolen', value: itemsText, inline: false },
+                        { name: 'Total Value', value: `${totalValue.toLocaleString('en-US')} points`, inline: true },
+                        { name: 'New Collection Value', value: `${(newCollectionValue || totalValue).toLocaleString('en-US')} points`, inline: true }
+                    );
+                }
 
                 const messageData = {
                     embeds: [embed],
@@ -130,13 +271,51 @@ module.exports = {
                     });
                 }
             } else {
-                const embed = createErrorEmbed('🚔 Steal Failed!')
+                const embed = createErrorEmbed(`${punishmentEmojis[punishment?.type] || '🚔'} Steal Failed!`)
                     .setColor(0xffa500)
                     .addFields(
                         { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
-                        { name: 'Jail Time', value: `${jailTimeMinutes} minutes`, inline: true },
-                        { name: 'Result', value: buffMessage || `You got caught trying to steal from <@${targetUser.id}> and are now jailed!`, inline: false }
+                        { name: 'Type', value: stealType.charAt(0).toUpperCase() + stealType.slice(1), inline: true }
                     );
+
+                if (punishment) {
+                    const punishmentText = `${punishmentEmojis[punishment.type] || '⚠️'} **${punishment.type.toUpperCase()}** (${punishment.severity})`;
+                    if (punishment.description) {
+                        embed.addFields({ 
+                            name: 'Punishment', 
+                            value: `${punishmentText}\n${punishment.description}`, 
+                            inline: false 
+                        });
+                    } else {
+                        embed.addFields({ name: 'Punishment', value: punishmentText, inline: false });
+                    }
+                    
+                    // Add jail time if jailed
+                    if (punishment.type === 'jail' && jailInfo) {
+                        const jailText = `⏰ **Jail Time:** ${jailInfo.minutes} minutes`;
+                        embed.addFields({ 
+                            name: 'Jail Time', 
+                            value: jailText, 
+                            inline: false 
+                        });
+                    }
+                    
+                    // Add bail information if jailed
+                    if (punishment.type === 'jail' && bailInfo) {
+                        const bailText = `💰 **Bail Amount:** ${bailInfo.bailAmount.toLocaleString('en-US')} points`;
+                        const additionalJailText = bailInfo.additionalJailTime > 0 ? 
+                            `\n⏰ **Additional Jail Time:** +${bailInfo.additionalJailTime} minutes` : '';
+                        embed.addFields({ 
+                            name: 'Bail Information', 
+                            value: bailText + additionalJailText, 
+                            inline: false 
+                        });
+                    }
+                }
+
+                if (buffMessage) {
+                    embed.addFields({ name: 'Buff Used', value: buffMessage, inline: false });
+                }
 
                 const messageData = {
                     embeds: [embed],
@@ -176,6 +355,8 @@ module.exports = {
                     errorEmbed.setDescription(`💰 ${error.response.data.message}`);
                 } else if (msg.includes('cannot steal from yourself')) {
                     errorEmbed.setDescription(`🤦 ${error.response.data.message}`);
+                } else if (msg.includes('no') && msg.includes('to steal')) {
+                    errorEmbed.setDescription(`📦 ${error.response.data.message}`);
                 } else {
                     errorEmbed.setDescription(error.response.data.message);
                 }

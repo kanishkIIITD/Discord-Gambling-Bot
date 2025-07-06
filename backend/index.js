@@ -102,9 +102,13 @@ if (require.main === module) {
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Discord Client ID: ${process.env.DISCORD_CLIENT_ID}`);
-    console.log(`Discord Client Secret: ${process.env.DISCORD_CLIENT_SECRET}`);
+    // console.log(`Discord Client Secret: ${process.env.DISCORD_CLIENT_SECRET}`);
   });
 }
 
 // Export app and server for testing
 module.exports = { app, server };
+
+// Export handler for serverless deployment
+const handler = serverless(app);
+module.exports.handler = handler;

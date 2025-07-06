@@ -178,10 +178,263 @@ async function updateUserWinStreak(discordId, didWin, guildId) {
   await user.save();
 }
 
+// Punishment system for enhanced steal command
+const PUNISHMENT_LEVELS = {
+  light: {
+    fine: 0.05,           // 5% of balance
+    cooldownExtension: 30, // 30 minutes
+    itemLoss: 1,          // 1 item
+    duration: 60          // 1 hour effects
+  },
+  medium: {
+    fine: 0.10,           // 10% of balance
+    cooldownExtension: 60, // 1 hour
+    itemLoss: 2,          // 2 items
+    duration: 120         // 2 hours effects
+  },
+  heavy: {
+    fine: 0.15,           // 15% of balance
+    cooldownExtension: 120, // 2 hours
+    itemLoss: 3,          // 3 items
+    duration: 240         // 4 hours effects
+  }
+};
+
+const STEAL_CONFIG = {
+  points: {
+    successRate: 0.30,
+    cooldownHours: 2,
+    baseChance: { jail: 0.5, fine: 0.3, cooldown: 0.2 }, // Removed bounty: 0.1
+    jailTime: { min: 30, max: 60 }
+  },
+  fish: {
+    successRate: 0.25,
+    cooldownHours: 3,
+    baseChance: { jail: 0.4, itemLoss: 0.3, cooldown: 0.3 }, // Removed marked: 0.15
+    jailTime: { min: 45, max: 90 }
+  },
+  animal: {
+    successRate: 0.20,
+    cooldownHours: 3,
+    baseChance: { jail: 0.5, itemLoss: 0.25, cooldown: 0.25 }, // Removed penalty: 0.15
+    jailTime: { min: 60, max: 120 }
+  },
+  item: {
+    successRate: 0.15,
+    cooldownHours: 4,
+    baseChance: { jail: 0.5, itemLoss: 0.25, cooldown: 0.25 }, // Removed ban: 0.15
+    jailTime: { min: 90, max: 180 }
+  }
+};
+
+function selectPunishment(stealType, failureCount, attemptedValue) {
+  const config = STEAL_CONFIG[stealType];
+  if (!config) return { type: 'jail', severity: 'medium' };
+
+  let chances = { ...config.baseChance };
+  
+  // Adjust based on failure count
+  if (failureCount > 2) {
+    chances.jail = Math.min(chances.jail + 0.2, 0.8);
+    chances.fine = Math.max(chances.fine - 0.1, 0.1);
+    chances.cooldown = Math.max(chances.cooldown - 0.05, 0.1);
+    chances.itemLoss = Math.max(chances.itemLoss - 0.05, 0.1);
+  }
+
+  // Adjust based on target value
+  if (attemptedValue > 100000) {
+    chances.jail = Math.min(chances.jail + 0.1, 0.8);
+    chances.fine = Math.max(chances.fine - 0.05, 0.1);
+  }
+
+  // Normalize chances
+  const total = Object.values(chances).reduce((sum, chance) => sum + chance, 0);
+  Object.keys(chances).forEach(key => {
+    chances[key] = chances[key] / total;
+  });
+
+  // Select punishment based on weighted random
+  const random = Math.random();
+  let cumulative = 0;
+  
+  for (const [type, chance] of Object.entries(chances)) {
+    cumulative += chance;
+    if (random <= cumulative) {
+      return { type, severity: failureCount > 2 ? 'heavy' : 'medium' };
+    }
+  }
+
+  return { type: 'jail', severity: 'medium' };
+}
+
+function applyPunishment(user, punishment, stealType, targetDiscordId, wallet) {
+  const level = PUNISHMENT_LEVELS[punishment.severity];
+  const now = new Date();
+
+  switch (punishment.type) {
+    case 'jail':
+      const jailTime = STEAL_CONFIG[stealType].jailTime;
+      const jailMinutes = Math.floor(Math.random() * (jailTime.max - jailTime.min + 1)) + jailTime.min;
+      user.jailedUntil = new Date(now.getTime() + jailMinutes * 60000);
+      break;
+
+    case 'fine':
+      const fineAmount = Math.floor(wallet.balance * level.fine);
+      wallet.balance = Math.max(0, wallet.balance - fineAmount);
+      break;
+
+    case 'itemLoss':
+      const itemsToLose = Math.min(level.itemLoss, user.inventory.length);
+      if (itemsToLose > 0) {
+        const shuffled = [...user.inventory].sort(() => Math.random() - 0.5);
+        const lostItems = shuffled.slice(0, itemsToLose);
+        
+        lostItems.forEach(lostItem => {
+          const itemIndex = user.inventory.findIndex(item => 
+            item.type === lostItem.type && item.name === lostItem.name
+          );
+          if (itemIndex !== -1) {
+            if (user.inventory[itemIndex].count > 1) {
+              user.inventory[itemIndex].count--;
+            } else {
+              user.inventory.splice(itemIndex, 1);
+            }
+          }
+        });
+      }
+      break;
+
+    case 'cooldown':
+      const extensionMs = level.cooldownExtension * 60000;
+      if (user.fishCooldown) user.fishCooldown = new Date(user.fishCooldown.getTime() + extensionMs);
+      if (user.huntCooldown) user.huntCooldown = new Date(user.huntCooldown.getTime() + extensionMs);
+      if (user.workCooldown) user.workCooldown = new Date(user.workCooldown.getTime() + extensionMs);
+      if (user.begCooldown) user.begCooldown = new Date(user.begCooldown.getTime() + extensionMs);
+      if (user.crimeCooldown) user.crimeCooldown = new Date(user.crimeCooldown.getTime() + extensionMs);
+      break;
+
+    // TODO: Implement these punishment types later
+    // case 'bounty':
+    // case 'marked':
+    // case 'penalty':
+    // case 'ban':
+    //   break;
+  }
+
+  // Add active punishment
+  user.activePunishments.push({
+    type: punishment.type,
+    description: getPunishmentDescription(punishment, stealType),
+    expiresAt: new Date(now.getTime() + level.duration * 60000),
+    severity: punishment.severity,
+    stealType,
+    targetDiscordId
+  });
+
+  // Update failure tracking
+  user.stealFailureCount = (user.stealFailureCount || 0) + 1;
+  user.lastStealFailure = now;
+}
+
+function getPunishmentDescription(punishment, stealType) {
+  const descriptions = {
+    jail: `Jailed for attempting to steal ${stealType}`,
+    fine: `Fined for failed ${stealType} theft`,
+    itemLoss: `Lost items due to failed ${stealType} theft`,
+    cooldown: `Extended cooldowns for failed ${stealType} theft`,
+    // TODO: Implement these punishment types later
+    // bounty: `Bounty placed on you for failed ${stealType} theft (not implemented)`,
+    // marked: `Marked as thief for failed ${stealType} theft (not implemented)`,
+    // penalty: `Penalty applied for failed ${stealType} theft (not implemented)`,
+    // ban: `Temporarily banned from certain activities for failed ${stealType} theft (not implemented)`
+  };
+  return descriptions[punishment.type] || `Punished for failed ${stealType} theft`;
+}
+
+function cleanActivePunishments(user) {
+  const now = new Date();
+  user.activePunishments = user.activePunishments.filter(p => p.expiresAt > now);
+}
+
+function getStealCooldownField(stealType) {
+  const cooldownMap = {
+    points: 'stealPointsCooldown',
+    fish: 'stealFishCooldown',
+    animal: 'stealAnimalCooldown',
+    item: 'stealItemCooldown'
+  };
+  return cooldownMap[stealType] || 'stealPointsCooldown'; // Default to points cooldown
+}
+
+function getStealCooldownHours(stealType) {
+  return STEAL_CONFIG[stealType]?.cooldownHours || 2;
+}
+
+function getStealSuccessRate(stealType) {
+  return STEAL_CONFIG[stealType]?.successRate || 0.30;
+}
+
+function calculateBailAmount(targetBalance, stealPercentage, stealType, failureCount = 0, userBalance = 0) {
+  const attemptedValue = Math.floor(targetBalance * stealPercentage);
+  
+  // Base bail amount
+  const baseBail = 25000;
+  
+  // Value-based component (50% of attempted steal value)
+  const valueBasedBail = Math.floor(attemptedValue * 0.5);
+  
+  // Maximum cap (5% of target's balance)
+  const maxBail = Math.floor(targetBalance * 0.05);
+  
+  // Steal type modifier (items are slightly cheaper to bail out)
+  const stealTypeMultipliers = {
+    points: 1.0,
+    fish: 0.8,
+    animal: 0.8,
+    item: 0.8
+  };
+  const typeMultiplier = stealTypeMultipliers[stealType] || 1.0;
+  
+  // Failure count scaling (20% increase per failure)
+  const failureMultiplier = 1 + (failureCount * 0.2);
+  
+  // Calculate initial bail amount
+  let bailAmount = Math.min(
+    Math.max(baseBail, valueBasedBail), // At least baseBail, at most value-based
+    maxBail // But never more than 5% of target's balance
+  );
+  
+  // Apply type and failure multipliers
+  bailAmount = Math.floor(bailAmount * typeMultiplier * failureMultiplier);
+  
+  // If user can't afford bail, reduce it but return additional jail time
+  let additionalJailTime = 0;
+  if (userBalance > 0 && userBalance < bailAmount) {
+    const affordableBail = Math.floor(userBalance * 0.8); // Use 80% of their balance
+    additionalJailTime = Math.ceil((bailAmount - affordableBail) / 1000); // 1 minute per 1000 points
+    bailAmount = affordableBail;
+  }
+  
+  return {
+    bailAmount: Math.max(bailAmount, 1000), // Minimum 1000 points
+    additionalJailTime
+  };
+}
+
 module.exports = {
   updateWalletBalance,
   createGamblingResponse,
   calculateMultiplier,
   getNumbersCoveredByBet,
-  updateUserWinStreak
+  updateUserWinStreak,
+  // New punishment system exports
+  selectPunishment,
+  applyPunishment,
+  cleanActivePunishments,
+  getStealCooldownField,
+  getStealCooldownHours,
+  getStealSuccessRate,
+  calculateBailAmount,
+  PUNISHMENT_LEVELS,
+  STEAL_CONFIG
 }; 

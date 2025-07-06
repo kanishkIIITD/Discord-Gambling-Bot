@@ -412,6 +412,7 @@ const commands = [
 					{ name: 'Wallet', value: 'wallet' },
 					{ name: 'Utility', value: 'utility' },
 					{ name: 'Fun & Collection', value: 'fun' },
+					{ name: 'Steal System', value: 'steal' },
 					{ name: 'Duel', value: 'duel' },
 					{ name: 'Buffs', value: 'buffs' },
 					{ name: 'Moderation', value: 'moderation' }
@@ -519,7 +520,7 @@ const commands = [
 	},
 	{
 		name: 'bail',
-		description: 'Bail a jailed user out of jail (for a fee)',
+		description: 'Bail a jailed user out of jail (dynamic pricing based on steal value)',
 		options: [
 			{
 				name: 'user',
@@ -751,24 +752,111 @@ const commands = [
 	},
 	{
 		name: 'steal',
-		description: 'Attempt to steal points from another user (30% success rate, 2-hour cooldown)',
+		description: 'Enhanced steal system with multiple steal types and separate cooldowns',
 		options: [
 			{
-				name: 'do',
-				description: 'Attempt to steal points from another user',
+				name: 'points',
+				description: 'Steal points from another user (30% success rate, 2-hour cooldown)',
 				type: 1,
 				options: [
 					{
 						name: 'target',
-						description: 'The user to steal from',
+						description: 'The user to steal points from',
 						type: 6,
 						required: true
 					}
 				]
 			},
 			{
+				name: 'fish',
+				description: 'Steal fish from another user (25% success rate, 3-hour cooldown)',
+				type: 1,
+				options: [
+					{
+						name: 'target',
+						description: 'The user to steal fish from',
+						type: 6,
+						required: true
+					},
+					{
+						name: 'rarity',
+						description: 'Filter by rarity (optional)',
+						type: 3,
+						required: false,
+						choices: [
+							{ name: 'Common', value: 'common' },
+							{ name: 'Uncommon', value: 'uncommon' },
+							{ name: 'Rare', value: 'rare' },
+							{ name: 'Epic', value: 'epic' },
+							{ name: 'Legendary', value: 'legendary' },
+							{ name: 'Mythical', value: 'mythical' },
+							{ name: 'Transcendent', value: 'transcendent' },
+							{ name: 'OG', value: 'og' }
+						]
+					}
+				]
+			},
+			{
+				name: 'animal',
+				description: 'Steal animals from another user (20% success rate, 3-hour cooldown)',
+				type: 1,
+				options: [
+					{
+						name: 'target',
+						description: 'The user to steal animals from',
+						type: 6,
+						required: true
+					},
+					{
+						name: 'rarity',
+						description: 'Filter by rarity (optional)',
+						type: 3,
+						required: false,
+						choices: [
+							{ name: 'Common', value: 'common' },
+							{ name: 'Uncommon', value: 'uncommon' },
+							{ name: 'Rare', value: 'rare' },
+							{ name: 'Epic', value: 'epic' },
+							{ name: 'Legendary', value: 'legendary' },
+							{ name: 'Mythical', value: 'mythical' },
+							{ name: 'Transcendent', value: 'transcendent' },
+							{ name: 'OG', value: 'og' }
+						]
+					}
+				]
+			},
+			{
+				name: 'item',
+				description: 'Steal items from another user (15% success rate, 4-hour cooldown)',
+				type: 1,
+				options: [
+					{
+						name: 'target',
+						description: 'The user to steal items from',
+						type: 6,
+						required: true
+					},
+					{
+						name: 'rarity',
+						description: 'Filter by rarity (optional)',
+						type: 3,
+						required: false,
+						choices: [
+							{ name: 'Common', value: 'common' },
+							{ name: 'Uncommon', value: 'uncommon' },
+							{ name: 'Rare', value: 'rare' },
+							{ name: 'Epic', value: 'epic' },
+							{ name: 'Legendary', value: 'legendary' },
+							{ name: 'Mythical', value: 'mythical' },
+							{ name: 'Transcendent', value: 'transcendent' },
+							{ name: 'OG', value: 'og' }
+						]
+					}
+				]
+			},
+			{
 				name: 'stats',
-				description: 'View your steal statistics',
+				description: 'View your detailed steal statistics and active punishments',
 				type: 1
 			}
 		]

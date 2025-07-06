@@ -2815,6 +2815,7 @@ client.on('interactionCreate', async interaction => {
 						{ name: '💰 Wallet', value: 'Use `/help section:wallet`' },
 						{ name: '📊 Utility', value: 'Use `/help section:utility`' },
 						{ name: '🎮 Fun & Collection', value: 'Use `/help section:fun`' },
+						{ name: '🦹 Steal System', value: 'Use `/help section:steal`' },
 						{ name: '⚔️ Duel', value: 'Use `/help section:duel`' },
 						{ name: '✨ Buffs', value: 'Use `/help section:buffs`' },
 						{ name: '🛡️ Moderation', value: 'Use `/help section:moderation`' },
@@ -2939,17 +2940,25 @@ client.on('interactionCreate', async interaction => {
 						{ name: '💼 Jobs & Activities', value:
 							'`/work do` - Work a job for a chance to earn points and rare bonuses\n' +
 							'`/crime do` - Attempt a crime for a chance to win or lose points\n' +
-							'`/steal do @user` - Attempt to steal points from another user (30% success rate, 2-hour cooldown)\n' +
+							'`/steal points @user` - Steal points from another user (30% success rate, 2-hour cooldown)\n' +
+							'`/steal fish @user [rarity]` - Steal fish from another user (25% success rate, 3-hour cooldown)\n' +
+							'`/steal animal @user [rarity]` - Steal animals from another user (20% success rate, 3-hour cooldown)\n' +
+							'`/steal item @user [rarity]` - Steal items from another user (15% success rate, 4-hour cooldown)\n' +
 							'`/meowbark` - Perform a meow or bark to earn points\n' +
 							'`/question` - Answer a question about a cat for a chance to win or lose points\n' +
 							'`/beg` - Beg for coins and see what happens\n' +
 							'`/mysterybox` - Open a mystery box for random rewards'
 						},
-						{ name: '🚔 Jail System', value:
-							'`/bail @user` - Bail a jailed user out (for a fee)\n' +
+						{ name: '🚔 Jail & Bail System', value:
+							'`/bail @user` - Bail a jailed user out (dynamic pricing based on steal value)\n' +
 							'`/bail all:true` - Bail all jailed users in the server\n' +
 							'`/jailed` - View all currently jailed users in this server\n' +
-							'`/timeout` - Timeout a user'
+							'`/timeout` - Timeout a user\n\n' +
+							'**Steal Punishments:**\n' +
+							'• **Jail:** Time-based imprisonment with bail option\n' +
+							'• **Fine:** Percentage of your balance\n' +
+							'• **Item Loss:** Random items from your collection\n' +
+							'• **Cooldown:** Extended cooldowns on all activities'
 						},
 						{ name: '📊 Stats & Info', value:
 							'`/work stats` - View your work/job statistics\n' +
@@ -2960,6 +2969,52 @@ client.on('interactionCreate', async interaction => {
 						{ name: '🔄 Trading & Selling', value:
 							'`/trade` - Gift or trade items with another user\n' +
 							'`/sell` - Sell items from your collection for points'
+						}
+					],
+					timestamp: new Date()
+				};
+			} else if (sub === 'steal') {
+				embed = {
+					color: 0x0099ff,
+					title: '🦹 Steal System',
+					description: 'Advanced stealing system with multiple targets and dynamic punishments.',
+					fields: [
+						{ name: '🎯 Steal Types', value:
+							'`/steal points @user` - Steal 5-20% of target\'s balance (30% success rate)\n' +
+							'`/steal fish @user [rarity]` - Steal 1-3 fish items (25% success rate)\n' +
+							'`/steal animal @user [rarity]` - Steal 1-3 animal items (20% success rate)\n' +
+							'`/steal item @user [rarity]` - Steal 1-3 collectible items (15% success rate)'
+						},
+						{ name: '⏰ Cooldowns', value:
+							'• **Points:** 2 hours between attempts\n' +
+							'• **Fish:** 3 hours between attempts\n' +
+							'• **Animal:** 3 hours between attempts\n' +
+							'• **Item:** 4 hours between attempts\n\n' +
+							'*Cooldowns only start on actual attempts (success or failure)*'
+						},
+						{ name: '🚔 Punishment System', value:
+							'**Jail:** 30-180 minutes based on steal type\n' +
+							'**Fine:** 10-30% of your balance\n' +
+							'**Item Loss:** 1-3 random items from collection\n' +
+							'**Cooldown:** Extended cooldowns on all activities\n\n' +
+							'*Punishment severity increases with failure count*'
+						},
+						{ name: '💰 Bail System', value:
+							'**Dynamic Pricing:** Based on attempted steal value\n' +
+							'**Components:** Base cost + 50% of attempted value\n' +
+							'**Cap:** Maximum 5% of target\'s balance\n' +
+							'**Scaling:** 20% increase per failure\n\n' +
+							'*If you can\'t afford bail, additional jail time is added*'
+						},
+						{ name: '📊 Statistics', value:
+							'`/steal stats` - View your steal success/failure rates\n' +
+							'`/steal stats @user` - View another user\'s steal statistics'
+						},
+						{ name: '🛡️ Protection', value:
+							'• Cannot steal from yourself\n' +
+							'• Target must have sufficient balance/items\n' +
+							'• Jail immunity buffs can prevent jail time\n' +
+							'• Lucky streak buffs increase success rates'
 						}
 					],
 					timestamp: new Date()

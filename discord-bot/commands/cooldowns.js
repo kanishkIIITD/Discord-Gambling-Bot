@@ -55,7 +55,10 @@ module.exports = {
         { name: `${formatCooldown(cooldowns.mysteryboxCooldown)}`, value: '🎁 Free Mystery Box', inline: false },
         { name: `${formatCooldown(cooldowns.lastDailyClaim, true)}`, value: '💰 Daily Bonus', inline: false },
         { name: `${formatCooldown(cooldowns.cooldownTime, false, 5)}`, value: '⏰ Timeout', inline: false },
-        { name: `${formatCooldown(cooldowns.stealCooldown, false, 120)}`, value: '🦹 Steal', inline: false }
+        { name: `${formatCooldown(cooldowns.stealPointsCooldown, false, 120)}`, value: '🦹 Steal Points', inline: false },
+        { name: `${formatCooldown(cooldowns.stealFishCooldown, false, 180)}`, value: '🦹 Steal Fish', inline: false },
+        { name: `${formatCooldown(cooldowns.stealAnimalCooldown, false, 180)}`, value: '🦹 Steal Animals', inline: false },
+        { name: `${formatCooldown(cooldowns.stealItemCooldown, false, 240)}`, value: '🦹 Steal Items', inline: false }
       ];
 
       // Add jail status if applicable

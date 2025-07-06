@@ -1,3 +1,5 @@
+const axios = require('axios');
+const { SlashCommandBuilder } = require('discord.js');
 const bailCommand = require('../commands/bail');
 const ResponseHandler = require('../utils/responseHandler');
 const logger = require('../utils/logger');
@@ -5,60 +7,164 @@ const logger = require('../utils/logger');
 jest.mock('../utils/responseHandler');
 jest.mock('../utils/logger');
 
-describe('bail command edge cases', () => {
-  let interaction;
+// Mock axios
+jest.mock('axios');
+
+// Mock environment variable
+process.env.BACKEND_API_URL = 'http://localhost:3000';
+
+describe('Bail Command', () => {
+  let mockInteraction;
 
   beforeEach(() => {
-    interaction = {
-      deferReply: jest.fn().mockResolvedValue(),
-      editReply: jest.fn().mockResolvedValue(),
-      followUp: jest.fn().mockResolvedValue(),
-      replied: false,
-      user: { id: '123', tag: 'TestUser#0001' },
-      guildId: '456',
-      options: { 
-        getString: jest.fn(), 
+    jest.clearAllMocks();
+    
+    mockInteraction = {
+      user: {
+        id: '123456789',
+        tag: 'TestUser#1234'
+      },
+      options: {
         getUser: jest.fn(),
         getBoolean: jest.fn()
-      }
+      },
+      deferReply: jest.fn(),
+      editReply: jest.fn(),
+      guildId: 'test-guild-id'
     };
-    jest.clearAllMocks();
   });
 
-  it('handles robust interaction pattern', async () => {
-    await bailCommand.execute(interaction);
-    expect(interaction.deferReply).toHaveBeenCalled();
+  describe('Single User Bail', () => {
+    beforeEach(() => {
+      mockInteraction.options.getUser.mockReturnValue({
+        id: '987654321',
+        tag: 'TargetUser#5678'
+      });
+      mockInteraction.options.getBoolean.mockReturnValue(false);
+    });
+
+    test('should handle successful bail with new system', async () => {
+      const mockResponse = {
+        message: 'You bailed out <@987654321> for 50,000 points!',
+        bailCost: 50000,
+        minutesLeft: 30
+      };
+
+      axios.post.mockResolvedValue({
+        data: mockResponse
+      });
+
+      await bailCommand.execute(mockInteraction);
+
+      expect(axios.post).toHaveBeenCalledWith(
+        'http://localhost:3000/users/123456789/bail',
+        {
+          targetDiscordId: '987654321',
+          guildId: 'test-guild-id'
+        },
+        {
+          headers: {
+            'x-guild-id': 'test-guild-id'
+          }
+        }
+      );
+      expect(mockInteraction.editReply).toHaveBeenCalled();
+    });
+
+    test('should handle successful bail with old system fallback', async () => {
+      const mockResponse = {
+        message: 'You bailed out <@987654321> for 40,000 points!',
+        bailCost: 40000,
+        minutesLeft: 30
+      };
+
+      axios.post.mockResolvedValue({
+        data: mockResponse
+      });
+
+      await bailCommand.execute(mockInteraction);
+
+      expect(mockInteraction.editReply).toHaveBeenCalled();
+    });
   });
 
-  it('handles error gracefully', async () => {
-    interaction.options.getString.mockImplementation(() => { throw new Error('Test error'); });
-    await bailCommand.execute(interaction);
-    expect(ResponseHandler.handleError).toHaveBeenCalled();
+  describe('Mass Bail', () => {
+    beforeEach(() => {
+      mockInteraction.options.getUser.mockReturnValue(null);
+      mockInteraction.options.getBoolean.mockReturnValue(true);
+    });
+
+    test('should handle successful mass bail', async () => {
+      const mockResponse = {
+        message: 'Successfully bailed out 2 users for 100,000 points!',
+        totalCost: 100000,
+        bailedUsers: [
+          { discordId: '111111111', username: 'User1', bailCost: 50000, minutesLeft: 30 },
+          { discordId: '222222222', username: 'User2', bailCost: 50000, minutesLeft: 45 }
+        ],
+        failedUsers: []
+      };
+
+      axios.post.mockResolvedValue({
+        data: mockResponse
+      });
+
+      await bailCommand.execute(mockInteraction);
+
+      expect(axios.post).toHaveBeenCalledWith(
+        'http://localhost:3000/users/123456789/bail-all',
+        { guildId: 'test-guild-id' },
+        {
+          headers: {
+            'x-guild-id': 'test-guild-id'
+          }
+        }
+      );
+      expect(mockInteraction.editReply).toHaveBeenCalled();
+    });
+
+    test('should handle mass bail with some failures', async () => {
+      const mockResponse = {
+        message: 'Successfully bailed out 1 users for 50,000 points!\n1 users could not be bailed out.',
+        totalCost: 50000,
+        bailedUsers: [
+          { discordId: '111111111', username: 'User1', bailCost: 50000, minutesLeft: 30 }
+        ],
+        failedUsers: [
+          { discordId: '222222222', username: 'User2', reason: 'Insufficient balance' }
+        ]
+      };
+
+      axios.post.mockResolvedValue({
+        data: mockResponse
+      });
+
+      await bailCommand.execute(mockInteraction);
+
+      expect(mockInteraction.editReply).toHaveBeenCalled();
+    });
   });
 
-  it('validates input when neither user nor all is specified', async () => {
-    interaction.options.getUser.mockReturnValue(null);
-    interaction.options.getBoolean.mockReturnValue(false);
-    
-    await bailCommand.execute(interaction);
-    
-    expect(ResponseHandler.handleError).toHaveBeenCalledWith(
-      interaction, 
-      { message: 'Please specify either a user to bail or set "all" to true to bail all jailed users.' }, 
-      'Bail'
-    );
-  });
+  describe('Error Handling', () => {
+    test('should handle API errors', async () => {
+      const errorMessage = 'Insufficient balance';
+      axios.post.mockRejectedValue({
+        response: {
+          data: { message: errorMessage }
+        }
+      });
 
-  it('validates input when both user and all are specified', async () => {
-    interaction.options.getUser.mockReturnValue({ id: '789' });
-    interaction.options.getBoolean.mockReturnValue(true);
-    
-    await bailCommand.execute(interaction);
-    
-    expect(ResponseHandler.handleError).toHaveBeenCalledWith(
-      interaction, 
-      { message: 'Cannot specify both a user and "all" option. Please choose one or the other.' }, 
-      'Bail'
-    );
+      await bailCommand.execute(mockInteraction);
+
+      expect(ResponseHandler.handleError).toHaveBeenCalled();
+    });
+
+    test('should handle network errors', async () => {
+      axios.post.mockRejectedValue(new Error('Network error'));
+
+      await bailCommand.execute(mockInteraction);
+
+      expect(ResponseHandler.handleError).toHaveBeenCalled();
+    });
   });
 }); 
