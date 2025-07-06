@@ -41,6 +41,27 @@ module.exports = {
       let cooldownSeconds = 0;
       if (boxType === 'premium') cooldownSeconds = 5 * count;
       if (boxType === 'ultimate') cooldownSeconds = Math.round(7.5 * count);
+      
+      // Check for mystery box cooldown reduction buff
+      let cooldownMultiplier = 1;
+      let buffMessage = '';
+      try {
+        const buffResponse = await axios.get(`${process.env.BACKEND_API_URL}/users/${userId}/buffs`, {
+          headers: { 'x-guild-id': guildId }
+        });
+        const { buffs } = buffResponse.data;
+        const cooldownBuff = buffs.find(b => b.type === 'mysterybox_cooldown_half' && (!b.expiresAt || b.expiresAt > now));
+        if (cooldownBuff) {
+          cooldownMultiplier = 0.5; // 50% reduction
+          buffMessage = '⏰ Mystery Box Cooldown Half buff active: 50% cooldown reduction!';
+        }
+      } catch (error) {
+        // If buff check fails, continue with normal cooldown
+        console.log('Could not check buffs for mystery box cooldown reduction');
+      }
+      
+      cooldownSeconds = Math.floor(cooldownSeconds * cooldownMultiplier);
+      
       let userCooldown, guildCooldown, lastUsed, remaining;
       if (cooldownSeconds > 0) {
         userCooldown = boxCooldowns.get(userId) || {};
@@ -116,6 +137,12 @@ module.exports = {
           .setDescription(`You opened ${count} ${boxType} mystery boxes!\n\n${summaryLines.join('\n')}`)
           .setTimestamp()
           .setFooter({ text: `Requested by ${interaction.user.tag}` });
+        
+        // Add buff message if present
+        if (buffMessage) {
+          embed.addFields({ name: '✨ Buff Active', value: buffMessage, inline: false });
+        }
+        
         await interaction.editReply({ embeds: [embed] });
         return;
       }
@@ -173,6 +200,11 @@ module.exports = {
 
       if (message) {
         embed.addFields({ name: 'Additional Info', value: message, inline: false });
+      }
+
+      // Add buff message if present
+      if (buffMessage) {
+        embed.addFields({ name: '✨ Buff Active', value: buffMessage, inline: false });
       }
 
       await interaction.editReply({ embeds: [embed] });

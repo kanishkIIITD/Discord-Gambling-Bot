@@ -297,8 +297,15 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       return res.status(400).json({ message: 'Target user has insufficient balance to steal from.' });
     }
 
-    // Determine success/failure (30% success rate)
-    const isSuccess = Math.random() < 0.3;
+    // Check for lucky streak buff
+    const luckyStreakBuff = (attacker.buffs || []).find(b => b.type === 'lucky_streak' && b.usesLeft > 0);
+    
+    // Determine success/failure (30% success rate, or 50% with lucky streak)
+    let successThreshold = 0.3;
+    if (luckyStreakBuff) {
+      successThreshold = 0.5; // 50% success rate with lucky streak
+    }
+    const isSuccess = Math.random() < successThreshold;
     
     if (isSuccess) {
       // Success: steal 5-20% of target's balance
@@ -311,6 +318,14 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       
       await targetWallet.save();
       await attackerWallet.save();
+      
+      // Consume lucky streak buff if used
+      if (luckyStreakBuff) {
+        luckyStreakBuff.usesLeft--;
+        if (luckyStreakBuff.usesLeft <= 0) {
+          attacker.buffs = attacker.buffs.filter(b => b !== luckyStreakBuff);
+        }
+      }
       
       // Update attacker stats
       attacker.stealStats.success += 1;
@@ -345,8 +360,13 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
         }
       });
       
+      let message = `Successfully stole ${stolenAmount.toLocaleString('en-US')} points from ${targetDiscordId}!`;
+      if (luckyStreakBuff) {
+        message += ` 🍀 Lucky Streak buff used! (${luckyStreakBuff.usesLeft + 1} uses remaining)`;
+      }
+      
       res.json({
-        message: `Successfully stole ${stolenAmount.toLocaleString('en-US')} points from ${targetDiscordId}!`,
+        message: message,
         success: true,
         stolenAmount,
         newBalance: attackerWallet.balance,
@@ -1707,6 +1727,7 @@ router.post('/:discordId/crime', async (req, res) => {
     let usedBuff = null;
     const crimeSuccessIdx = (user.buffs || []).findIndex(b => b.type === 'crime_success');
     const jailImmunityIdx = (user.buffs || []).findIndex(b => b.type === 'jail_immunity' && (!b.expiresAt || b.expiresAt > now));
+    const luckyStreakBuff = (user.buffs || []).find(b => b.type === 'lucky_streak' && b.usesLeft > 0);
     const earningsBuff = (user.buffs || []).find(b => 
       (b.type === 'earnings_x2' || b.type === 'earnings_x3' || b.type === 'earnings_x5') && 
       (!b.expiresAt || b.expiresAt > now)
@@ -1725,13 +1746,32 @@ router.post('/:discordId/crime', async (req, res) => {
       message = `Your buff guaranteed a successful crime! You pulled off the ${crime} and got away with ${amount.toLocaleString('en-US')} points! 🤑`;
       user.crimeStats.success++;
     } else {
-      if (outcomeRoll < 0.5) {
+      // Apply lucky streak buff if available
+      let successThreshold = 0.5;
+      let failThreshold = 0.85;
+      
+      if (luckyStreakBuff) {
+        successThreshold = 0.7; // 70% success rate instead of 50%
+        failThreshold = 0.9; // 20% fail rate instead of 35%
+        // 10% jail rate instead of 15%
+      }
+      
+      if (outcomeRoll < successThreshold) {
         // Success
         outcome = 'success';
         amount = Math.floor(Math.random() * 125000) + 25000; // 25k-150k
         message = `You pulled off the ${crime} and got away with ${amount.toLocaleString('en-US')} points! 🤑`;
         user.crimeStats.success++;
-      } else if (outcomeRoll < 0.85) {
+        
+        // Consume lucky streak buff
+        if (luckyStreakBuff) {
+          luckyStreakBuff.usesLeft--;
+          if (luckyStreakBuff.usesLeft <= 0) {
+            user.buffs = user.buffs.filter(b => b !== luckyStreakBuff);
+          }
+          message += ` 🍀 Lucky Streak buff used! (${luckyStreakBuff.usesLeft + 1} uses remaining)`;
+        }
+      } else if (outcomeRoll < failThreshold) {
         // Failure
         outcome = 'fail';
         amount = Math.floor(Math.random() * 70000) + 10000; // 10k-80k
@@ -2137,7 +2177,13 @@ router.post('/:discordId/fish', async (req, res) => {
     const now = new Date();
     if (typeof cleanUserBuffs === 'function') cleanUserBuffs(user);
     if (!user.fishCooldown) user.fishCooldown = null;
-    if (user.fishCooldown && user.fishCooldown > now) {
+    
+    // Check for no cooldown buffs
+    const noCooldownBuff = (user.buffs || []).find(b => b.type === 'fishing_no_cooldown' && b.usesLeft > 0);
+    const frenzyBuff = (user.buffs || []).find(b => b.type === 'frenzy_mode' && (!b.expiresAt || b.expiresAt > now));
+    const timeWarpBuff = (user.buffs || []).find(b => b.type === 'time_warp' && (!b.expiresAt || b.expiresAt > now));
+    
+    if (user.fishCooldown && user.fishCooldown > now && !noCooldownBuff && !frenzyBuff) {
       return res.status(429).json({ message: `Fishing is on cooldown. Try again at ${user.fishCooldown.toLocaleString()}`, cooldown: user.fishCooldown });
     }
     // Fish table
@@ -2501,8 +2547,35 @@ router.post('/:discordId/fish', async (req, res) => {
     }
     user.inventory = fishInv;
 
-    // Set cooldown (5-15 min)
-    const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
+    // Handle buff consumption and cooldown
+    let cooldownMinutes = Math.floor(Math.random() * 11) + 5;
+    
+    // Consume no cooldown buff if used
+    if (noCooldownBuff) {
+      noCooldownBuff.usesLeft--;
+      if (noCooldownBuff.usesLeft <= 0) {
+        user.buffs = user.buffs.filter(b => b !== noCooldownBuff);
+      }
+      cooldownMinutes = 0; // No cooldown when buff is used
+      if (!buffMessage) buffMessage = '';
+      if (buffMessage) buffMessage += '\n';
+      buffMessage += `🎯 No Cooldown buff used! (${noCooldownBuff.usesLeft + 1} uses remaining)`;
+    }
+    
+    // Apply frenzy mode (no cooldown)
+    if (frenzyBuff) {
+      cooldownMinutes = 0;
+      if (buffMessage) buffMessage += '\n';
+      buffMessage += `⚡ Frenzy Mode active: No cooldown!`;
+    }
+    
+    // Apply time warp (75% cooldown reduction)
+    if (timeWarpBuff) {
+      cooldownMinutes = Math.floor(cooldownMinutes * 0.25); // 25% of original cooldown
+      if (buffMessage) buffMessage += '\n';
+      buffMessage += `⏰ Time Warp active: 75% cooldown reduction!`;
+    }
+    
     user.fishCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
     await user.save();
 
@@ -2526,7 +2599,13 @@ router.post('/:discordId/hunt', async (req, res) => {
     const now = new Date();
     if (typeof cleanUserBuffs === 'function') cleanUserBuffs(user);
     if (!user.huntCooldown) user.huntCooldown = null;
-    if (user.huntCooldown && user.huntCooldown > now) {
+    
+    // Check for no cooldown buffs
+    const noCooldownBuff = (user.buffs || []).find(b => b.type === 'hunting_no_cooldown' && b.usesLeft > 0);
+    const frenzyBuff = (user.buffs || []).find(b => b.type === 'frenzy_mode' && (!b.expiresAt || b.expiresAt > now));
+    const timeWarpBuff = (user.buffs || []).find(b => b.type === 'time_warp' && (!b.expiresAt || b.expiresAt > now));
+    
+    if (user.huntCooldown && user.huntCooldown > now && !noCooldownBuff && !frenzyBuff) {
       return res.status(429).json({ message: `Hunting is on cooldown. Try again at ${user.huntCooldown.toLocaleString()}`, cooldown: user.huntCooldown });
     }
     // Animal table
@@ -2901,8 +2980,35 @@ router.post('/:discordId/hunt', async (req, res) => {
     }
     user.inventory = huntInv;
 
-    // Set cooldown (5-15 min)
-    const cooldownMinutes = Math.floor(Math.random() * 11) + 5;
+    // Handle buff consumption and cooldown
+    let cooldownMinutes = Math.floor(Math.random() * 11) + 5;
+
+    // Consume no cooldown buff if used
+    if (noCooldownBuff) {
+      noCooldownBuff.usesLeft--;
+      if (noCooldownBuff.usesLeft <= 0) {
+        user.buffs = user.buffs.filter(b => b !== noCooldownBuff);
+      }
+      cooldownMinutes = 0; // No cooldown when buff is used
+      if (!buffMessage) buffMessage = '';
+      if (buffMessage) buffMessage += '\n';
+      buffMessage += `🎯 No Cooldown buff used! (${noCooldownBuff.usesLeft + 1} uses remaining)`;
+    }
+    
+    // Apply frenzy mode (no cooldown)
+    if (frenzyBuff) {
+      cooldownMinutes = 0;
+      if (buffMessage) buffMessage += '\n';
+      buffMessage += `⚡ Frenzy Mode active: No cooldown!`;
+    }
+    
+    // Apply time warp (75% cooldown reduction)
+    if (timeWarpBuff) {
+      cooldownMinutes = Math.floor(cooldownMinutes * 0.25); // 25% of original cooldown
+      if (buffMessage) buffMessage += '\n';
+      buffMessage += `⏰ Time Warp active: 75% cooldown reduction!`;
+    }
+    
     user.huntCooldown = new Date(now.getTime() + cooldownMinutes * 60000);
     await user.save();
 
@@ -2929,6 +3035,46 @@ router.get('/:discordId/collection', async (req, res) => {
     res.json({ inventory: user.inventory || [] });
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching collection.' });
+  }
+});
+
+// --- COOLDOWN RESET ---
+router.post('/:discordId/reset-cooldowns', async (req, res) => {
+  try {
+    const user = req.user;
+    const now = new Date();
+    
+    // Check for cooldown reset buff
+    const cooldownResetBuff = (user.buffs || []).find(b => b.type === 'cooldown_reset' && b.usesLeft > 0);
+    
+    if (!cooldownResetBuff) {
+      return res.status(400).json({ message: 'You need a Cooldown Reset buff to use this command.' });
+    }
+    
+    // Reset all cooldowns
+    user.fishCooldown = null;
+    user.huntCooldown = null;
+    user.workCooldown = null;
+    user.begCooldown = null;
+    user.crimeCooldown = null;
+    user.stealCooldown = null;
+    
+    // Consume the buff
+    cooldownResetBuff.usesLeft--;
+    if (cooldownResetBuff.usesLeft <= 0) {
+      user.buffs = user.buffs.filter(b => b !== cooldownResetBuff);
+    }
+    
+    await user.save();
+    
+    res.json({ 
+      message: 'All cooldowns have been reset!',
+      buffsRemaining: user.buffs.filter(b => b.type === 'cooldown_reset').length,
+      buffMessage: '🔄 Cooldown Reset buff used!'
+    });
+  } catch (error) {
+    console.error('Error resetting cooldowns:', error);
+    res.status(500).json({ message: 'Server error.' });
   }
 });
 
@@ -3097,6 +3243,15 @@ router.post('/:discordId/sell', async (req, res) => {
       let totalValue = 0;
       const results = [];
       
+      // Check for double collection value buff
+      let valueMultiplier = 1;
+      let buffMessage = '';
+      const doubleValueBuff = (user.buffs || []).find(b => b.type === 'double_collection_value' && (!b.expiresAt || b.expiresAt > now));
+      if (doubleValueBuff) {
+        valueMultiplier = 2;
+        buffMessage = '💰 Double Collection Value buff active: Items worth 2x!';
+      }
+      
       for (const itemReq of items) {
         const { type: typeSell, name: nameSell, count: countSell } = itemReq;
         
@@ -3114,7 +3269,7 @@ router.post('/:discordId/sell', async (req, res) => {
         }
         
         // Calculate value and process sale
-        const valueSell = itemSell.value * countSell;
+        const valueSell = itemSell.value * countSell * valueMultiplier;
         itemSell.count -= countSell;
         
         if (itemSell.count === 0) {
@@ -3148,7 +3303,8 @@ router.post('/:discordId/sell', async (req, res) => {
         totalValue: actualValue,
         soldItems: results.filter(r => r.success).map(r => ({ name: r.name, count: r.count })),
         action: action,
-        message: `<@${user.discordId}> successfully sold ${results.filter(r => r.success).length} items for ${actualValue.toLocaleString()} points!`
+        message: `<@${user.discordId}> successfully sold ${results.filter(r => r.success).length} items for ${actualValue.toLocaleString()} points!`,
+        buffMessage
       });
     }
 
@@ -3168,8 +3324,17 @@ router.post('/:discordId/sell', async (req, res) => {
       return res.status(400).json({ message: `You only have ${item.count} of this item.` });
     }
 
+    // Check for double collection value buff
+    let valueMultiplier = 1;
+    let buffMessage = '';
+    const doubleValueBuff = (user.buffs || []).find(b => b.type === 'double_collection_value' && (!b.expiresAt || b.expiresAt > now));
+    if (doubleValueBuff) {
+      valueMultiplier = 2;
+      buffMessage = '💰 Double Collection Value buff active: Items worth 2x!';
+    }
+    
     // Calculate value and process sale
-    const value = item.value * count;
+    const value = item.value * count * valueMultiplier;
     item.count -= count;
     
     if (item.count === 0) {
@@ -3195,7 +3360,8 @@ router.post('/:discordId/sell', async (req, res) => {
 
     res.json({ 
       message: `Successfully sold ${count}x ${item.name} for ${value.toLocaleString()} points!`,
-      newBalance: wallet.balance 
+      newBalance: wallet.balance,
+      buffMessage
     });
   } catch (error) {
     console.error('Error selling inventory item:', error);
@@ -4452,7 +4618,8 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
       buffs: { chance: 0.1, pool: [
         { type: 'earnings_x2', description: '2x earnings for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000) },
         { type: 'work_double', description: 'Next /work gives 2x points!', usesLeft: 1 },
-        { type: 'crime_success', description: 'Next /crime is guaranteed success!', usesLeft: 1 }
+        { type: 'crime_success', description: 'Next /crime is guaranteed success!', usesLeft: 1 },
+        { type: 'frenzy_mode', description: 'No cooldowns for 30 seconds!', expiresAt: new Date(now.getTime() + 30 * 1000), weight: 5 }
       ]},
       jackpot: { chance: 0.05, min: 300000, max: 500000 }
     },
@@ -4479,7 +4646,14 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { type: 'fishing_rate_1.5x', description: 'Epic+ fish drop rates multiplied by 1.5x for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 15 },
         { type: 'hunting_rate_1.5x', description: 'Epic+ animal drop rates multiplied by 1.5x for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 15 },
         { type: 'earnings_x3', description: '3x earnings for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 10 },
-        { type: 'work_triple', description: 'Next /work gives 3x points!', usesLeft: 1, weight: 10 }
+        { type: 'work_triple', description: 'Next /work gives 3x points!', usesLeft: 1, weight: 10 },
+        { type: 'mysterybox_cooldown_half', description: 'Premium/Ultimate box cooldowns reduced by 50% for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 8 },
+        { type: 'fishing_no_cooldown', description: 'Next 5 fish commands have no cooldown!', usesLeft: 5, weight: 12 },
+        { type: 'hunting_no_cooldown', description: 'Next 5 hunt commands have no cooldown!', usesLeft: 5, weight: 12 },
+        { type: 'double_collection_value', description: 'Items worth 2x when sold for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 8 },
+        { type: 'lucky_streak', description: 'Next 3 commands have increased success rates!', usesLeft: 3, weight: 10 },
+        { type: 'time_warp', description: 'All cooldowns reduced by 75% for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 6 },
+        { type: 'cooldown_reset', description: 'Instantly resets all current cooldowns!', usesLeft: 1, weight: 4 }
       ]},
       jackpot: { chance: 0.05, min: 10000000, max: 20000000 }
     },
@@ -4510,7 +4684,14 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { type: 'hunting_rate_3x', description: 'Epic+ animal drop rates multiplied by 3x for 15 minutes!', expiresAt: new Date(now.getTime() + 15 * 60 * 1000), weight: 5 },
         { type: 'earnings_x5', description: '5x earnings for 15 minutes!', expiresAt: new Date(now.getTime() + 15 * 60 * 1000), weight: 10 },
         { type: 'work_quintuple', description: 'Next /work gives 5x points!', usesLeft: 1, weight: 19 },
-        { type: 'jail_immunity', description: 'Immunity from jail for your next crime or steal!', usesLeft: 1, weight: 1 }
+        { type: 'jail_immunity', description: 'Immunity from jail for your next crime or steal!', usesLeft: 1, weight: 1 },
+        { type: 'frenzy_mode', description: 'No cooldowns for 60 seconds!', expiresAt: new Date(now.getTime() + 60 * 1000), weight: 3 },
+        { type: 'fishing_no_cooldown', description: 'Next 10 fish commands have no cooldown!', usesLeft: 10, weight: 8 },
+        { type: 'hunting_no_cooldown', description: 'Next 10 hunt commands have no cooldown!', usesLeft: 10, weight: 8 },
+        { type: 'double_collection_value', description: 'Items worth 2x when sold for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 6 },
+        { type: 'lucky_streak', description: 'Next 3 commands have increased success rates!', usesLeft: 3, weight: 8 },
+        { type: 'time_warp', description: 'All cooldowns reduced by 75% for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 4 },
+        { type: 'cooldown_reset', description: 'Instantly resets all current cooldowns!', usesLeft: 1, weight: 2 }
       ]},
       jackpot: { chance: 0.05, min: 100000000, max: 200000000 }
     }

@@ -838,6 +838,10 @@ const commands = [
 	{
 		name: 'redeem-golden-ticket',
 		description: 'Redeem a golden ticket for 10% of the jackpot pool (7-day cooldown).'
+	},
+	{
+		name: 'resetcooldowns',
+		description: 'Reset all cooldowns (requires Cooldown Reset buff)'
 	}
 ];
 

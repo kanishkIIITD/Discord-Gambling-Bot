@@ -2762,6 +2762,32 @@ client.on('interactionCreate', async interaction => {
 		await begCommand.execute(interaction);
 	} else if (commandName === 'mysterybox') {
 		await mysteryboxCommand.execute(interaction);
+	} else if (commandName === 'resetcooldowns') {
+		try {
+			await interaction.deferReply();
+			
+			const response = await axios.post(`${process.env.BACKEND_API_URL}/users/${interaction.user.id}/reset-cooldowns`, {}, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
+			
+			const embed = new EmbedBuilder()
+				.setColor(0x00b894)
+				.setTitle('⏰ Cooldowns Reset!')
+				.setDescription(response.data.message)
+				.setTimestamp()
+				.setFooter({ text: `Requested by ${interaction.user.tag}` });
+			
+			await interaction.editReply({ embeds: [embed] });
+		} catch (error) {
+			console.error('Error in reset cooldowns:', error);
+			const errorMsg = error.response?.data?.message || error.message || 'Unknown error';
+			const errorEmbed = new EmbedBuilder()
+				.setColor(0xff6b6b)
+				.setTitle('Error')
+				.setDescription(errorMsg)
+				.setTimestamp();
+			await interaction.editReply({ embeds: [errorEmbed] });
+		}
 	} else if (commandName === 'bail') {
 		await bailCommand.execute(interaction);
 	} else if (commandName === 'cooldowns') {
@@ -2888,7 +2914,8 @@ client.on('interactionCreate', async interaction => {
 						},
 						{ name: '📈 Statistics', value:
 							'`/stats` - View your full betting and gambling statistics\n' +
-							'`/cooldowns` - View all your current cooldowns'
+							'`/cooldowns` - View all your current cooldowns\n' +
+							'`/resetcooldowns` - Reset all cooldowns (requires Cooldown Reset buff)'
 						},
 						{ name: '⚙️ Settings', value:
 							'`/help` - View this help menu'
@@ -2981,9 +3008,19 @@ client.on('interactionCreate', async interaction => {
 							'`fishing_epic` - Guaranteed epic or better fish\n' +
 							'`hunting_epic` - Guaranteed epic or better animal'
 						},
+						{ name: 'Cooldown Buffs', value:
+							'`fishing_no_cooldown` - Next 5 fish commands have no cooldown\n' +
+							'`hunting_no_cooldown` - Next 5 hunt commands have no cooldown\n' +
+							'`frenzy_mode` - No cooldown for all commands for 30 seconds\n' +
+							'`time_warp` - All cooldowns reduced by 75% for 1 hour\n' +
+							'`cooldown_reset` - Instantly resets all current cooldowns'
+						},
 						{ name: 'Other Buffs', value:
 							'`crime_success` - Guaranteed successful crime\n' +
-							'`jail_immunity` - Immune to jail time from failed crimes'
+							'`jail_immunity` - Immune to jail time from failed crimes\n' +
+							'`lucky_streak` - Next 3 commands have increased success rates (70% crime, 50% steal)\n' +
+							'`double_collection_value` - Items worth 2x when sold for 1 hour\n' +
+							'`mysterybox_cooldown_half` - Premium/Ultimate box cooldowns reduced by 50%'
 						},
 						{ name: 'Mystery Box Types', value:
 							'`Basic Box` - Free once per day\n' +
