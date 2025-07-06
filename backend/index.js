@@ -22,6 +22,7 @@ const Duel = require('./models/Duel');
 const Wallet = require('./models/Wallet');
 const serverRoutes = require('./routes/serverRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes');
+const MongoStore = require('connect-mongo');
 
 const app = express();
 const server = http.createServer(app);
@@ -42,6 +43,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: true,
   saveUninitialized: true,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI,
+    collectionName: 'sessions',
+    ttl: 24 * 60 * 60 // 1 day
+  }),
   cookie: { 
     secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
