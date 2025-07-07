@@ -4,6 +4,10 @@ const pokeCache = require('../utils/pokeCache');
 // In-memory map: channelId -> { pokemonId, spawnedAt, attempts }
 const activeSpawns = new Map();
 
+// Cooldown map: guildId -> last spawn timestamp
+const pokespawnCooldowns = new Map();
+const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('pokespawn')
@@ -14,6 +18,14 @@ module.exports = {
     if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
       return interaction.reply({ content: 'Only admins can use this command.', ephemeral: true });
     }
+    const guildId = interaction.guildId;
+    const now = Date.now();
+    const lastUsed = pokespawnCooldowns.get(guildId) || 0;
+    if (now - lastUsed < COOLDOWN_MS) {
+      const minutesLeft = Math.ceil((COOLDOWN_MS - (now - lastUsed)) / 60000);
+      return interaction.reply({ content: `You can only use /pokespawn once every 1 hour per server. Please wait ${minutesLeft} more minute(s).`, ephemeral: true });
+    }
+    pokespawnCooldowns.set(guildId, now);
     const channelId = interaction.channelId;
     if (activeSpawns.has(channelId)) {
       return interaction.reply({ content: 'A wild Pokémon is already present in this channel! Use /pokecatch to try catching it.', ephemeral: true });

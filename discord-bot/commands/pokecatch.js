@@ -17,6 +17,9 @@ module.exports = {
     if (!spawn) {
       return interaction.reply({ content: 'There is no wild Pokémon to catch in this channel. Ask an admin to use /pokespawn!', ephemeral: true });
     }
+    if (spawn.caughtBy) {
+      return interaction.reply({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
+    }
     const pokemonId = spawn.pokemonId;
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
     // Fetch species data for capture_rate, dex number, and flavor text
@@ -69,6 +72,9 @@ module.exports = {
         activeSpawns.delete(channelId);
         return await interaction.reply({ embeds: [embed] });
       }
+      // Mark as caught
+      spawn.caughtBy = interaction.user.id;
+      activeSpawns.set(channelId, spawn);
       embed = new EmbedBuilder()
         .setColor(0x2ecc71)
         .setTitle(`🎉 You caught ${isShiny ? 'a SHINY ' : ''}#${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)}!`)
@@ -81,7 +87,6 @@ module.exports = {
         )
         .setDescription(flavorText || (isShiny ? '✨ Incredible! You caught a shiny Pokémon! ✨' : 'Congratulations! The wild Pokémon is now yours.'))
         .setFooter({ text: 'Gotta catch ’em all!' });
-      activeSpawns.delete(channelId);
       return await interaction.reply({ embeds: [embed] });
     } else {
       // Failure
