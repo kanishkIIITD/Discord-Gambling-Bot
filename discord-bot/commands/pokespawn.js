@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const pokeCache = require('../utils/pokeCache');
 
-// In-memory map: channelId -> { pokemonId, spawnedAt }
+// In-memory map: channelId -> { pokemonId, spawnedAt, attempts }
 const activeSpawns = new Map();
 
 module.exports = {
@@ -34,7 +34,7 @@ module.exports = {
     const flavorText = flavorEntries.length > 0
       ? flavorEntries[Math.floor(Math.random() * flavorEntries.length)].flavor_text.replace(/\f/g, ' ')
       : `A wild ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} is watching you closely...`;
-    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now() });
+    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), attempts: 0 });
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
       .setTitle(`A wild #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} appeared!`)

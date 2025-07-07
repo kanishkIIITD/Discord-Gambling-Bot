@@ -177,7 +177,10 @@ const jailedBlockedCommands = [
 	'sell', 'trade', 'gift', 'mysterybox',
 	
 	// Social Activities
-	'duel', 'timeout'
+	'duel', 'timeout',
+
+	// Pokémon
+	'pokespawn', 'pokecatch',
 ];
 
 // List of view-only subcommands (allowed even when jailed)

@@ -3,7 +3,7 @@ const pokeCache = require('./pokeCache');
 const { activeSpawns } = require('../commands/pokespawn');
 const { EmbedBuilder } = require('discord.js');
 
-const SPAWN_INTERVAL = 10 * 60 * 1000; // 10 minutes
+// const SPAWN_INTERVAL = 10 * 60 * 1000; // 10 minutes
 const DESPAWN_TIME = 2 * 60 * 1000; // 2 minutes
 
 // Map: channelId -> { timeout, messageId }
@@ -47,7 +47,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
       .setFooter({ text: 'Type /pokecatch to try catching!' });
     const channel = await client.channels.fetch(channelId);
     const message = await channel.send({ embeds: [embed] });
-    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id });
+    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id, attempts: 0 });
     // Set despawn timer
     if (despawnTimers.has(channelId)) clearTimeout(despawnTimers.get(channelId).timeout);
     const timeout = setTimeout(async () => {
@@ -81,6 +81,11 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
   }
 }
 
+function getRandomSpawnInterval() {
+  // 5 to 10 minutes in ms
+  return (5 * 60 * 1000) + Math.floor(Math.random() * (5 * 60 * 1000));
+}
+
 async function startAutoSpawner(client, backendUrl) {
   async function spawnAll() {
     const servers = await fetchSpawnChannels(backendUrl);
@@ -89,11 +94,11 @@ async function startAutoSpawner(client, backendUrl) {
         await spawnPokemonInChannel(client, s.guildId, s.pokeSpawnChannelId, backendUrl);
       }
     }
+    // Schedule next spawn with random interval
+    setTimeout(spawnAll, getRandomSpawnInterval());
   }
   // Initial spawn
-  await spawnAll();
-  // Repeat every interval
-  setInterval(spawnAll, SPAWN_INTERVAL);
+  setTimeout(spawnAll, getRandomSpawnInterval());
 }
 
 module.exports = { startAutoSpawner }; 

@@ -82,21 +82,44 @@ module.exports = {
         .setDescription(flavorText || (isShiny ? '✨ Incredible! You caught a shiny Pokémon! ✨' : 'Congratulations! The wild Pokémon is now yours.'))
         .setFooter({ text: 'Gotta catch ’em all!' });
       activeSpawns.delete(channelId);
+      return await interaction.reply({ embeds: [embed] });
     } else {
       // Failure
-      embed = new EmbedBuilder()
-        .setColor(0xe74c3c)
-        .setTitle(`Oh no! The #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} broke free!`)
-        .setImage(artwork)
-        .addFields(
-          { name: 'Type', value: types, inline: true },
-          { name: 'Region', value: 'Kanto', inline: true },
-          { name: 'Catch Chance', value: `${Math.round(finalChance * 100)}%`, inline: true }
-        )
-        .setDescription(flavorText || 'Better luck next time! The wild Pokémon ran away.')
-        .setFooter({ text: 'Try again or wait for another wild Pokémon.' });
-      activeSpawns.delete(channelId);
+      // Increment attempts
+      spawn.attempts = (spawn.attempts || 0) + 1;
+      if (spawn.attempts >= 3) {
+        // Despawn and update message
+        const goneEmbed = new EmbedBuilder()
+          .setColor(0x636e72)
+          .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} ran away!`)
+          .setDescription(`No one was able to catch ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} after 3 attempts.`)
+          .setImage(artwork);
+        // Try to update the original spawn message if possible
+        try {
+          const channel = await interaction.client.channels.fetch(channelId);
+          const msg = await channel.messages.fetch(spawn.messageId);
+          await msg.edit({ embeds: [goneEmbed] });
+        } catch (e) { /* ignore */ }
+        activeSpawns.delete(channelId);
+        embed = goneEmbed;
+        return await interaction.reply({ embeds: [embed] });
+      } else {
+        // Update the spawn with incremented attempts
+        activeSpawns.set(channelId, spawn);
+        embed = new EmbedBuilder()
+          .setColor(0xe74c3c)
+          .setTitle(`Oh no! The #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} broke free!`)
+          .setImage(artwork)
+          .addFields(
+            { name: 'Type', value: types, inline: true },
+            { name: 'Region', value: 'Kanto', inline: true },
+            { name: 'Catch Chance', value: `${Math.round(finalChance * 100)}%`, inline: true },
+            { name: 'Attempts Left', value: `${3 - spawn.attempts}`, inline: true }
+          )
+          .setDescription(flavorText || 'Better luck next time! The wild Pokémon is still here, but will run after 3 failed attempts.')
+          .setFooter({ text: 'Wait for another wild Pokémon.' });
+        return await interaction.reply({ embeds: [embed] });
+      }
     }
-    await interaction.reply({ embeds: [embed] });
   },
 }; 
