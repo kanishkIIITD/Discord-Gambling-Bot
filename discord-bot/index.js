@@ -3702,12 +3702,34 @@ function truncateChoiceName(name) {
 const pokeCache = require('./utils/pokeCache');
 const { startAutoSpawner } = require('./utils/pokeAutoSpawner');
 const { handleTimeoutRemoval } = require('./utils/discordUtils');
+const { activeSpawns } = require('./commands/pokespawn');
+const { despawnTimers } = require('./utils/pokeAutoSpawner');
 
 (async () => {
   try {
     console.log('[PokéCache] Building Kanto Pokémon cache...');
     await pokeCache.buildKantoCache();
     console.log('[PokéCache] Kanto Pokémon cache ready!');
+    // --- Startup cleanup for activeSpawns and despawnTimers ---
+    if (activeSpawns && activeSpawns.size > 0) {
+      console.warn(`[Startup] activeSpawns is not empty at startup! Clearing ${activeSpawns.size} entries. This may indicate missed despawn(s) or a previous crash.`);
+      for (const [channelId, spawn] of activeSpawns.entries()) {
+        console.warn(`[Startup] Clearing stuck spawn in channel ${channelId}:`, spawn);
+        activeSpawns.delete(channelId);
+      }
+    } else {
+      console.log('[Startup] activeSpawns is empty at startup.');
+    }
+    if (typeof despawnTimers !== 'undefined' && despawnTimers.size > 0) {
+      console.warn(`[Startup] despawnTimers is not empty at startup! Clearing ${despawnTimers.size} entries.`);
+      for (const [channelId, timer] of despawnTimers.entries()) {
+        clearTimeout(timer.timeout);
+        despawnTimers.delete(channelId);
+      }
+    } else {
+      console.log('[Startup] despawnTimers is empty at startup.');
+    }
+    // --- End startup cleanup ---
     startAutoSpawner(client, backendApiUrl);
     await client.login(process.env.DISCORD_TOKEN);
   } catch (err) {

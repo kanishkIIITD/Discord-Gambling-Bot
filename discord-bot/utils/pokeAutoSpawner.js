@@ -152,4 +152,4 @@ async function startAutoSpawner(client, backendUrl) {
   setTimeout(spawnAll, getRandomSpawnInterval());
 }
 
-module.exports = { startAutoSpawner }; 
+module.exports = { startAutoSpawner, despawnTimers }; 
