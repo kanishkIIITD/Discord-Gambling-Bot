@@ -50,7 +50,9 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
       .setDescription(flavorText)
       .setFooter({ text: 'Type /pokecatch to try catching!' });
     const channel = await client.channels.fetch(channelId);
+    console.log(`[AutoSpawner] Attempting to send spawn message in channel ${channelId} (guild ${guildId})`);
     const message = await channel.send({ embeds: [embed] });
+    console.log(`[AutoSpawner] Successfully sent spawn message in channel ${channelId} (guild ${guildId})`);
     activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id, attempts: 0 });
     // Set despawn timer
     if (despawnTimers.has(channelId)) clearTimeout(despawnTimers.get(channelId).timeout);
@@ -85,7 +87,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     }, DESPAWN_TIME);
     despawnTimers.set(channelId, { timeout, messageId: message.id });
   } catch (err) {
-    console.error(`[AutoSpawner] Failed to spawn in ${channelId} (guild ${guildId}):`, err);
+    console.error(`[AutoSpawner] Failed to spawn in channel ${channelId} (guild ${guildId}):`, err);
   }
 }
 
