@@ -81,6 +81,7 @@ module.exports = {
       spawn.caughtBy = interaction.user.id;
       spawn.attemptedBy.push(interaction.user.id);
       activeSpawns.set(channelId, spawn);
+      activeSpawns.delete(channelId);
       embed = new EmbedBuilder()
         .setColor(0x2ecc71)
         .setTitle(`🎉 You caught ${isShiny ? 'a SHINY ' : ''}#${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)}!`)

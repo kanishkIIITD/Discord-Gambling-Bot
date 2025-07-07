@@ -3124,8 +3124,8 @@ client.on('interactionCreate', async interaction => {
 					description: 'Catch, collect, and compete with Pokémon in your server! Powered by PokéAPI. More regions coming soon.',
 					fields: [
 						{ name: '🌱 Spawning', value:
-							'`/pokespawn` - (Admin) Manually spawn a wild Pokémon in the current channel\n' +
-							'`/setpokechannel` - (Admin) Set the channel for automatic Pokémon spawns (every 10 min)'
+							'`/pokespawn` - (Admin) Manually spawn a wild Pokémon in the current channel with 1 hour cooldown\n' +
+							'`/setpokechannel` - (Admin) Set the channel for automatic Pokémon spawns (every 5-10 min)'
 						},
 						{ name: '�� Catching', value:
 							'`/pokecatch` - Attempt to catch the currently spawned Pokémon in this channel. Shiny Pokémon are extremely rare!'
@@ -3701,6 +3701,7 @@ function truncateChoiceName(name) {
 
 const pokeCache = require('./utils/pokeCache');
 const { startAutoSpawner } = require('./utils/pokeAutoSpawner');
+const { handleTimeoutRemoval } = require('./utils/discordUtils');
 
 (async () => {
   try {

@@ -53,24 +53,28 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     const timeout = setTimeout(async () => {
       // If still active, despawn
       if (activeSpawns.has(channelId)) {
-        try {
-          // Fetch the Pokémon info again for the despawn embed
-          const { pokemonId } = activeSpawns.get(channelId);
-          const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
-          const fetch = require('node-fetch');
-          const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonId}/`);
-          const speciesData = await speciesRes.json();
-          const dexNum = speciesData.id;
-          const artwork = pokemonData.sprites.other['official-artwork'].front_default;
-          const name = pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1);
-          const goneEmbed = new EmbedBuilder()
-            .setColor(0x636e72)
-            .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${name} ran away!`)
-            .setDescription(`No one tried to catch ${name} in time.`)
-            .setImage(artwork);
-          const msg = await channel.messages.fetch(message.id);
-          await msg.edit({ embeds: [goneEmbed] });
-        } catch (e) { console.error('[AutoSpawner] Failed to edit despawn message:', e); }
+        const spawn = activeSpawns.get(channelId);
+        // Only update the message if no one tried to catch
+        if (!spawn.attemptedBy || spawn.attemptedBy.length === 0) {
+          try {
+            // Fetch the Pokémon info again for the despawn embed
+            const { pokemonId } = spawn;
+            const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
+            const fetch = require('node-fetch');
+            const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonId}/`);
+            const speciesData = await speciesRes.json();
+            const dexNum = speciesData.id;
+            const artwork = pokemonData.sprites.other['official-artwork'].front_default;
+            const name = pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1);
+            const goneEmbed = new EmbedBuilder()
+              .setColor(0x636e72)
+              .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${name} ran away!`)
+              .setDescription(`No one tried to catch ${name} in time.`)
+              .setImage(artwork);
+            const msg = await channel.messages.fetch(message.id);
+            await msg.edit({ embeds: [goneEmbed] });
+          } catch (e) { console.error('[AutoSpawner] Failed to edit despawn message:', e); }
+        }
         activeSpawns.delete(channelId);
       }
       despawnTimers.delete(channelId);
