@@ -15,6 +15,12 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction) {
+    if (!pokeCache.isKantoCacheReady()) {
+      return interaction.reply({
+        content: 'Pokémon data is still loading. Please try again in a few seconds!',
+        ephemeral: true
+      });
+    }
     if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
       return interaction.reply({ content: 'Only admins can use this command.', ephemeral: true });
     }

@@ -4,7 +4,7 @@ const { activeSpawns } = require('./pokespawn');
 const fetch = require('node-fetch');
 const axios = require('axios');
 
-const SHINY_ODDS = 1 / 4096;
+const SHINY_ODDS = 1 / 512;
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -12,6 +12,12 @@ module.exports = {
     .setDescription('Try to catch the wild Pokémon in this channel!'),
 
   async execute(interaction) {
+    if (!pokeCache.isKantoCacheReady()) {
+      return interaction.reply({
+        content: 'Pokémon data is still loading. Please try again in a few seconds!',
+        ephemeral: true
+      });
+    }
     const channelId = interaction.channelId;
     const spawn = activeSpawns.get(channelId);
     if (!spawn) {
