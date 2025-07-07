@@ -43,4 +43,45 @@ router.post('/:guildId/settings', requireGuildId, async (req, res) => {
     }
 });
 
+// Set the Pokémon spawn channel for a guild
+router.post('/:guildId/pokechannel', async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const { channelId } = req.body;
+    let settings = await ServerSettings.findOne({ guildId });
+    if (!settings) {
+      settings = new ServerSettings({ guildId });
+    }
+    settings.pokeSpawnChannelId = channelId;
+    await settings.save();
+    res.json({ message: 'Pokémon spawn channel set!', channelId });
+  } catch (error) {
+    console.error('[Set PokeChannel] Error:', error);
+    res.status(500).json({ message: 'Failed to set Pokémon spawn channel.' });
+  }
+});
+
+// Get the Pokémon spawn channel for a guild
+router.get('/:guildId/pokechannel', async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const settings = await ServerSettings.findOne({ guildId });
+    res.json({ channelId: settings?.pokeSpawnChannelId || null });
+  } catch (error) {
+    console.error('[Get PokeChannel] Error:', error);
+    res.status(500).json({ message: 'Failed to get Pokémon spawn channel.' });
+  }
+});
+
+// Get all guilds with a pokeSpawnChannelId set
+router.get('/pokechannels', async (req, res) => {
+  try {
+    const servers = await ServerSettings.find({ pokeSpawnChannelId: { $ne: null } });
+    res.json({ servers });
+  } catch (error) {
+    console.error('[Get All PokeChannels] Error:', error);
+    res.status(500).json({ message: 'Failed to fetch servers with pokeSpawnChannelId.' });
+  }
+});
+
 module.exports = router; 

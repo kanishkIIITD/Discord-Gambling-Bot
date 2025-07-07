@@ -415,7 +415,8 @@ const commands = [
 					{ name: 'Steal System', value: 'steal' },
 					{ name: 'Duel', value: 'duel' },
 					{ name: 'Buffs', value: 'buffs' },
-					{ name: 'Moderation', value: 'moderation' }
+					{ name: 'Moderation', value: 'moderation' },
+					{ name: 'Pokémon', value: 'pokemon' }
 				]
 			}
 		]
@@ -930,7 +931,25 @@ const commands = [
 	{
 		name: 'resetcooldowns',
 		description: 'Reset all cooldowns (requires Cooldown Reset buff)'
-	}
+	},
+	{
+		name: 'pokespawn',
+		description: 'Admin: Spawn a wild Kanto Pokémon in this channel!',
+		defaultMemberPermissions: '0', // Admin only
+	},
+	{
+		name: 'pokecatch',
+		description: 'Try to catch the wild Pokémon in this channel!',
+	},
+	{
+		name: 'pokedex',
+		description: 'View your collected Pokémon!',
+	},
+	{
+		name: 'setpokechannel',
+		description: 'Set this channel as the Pokémon spawn channel for your server (admin only).',
+		defaultMemberPermissions: '0',
+	},
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);

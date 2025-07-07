@@ -16,8 +16,11 @@ const {
   cleanActivePunishments,
   getStealCooldownField,
   getStealCooldownHours,
-  getStealSuccessRate
+  getStealSuccessRate,
+  getPunishmentDescription,
+  calculateBailAmount
 } = require('../utils/gamblingUtils');
+const Pokemon = require('../models/Pokemon');
 
 // Rarity weights for buffs
 const baseWeights = {
@@ -66,6 +69,57 @@ router.get('/:discordId/guilds', auth, async (req, res) => {
   } catch (error) {
     console.error('[UserRoutes] Error fetching user guilds:', error);
     res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// POST /:discordId/pokemon/catch - Add a caught Pokémon to the user's collection
+router.post('/:discordId/pokemon/catch', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const { pokemonId, name, isShiny } = req.body;
+    // Find or create user
+    let user = await User.findOne({ discordId, guildId });
+    if (!user) {
+      user = new User({ discordId, guildId, username: discordId });
+      await user.save();
+    }
+    // Check if this Pokémon (with shiny status) already exists
+    let pokemon = await Pokemon.findOne({ discordId, guildId, pokemonId, isShiny: !!isShiny });
+    if (pokemon) {
+      pokemon.count = (pokemon.count || 1) + 1;
+      pokemon.caughtAt = new Date();
+      await pokemon.save();
+    } else {
+      pokemon = new Pokemon({
+        user: user._id,
+        discordId,
+        guildId,
+        pokemonId,
+        name,
+        isShiny: !!isShiny,
+        caughtAt: new Date(),
+        count: 1
+      });
+      await pokemon.save();
+    }
+    res.json({ message: 'Pokémon added to collection!', pokemon });
+  } catch (error) {
+    console.error('[Pokemon Catch] Error:', error);
+    res.status(500).json({ message: 'Failed to add Pokémon to collection.' });
+  }
+});
+
+// GET /:discordId/pokedex - List all collected Pokémon for a user
+router.get('/:discordId/pokedex', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const pokemons = await Pokemon.find({ discordId, guildId }).sort({ pokemonId: 1, caughtAt: 1 });
+    res.json({ pokedex: pokemons });
+  } catch (error) {
+    console.error('[Pokedex] Error:', error);
+    res.status(500).json({ message: 'Failed to fetch pokedex.' });
   }
 });
 
@@ -228,10 +282,15 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
   try {
     const { userId } = req.params;
     const { targetDiscordId, stealType = 'points', rarity } = req.body;
+    
+    // Validate required parameters
+    if (!targetDiscordId) {
+      return res.status(400).json({ message: 'targetDiscordId is required.' });
+    }
     const guildId = req.headers['x-guild-id'];
 
     // Validate steal type
-    if (!['points', 'fish', 'animal', 'item'].includes(stealType)) {
+    if (!stealType || !['points', 'fish', 'animal', 'item'].includes(stealType)) {
       return res.status(400).json({ message: 'Invalid steal type. Must be points, fish, animal, or item.' });
     }
 
@@ -285,7 +344,7 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
     const cooldownHours = getStealCooldownHours(stealType);
     const cooldownTime = cooldownHours * 60 * 60 * 1000; // Convert hours to milliseconds
     
-    if (attacker[cooldownField] && (now - attacker[cooldownField]) < cooldownTime) {
+    if (cooldownField && attacker[cooldownField] && (now - attacker[cooldownField]) < cooldownTime) {
       const remainingTime = cooldownTime - (now - attacker[cooldownField]);
       const remainingHours = Math.floor(remainingTime / (60 * 60 * 1000));
       const remainingMinutes = Math.floor((remainingTime % (60 * 60 * 1000)) / (60 * 1000));
@@ -440,7 +499,16 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       attacker.stealStats.success += 1;
       attacker.stealStats.totalStolen += totalValue;
       attacker[`${stealType}Success`] = (attacker.stealStats[`${stealType}Success`] || 0) + 1;
-      attacker[cooldownField] = now;
+      
+      // Ensure cooldownField is defined before using it
+      if (cooldownField) {
+        attacker[cooldownField] = now;
+      } else {
+        console.error('cooldownField is undefined for stealType:', stealType);
+        // Fallback to points cooldown
+        attacker.stealPointsCooldown = now;
+      }
+      
       await attacker.save();
       await target.save();
       
@@ -491,7 +559,7 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
         totalValue,
         newBalance: attackerWallet.balance,
         newCollectionValue,
-        cooldownTime: attacker[cooldownField],
+        cooldownTime: cooldownField ? attacker[cooldownField] : attacker.stealPointsCooldown,
         stealType
       });
       
@@ -524,7 +592,16 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
         
         attacker.stealStats.fail += 1;
         attacker[`${stealType}Fail`] = (attacker.stealStats[`${stealType}Fail`] || 0) + 1;
-        attacker[cooldownField] = now;
+        
+        // Ensure cooldownField is defined before using it
+        if (cooldownField) {
+          attacker[cooldownField] = now;
+        } else {
+          console.error('cooldownField is undefined for stealType:', stealType);
+          // Fallback to points cooldown
+          attacker.stealPointsCooldown = now;
+        }
+        
         await attacker.save();
         
         // Create transaction record (no jail)
@@ -547,7 +624,7 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
           message: `Steal attempt failed! Your jail immunity buff saved you from jail!`,
           success: false,
           punishment: { type: 'jail', severity: 'none' },
-          cooldownTime: attacker[cooldownField],
+          cooldownTime: cooldownField ? attacker[cooldownField] : attacker.stealPointsCooldown,
           buffUsed: 'jail_immunity',
           buffMessage: 'Your jail immunity buff saved you from jail!',
           stealType
@@ -561,7 +638,6 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       let bailInfo = null;
       if (punishment.type === 'jail') {
         const stealPercentage = (Math.random() * 0.15) + 0.05; // Same as in success case
-        const { calculateBailAmount } = require('../utils/gamblingUtils');
         bailInfo = calculateBailAmount(
           targetWallet.balance, 
           stealPercentage, 
@@ -586,7 +662,15 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       if (punishment.type === 'jail') {
         attacker.stealStats.jail += 1;
       }
-      attacker[cooldownField] = now;
+      
+      // Ensure cooldownField is defined before using it
+      if (cooldownField) {
+        attacker[cooldownField] = now;
+      } else {
+        console.error('cooldownField is undefined for stealType:', stealType);
+        // Fallback to points cooldown
+        attacker.stealPointsCooldown = now;
+      }
       
       await attacker.save();
       await attackerWallet.save();
@@ -619,7 +703,6 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       }
 
       // Get punishment description
-      const { getPunishmentDescription } = require('../utils/gamblingUtils');
       const punishmentDescription = getPunishmentDescription(punishment, stealType);
 
       res.json({
@@ -631,7 +714,7 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
         },
         bailInfo,
         jailInfo,
-        cooldownTime: attacker[cooldownField],
+        cooldownTime: cooldownField ? attacker[cooldownField] : attacker.stealPointsCooldown,
         stealType
       });
     }
@@ -965,6 +1048,7 @@ router.get('/collection-list', async (req, res) => {
       { name: 'Blau the Voidwatcher', rarity: 'og' },
       { name: 'Chronohedgehog Nodlehs', rarity: 'og' },
       { name: 'Crime-Time Rifa', rarity: 'og' },
+      { name: 'Vourbs Vulture', rarity: 'og' },
     ];
     const itemTable = [
       { name: 'Rubber Duck', rarity: 'common' },
@@ -2993,6 +3077,7 @@ router.post('/:discordId/hunt', async (req, res) => {
       { name: 'Blau the Voidwatcher', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
       { name: 'Chronohedgehog Nodlehs', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
       { name: 'Crime-Time Rifa', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
+      { name: 'Vourbs Vulture', rarity: 'og', value: () => Math.floor(Math.random() * 5000000) + 5000000 },
     ];
     
     // Rarity weights
@@ -4885,7 +4970,7 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { type: 'earnings_x2', description: '2x earnings for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000) },
         { type: 'work_double', description: 'Next /work gives 2x points!', usesLeft: 1 },
         { type: 'crime_success', description: 'Next /crime is guaranteed success!', usesLeft: 1 },
-        { type: 'frenzy_mode', description: 'No cooldowns for 30 seconds!', expiresAt: new Date(now.getTime() + 30 * 1000), weight: 5 }
+        { type: 'frenzy_mode', description: 'No fish/hunt cooldowns for 30 seconds!', expiresAt: new Date(now.getTime() + 30 * 1000), weight: 5 }
       ]},
       jackpot: { chance: 0.05, min: 300000, max: 500000 }
     },
@@ -4914,11 +4999,11 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { type: 'earnings_x3', description: '3x earnings for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 10 },
         { type: 'work_triple', description: 'Next /work gives 3x points!', usesLeft: 1, weight: 10 },
         { type: 'mysterybox_cooldown_half', description: 'Premium/Ultimate box cooldowns reduced by 50% for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 8 },
-        { type: 'fishing_no_cooldown', description: 'Next 5 fish commands have no cooldown!', usesLeft: 5, weight: 12 },
-        { type: 'hunting_no_cooldown', description: 'Next 5 hunt commands have no cooldown!', usesLeft: 5, weight: 12 },
-        { type: 'double_collection_value', description: 'Items worth 2x when sold for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 8 },
-        { type: 'lucky_streak', description: 'Next 3 commands have increased success rates!', usesLeft: 3, weight: 10 },
-        { type: 'time_warp', description: 'All cooldowns reduced by 75% for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 6 },
+        { type: 'fishing_no_cooldown', description: 'Next 2 fish commands have no cooldown!', usesLeft: 2, weight: 12 },
+        { type: 'hunting_no_cooldown', description: 'Next 2 hunt commands have no cooldown!', usesLeft: 2, weight: 12 },
+        { type: 'double_collection_value', description: 'Items worth 2x when sold for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 8 },
+        { type: 'lucky_streak', description: 'Next 1 steal/crime have increased success rates!', usesLeft: 1, weight: 10 },
+        { type: 'time_warp', description: 'All cooldowns reduced by 75% for 30 minutes!', expiresAt: new Date(now.getTime() + 30 * 60 * 1000), weight: 6 },
         { type: 'cooldown_reset', description: 'Instantly resets all current cooldowns!', usesLeft: 1, weight: 4 }
       ]},
       jackpot: { chance: 0.05, min: 10000000, max: 20000000 }
@@ -4951,11 +5036,11 @@ function generateMysteryBoxReward(user, wallet, boxType, now) {
         { type: 'earnings_x5', description: '5x earnings for 15 minutes!', expiresAt: new Date(now.getTime() + 15 * 60 * 1000), weight: 10 },
         { type: 'work_quintuple', description: 'Next /work gives 5x points!', usesLeft: 1, weight: 19 },
         { type: 'jail_immunity', description: 'Immunity from jail for your next crime or steal!', usesLeft: 1, weight: 1 },
-        { type: 'frenzy_mode', description: 'No cooldowns for 60 seconds!', expiresAt: new Date(now.getTime() + 60 * 1000), weight: 3 },
-        { type: 'fishing_no_cooldown', description: 'Next 10 fish commands have no cooldown!', usesLeft: 10, weight: 8 },
-        { type: 'hunting_no_cooldown', description: 'Next 10 hunt commands have no cooldown!', usesLeft: 10, weight: 8 },
+        { type: 'frenzy_mode', description: 'No fish/hunt cooldowns for 60 seconds!', expiresAt: new Date(now.getTime() + 60 * 1000), weight: 3 },
+        { type: 'fishing_no_cooldown', description: 'Next 5 fish commands have no cooldown!', usesLeft: 5, weight: 8 },
+        { type: 'hunting_no_cooldown', description: 'Next 5 hunt commands have no cooldown!', usesLeft: 5, weight: 8 },
         { type: 'double_collection_value', description: 'Items worth 2x when sold for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 6 },
-        { type: 'lucky_streak', description: 'Next 3 commands have increased success rates!', usesLeft: 3, weight: 8 },
+        { type: 'lucky_streak', description: 'Next 3 steal/crime have increased success rates!', usesLeft: 3, weight: 8 },
         { type: 'time_warp', description: 'All cooldowns reduced by 75% for 1 hour!', expiresAt: new Date(now.getTime() + 60 * 60 * 1000), weight: 4 },
         { type: 'cooldown_reset', description: 'Instantly resets all current cooldowns!', usesLeft: 1, weight: 2 }
       ]},

@@ -134,7 +134,7 @@ export const commandCategories = [
         name: 'redeem-golden-ticket',
         description: 'Redeem a golden ticket for 10% of the jackpot pool (7-day cooldown).',
         usage: '/redeem-golden-ticket',
-        instructions: ''
+        instructions: 'Requires at least one Golden Ticket in your inventory. Subject to a 7-day cooldown between redemptions.'
       }
     ]
   },
@@ -291,9 +291,9 @@ export const commandCategories = [
       },
       {
         name: 'buffs',
-        description: 'View your active buffs and their remaining time.',
+        description: 'View your active buffs and their remaining time/uses.',
         usage: '/buffs',
-        instructions: ''
+        instructions: 'Shows all your active buffs with their remaining time or uses.'
       }
     ]
   },
@@ -313,15 +313,21 @@ export const commandCategories = [
     commands: [
       {
         name: 'buffs',
-        description: 'View your active buffs and their remaining time.',
+        description: 'View your active buffs and their remaining time/uses.',
         usage: '/buffs',
-        instructions: ''
+        instructions: 'Shows all your active buffs with their remaining time or uses.'
       },
       {
         name: 'mysterybox',
         description: 'Open a mystery box for random rewards!',
         usage: '/mysterybox type:<basic|premium|ultimate> [count:<n>]',
         instructions: 'Basic box can only be opened once per day. Premium/Ultimate support multi-buy.'
+      },
+      {
+        name: 'resetcooldowns',
+        description: 'Reset all cooldowns (requires Cooldown Reset buff)',
+        usage: '/resetcooldowns',
+        instructions: 'Instantly resets all your current cooldowns. You must have the Cooldown Reset buff active.'
       }
     ]
   },
@@ -360,4 +366,4 @@ export const commandCategories = [
       }
     ]
   }
-]; 
+];

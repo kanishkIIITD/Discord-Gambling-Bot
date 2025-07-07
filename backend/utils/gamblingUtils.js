@@ -431,6 +431,7 @@ module.exports = {
   selectPunishment,
   applyPunishment,
   cleanActivePunishments,
+  getPunishmentDescription,
   getStealCooldownField,
   getStealCooldownHours,
   getStealSuccessRate,

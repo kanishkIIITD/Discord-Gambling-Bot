@@ -26,6 +26,10 @@ const transactionHistoryCommand = require('./commands/transactionHistory');
 const refundCommand = require('./commands/refund');
 const goldenTicketsCommand = require('./commands/goldenTickets');
 const redeemGoldenTicketCommand = require('./commands/redeemGoldenTicket');
+const pokespawnCommand = require('./commands/pokespawn');
+const pokecatchCommand = require('./commands/pokecatch');
+const pokedexCommand = require('./commands/pokedex');
+const setpokechannelCommand = require('./commands/setpokechannel');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 let betMessageMap = {};
@@ -2815,6 +2819,7 @@ client.on('interactionCreate', async interaction => {
 						{ name: '💰 Wallet', value: 'Use `/help section:wallet`' },
 						{ name: '📊 Utility', value: 'Use `/help section:utility`' },
 						{ name: '🎮 Fun & Collection', value: 'Use `/help section:fun`' },
+						{ name: '🐾 Pokémon', value: 'Use `/help section:pokemon`' },
 						{ name: '🦹 Steal System', value: 'Use `/help section:steal`' },
 						{ name: '⚔️ Duel', value: 'Use `/help section:duel`' },
 						{ name: '✨ Buffs', value: 'Use `/help section:buffs`' },
@@ -3064,17 +3069,17 @@ client.on('interactionCreate', async interaction => {
 							'`hunting_epic` - Guaranteed epic or better animal'
 						},
 						{ name: 'Cooldown Buffs', value:
-							'`fishing_no_cooldown` - Next 5 fish commands have no cooldown\n' +
-							'`hunting_no_cooldown` - Next 5 hunt commands have no cooldown\n' +
-							'`frenzy_mode` - No cooldown for all commands for 30 seconds\n' +
-							'`time_warp` - All cooldowns reduced by 75% for 1 hour\n' +
+							'`fishing_no_cooldown` - Next X fish commands have no cooldown\n' +
+							'`hunting_no_cooldown` - Next X hunt commands have no cooldown\n' +
+							'`frenzy_mode` - No cooldown for all commands for X seconds\n' +
+							'`time_warp` - All cooldowns reduced by 75% for X hour\n' +
 							'`cooldown_reset` - Instantly resets all current cooldowns'
 						},
 						{ name: 'Other Buffs', value:
 							'`crime_success` - Guaranteed successful crime\n' +
 							'`jail_immunity` - Immune to jail time from failed crimes\n' +
-							'`lucky_streak` - Next 3 commands have increased success rates (70% crime, 50% steal)\n' +
-							'`double_collection_value` - Items worth 2x when sold for 1 hour\n' +
+							'`lucky_streak` - Next X steal/crime have increased success rates (70% crime, 50% steal)\n' +
+							'`double_collection_value` - Items worth 2x when sold for X hour\n' +
 							'`mysterybox_cooldown_half` - Premium/Ultimate box cooldowns reduced by 50%'
 						},
 						{ name: 'Mystery Box Types', value:
@@ -3105,6 +3110,32 @@ client.on('interactionCreate', async interaction => {
 							'Required Permission: Administrator\n\n' +
 							'`/changerole @user role` - Change a user\'s role (user/admin/superadmin)\n' +
 							'Required Permission: Superadmin'
+						}
+					],
+					timestamp: new Date()
+				};
+			} else if (sub === 'pokemon') {
+				embed = {
+					color: 0x0099ff,
+					title: '🐾 Pokémon Commands',
+					description: 'Catch, collect, and compete with Pokémon in your server! Powered by PokéAPI. More regions coming soon.',
+					fields: [
+						{ name: '🌱 Spawning', value:
+							'`/pokespawn` - (Admin) Manually spawn a wild Pokémon in the current channel\n' +
+							'`/setpokechannel` - (Admin) Set the channel for automatic Pokémon spawns (every 10 min)'
+						},
+						{ name: '�� Catching', value:
+							'`/pokecatch` - Attempt to catch the currently spawned Pokémon in this channel. Shiny Pokémon are extremely rare!'
+						},
+						{ name: '📖 Pokédex', value:
+							'`/pokedex` - View your caught Pokémon, including shiny count and stats. Paginated for easy browsing.'
+						},
+						{ name: 'ℹ️ Features', value:
+							'• Pokémon rarity and catch chance based on official PokéAPI data\n' +
+							'• Shiny Pokémon can appear (1 in 4096 chance)\n' +
+							'• Only Kanto region for now (more coming soon)\n' +
+							'• All data, images, and flavor text from PokéAPI\n' +
+							'• Server admins can configure spawn channel per guild'
 						}
 					],
 					timestamp: new Date()
@@ -3556,6 +3587,14 @@ client.on('interactionCreate', async interaction => {
 		await jailedCommand.execute(interaction);
 	} else if (commandName === 'refund') {
 		await refundCommand.execute(interaction);
+	} else if (commandName === 'pokespawn') {
+		await pokespawnCommand.execute(interaction);
+	} else if (commandName === 'pokecatch') {
+		await pokecatchCommand.execute(interaction);
+	} else if (commandName === 'pokedex') {
+		await pokedexCommand.execute(interaction);
+	} else if (commandName === 'setpokechannel') {
+		await setpokechannelCommand.execute(interaction);
 	}
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);
@@ -3656,4 +3695,20 @@ function truncateChoiceName(name) {
   const MAX_LENGTH = 100;
   return name.length > MAX_LENGTH ? name.slice(0, MAX_LENGTH - 1) + '…' : name;
 }
+
+const pokeCache = require('./utils/pokeCache');
+const { startAutoSpawner } = require('./utils/pokeAutoSpawner');
+
+(async () => {
+  try {
+    console.log('[PokéCache] Building Kanto Pokémon cache...');
+    await pokeCache.buildKantoCache();
+    console.log('[PokéCache] Kanto Pokémon cache ready!');
+    startAutoSpawner(client, backendApiUrl);
+    await client.login(process.env.DISCORD_TOKEN);
+  } catch (err) {
+    console.error('[PokéCache] Failed to build Kanto cache:', err);
+    process.exit(1);
+  }
+})();
 
