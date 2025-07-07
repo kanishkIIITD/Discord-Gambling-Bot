@@ -22,7 +22,11 @@ async function fetchSpawnChannels(backendUrl) {
 async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
   try {
     // Prevent double spawn in the same channel
-    if (activeSpawns.has(channelId)) return;
+    if (activeSpawns.has(channelId)) {
+      console.log(`[AutoSpawner] Skipping spawn in channel ${channelId} (guild ${guildId}) because a spawn is already active.`);
+      return;
+    }
+    console.log(`[AutoSpawner] Spawning Pokémon in channel ${channelId} (guild ${guildId})`);
     const pokemonId = pokeCache.getRandomKantoPokemonId();
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
     const fetch = require('node-fetch');
@@ -81,7 +85,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     }, DESPAWN_TIME);
     despawnTimers.set(channelId, { timeout, messageId: message.id });
   } catch (err) {
-    console.error(`[AutoSpawner] Failed to spawn in ${channelId}:`, err);
+    console.error(`[AutoSpawner] Failed to spawn in ${channelId} (guild ${guildId}):`, err);
   }
 }
 
@@ -93,9 +97,13 @@ function getRandomSpawnInterval() {
 async function startAutoSpawner(client, backendUrl) {
   async function spawnAll() {
     const servers = await fetchSpawnChannels(backendUrl);
+    console.log(`[AutoSpawner] Fetched ${servers.length} servers with spawn channels.`);
     for (const s of servers) {
       if (s.pokeSpawnChannelId) {
+        console.log(`[AutoSpawner] Considering guild ${s.guildId}, channel ${s.pokeSpawnChannelId}`);
         await spawnPokemonInChannel(client, s.guildId, s.pokeSpawnChannelId, backendUrl);
+      } else {
+        console.log(`[AutoSpawner] Guild ${s.guildId} has no spawn channel set, skipping.`);
       }
     }
     // Schedule next spawn with random interval
