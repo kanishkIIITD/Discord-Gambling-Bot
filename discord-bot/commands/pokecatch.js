@@ -20,6 +20,11 @@ module.exports = {
     if (spawn.caughtBy) {
       return interaction.reply({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
     }
+    // Prevent same user from trying more than once per spawn
+    if (!spawn.attemptedBy) spawn.attemptedBy = [];
+    if (spawn.attemptedBy.includes(interaction.user.id)) {
+      return interaction.reply({ content: 'You have already tried to catch this Pokémon. Wait for the next spawn!', ephemeral: true });
+    }
     const pokemonId = spawn.pokemonId;
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
     // Fetch species data for capture_rate, dex number, and flavor text
@@ -74,6 +79,7 @@ module.exports = {
       }
       // Mark as caught
       spawn.caughtBy = interaction.user.id;
+      spawn.attemptedBy.push(interaction.user.id);
       activeSpawns.set(channelId, spawn);
       embed = new EmbedBuilder()
         .setColor(0x2ecc71)
@@ -92,6 +98,7 @@ module.exports = {
       // Failure
       // Increment attempts
       spawn.attempts = (spawn.attempts || 0) + 1;
+      spawn.attemptedBy.push(interaction.user.id);
       if (spawn.attempts >= 3) {
         // Despawn and update message
         const goneEmbed = new EmbedBuilder()
