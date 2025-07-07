@@ -27,6 +27,22 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
       return;
     }
     console.log(`[AutoSpawner] Spawning Pokémon in channel ${channelId} (guild ${guildId})`);
+    // Fetch channel and log type/permissions
+    let channel;
+    try {
+      channel = await client.channels.fetch(channelId);
+      console.log(`[AutoSpawner] Channel fetched: ${channelId} (type: ${channel.type}, name: ${channel.name || 'N/A'})`);
+      if (channel.guild) {
+        const perms = channel.permissionsFor(client.user);
+        console.log(`[AutoSpawner] Bot permissions in channel ${channelId}:`, perms ? perms.toArray() : 'N/A');
+        if (!perms || !perms.has('SendMessages') || !perms.has('ViewChannel')) {
+          console.error(`[AutoSpawner] Bot lacks SendMessages or ViewChannel in channel ${channelId} (guild ${guildId})`);
+        }
+      }
+    } catch (e) {
+      console.error(`[AutoSpawner] Failed to fetch channel ${channelId} (guild ${guildId}):`, e);
+      return;
+    }
     const pokemonId = pokeCache.getRandomKantoPokemonId();
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
     const fetch = require('node-fetch');
@@ -49,11 +65,28 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
       )
       .setDescription(flavorText)
       .setFooter({ text: 'Type /pokecatch to try catching!' });
-    const channel = await client.channels.fetch(channelId);
     console.log(`[AutoSpawner] Attempting to send spawn message in channel ${channelId} (guild ${guildId})`);
-    const message = await channel.send({ embeds: [embed] });
-    console.log(`[AutoSpawner] Successfully sent spawn message in channel ${channelId} (guild ${guildId})`);
+    let message;
+    try {
+      message = await channel.send({ embeds: [embed] });
+      console.log(`[AutoSpawner] Successfully sent spawn message in channel ${channelId} (guild ${guildId}), messageId: ${message.id}`);
+    } catch (e) {
+      console.error(`[AutoSpawner] Failed to send spawn message in channel ${channelId} (guild ${guildId}):`, e);
+      return;
+    }
+    // Confirm message exists by fetching it back
+    try {
+      const fetchedMsg = await channel.messages.fetch(message.id);
+      if (fetchedMsg) {
+        console.log(`[AutoSpawner] Confirmed message exists in channel ${channelId}, messageId: ${message.id}`);
+      } else {
+        console.error(`[AutoSpawner] Message not found after sending in channel ${channelId}, messageId: ${message.id}`);
+      }
+    } catch (e) {
+      console.error(`[AutoSpawner] Error fetching message after sending in channel ${channelId}, messageId: ${message.id}:`, e);
+    }
     activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id, attempts: 0 });
+    console.log(`[AutoSpawner] activeSpawns after spawn:`, Array.from(activeSpawns.entries()));
     // Set despawn timer
     if (despawnTimers.has(channelId)) clearTimeout(despawnTimers.get(channelId).timeout);
     const timeout = setTimeout(async () => {
@@ -79,15 +112,19 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
               .setImage(artwork);
             const msg = await channel.messages.fetch(message.id);
             await msg.edit({ embeds: [goneEmbed] });
+            console.log(`[AutoSpawner] Despawned Pokémon in channel ${channelId} (guild ${guildId}), messageId: ${message.id}`);
           } catch (e) { console.error('[AutoSpawner] Failed to edit despawn message:', e); }
         }
         activeSpawns.delete(channelId);
+        console.log(`[AutoSpawner] activeSpawns after despawn:`, Array.from(activeSpawns.entries()));
       }
       despawnTimers.delete(channelId);
+      console.log(`[AutoSpawner] Cleared despawn timer for channel ${channelId}`);
     }, DESPAWN_TIME);
     despawnTimers.set(channelId, { timeout, messageId: message.id });
+    console.log(`[AutoSpawner] Set despawn timer for channel ${channelId}, messageId: ${message.id}`);
   } catch (err) {
-    console.error(`[AutoSpawner] Failed to spawn in channel ${channelId} (guild ${guildId}):`, err);
+    console.error(`[AutoSpawner] Failed to spawn in ${channelId} (guild ${guildId}):`, err);
   }
 }
 
