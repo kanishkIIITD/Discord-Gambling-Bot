@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const axios = require('axios');
 const crimeCommand = require('./commands/crime');
 const workCommand = require('./commands/work');
@@ -30,6 +30,7 @@ const pokespawnCommand = require('./commands/pokespawn');
 const pokecatchCommand = require('./commands/pokecatch');
 const pokedexCommand = require('./commands/pokedex');
 const setpokechannelCommand = require('./commands/setpokechannel');
+const pokebattleCommand = require('./commands/pokebattle');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 let betMessageMap = {};
@@ -792,6 +793,440 @@ client.on('interactionCreate', async interaction => {
 			}
 			return;
 		}
+
+		// --- Handle pokebattle accept/decline buttons ---
+		if (interaction.customId.startsWith('pokebattle_accept_') || interaction.customId.startsWith('pokebattle_decline_')) {
+			// Parse battleId and opponentId from customId
+			const match = interaction.customId.match(/^pokebattle_(accept|decline)_(.+)_(\d+)$/);
+			let battleId, opponentId;
+			if (match) {
+				battleId = match[2];
+				opponentId = match[3];
+			} else {
+				// fallback for old format
+				battleId = interaction.customId.replace('pokebattle_accept_', '').replace('pokebattle_decline_', '');
+				opponentId = null;
+			}
+			const accept = interaction.customId.startsWith('pokebattle_accept_');
+			const userId = interaction.user.id;
+			if (opponentId && userId !== opponentId) {
+				await interaction.reply({ content: 'Only the challenged user can accept or decline this battle.', ephemeral: true });
+				return;
+			}
+			const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+			const axios = require('axios');
+			const backendApiUrl = process.env.BACKEND_API_URL;
+			const disabledRow = new ActionRowBuilder().addComponents(
+				new ButtonBuilder()
+					.setCustomId(`pokebattle_accept_${battleId}_${opponentId}`)
+					.setLabel('Accept')
+					.setStyle(ButtonStyle.Success)
+					.setDisabled(true),
+				new ButtonBuilder()
+					.setCustomId(`pokebattle_decline_${battleId}_${opponentId}`)
+					.setLabel('Decline')
+					.setStyle(ButtonStyle.Danger)
+					.setDisabled(true)
+			);
+			try {
+				await interaction.update({ components: [disabledRow] });
+				// Call backend to update battle status
+				const response = await axios.post(`${backendApiUrl}/battles/${battleId}/respond`, {
+					accept,
+					userId,
+				}, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const { status, session } = response.data;
+				if (accept && status === 'active') {
+					// --- Pokémon selection step ---
+					// Fetch available Pokémon for both users
+					const [challengerRes, opponentRes] = await Promise.all([
+						axios.get(`${backendApiUrl}/battles/${battleId}/pokemon/${session.challengerId}`, { headers: { 'x-guild-id': interaction.guildId } }),
+						axios.get(`${backendApiUrl}/battles/${battleId}/pokemon/${session.opponentId}`, { headers: { 'x-guild-id': interaction.guildId } })
+					]);
+					const challengerOptions = challengerRes.data.pokemons.map(p => ({
+						label: `${p.name}${p.isShiny ? ' ✨' : ''}`,
+						value: p._id,
+					}));
+					const opponentOptions = opponentRes.data.pokemons.map(p => ({
+						label: `${p.name}${p.isShiny ? ' ✨' : ''}`,
+						value: p._id,
+					}));
+					const count = session.count || 1;
+					// Challenger select menu
+					const challengerMenu = new StringSelectMenuBuilder()
+						.setCustomId(`pokebattle_select_${battleId}_${session.challengerId}`)
+						.setPlaceholder('Challenger: Select your Pokémon')
+						.setMinValues(count)
+						.setMaxValues(count)
+						.addOptions(challengerOptions);
+					// Opponent select menu
+					const opponentMenu = new StringSelectMenuBuilder()
+						.setCustomId(`pokebattle_select_${battleId}_${session.opponentId}`)
+						.setPlaceholder('Opponent: Select your Pokémon')
+						.setMinValues(count)
+						.setMaxValues(count)
+						.addOptions(opponentOptions);
+					// Build action rows
+					const rows = [
+						new ActionRowBuilder().addComponents(challengerMenu),
+						new ActionRowBuilder().addComponents(opponentMenu),
+					];
+					await interaction.followUp({
+						content: `<@${session.challengerId}> and <@${session.opponentId}>, please select your team of ${count} Pokémon!`,
+						components: rows,
+						allowedMentions: { users: [session.challengerId, session.opponentId] },
+					});
+				} else if (!accept && status === 'cancelled') {
+					await interaction.followUp({ content: `Battle declined.`, components: [] });
+				} else {
+					await interaction.followUp({ content: `Battle status: ${status}`, components: [] });
+				}
+			} catch (error) {
+				const errorMessage = error?.response?.data?.error || error?.message || 'Battle expired, not found, or already resolved.';
+				await interaction.followUp({ content: `❌ ${errorMessage}`, components: [] });
+			}
+			return;
+		}
+
+		// --- Handle pokebattle move buttons ---
+		if (interaction.isButton() && interaction.customId.startsWith('pokebattle_move_')) {
+			const [ , , battleId, moveUserId, ...moveNameParts ] = interaction.customId.split('_');
+			const moveName = moveNameParts.join('_');
+			const userId = interaction.user.id;
+			if (userId !== moveUserId) {
+				await interaction.reply({ content: 'It is not your turn or you cannot use this move.', ephemeral: true });
+				return;
+			}
+			const axios = require('axios');
+			const backendApiUrl = process.env.BACKEND_API_URL;
+			try {
+				// Process the move
+				const response = await axios.post(`${backendApiUrl}/battles/${battleId}/move`, {
+					userId,
+					moveName,
+				}, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const { session } = response.data;
+				// Get active Pokémon for both users
+				const challengerPoke = session.challengerPokemons[session.activeChallengerIndex || 0];
+				const opponentPoke = session.opponentPokemons[session.activeOpponentIndex || 0];
+				// Determine whose turn it is (for next move)
+				const turnUserId = session.turn === 'challenger' ? session.challengerId : session.opponentId;
+				const turnPoke = session.turn === 'challenger' ? challengerPoke : opponentPoke;
+				const otherPoke = session.turn === 'challenger' ? opponentPoke : challengerPoke;
+				const turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
+				const otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
+				const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+				const logText = session.log.slice(-5).join('\n');
+				const battleEmbed = new EmbedBuilder()
+				  .setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${turnPoke.currentHp} HP)`)
+				  // .setDescription(logText)
+				  .setImage(turnImg)
+				  .setThumbnail(otherImg)
+				  .addFields(
+					{ name: 'Active Pokémon', value: `${turnPoke.name} (${turnPoke.currentHp} HP)`, inline: true },
+					{ name: 'Other Pokémon', value: `${otherPoke.name} (${otherPoke.currentHp} HP)`, inline: true }
+				  );
+				// Check for fainted Pokémon or battle end
+				if (challengerPoke.currentHp <= 0 || opponentPoke.currentHp <= 0 || session.status === 'finished') {
+					await interaction.update({
+						content: `${logText}\nBattle ended! (${challengerPoke.currentHp <= 0 ? challengerPoke.name : opponentPoke.name} fainted)` ,
+						embeds: [battleEmbed],
+						components: [],
+					});
+					return;
+				}
+				// Show real move buttons for the next user
+				const moves = (turnPoke.moves || []).slice(0, 4);
+				const moveRow = new ActionRowBuilder().addComponents(
+					moves.map(m => new ButtonBuilder()
+						.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
+						.setLabel(m.name.replace(/-/g, ' '))
+						.setStyle(ButtonStyle.Primary)
+					)
+				);
+				const { getBattleActionRow } = require('./utils/discordUtils');
+				const actionRow = getBattleActionRow(battleId, turnUserId);
+				await interaction.update({
+					content: `<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+					embeds: [battleEmbed],
+					components: [moveRow, actionRow],
+					allowedMentions: { users: [turnUserId] },
+				});
+			} catch (error) {
+				const errorMsg = error.response?.data?.error || error.message || 'Failed to process move.';
+				await interaction.reply({ content: `❌ ${errorMsg}`, ephemeral: true });
+			}
+			return;
+		}
+
+		// --- Handle pokebattle switch/forfeit buttons ---
+		if (interaction.isButton() && (interaction.customId.startsWith('pokebattle_switch_') || interaction.customId.startsWith('pokebattle_forfeit_'))) {
+			console.log('Switch/Forfeit button handler triggered:', interaction.customId, interaction.user.id);
+			try {
+				const { getBattleActionRow } = require('./utils/discordUtils');
+				const [ , action, battleId, buttonUserId ] = interaction.customId.split('_');
+				const userId = interaction.user.id;
+				if (userId !== buttonUserId) {
+					await interaction.reply({ content: 'You cannot use this button.', ephemeral: true });
+					return;
+				}
+				const axios = require('axios');
+				const backendApiUrl = process.env.BACKEND_API_URL;
+				if (action === 'switch') {
+					try {
+						const sessionRes = await axios.get(`${backendApiUrl}/battles/${battleId}`);
+						const session = sessionRes.data.session;
+						const isChallenger = userId === session.challengerId;
+						const pokemons = isChallenger ? session.challengerPokemons : session.opponentPokemons;
+						const activeIndex = isChallenger ? (session.activeChallengerIndex || 0) : (session.activeOpponentIndex || 0);
+						const switchable = pokemons.map((p, i) => ({
+							label: `${p.name} (${p.currentHp} HP)${i === activeIndex ? ' (Active)' : ''}`,
+							value: i.toString(),
+							default: i === activeIndex,
+							disabled: p.currentHp <= 0 || i === activeIndex
+						})).filter(opt => !opt.disabled);
+						if (switchable.length <= 0) {
+							await interaction.reply({ content: 'No other Pokémon available to switch to.', ephemeral: true });
+							return;
+						}
+						const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
+						const selectMenu = new StringSelectMenuBuilder()
+							.setCustomId(`pokebattle_switch_select_${battleId}_${userId}`)
+							.setPlaceholder('Select a Pokémon to switch to')
+							.addOptions(switchable)
+							.setMinValues(1)
+							.setMaxValues(1);
+						// Show the select menu on the main message (replace buttons)
+						await interaction.update({
+							content: 'Choose a Pokémon to switch to:',
+							embeds: interaction.message.embeds,
+							components: [new ActionRowBuilder().addComponents(selectMenu)],
+							allowedMentions: { users: [userId] },
+						});
+						return;
+					} catch (error) {
+						console.error('Error in pokebattle_switch_ handler:', error);
+						const errorMsg = error.response?.data?.error || error.message || 'Failed to fetch Pokémon.';
+						if (!interaction.replied && !interaction.deferred) {
+							await interaction.reply({ content: `❌ ${errorMsg}`, ephemeral: true });
+						}
+						return;
+					}
+				} else if (action === 'forfeit') {
+					try {
+						const response = await axios.post(`${backendApiUrl}/battles/${battleId}/forfeit`, {
+							userId,
+						}, {
+							headers: { 'x-guild-id': interaction.guildId }
+						});
+						const { session } = response.data;
+						const winnerMention = `<@${session.winnerId}>`;
+						await interaction.update({
+							content: `Battle forfeited! Winner: ${winnerMention}`,
+							embeds: [],
+							components: [],
+							allowedMentions: { users: [session.winnerId] },
+						});
+						return;
+					} catch (error) {
+						console.error('Error in pokebattle_forfeit_ handler:', error);
+						const errorMsg = error.response?.data?.error || error.message || 'Failed to forfeit.';
+						if (!interaction.replied && !interaction.deferred) {
+							await interaction.reply({ content: `❌ ${errorMsg}`, ephemeral: true });
+						}
+						return;
+					}
+				}
+			} catch (outerError) {
+				console.error('Unexpected error in pokebattle switch/forfeit handler:', outerError);
+				if (!interaction.replied && !interaction.deferred) {
+					await interaction.reply({ content: '❌ An unexpected error occurred.', ephemeral: true });
+				}
+				return;
+			}
+		}
+
+	}
+
+	// --- Handle pokebattle switch select menu ---
+	if (interaction.isStringSelectMenu() && interaction.customId.startsWith('pokebattle_switch_select_')) {
+		console.log('Switch select menu handler triggered:', interaction.customId, interaction.user.id, interaction.values);
+		// Use regex to extract battleId and userId
+		const match = interaction.customId.match(/^pokebattle_switch_select_(.+)_(\d+)$/);
+		if (!match) {
+			await interaction.reply({ content: 'Invalid menu.', ephemeral: true });
+			return;
+		}
+		const battleId = match[1];
+		const selectUserId = match[2];
+		const userId = interaction.user.id;
+		console.log('userId:', userId, 'selectUserId:', selectUserId, typeof userId, typeof selectUserId);
+		if (userId !== selectUserId) {
+			await interaction.reply({ content: 'You cannot use this menu.', ephemeral: true });
+			return;
+		}
+		const axios = require('axios');
+		const backendApiUrl = process.env.BACKEND_API_URL;
+		try {
+			const newIndex = parseInt(interaction.values[0], 10);
+			console.log('Attempting to switch to index:', newIndex);
+			// Call backend to switch active Pokémon
+			const response = await axios.post(`${backendApiUrl}/battles/${battleId}/switch`, {
+				userId,
+				newIndex,
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
+			const { session } = response.data;
+			console.log('Switch successful:', session);
+			// Fetch updated session for display
+			const sessionRes = await axios.get(`${backendApiUrl}/battles/${battleId}`);
+			const updatedSession = sessionRes.data.session;
+			// Build new embeds and buttons for the main message
+			const challengerPoke = updatedSession.challengerPokemons[updatedSession.activeChallengerIndex || 0];
+			const opponentPoke = updatedSession.opponentPokemons[updatedSession.activeOpponentIndex || 0];
+			const challengerImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${challengerPoke.pokemonId}.png`;
+			const opponentImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${opponentPoke.pokemonId}.png`;
+			const { EmbedBuilder, ActionRowBuilder, ButtonBuilder } = require('discord.js');
+			const battleEmbed = new EmbedBuilder()
+			  .setTitle(`${updatedSession.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${challengerPoke.name} (${challengerPoke.currentHp} HP)`)
+			  .setImage(challengerImg)
+			  .setThumbnail(opponentImg)
+			  .addFields(
+				{ name: 'Active Pokémon', value: `${challengerPoke.name} (${challengerPoke.currentHp} HP)`, inline: true },
+				{ name: 'Other Pokémon', value: `${opponentPoke.name} (${opponentPoke.currentHp} HP)`, inline: true }
+			  );
+			const moves = (challengerPoke.moves || []).slice(0, 4);
+			const moveRow = new ActionRowBuilder().addComponents(
+			  moves.map(m => new ButtonBuilder()
+				.setCustomId(`pokebattle_move_${battleId}_${updatedSession.challengerId}_${m.name}`)
+				.setLabel(m.name.replace(/-/g, ' '))
+				.setStyle(ButtonStyle.Primary)
+			  )
+			);
+			const { getBattleActionRow } = require('./utils/discordUtils');
+			const actionRow = getBattleActionRow(battleId, updatedSession.challengerId);
+			// Update the main battle message in place
+			await interaction.update({
+			  content: `<@${updatedSession.challengerId}>, it is your turn! Choose a move for **${challengerPoke.name}**:`,
+			  embeds: [battleEmbed],
+			  components: [moveRow, actionRow],
+			  allowedMentions: { users: [updatedSession.challengerId] },
+			});
+			return;
+		} catch (error) {
+			console.error('Error in pokebattle_switch_select_ handler:', error);
+			const errorMsg = error.response?.data?.error || error.message || 'Failed to switch Pokémon.';
+			if (!interaction.replied && !interaction.deferred) {
+				await interaction.reply({ content: `❌ ${errorMsg}`, ephemeral: true });
+			}
+		}
+		return;
+	}
+
+	// --- Handle pokebattle select menu interactions ---
+	if (interaction.isStringSelectMenu() && interaction.customId.startsWith('pokebattle_select_')) {
+		const [ , , battleId, selectUserId ] = interaction.customId.split('_');
+		const userId = interaction.user.id;
+		if (userId !== selectUserId) {
+			await interaction.reply({ content: 'Only the correct user can select their Pokémon.', ephemeral: true });
+			return;
+		}
+		const axios = require('axios');
+		const backendApiUrl = process.env.BACKEND_API_URL;
+		try {
+			// Fetch session to get required count
+			const sessionRes = await axios.get(`${backendApiUrl}/battles/${battleId}`);
+			const session = sessionRes.data.session;
+			const requiredCount = session.count || 1;
+			// Check if the user selected the correct number of Pokémon
+			if (interaction.values.length !== requiredCount) {
+				await interaction.reply({
+					content: `You must select exactly ${requiredCount} Pokémon.`,
+					ephemeral: true
+				});
+				return;
+			}
+			// Submit selection to backend
+			await axios.post(`${backendApiUrl}/battles/${battleId}/select`, {
+				userId,
+				selectedPokemonIds: interaction.values,
+			}, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
+			// Fetch updated session
+			// const sessionRes2 = await axios.get(`${backendApiUrl}/battles/${battleId}/pokemon/${userId}`, { headers: { 'x-guild-id': interaction.guildId } });
+			// Fetch the original message and components
+			const message = interaction.message;
+			const components = message.components.map(row => {
+				// Disable the select menu for this user
+				const newRow = row;
+				newRow.components = row.components.map(menu => {
+					if (menu.customId === interaction.customId) {
+						return StringSelectMenuBuilder.from(menu).setDisabled(true);
+					}
+					return menu;
+				});
+				return newRow;
+			});
+			// Update the content to show Ready! for this user
+			let content = message.content;
+			content = content.replace(`<@${userId}>`, `<@${userId}> ✅ Ready!`);
+			// Check if both users are ready by content
+			const bothReady = content.includes('✅ Ready!') && (content.match(/✅ Ready!/g) || []).length === 2;
+			if (bothReady) {
+				content += '\nBoth users are ready! (Battle starting...)';
+				await interaction.update({ content, components });
+				// --- Start the battle ---
+				// Fetch the full session to get both teams and turn info
+				const sessionRes = await axios.get(`${backendApiUrl}/battles/${battleId}`);
+				const session = sessionRes.data.session;
+				const challengerPoke = session.challengerPokemons[0];
+				const opponentPoke = session.opponentPokemons[0];
+				// Determine whose turn it is
+				const turnUserId = session.turn === 'challenger' ? session.challengerId : session.opponentId;
+				const turnPoke = session.turn === 'challenger' ? challengerPoke : opponentPoke;
+				const otherPoke = session.turn === 'challenger' ? opponentPoke : challengerPoke;
+				const turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
+				const otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
+				const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+				const battleEmbed = new EmbedBuilder()
+				  .setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${turnPoke.maxHp} HP)`)
+				  .setDescription(`${session.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
+				  .setImage(turnImg)
+				  .setThumbnail(otherImg)
+				  .addFields(
+					{ name: 'Active Pokémon', value: `${turnPoke.name} (${turnPoke.maxHp} HP)`, inline: true },
+					{ name: 'Other Pokémon', value: `${otherPoke.name} (${otherPoke.maxHp} HP)`, inline: true }
+				  );
+				const moves = (turnPoke.moves || []).slice(0, 4);
+				const moveRow = new ActionRowBuilder().addComponents(
+				  moves.map(m => new ButtonBuilder()
+					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
+					.setLabel(m.name.replace(/-/g, ' '))
+					.setStyle(ButtonStyle.Primary)
+				  )
+				);
+				const { getBattleActionRow } = require('./utils/discordUtils');
+				const actionRow = getBattleActionRow(battleId, turnUserId);
+				await message.channel.send({
+				  content: `<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+				  embeds: [battleEmbed],
+				  components: [moveRow, actionRow],
+				  allowedMentions: { users: [turnUserId] },
+				});
+				return;
+			}
+			await interaction.update({ content, components });
+		} catch (error) {
+			const errorMsg = error.response?.data?.error || error.message || 'Failed to submit Pokémon selection.';
+			await interaction.reply({ content: `❌ ${errorMsg}`, ephemeral: true });
+		}
+		return;
 	}
 	
 	if (!interaction.isCommand()) return;
@@ -3133,6 +3568,9 @@ client.on('interactionCreate', async interaction => {
 						{ name: '📖 Pokédex', value:
 							'`/pokedex` - View your caught Pokémon, including shiny count and stats. Paginated for easy browsing.'
 						},
+						{ name: '👾 Battling', value:
+							'`/pokebattle` - Challenge another user to a Pokémon battle! (Pokémon per side: 1-5)'
+						},
 						{ name: 'ℹ️ Features', value:
 							'• Pokémon rarity and catch chance based on official PokéAPI data\n' +
 							'• Shiny Pokémon can appear (1 in 4096 chance)\n' +
@@ -3598,6 +4036,8 @@ client.on('interactionCreate', async interaction => {
 		await pokedexCommand.execute(interaction);
 	} else if (commandName === 'setpokechannel') {
 		await setpokechannelCommand.execute(interaction);
+	} else if (commandName === 'pokebattle') {
+		await pokebattleCommand.execute(interaction);
 	}
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);

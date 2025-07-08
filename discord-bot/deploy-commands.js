@@ -950,6 +950,24 @@ const commands = [
 		description: 'Set this channel as the Pokémon spawn channel for your server (admin only).',
 		defaultMemberPermissions: '0',
 	},
+	{
+		name: 'pokebattle',
+		description: 'Challenge another user to a Pokémon battle!',
+		options: [
+			{
+				name: 'opponent',
+				description: 'The user to challenge',
+				type: 6,
+				required: true
+			},
+			{
+				name: 'count',
+				description: 'Number of Pokémon to battle with (max 5)',
+				type: 4,
+				required: false,
+			},
+		]
+	},
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);

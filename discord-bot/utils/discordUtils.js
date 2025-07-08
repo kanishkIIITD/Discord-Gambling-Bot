@@ -176,10 +176,35 @@ async function sendLogToChannel(client, guildId, logData) {
     }
 }
 
+/**
+ * Generates an ActionRow with Switch and Forfeit buttons for a battle session.
+ * @param {string} battleId
+ * @param {string} userId
+ * @param {boolean} disableSwitch
+ * @param {boolean} disableForfeit
+ * @returns {ActionRowBuilder}
+ */
+function getBattleActionRow(battleId, userId, disableSwitch = false, disableForfeit = false) {
+  const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`pokebattle_switch_${battleId}_${userId}`)
+      .setLabel('Switch')
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(disableSwitch),
+    new ButtonBuilder()
+      .setCustomId(`pokebattle_forfeit_${battleId}_${userId}`)
+      .setLabel('Forfeit')
+      .setStyle(ButtonStyle.Danger)
+      .setDisabled(disableForfeit)
+  );
+}
+
 module.exports = {
     timeoutUser,
     handleTimeoutRemoval,
     createErrorEmbed,
     createSuccessEmbed,
-    sendLogToChannel
+    sendLogToChannel,
+    getBattleActionRow,
 }; 
