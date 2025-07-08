@@ -968,6 +968,18 @@ const commands = [
 			},
 		]
 	},
+	{
+		name: 'poketrade',
+		description: 'Trade Pokémon with another user!',
+		options: [
+			{
+				name: 'user',
+				description: 'The user to trade with',
+				type: 6,
+				required: true
+			}
+		]
+	},
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);

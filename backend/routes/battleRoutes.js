@@ -46,7 +46,7 @@ router.post('/', async (req, res) => {
       guildId,
       challengerPokemons: [],
       opponentPokemons: [],
-      turn: 'challenger',
+      turn: Math.random() < 0.5 ? 'challenger' : 'opponent', // Randomize who goes first
       status: 'pending',
       log: [],
       count,
@@ -326,8 +326,10 @@ router.post('/:battleId/switch', async (req, res) => {
     if (session.status !== 'active') return res.status(400).json({ error: 'Battle is not active' });
     if (userId === session.challengerId) {
       session.activeChallengerIndex = newIndex;
+      session.turn = 'opponent';
     } else if (userId === session.opponentId) {
       session.activeOpponentIndex = newIndex;
+      session.turn = 'challenger';
     } else {
       return res.status(403).json({ error: 'Not a participant' });
     }

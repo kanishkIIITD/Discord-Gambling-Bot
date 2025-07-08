@@ -19,10 +19,11 @@ module.exports = {
       });
     }
     const channelId = interaction.channelId;
-    const spawn = activeSpawns.get(channelId);
+    let spawn = activeSpawns.get(channelId);
     if (!spawn) {
       return interaction.reply({ content: 'There is no wild Pokémon to catch in this channel. Ask an admin to use /pokespawn!', ephemeral: true });
     }
+    // ATOMICITY: re-fetch spawn from activeSpawns after any async operation
     if (spawn.caughtBy) {
       return interaction.reply({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
     }
@@ -53,6 +54,15 @@ module.exports = {
     // Use official artwork for large image
     const artwork = isShiny && pokemonData.sprites.other['official-artwork'].front_shiny ? pokemonData.sprites.other['official-artwork'].front_shiny : pokemonData.sprites.other['official-artwork'].front_default;
     let embed;
+    // ATOMICITY: lock the spawn for this attempt (simulate atomic update)
+    spawn.attemptedBy.push(interaction.user.id);
+    spawn.attempts = (spawn.attempts || 0) + 1;
+    activeSpawns.set(channelId, spawn);
+    // Re-fetch spawn after asyncs to ensure no one else has caught it
+    spawn = activeSpawns.get(channelId);
+    if (spawn.caughtBy) {
+      return interaction.reply({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
+    }
     if (roll < finalChance) {
       // Success
       // Save to backend
@@ -83,9 +93,12 @@ module.exports = {
         activeSpawns.delete(channelId);
         return await interaction.reply({ embeds: [embed] });
       }
-      // Mark as caught
+      // Mark as caught (atomic)
+      spawn = activeSpawns.get(channelId);
+      if (spawn.caughtBy) {
+        return interaction.reply({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
+      }
       spawn.caughtBy = interaction.user.id;
-      spawn.attemptedBy.push(interaction.user.id);
       activeSpawns.set(channelId, spawn);
       activeSpawns.delete(channelId);
       embed = new EmbedBuilder()
@@ -103,15 +116,13 @@ module.exports = {
       return await interaction.reply({ embeds: [embed] });
     } else {
       // Failure
-      // Increment attempts
-      spawn.attempts = (spawn.attempts || 0) + 1;
-      spawn.attemptedBy.push(interaction.user.id);
-      if (spawn.attempts >= 3) {
+      // ATOMICITY: already incremented attempts and attemptedBy above
+      if (spawn.attempts >= 5) {
         // Despawn and update message
         const goneEmbed = new EmbedBuilder()
           .setColor(0x636e72)
           .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} ran away!`)
-          .setDescription(`No one was able to catch ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} after 3 attempts.`)
+          .setDescription(`No one was able to catch ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} after 5 attempts.`)
           .setImage(artwork);
         // Try to update the original spawn message if possible
         try {
@@ -133,9 +144,9 @@ module.exports = {
             { name: 'Type', value: types, inline: true },
             { name: 'Region', value: 'Kanto', inline: true },
             { name: 'Catch Chance', value: `${Math.round(finalChance * 100)}%`, inline: true },
-            { name: 'Attempts Left', value: `${3 - spawn.attempts}`, inline: true }
+            { name: 'Attempts Left', value: `${5 - spawn.attempts}`, inline: true }
           )
-          .setDescription(flavorText || 'Better luck next time! The wild Pokémon is still here, but will run after 3 failed attempts.')
+          .setDescription(flavorText || 'Better luck next time! The wild Pokémon is still here, but will run after 5 failed attempts.')
           .setFooter({ text: 'Wait for another wild Pokémon.' });
         return await interaction.reply({ embeds: [embed] });
       }

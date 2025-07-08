@@ -30,7 +30,18 @@ module.exports = {
         try {
           const fetch = require('node-fetch');
           const pokeData = await fetch(`https://pokeapi.co/api/v2/pokemon/${pageMons[0].pokemonId}/`).then(r => r.json());
-          artwork = pokeData.sprites.other['official-artwork'].front_default;
+          // Use shiny artwork if shiny, else normal
+          if (pageMons[0].isShiny && pokeData.sprites.other['official-artwork'].front_shiny) {
+            artwork = pokeData.sprites.other['official-artwork'].front_shiny;
+          } else if (pokeData.sprites.other['official-artwork'].front_default) {
+            artwork = pokeData.sprites.other['official-artwork'].front_default;
+          } else if (pageMons[0].isShiny && pokeData.sprites.front_shiny) {
+            // fallback to shiny sprite if no shiny artwork
+            artwork = pokeData.sprites.front_shiny;
+          } else if (pokeData.sprites.front_default) {
+            // fallback to normal sprite
+            artwork = pokeData.sprites.front_default;
+          }
         } catch {}
         const embed = new EmbedBuilder()
           .setColor(0x3498db)

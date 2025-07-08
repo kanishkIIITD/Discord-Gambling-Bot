@@ -31,6 +31,7 @@ const pokecatchCommand = require('./commands/pokecatch');
 const pokedexCommand = require('./commands/pokedex');
 const setpokechannelCommand = require('./commands/setpokechannel');
 const pokebattleCommand = require('./commands/pokebattle');
+const poketradeCommand = require('./commands/poketrade');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 let betMessageMap = {};
@@ -733,7 +734,6 @@ client.on('interactionCreate', async interaction => {
 				return;
 			}
 			// Only the correct opponent can proceed
-			const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 			const disabledRow = new ActionRowBuilder().addComponents(
 				new ButtonBuilder()
 					.setCustomId(`duel_accept_${duelId}_${opponentId}`)
@@ -813,7 +813,6 @@ client.on('interactionCreate', async interaction => {
 				await interaction.reply({ content: 'Only the challenged user can accept or decline this battle.', ephemeral: true });
 				return;
 			}
-			const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 			const axios = require('axios');
 			const backendApiUrl = process.env.BACKEND_API_URL;
 			const disabledRow = new ActionRowBuilder().addComponents(
@@ -854,29 +853,17 @@ client.on('interactionCreate', async interaction => {
 						value: p._id,
 					}));
 					const count = session.count || 1;
-					// Challenger select menu
+					// Challenger select menu only
 					const challengerMenu = new StringSelectMenuBuilder()
 						.setCustomId(`pokebattle_select_${battleId}_${session.challengerId}`)
 						.setPlaceholder('Challenger: Select your Pokémon')
 						.setMinValues(count)
 						.setMaxValues(count)
 						.addOptions(challengerOptions);
-					// Opponent select menu
-					const opponentMenu = new StringSelectMenuBuilder()
-						.setCustomId(`pokebattle_select_${battleId}_${session.opponentId}`)
-						.setPlaceholder('Opponent: Select your Pokémon')
-						.setMinValues(count)
-						.setMaxValues(count)
-						.addOptions(opponentOptions);
-					// Build action rows
-					const rows = [
-						new ActionRowBuilder().addComponents(challengerMenu),
-						new ActionRowBuilder().addComponents(opponentMenu),
-					];
 					await interaction.followUp({
-						content: `<@${session.challengerId}> and <@${session.opponentId}>, please select your team of ${count} Pokémon!`,
-						components: rows,
-						allowedMentions: { users: [session.challengerId, session.opponentId] },
+						content: `<@${session.challengerId}>, please select your team of ${count} Pokémon!`,
+						components: [new ActionRowBuilder().addComponents(challengerMenu)],
+						allowedMentions: { users: [session.challengerId] },
 					});
 				} else if (!accept && status === 'cancelled') {
 					await interaction.followUp({ content: `Battle declined.`, components: [] });
@@ -917,9 +904,14 @@ client.on('interactionCreate', async interaction => {
 				const turnUserId = session.turn === 'challenger' ? session.challengerId : session.opponentId;
 				const turnPoke = session.turn === 'challenger' ? challengerPoke : opponentPoke;
 				const otherPoke = session.turn === 'challenger' ? opponentPoke : challengerPoke;
-				const turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
-				const otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
-				const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+				let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
+				let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
+				if (turnPoke.isShiny) {
+					turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${turnPoke.pokemonId}.png`;
+				}
+				if (otherPoke.isShiny) {
+					otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
+				}
 				const logText = session.log.slice(-5).join('\n');
 				const battleEmbed = new EmbedBuilder()
 				  .setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${turnPoke.currentHp} HP)`)
@@ -993,7 +985,6 @@ client.on('interactionCreate', async interaction => {
 							await interaction.reply({ content: 'No other Pokémon available to switch to.', ephemeral: true });
 							return;
 						}
-						const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
 						const selectMenu = new StringSelectMenuBuilder()
 							.setCustomId(`pokebattle_switch_select_${battleId}_${userId}`)
 							.setPlaceholder('Select a Pokémon to switch to')
@@ -1086,36 +1077,48 @@ client.on('interactionCreate', async interaction => {
 			// Fetch updated session for display
 			const sessionRes = await axios.get(`${backendApiUrl}/battles/${battleId}`);
 			const updatedSession = sessionRes.data.session;
-			// Build new embeds and buttons for the main message
-			const challengerPoke = updatedSession.challengerPokemons[updatedSession.activeChallengerIndex || 0];
-			const opponentPoke = updatedSession.opponentPokemons[updatedSession.activeOpponentIndex || 0];
-			const challengerImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${challengerPoke.pokemonId}.png`;
-			const opponentImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${opponentPoke.pokemonId}.png`;
-			const { EmbedBuilder, ActionRowBuilder, ButtonBuilder } = require('discord.js');
+			// Determine whose turn it is and get the correct Pokémon
+			const turnUserId = updatedSession.turn === 'challenger'
+				? updatedSession.challengerId
+				: updatedSession.opponentId;
+			const turnPoke = updatedSession.turn === 'challenger'
+				? updatedSession.challengerPokemons[updatedSession.activeChallengerIndex || 0]
+				: updatedSession.opponentPokemons[updatedSession.activeOpponentIndex || 0];
+			const otherPoke = updatedSession.turn === 'challenger'
+				? updatedSession.opponentPokemons[updatedSession.activeOpponentIndex || 0]
+				: updatedSession.challengerPokemons[updatedSession.activeChallengerIndex || 0];
+			let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
+			let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
+			if (turnPoke.isShiny) {
+				turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${turnPoke.pokemonId}.png`;
+			}
+			if (otherPoke.isShiny) {
+				otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
+			}
 			const battleEmbed = new EmbedBuilder()
-			  .setTitle(`${updatedSession.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${challengerPoke.name} (${challengerPoke.currentHp} HP)`)
-			  .setImage(challengerImg)
-			  .setThumbnail(opponentImg)
-			  .addFields(
-				{ name: 'Active Pokémon', value: `${challengerPoke.name} (${challengerPoke.currentHp} HP)`, inline: true },
-				{ name: 'Other Pokémon', value: `${opponentPoke.name} (${opponentPoke.currentHp} HP)`, inline: true }
-			  );
-			const moves = (challengerPoke.moves || []).slice(0, 4);
+				.setTitle(`${updatedSession.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${turnPoke.currentHp} HP)`)
+				.setImage(turnImg)
+				.setThumbnail(otherImg)
+				.addFields(
+					{ name: 'Active Pokémon', value: `${turnPoke.name} (${turnPoke.currentHp} HP)`, inline: true },
+					{ name: 'Other Pokémon', value: `${otherPoke.name} (${otherPoke.currentHp} HP)`, inline: true }
+				);
+			const moves = (turnPoke.moves || []).slice(0, 4);
 			const moveRow = new ActionRowBuilder().addComponents(
-			  moves.map(m => new ButtonBuilder()
-				.setCustomId(`pokebattle_move_${battleId}_${updatedSession.challengerId}_${m.name}`)
-				.setLabel(m.name.replace(/-/g, ' '))
-				.setStyle(ButtonStyle.Primary)
-			  )
+				moves.map(m => new ButtonBuilder()
+					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
+					.setLabel(m.name.replace(/-/g, ' '))
+					.setStyle(ButtonStyle.Primary)
+				)
 			);
 			const { getBattleActionRow } = require('./utils/discordUtils');
-			const actionRow = getBattleActionRow(battleId, updatedSession.challengerId);
+			const actionRow = getBattleActionRow(battleId, turnUserId);
 			// Update the main battle message in place
 			await interaction.update({
-			  content: `<@${updatedSession.challengerId}>, it is your turn! Choose a move for **${challengerPoke.name}**:`,
-			  embeds: [battleEmbed],
-			  components: [moveRow, actionRow],
-			  allowedMentions: { users: [updatedSession.challengerId] },
+				content: `<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+				embeds: [battleEmbed],
+				components: [moveRow, actionRow],
+				allowedMentions: { users: [turnUserId] },
 			});
 			return;
 		} catch (error) {
@@ -1159,9 +1162,31 @@ client.on('interactionCreate', async interaction => {
 				headers: { 'x-guild-id': interaction.guildId }
 			});
 			// Fetch updated session
-			// const sessionRes2 = await axios.get(`${backendApiUrl}/battles/${battleId}/pokemon/${userId}`, { headers: { 'x-guild-id': interaction.guildId } });
-			// Fetch the original message and components
 			const message = interaction.message;
+			// If challenger just picked, now show opponent's menu
+			if (userId === session.challengerId) {
+				// Fetch opponent's available Pokémon
+				const opponentRes = await axios.get(`${backendApiUrl}/battles/${battleId}/pokemon/${session.opponentId}`, { headers: { 'x-guild-id': interaction.guildId } });
+				const opponentOptions = opponentRes.data.pokemons.map(p => ({
+					label: `${p.name}${p.isShiny ? ' ✨' : ''}`,
+					value: p._id,
+				}));
+				const opponentMenu = new StringSelectMenuBuilder()
+					.setCustomId(`pokebattle_select_${battleId}_${session.opponentId}`)
+					.setPlaceholder('Opponent: Select your Pokémon')
+					.setMinValues(requiredCount)
+					.setMaxValues(requiredCount)
+					.addOptions(opponentOptions);
+				await interaction.update({
+					content: `<@${session.opponentId}>, please select your team of ${requiredCount} Pokémon!`,
+					components: [new ActionRowBuilder().addComponents(opponentMenu)],
+					allowedMentions: { users: [session.opponentId] },
+				});
+				return;
+			}
+			// If opponent just picked, proceed to start the battle as before
+			// (existing code for bothReady and starting the battle)
+			// Fetch the original message and components
 			const components = message.components.map(row => {
 				// Disable the select menu for this user
 				const newRow = row;
@@ -1173,55 +1198,53 @@ client.on('interactionCreate', async interaction => {
 				});
 				return newRow;
 			});
-			// Update the content to show Ready! for this user
 			let content = message.content;
 			content = content.replace(`<@${userId}>`, `<@${userId}> ✅ Ready!`);
-			// Check if both users are ready by content
-			const bothReady = content.includes('✅ Ready!') && (content.match(/✅ Ready!/g) || []).length === 2;
-			if (bothReady) {
-				content += '\nBoth users are ready! (Battle starting...)';
-				await interaction.update({ content, components });
-				// --- Start the battle ---
-				// Fetch the full session to get both teams and turn info
-				const sessionRes = await axios.get(`${backendApiUrl}/battles/${battleId}`);
-				const session = sessionRes.data.session;
-				const challengerPoke = session.challengerPokemons[0];
-				const opponentPoke = session.opponentPokemons[0];
-				// Determine whose turn it is
-				const turnUserId = session.turn === 'challenger' ? session.challengerId : session.opponentId;
-				const turnPoke = session.turn === 'challenger' ? challengerPoke : opponentPoke;
-				const otherPoke = session.turn === 'challenger' ? opponentPoke : challengerPoke;
-				const turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
-				const otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
-				const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-				const battleEmbed = new EmbedBuilder()
-				  .setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${turnPoke.maxHp} HP)`)
-				  .setDescription(`${session.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
-				  .setImage(turnImg)
-				  .setThumbnail(otherImg)
-				  .addFields(
+			// Now start the battle (copy existing logic for bothReady)
+			// --- Start the battle ---
+			// Fetch the full session to get both teams and turn info
+			const sessionRes2 = await axios.get(`${backendApiUrl}/battles/${battleId}`);
+			const session2 = sessionRes2.data.session;
+			const challengerPoke = session2.challengerPokemons[0];
+			const opponentPoke = session2.opponentPokemons[0];
+			// Determine whose turn it is
+			const turnUserId = session2.turn === 'challenger' ? session2.challengerId : session2.opponentId;
+			const turnPoke = session2.turn === 'challenger' ? challengerPoke : opponentPoke;
+			const otherPoke = session2.turn === 'challenger' ? opponentPoke : challengerPoke;
+			let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
+			let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
+			if (turnPoke.isShiny) {
+				turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${turnPoke.pokemonId}.png`;
+			}
+			if (otherPoke.isShiny) {
+				otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
+			}
+			const battleEmbed = new EmbedBuilder()
+				.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${turnPoke.maxHp} HP)`)
+				.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
+				.setImage(turnImg)
+				.setThumbnail(otherImg)
+				.addFields(
 					{ name: 'Active Pokémon', value: `${turnPoke.name} (${turnPoke.maxHp} HP)`, inline: true },
 					{ name: 'Other Pokémon', value: `${otherPoke.name} (${otherPoke.maxHp} HP)`, inline: true }
-				  );
-				const moves = (turnPoke.moves || []).slice(0, 4);
-				const moveRow = new ActionRowBuilder().addComponents(
-				  moves.map(m => new ButtonBuilder()
+				);
+			const moves = (turnPoke.moves || []).slice(0, 4);
+			const moveRow = new ActionRowBuilder().addComponents(
+				moves.map(m => new ButtonBuilder()
 					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
 					.setLabel(m.name.replace(/-/g, ' '))
 					.setStyle(ButtonStyle.Primary)
-				  )
-				);
-				const { getBattleActionRow } = require('./utils/discordUtils');
-				const actionRow = getBattleActionRow(battleId, turnUserId);
-				await message.channel.send({
-				  content: `<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
-				  embeds: [battleEmbed],
-				  components: [moveRow, actionRow],
-				  allowedMentions: { users: [turnUserId] },
-				});
-				return;
-			}
-			await interaction.update({ content, components });
+				)
+			);
+			const { getBattleActionRow } = require('./utils/discordUtils');
+			const actionRow = getBattleActionRow(battleId, turnUserId);
+			await interaction.update({
+				content: `<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+				embeds: [battleEmbed],
+				components: [moveRow, actionRow],
+				allowedMentions: { users: [turnUserId] },
+			});
+			return;
 		} catch (error) {
 			const errorMsg = error.response?.data?.error || error.message || 'Failed to submit Pokémon selection.';
 			await interaction.reply({ content: `❌ ${errorMsg}`, ephemeral: true });
@@ -3571,6 +3594,9 @@ client.on('interactionCreate', async interaction => {
 						{ name: '👾 Battling', value:
 							'`/pokebattle` - Challenge another user to a Pokémon battle! (Pokémon per side: 1-5)'
 						},
+						{ name: '🔄 Trading', value:
+							'`/poketrade` - Trade Pokémon with another user!'
+						},
 						{ name: 'ℹ️ Features', value:
 							'• Pokémon rarity and catch chance based on official PokéAPI data\n' +
 							'• Shiny Pokémon can appear (1 in 4096 chance)\n' +
@@ -4038,6 +4064,8 @@ client.on('interactionCreate', async interaction => {
 		await setpokechannelCommand.execute(interaction);
 	} else if (commandName === 'pokebattle') {
 		await pokebattleCommand.execute(interaction);
+	} else if (commandName === 'poketrade') {
+		await poketradeCommand.execute(interaction);
 	}
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);

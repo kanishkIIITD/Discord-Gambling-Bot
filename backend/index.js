@@ -24,6 +24,7 @@ const serverRoutes = require('./routes/serverRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes');
 const MongoStore = require('connect-mongo');
 const battleRoutes = require('./routes/battleRoutes');
+const tradeRoutes = require('./routes/tradeRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -93,6 +94,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/battles', battleRoutes);
+app.use('/api/trades', tradeRoutes);
 
 app.get('/', (req, res) => {
   res.send('Hello from the backend!');
