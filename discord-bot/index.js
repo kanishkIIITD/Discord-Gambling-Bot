@@ -1025,8 +1025,9 @@ client.on('interactionCreate', async interaction => {
 							const moveRow = new ActionRowBuilder().addComponents(
 								moves.map(m => new ButtonBuilder()
 									.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
-									.setLabel(m.name.replace(/-/g, ' '))
+									.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
 									.setStyle(ButtonStyle.Primary)
+									.setDisabled(m.currentPP === 0)
 								)
 							);
 							const { getBattleActionRow } = require('./utils/discordUtils');
@@ -1117,8 +1118,9 @@ client.on('interactionCreate', async interaction => {
 				const moveRow = new ActionRowBuilder().addComponents(
 					moves.map(m => new ButtonBuilder()
 						.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
-						.setLabel(m.name.replace(/-/g, ' '))
+						.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
 						.setStyle(ButtonStyle.Primary)
+						.setDisabled(m.currentPP === 0)
 					)
 				);
 				const { getBattleActionRow } = require('./utils/discordUtils');
@@ -1288,8 +1290,9 @@ client.on('interactionCreate', async interaction => {
 			const moveRow = new ActionRowBuilder().addComponents(
 				moves.map(m => new ButtonBuilder()
 					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
-					.setLabel(m.name.replace(/-/g, ' '))
+					.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
 					.setStyle(ButtonStyle.Primary)
+					.setDisabled(m.currentPP === 0)
 				)
 			);
 			const { getBattleActionRow } = require('./utils/discordUtils');
@@ -1425,8 +1428,9 @@ client.on('interactionCreate', async interaction => {
 			const moveRow = new ActionRowBuilder().addComponents(
 				moves.map(m => new ButtonBuilder()
 					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
-					.setLabel(m.name.replace(/-/g, ' '))
+					.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
 					.setStyle(ButtonStyle.Primary)
+					.setDisabled(m.currentPP === 0)
 				)
 			);
 			const { getBattleActionRow } = require('./utils/discordUtils');
@@ -4382,5 +4386,13 @@ function paginateOptions(options, page = 0, pageSize = 25) {
   const totalPages = Math.ceil(options.length / pageSize);
   const paged = options.slice(page * pageSize, (page + 1) * pageSize);
   return { paged, totalPages };
+}
+
+// --- Add a helper for type emoji ---
+function getTypeEmoji(type) {
+  const map = {
+    normal: '⬜', fire: '🔥', water: '💧', electric: '⚡', grass: '🌿', ice: '❄️', fighting: '🥊', poison: '☠️', ground: '🌎', flying: '🕊️', psychic: '🔮', bug: '🐛', rock: '🪨', ghost: '👻', dragon: '🐉', dark: '🌑', steel: '⚙️', fairy: '✨'
+  };
+  return map[type] || '';
 }
 

@@ -3,6 +3,17 @@ const router = express.Router();
 const BattleSession = require('../models/BattleSession');
 const Pokemon = require('../models/Pokemon');
 const pokeApi = require('../utils/pokeApi');
+const battleUtils = require('../utils/battleUtils');
+
+// Helper function to get Pokémon data for selection
+const getUserPokemons = async (userId, selectedPokemonIds) => {
+  const pokemons = await Pokemon.find({ _id: { $in: selectedPokemonIds }, discordId: userId });
+  return pokemons.map(p => ({
+    pokemonId: p.pokemonId,
+    name: p.name,
+    isShiny: p.isShiny,
+  }));
+};
 
 // POST /battles - Create a new battle session
 router.post('/', async (req, res) => {
@@ -133,72 +144,42 @@ router.post('/:battleId/select', async (req, res) => {
     }
     // Only allow selection if not already set
     const isChallenger = userId === session.challengerId;
-    const alreadyPicked = isChallenger ? session.challengerPokemons.length > 0 : session.opponentPokemons.length > 0;
-    if (alreadyPicked) {
-      return res.status(400).json({ error: 'Pokémon already selected for this user' });
-    }
-    // Validate selection count
-    const maxCount = req.body.count || 1;
-    const requiredCount = Math.max(
-      session.challengerId === userId ? session.challengerPokemons.length : session.opponentPokemons.length,
-      session.count || maxCount
-    );
-    if (!Array.isArray(selectedPokemonIds) || selectedPokemonIds.length !== (session.count || maxCount)) {
-      return res.status(400).json({ error: `You must select exactly ${(session.count || maxCount)} Pokémon.` });
-    }
-    // Parse out the real id from the selected values
-    const realIds = selectedPokemonIds.map(val => val.split('_')[0]);
-    // Fetch and validate ownership (get all possible pokemons for this user in this guild)
-    const pokemons = await Pokemon.find({ _id: { $in: realIds }, discordId: userId, guildId: session.guildId });
-    // For each selected value, find the Pokémon by realId and push a new object (even if same ID appears more than once)
-    const selected = [];
-    for (const val of selectedPokemonIds) {
-      const realId = val.split('_')[0];
-      const p = pokemons.find(pk => pk._id.toString() === realId);
-      if (!p) continue;
+    const alreadySet = isChallenger ? session.challengerPokemons.length > 0 : session.opponentPokemons.length > 0;
+    if (alreadySet) return res.status(400).json({ error: 'Pokémon already selected' });
+
+    // --- Determine battleSize (number of Pokémon per team) ---
+    const battleSize = selectedPokemonIds.length || 5;
+
+    // Fetch and build Pokémon data for each selected Pokémon
+    const userPokemons = await getUserPokemons(userId, selectedPokemonIds); // assume this returns [{pokemonId, name, isShiny, ...}]
+    const builtPokemons = await Promise.all(userPokemons.map(async (p) => {
       const pokeData = await pokeApi.getPokemonDataById(p.pokemonId);
-      // Filter for damaging moves only (power != null)
-      const moves = [];
-      for (const moveEntry of pokeData.moves) {
-        if (moves.length >= 4) break;
-        try {
-          const moveData = await pokeApi.getMoveDataByUrl(moveEntry.move.url);
-          if (moveData.power !== null && moveData.power > 0) {
-            moves.push({
-              name: moveData.name,
-              power: moveData.power,
-              accuracy: moveData.accuracy,
-              moveType: moveData.type.name, // changed from 'type' to 'moveType'
-            });
-          }
-        } catch (e) {}
-      }
-      selected.push({
+      const stats = battleUtils.calculateStats(pokeData.stats, 50);
+      const types = pokeData.types.map(t => t.type.name);
+      // --- Pass battleSize to getLegalMoveset ---
+      const moves = await battleUtils.getLegalMoveset(pokeData.name, 50, 'scarlet-violet', battleSize);
+      return {
         pokemonId: p.pokemonId,
         name: p.name,
-        maxHp: 100,
-        currentHp: 100,
+        maxHp: stats.hp,
+        currentHp: stats.hp,
         moves,
         isShiny: p.isShiny,
-      });
-    }
-    // Use findByIdAndUpdate to avoid versioning errors
+        level: 50,
+        stats,
+        types,
+      };
+    }));
     if (isChallenger) {
-      await BattleSession.findByIdAndUpdate(
-        battleId,
-        { $set: { challengerPokemons: selected } }
-      );
+      session.challengerPokemons = builtPokemons;
     } else {
-      await BattleSession.findByIdAndUpdate(
-        battleId,
-        { $set: { opponentPokemons: selected } }
-      );
+      session.opponentPokemons = builtPokemons;
     }
-    // Fetch the updated session
-    const updatedSession = await BattleSession.findById(battleId);
-    return res.json({ session: updatedSession });
+    await session.save();
+    res.json({ success: true });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -224,23 +205,32 @@ router.post('/:battleId/move', async (req, res) => {
     if (!myPoke || !theirPoke) return res.status(400).json({ error: 'Active Pokémon not found.' });
     if (myPoke.currentHp <= 0) return res.status(400).json({ error: 'Your Pokémon has fainted.' });
     if (theirPoke.currentHp <= 0) return res.status(400).json({ error: 'Opponent Pokémon has fainted.' });
-    // Validate move
-    // For now, allow any move name (in real logic, check myPoke.moves)
-    // Apply move: simple random damage 15-30
-    // Find the move object (if available)
+    // Find the move object (must be in myPoke.moves)
     let moveObj = (myPoke.moves || []).find(m => m.name === moveName);
-    // Use move power if available, else default to 20
-    const power = moveObj?.power || 20;
-    // For now, use maxHp as a stand-in for Attack/Defense (replace with real stats if available)
-    const attackerStat = myPoke.maxHp; // TODO: Replace with myPoke.attack or myPoke.stats.attack
-    const defenderStat = theirPoke.maxHp; // TODO: Replace with theirPoke.defense or theirPoke.stats.defense
-    // Random factor between 0.85 and 1.0
-    const randomFactor = 0.85 + Math.random() * 0.15;
-    // Simplified damage formula (scaled down)
-    const damage = Math.max(1, Math.floor((power * attackerStat / defenderStat) * randomFactor / 4));
-    theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || 100) - damage);
+    if (!moveObj) return res.status(400).json({ error: 'Move not found or not usable by this Pokémon.' });
+    // --- Prevent use if out of PP ---
+    if (moveObj.currentPP === 0) {
+      return res.status(400).json({ error: 'This move is out of PP and cannot be used.' });
+    }
+    // --- Decrement currentPP ---
+    moveObj.currentPP = Math.max(0, (moveObj.currentPP || 0) - 1);
+    // Calculate type effectiveness
+    const typeEffectiveness = battleUtils.getTypeEffectiveness(moveObj.moveType, theirPoke.types);
+    // Calculate damage using real stats and formula
+    const dmgResult = battleUtils.calculateDamage(
+      { level: myPoke.level, stats: myPoke.stats, types: myPoke.types },
+      { stats: theirPoke.stats, types: theirPoke.types },
+      moveObj,
+      typeEffectiveness
+    );
+    const damage = dmgResult.damage;
+    theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - damage);
     // Log the move
-    session.log.push(`${myPoke.name} used ${moveName}! It dealt ${damage} damage to ${theirPoke.name}. (${theirPoke.currentHp} HP left)`);
+    let effectivenessText = '';
+    if (typeEffectiveness === 0) effectivenessText = ' It had no effect!';
+    else if (typeEffectiveness > 1) effectivenessText = ' It was super effective!';
+    else if (typeEffectiveness < 1) effectivenessText = ' It was not very effective.';
+    session.log.push(`${myPoke.name} used ${moveName}! It dealt ${damage} damage to ${theirPoke.name}.${effectivenessText} (${theirPoke.currentHp} HP left)`);
     // After applying damage and updating HP
     const allFainted = (pokemons) => pokemons.every(p => p.currentHp <= 0);
 
@@ -280,8 +270,24 @@ router.post('/:battleId/move', async (req, res) => {
     session.markModified('challengerPokemons');
     session.markModified('opponentPokemons');
     await session.save();
+    // --- PATCH: Ensure all moves have currentPP and effectivePP ---
+    function patchPPFields(pokemons) {
+      for (const poke of pokemons) {
+        if (!poke.moves) continue;
+        for (const move of poke.moves) {
+          if (typeof move.effectivePP !== 'number' || isNaN(move.effectivePP)) {
+            move.effectivePP = move.power ? Math.max(1, Math.ceil(move.power / 5)) : 1;
+          }
+          if (typeof move.currentPP !== 'number' || isNaN(move.currentPP)) {
+            move.currentPP = move.effectivePP;
+          }
+        }
+      }
+    }
+    patchPPFields(session.challengerPokemons);
+    patchPPFields(session.opponentPokemons);
     // Return summary
-    let summary = `${myPoke.name} used ${moveName}! It dealt ${damage} damage to ${theirPoke.name}. (${theirPoke.currentHp} HP left)`;
+    let summary = `${myPoke.name} used ${moveName}! It dealt ${damage} damage to ${theirPoke.name}.${effectivenessText} (${theirPoke.currentHp} HP left)`;
     if (fainted) {
       summary += `\n${faintedName} fainted!`;
       if (switched) {

@@ -8,6 +8,9 @@ const pokemonBattleSchema = new mongoose.Schema({
   currentHp:   { type: Number, required: true },
   moves:       { type: [moveSchema], default: [] }, // use the explicit sub-schema
   isShiny:     { type: Boolean, required: true },
+  level:       { type: Number, required: true },
+  stats:       { type: Object, required: true }, // { hp, attack, defense, spAttack, spDefense, speed }
+  types:       { type: [String], required: true },
 }, { _id: false });
 
 const battleSessionSchema = new mongoose.Schema({
