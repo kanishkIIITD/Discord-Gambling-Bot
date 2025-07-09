@@ -1,0 +1,606 @@
+{
+  "pidgey": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "rattata": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "zubat": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "magikarp": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "caterpie": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "weedle": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "bellsprout": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "oddish": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "geodude": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "spearow": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "paras": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "krabby": {
+    "spawn": 25,
+    "catchRate": 0.9
+  },
+  "pikachu": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "vulpix": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "meowth": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "machop": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "psyduck": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "growlithe": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "tentacool": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "horsea": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "goldeen": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "sandshrew": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "slowpoke": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "gastly": {
+    "spawn": 12,
+    "catchRate": 0.7
+  },
+  "bulbasaur": {
+    "spawn": 10,
+    "catchRate": 0.55
+  },
+  "charmander": {
+    "spawn": 10,
+    "catchRate": 0.55
+  },
+  "squirtle": {
+    "spawn": 10,
+    "catchRate": 0.55
+  },
+  "ivysaur": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "charmeleon": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "wartortle": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "pidgeotto": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "pidgeot": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "butterfree": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "beedrill": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "gloom": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "nidorina": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "nidorino": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "kadabra": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "machoke": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "haunter": {
+    "spawn": 4,
+    "catchRate": 0.4
+  },
+  "scyther": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "jynx": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "electabuzz": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "magmar": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "lickitung": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "porygon": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "omanyte": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "kabuto": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "eevee": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "dratini": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "dragonair": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "onix": {
+    "spawn": 3,
+    "catchRate": 0.3
+  },
+  "mewtwo": {
+    "spawn": 1,
+    "catchRate": 0.1
+  },
+  "mew": {
+    "spawn": 1,
+    "catchRate": 0.1
+  },
+  "articuno": {
+    "spawn": 1,
+    "catchRate": 0.1
+  },
+  "zapdos": {
+    "spawn": 1,
+    "catchRate": 0.1
+  },
+  "moltres": {
+    "spawn": 1,
+    "catchRate": 0.1
+  },
+  "aerodactyl": {
+    "spawn": 1,
+    "catchRate": 0.1
+  },
+  "kabutops": {
+    "spawn": 1,
+    "catchRate": 0.1
+  },
+  "omastar": {
+    "spawn": 1,
+    "catchRate": 0.1
+  },
+  "dragonite": {
+    "spawn": 1,
+    "catchRate": 0.1
+  },
+  "venusaur": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "charizard": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "blastoise": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "metapod": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "kakuna": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "raticate": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "fearow": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "ekans": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "arbok": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "raichu": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "sandslash": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "nidoran-f": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "nidoqueen": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "nidoran-m": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "nidoking": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "clefairy": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "clefable": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "ninetales": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "jigglypuff": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "wigglytuff": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "golbat": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "vileplume": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "parasect": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "venonat": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "venomoth": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "diglett": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "dugtrio": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "persian": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "golduck": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "mankey": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "primeape": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "arcanine": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "poliwag": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "poliwhirl": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "poliwrath": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "abra": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "alakazam": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "machamp": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "weepinbell": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "victreebel": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "tentacruel": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "graveler": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "golem": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "ponyta": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "rapidash": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "slowbro": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "magnemite": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "magneton": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "farfetchd": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "doduo": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "dodrio": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "seel": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "dewgong": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "grimer": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "muk": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "shellder": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "cloyster": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "gengar": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "drowzee": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "hypno": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "kingler": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "voltorb": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "electrode": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "exeggcute": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "exeggutor": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "cubone": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "marowak": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "hitmonlee": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "hitmonchan": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "koffing": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "weezing": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "rhyhorn": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "rhydon": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "chansey": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "tangela": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "kangaskhan": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "seadra": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "seaking": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "staryu": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "starmie": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "mr-mime": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "pinsir": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "tauros": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "gyarados": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "lapras": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "ditto": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "vaporeon": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "jolteon": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "flareon": {
+    "spawn": 6,
+    "catchRate": 0.5
+  },
+  "snorlax": {
+    "spawn": 6,
+    "catchRate": 0.5
+  }
+}

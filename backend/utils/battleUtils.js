@@ -47,19 +47,28 @@ const axios = require('axios');
  * Returns up to 4 highest-power damaging moves (with power > 0).
  * @param {string} pokemonName - Name of the Pokémon (lowercase)
  * @param {number} level - Level to check (default 50)
- * @param {string} versionGroup - PokéAPI version group (default 'scarlet-violet')
+ * @param {string} versionGroup - PokéAPI version group (default 'red-blue')
  * @param {number} battleSize - Number of Pokémon per team (default 5)
  * @returns {Promise<Array>} Array of move objects: { name, power, moveType, category, accuracy, effectivePP, currentPP, learnedAt }
  */
-async function getLegalMoveset(pokemonName, level = 50, versionGroup = 'scarlet-violet', battleSize = 5) {
+async function getLegalMoveset(
+  pokemonName,
+  level = 50,
+  battleSize = 5,
+  versionGroup = 'red-blue'
+) {
+  // Fetch Pokémon data
   const res = await axios.get(`https://pokeapi.co/api/v2/pokemon/${pokemonName.toLowerCase()}`);
   const data = res.data;
+  // Allow both level-up and TM/tutor moves
+  const methods = ['level-up'];
   const levelUpMoves = data.moves
     .map(m => {
+      // Find the highest level_learned_at for this version group and allowed methods
       const details = m.version_group_details.filter(d =>
-        d.move_learn_method.name === 'level-up' &&
+        methods.includes(d.move_learn_method.name) &&
         d.version_group.name === versionGroup &&
-        d.level_learned_at <= level
+        d.level_learned_at <= level // TM/tutor entries often have level_learned_at = 0
       );
       if (details.length === 0) return null;
       return {

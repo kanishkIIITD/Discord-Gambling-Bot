@@ -157,7 +157,7 @@ router.post('/:battleId/select', async (req, res) => {
       const stats = battleUtils.calculateStats(pokeData.stats, 50);
       const types = pokeData.types.map(t => t.type.name);
       // --- Pass battleSize to getLegalMoveset ---
-      const moves = await battleUtils.getLegalMoveset(pokeData.name, 50, 'scarlet-violet', battleSize);
+      const moves = await battleUtils.getLegalMoveset(pokeData.name, 50, battleSize, 'red-blue');
       return {
         pokemonId: p.pokemonId,
         name: p.name,

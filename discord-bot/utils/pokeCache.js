@@ -10,6 +10,8 @@ let kantoCacheReady = false;
 const KANTO_GENERATION_ID = 1; // /generation/1/
 const KANTO_POKEDEX_ID = 2;    // /pokedex/2/ (Kanto)
 
+const customSpawnRates = require('../data/customSpawnRates.json');
+
 async function fetchJson(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
@@ -36,61 +38,19 @@ async function buildKantoCache() {
     }))
     .sort((a, b) => a.id - b.id);
 
-  const rates = {};
-
-  // 3. For each species, fetch its encounters and filter strictly
-  for (const { id, name } of kantoSpecies) {
-    const encounters = await fetchJson(`https://pokeapi.co/api/v2/pokemon/${id}/encounters`);
-    let totalChance = 0, count = 0;
-
-    // If encounters array is empty, treat as ultra-rare (but include)
-    if (!encounters || encounters.length === 0) {
-      rates[id] = 0.0001; // ultra-rare
+  // --- Use custom spawn rates ---
+  weightedSpawnPool = [];
+  for (const [name, { spawn }] of Object.entries(customSpawnRates)) {
+    const species = kantoSpecies.find(s => s.name === name);
+    if (!species) {
+      console.warn(`[CustomSpawnRates] Pokémon name '${name}' not found in Kanto species, skipping.`);
       continue;
     }
-
-    // Walk through each location-area block
-    for (const loc of encounters) {
-      // accept any location_area that begins with a Kanto location name
-      if (!validLocations.some(name => loc.location_area.name.startsWith(name))) continue;
-
-      for (const verDetail of loc.version_details) {
-        // Skip any non‑Gen 1 version
-        if (!validVersions.includes(verDetail.version.name)) continue;
-
-        // Accumulate only the true Gen 1 wild-encounter chances
-        for (const enc of verDetail.encounter_details) {
-          totalChance += enc.chance || 0;
-          count++;
-        }
-      }
-    }
-
-    // If none found, treat as ultra‑rare (but include)
-    const avgRate = count > 0
-      ? totalChance / count
-      : 0.0001; // ultra-rare
-    rates[id] = avgRate;
-  }
-
-  // Normalize the pool so each Pokémon's slots are proportional to its true Kanto wild encounter rate
-  const POOL_SIZE = 1000;
-  const fractions = kantoSpecies.map(s => rates[s.id] / 100);
-  const sumFractions = fractions.reduce((a, b) => a + b, 0);
-  weightedSpawnPool = [];
-  for (const { id } of kantoSpecies) {
-    const fraction = rates[id] / 100;
-    const slots = Math.max(
-      Math.round((fraction / sumFractions) * POOL_SIZE),
-      1
-    );
-    for (let i = 0; i < slots; i++) {
-      weightedSpawnPool.push(id);
+    for (let i = 0; i < spawn; i++) {
+      weightedSpawnPool.push(species.id);
     }
   }
-
   kantoCacheReady = true;
-  // return { kantoSpecies, rates, weightedSpawnPool };
 }
 
 function getRandomKantoPokemonId() {
