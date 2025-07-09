@@ -115,6 +115,15 @@ export const updateUserPreferences = async (discordId, preferences) => {
   return response.data;
 };
 
+// Update selected Pokédex Pokémon
+export const setSelectedPokedexPokemon = async (discordId, pokemonId) => {
+  // Get the current guild ID from localStorage or use the fallback
+  const currentGuildId = localStorage.getItem('selectedGuildId') || FALLBACK_GUILD_ID;
+  
+  const response = await axios.put(`${API_URL}/api/users/${discordId}/preferences`, { selectedPokedexPokemonId: pokemonId, guildId: currentGuildId }, withGuild());
+  return response.data;
+};
+
 // Get user's accessible guilds - this endpoint doesn't require a guild ID
 export const getUserGuilds = async (discordId, retryCount = 0) => {
   try {

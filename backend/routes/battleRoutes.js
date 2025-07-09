@@ -173,7 +173,6 @@ router.post('/:battleId/select', async (req, res) => {
           }
         } catch (e) {}
       }
-      // console.log('DEBUG moves:', moves, typeof moves, Array.isArray(moves));
       selected.push({
         pokemonId: p.pokemonId,
         name: p.name,
@@ -183,15 +182,21 @@ router.post('/:battleId/select', async (req, res) => {
         isShiny: p.isShiny,
       });
     }
-    // Print the moves schema at runtime
-    // console.log('DEBUG BattleSession moves schema:', BattleSession.schema.path('challengerPokemons').schema.path('moves'));
+    // Use findByIdAndUpdate to avoid versioning errors
     if (isChallenger) {
-      session.challengerPokemons = selected;
+      await BattleSession.findByIdAndUpdate(
+        battleId,
+        { $set: { challengerPokemons: selected } }
+      );
     } else {
-      session.opponentPokemons = selected;
+      await BattleSession.findByIdAndUpdate(
+        battleId,
+        { $set: { opponentPokemons: selected } }
+      );
     }
-    await session.save();
-    return res.json({ session });
+    // Fetch the updated session
+    const updatedSession = await BattleSession.findById(battleId);
+    return res.json({ session: updatedSession });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

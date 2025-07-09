@@ -1,10 +1,11 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const pokeCache = require('../utils/pokeCache');
 const { activeSpawns } = require('./pokespawn');
+const { manualDespawnTimers } = require('./pokespawn');
 const fetch = require('node-fetch');
 const axios = require('axios');
 
-const SHINY_ODDS = 1 / 512;
+const SHINY_ODDS = 1 / 1024;
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -45,8 +46,13 @@ module.exports = {
       ? flavorEntries[Math.floor(Math.random() * flavorEntries.length)].flavor_text.replace(/\f/g, ' ')
       : '';
     // Calculate catch chance (normalize 0-1)
-    const baseChance = captureRate / 255;
-    const finalChance = Math.min(baseChance, 0.95); // Cap at 95%
+    let finalChance;
+    if (spawn.catchRateOverride !== undefined) {
+      finalChance = spawn.catchRateOverride;
+    } else {
+      const baseChance = captureRate / 255;
+      finalChance = Math.min(baseChance, 0.95); // Cap at 95%
+    }
     const roll = Math.random();
     const isShiny = Math.random() < SHINY_ODDS;
     // Get types
@@ -100,6 +106,11 @@ module.exports = {
       }
       spawn.caughtBy = interaction.user.id;
       activeSpawns.set(channelId, spawn);
+      // Clear manual despawn timer if exists
+      if (manualDespawnTimers && manualDespawnTimers.has(channelId)) {
+        clearTimeout(manualDespawnTimers.get(channelId).timeout);
+        manualDespawnTimers.delete(channelId);
+      }
       activeSpawns.delete(channelId);
       embed = new EmbedBuilder()
         .setColor(0x2ecc71)

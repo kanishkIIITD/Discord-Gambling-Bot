@@ -34,6 +34,12 @@ const pokebattleCommand = require('./commands/pokebattle');
 const poketradeCommand = require('./commands/poketrade');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
+const pokeCache = require('./utils/pokeCache');
+const { startAutoSpawner } = require('./utils/pokeAutoSpawner');
+const { handleTimeoutRemoval } = require('./utils/discordUtils');
+const { activeSpawns } = require('./commands/pokespawn');
+const { despawnTimers } = require('./utils/pokeAutoSpawner');
+const { spawnCustomPokemonCommand } = require('./commands/pokespawn');
 let betMessageMap = {};
 
 const backendApiUrl = process.env.BACKEND_API_URL;
@@ -45,8 +51,44 @@ const client = new Client({ intents: [
 	GatewayIntentBits.GuildMembers
 ] });
 
+// --- Pokebattle: Track selections per battle ---
+const pokebattleSelections = new Map();
+
 // --- Blackjack: Track latest message per user per guild ---
 const activeBlackjackMessages = new Map(); // key: `${guildId}_${userId}` => { channelId, messageId }
+
+(async () => {
+  try {
+    console.log('[PokéCache] Building Kanto Pokémon cache...');
+    await pokeCache.buildKantoCache();
+    console.log('[PokéCache] Kanto Pokémon cache ready!');
+    // --- Startup cleanup for activeSpawns and despawnTimers ---
+    if (activeSpawns && activeSpawns.size > 0) {
+      console.warn(`[Startup] activeSpawns is not empty at startup! Clearing ${activeSpawns.size} entries. This may indicate missed despawn(s) or a previous crash.`);
+      for (const [channelId, spawn] of activeSpawns.entries()) {
+        console.warn(`[Startup] Clearing stuck spawn in channel ${channelId}:`, spawn);
+        activeSpawns.delete(channelId);
+      }
+    } else {
+      console.log('[Startup] activeSpawns is empty at startup.');
+    }
+    if (typeof despawnTimers !== 'undefined' && despawnTimers.size > 0) {
+      console.warn(`[Startup] despawnTimers is not empty at startup! Clearing ${despawnTimers.size} entries.`);
+      for (const [channelId, timer] of despawnTimers.entries()) {
+        clearTimeout(timer.timeout);
+        despawnTimers.delete(channelId);
+      }
+    } else {
+      console.log('[Startup] despawnTimers is empty at startup.');
+    }
+    // --- End startup cleanup ---
+    startAutoSpawner(client, backendApiUrl);
+    await client.login(process.env.DISCORD_TOKEN);
+  } catch (err) {
+    console.error('[PokéCache] Failed to build Kanto cache:', err);
+    process.exit(1);
+  }
+})();
 
 // Load bet message map from file
 async function loadBetMessageMap() {
@@ -853,18 +895,157 @@ client.on('interactionCreate', async interaction => {
 						value: p._id,
 					}));
 					const count = session.count || 1;
-					// Challenger select menu only
-					const challengerMenu = new StringSelectMenuBuilder()
-						.setCustomId(`pokebattle_select_${battleId}_${session.challengerId}`)
-						.setPlaceholder('Challenger: Select your Pokémon')
-						.setMinValues(count)
-						.setMaxValues(count)
-						.addOptions(challengerOptions);
-					await interaction.followUp({
-						content: `<@${session.challengerId}>, please select your team of ${count} Pokémon!`,
-						components: [new ActionRowBuilder().addComponents(challengerMenu)],
-						allowedMentions: { users: [session.challengerId] },
-					});
+					// --- Refactored: Sequential single-pick selection for count > 1 ---
+					async function startSequentialSelection(type, options, userId, count, battleId, session, interaction, opponentOptions) {
+						let picked = [];
+						let page = 0;
+						let availableOptions = [...options];
+						let message;
+						for (let pickNum = 1; pickNum <= count; pickNum++) {
+							// Remove already picked from available
+							availableOptions = options.filter(opt => !picked.includes(opt.value));
+							// Build select menu for this pick
+							function buildSingleSelectRow(page) {
+								const totalPages = Math.ceil(availableOptions.length / 25);
+								const safePage = Math.max(0, Math.min(page, totalPages - 1));
+								const paged = availableOptions.slice(safePage * 25, (safePage + 1) * 25);
+								const select = new StringSelectMenuBuilder()
+									.setCustomId(`pokebattle_seqselect_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
+									.setPlaceholder(`${type === 'challenger' ? 'Challenger' : 'Opponent'}: Pick Pokémon ${pickNum} of ${count}`)
+									.setMinValues(1)
+									.setMaxValues(1)
+									.addOptions(paged);
+								const row = new ActionRowBuilder().addComponents(select);
+								const btnRow = new ActionRowBuilder();
+								btnRow.addComponents(
+									new ButtonBuilder()
+										.setCustomId(`pokebattle_seqprev_${type}_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
+										.setLabel('Prev')
+										.setStyle(ButtonStyle.Secondary)
+										.setDisabled(safePage === 0),
+									new ButtonBuilder()
+										.setCustomId(`pokebattle_seqnext_${type}_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
+										.setLabel('Next')
+										.setStyle(ButtonStyle.Secondary)
+										.setDisabled(safePage >= totalPages - 1)
+								);
+								return [row, btnRow];
+							}
+							let [row, btnRow] = buildSingleSelectRow(page);
+							const content = `<@${userId}>, pick Pokémon ${pickNum} of ${count} for your team!\nAlready picked: ${picked.map(val => options.find(o => o.value === val)?.label).filter(Boolean).join(', ') || 'None'}`;
+							if (pickNum === 1) {
+								message = await interaction.followUp({
+									content,
+									components: [row, btnRow],
+									allowedMentions: { users: [userId] },
+									fetchReply: true
+								});
+							} else {
+								await message.edit({ content, components: [row, btnRow] });
+							}
+							// Collector for this pick
+							const filter = i => i.user.id === userId && (i.customId.startsWith('pokebattle_seqselect_') || i.customId.startsWith('pokebattle_seqprev_') || i.customId.startsWith('pokebattle_seqnext_'));
+							const collector = message.createMessageComponentCollector({ filter, time: 120000 });
+							let resolved = false;
+							await new Promise(resolve => {
+								collector.on('collect', async i => {
+									if (i.customId.startsWith('pokebattle_seqnext_')) {
+										page++;
+										[row, btnRow] = buildSingleSelectRow(page);
+										await i.update({ components: [row, btnRow] });
+										return;
+									}
+									if (i.customId.startsWith('pokebattle_seqprev_')) {
+										page = Math.max(0, page - 1);
+										[row, btnRow] = buildSingleSelectRow(page);
+										await i.update({ components: [row, btnRow] });
+										return;
+									}
+									if (i.customId.startsWith('pokebattle_seqselect_')) {
+										picked.push(i.values[0]);
+										await i.deferUpdate();
+										resolved = true;
+										collector.stop();
+										resolve();
+									}
+								});
+								collector.on('end', () => {
+									if (!resolved) resolve();
+								});
+							});
+							if (!resolved) return; // timed out
+						}
+						// All picks made, submit to backend
+						const selectedIds = picked.map(val => val.replace(/_[0-9]+$/, ''));
+						try {
+							await axios.post(`${backendApiUrl}/battles/${battleId}/select`, {
+								userId,
+								selectedPokemonIds: selectedIds,
+							}, {
+								headers: { 'x-guild-id': interaction.guildId }
+							});
+						} catch (err) {
+							let msg = err?.response?.data?.error || err.message || 'Failed to submit Pokémon selection.';
+							await message.edit({ content: `❌ ${msg}`, components: [] });
+							return;
+						}
+						// If challenger, start opponent selection
+						if (type === 'challenger') {
+							await message.edit({ content: `<@${userId}> ✅ Ready!`, components: [] });
+							await startSequentialSelection('opponent', opponentOptions, session.opponentId, count, battleId, session, interaction);
+						} else {
+							await message.edit({ content: `<@${userId}> ✅ Ready!`, components: [] });
+							// --- Start the battle UI as in the old flow ---
+							const sessionRes2 = await axios.get(`${backendApiUrl}/battles/${battleId}`);
+							const session2 = sessionRes2.data.session;
+							const challengerPoke = session2.challengerPokemons[0];
+							const opponentPoke = session2.opponentPokemons[0];
+							// Determine whose turn it is
+							const turnUserId = session2.turn === 'challenger' ? session2.challengerId : session2.opponentId;
+							const turnPoke = session2.turn === 'challenger' ? challengerPoke : opponentPoke;
+							const otherPoke = session2.turn === 'challenger' ? opponentPoke : challengerPoke;
+							let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
+							let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
+							if (turnPoke.isShiny) {
+								turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${turnPoke.pokemonId}.png`;
+							}
+							if (otherPoke.isShiny) {
+								otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
+							}
+							const battleEmbed = new EmbedBuilder()
+								.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${turnPoke.maxHp} HP)`)
+								.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
+								.setImage(turnImg)
+								.setThumbnail(otherImg)
+								.addFields(
+									{ name: 'Active Pokémon', value: `${turnPoke.name} (${turnPoke.maxHp} HP)`, inline: true },
+									{ name: 'Other Pokémon', value: `${otherPoke.name} (${otherPoke.maxHp} HP)`, inline: true }
+								);
+							const moves = (turnPoke.moves || []).slice(0, 4);
+							const moveRow = new ActionRowBuilder().addComponents(
+								moves.map(m => new ButtonBuilder()
+									.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
+									.setLabel(m.name.replace(/-/g, ' '))
+									.setStyle(ButtonStyle.Primary)
+								)
+							);
+							const { getBattleActionRow } = require('./utils/discordUtils');
+							const actionRow = getBattleActionRow(battleId, turnUserId);
+							await message.channel.send({
+								content: `<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+								embeds: [battleEmbed],
+								components: [moveRow, actionRow],
+								allowedMentions: { users: [turnUserId] },
+							});
+						}
+					}
+					// ... in the pokebattle accept/decline handler, replace the old multi-select logic with:
+					if (accept && status === 'active') {
+						// ... fetch challengerOptions, opponentOptions, count ...
+						await startSequentialSelection('challenger', challengerOptions, session.challengerId, count, battleId, session, interaction, opponentOptions);
+						return;
+					}
+					// ... existing code ...
 				} else if (!accept && status === 'cancelled') {
 					await interaction.followUp({ content: `Battle declined.`, components: [] });
 				} else {
@@ -1148,10 +1329,22 @@ client.on('interactionCreate', async interaction => {
 			const requiredCount = session.count || 1;
 			// Check if the user selected the correct number of Pokémon
 			if (interaction.values.length !== requiredCount) {
-				await interaction.reply({
-					content: `You must select exactly ${requiredCount} Pokémon.`,
-					ephemeral: true
-				});
+				try {
+					await interaction.reply({
+						content: `You must select exactly ${requiredCount} Pokémon.`,
+						ephemeral: true
+					});
+				} catch (err) {
+					if (
+						err.code === 'InteractionAlreadyReplied' ||
+						err.code === 40060 || // API error code for already acknowledged
+						err.code === 10062    // API error code for unknown interaction
+					) {
+						// Already replied or expired, ignore
+					} else {
+						console.error('Error sending error reply:', err);
+					}
+				}
 				return;
 			}
 			// Submit selection to backend
@@ -1247,7 +1440,19 @@ client.on('interactionCreate', async interaction => {
 			return;
 		} catch (error) {
 			const errorMsg = error.response?.data?.error || error.message || 'Failed to submit Pokémon selection.';
-			await interaction.reply({ content: `❌ ${errorMsg}`, ephemeral: true });
+			try {
+				await interaction.reply({ content: `❌ ${errorMsg}`, ephemeral: true });
+			} catch (err) {
+				if (
+					err.code === 'InteractionAlreadyReplied' ||
+					err.code === 40060 || // API error code for already acknowledged
+					err.code === 10062    // API error code for unknown interaction
+				) {
+					// Already replied or expired, ignore
+				} else {
+					console.error('Error sending error reply:', err);
+				}
+			}
 		}
 		return;
 	}
@@ -3589,7 +3794,8 @@ client.on('interactionCreate', async interaction => {
 							'`/pokecatch` - Attempt to catch the currently spawned Pokémon in this channel. Shiny Pokémon are extremely rare!'
 						},
 						{ name: '📖 Pokédex', value:
-							'`/pokedex` - View your caught Pokémon, including shiny count and stats. Paginated for easy browsing.'
+							'`/pokedex` - View your caught Pokémon, including shiny count and stats. Paginated for easy browsing.\n' +
+							'`/setpokedexpokemon` - Choose which Pokémon (including shiny/normal) is always displayed as the main artwork in your Pokédex.'
 						},
 						{ name: '👾 Battling', value:
 							'`/pokebattle` - Challenge another user to a Pokémon battle! (Pokémon per side: 1-5)'
@@ -4066,6 +4272,10 @@ client.on('interactionCreate', async interaction => {
 		await pokebattleCommand.execute(interaction);
 	} else if (commandName === 'poketrade') {
 		await poketradeCommand.execute(interaction);
+	} else if (commandName === 'setpokedexpokemon') {
+		await pokedexCommand.setSelectPokedexPokemonCommand.execute(interaction);
+	} else if (commandName === 'spawncustompokemon') {
+		await spawnCustomPokemonCommand.execute(interaction);
 	}
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);
@@ -4167,42 +4377,10 @@ function truncateChoiceName(name) {
   return name.length > MAX_LENGTH ? name.slice(0, MAX_LENGTH - 1) + '…' : name;
 }
 
-const pokeCache = require('./utils/pokeCache');
-const { startAutoSpawner } = require('./utils/pokeAutoSpawner');
-const { handleTimeoutRemoval } = require('./utils/discordUtils');
-const { activeSpawns } = require('./commands/pokespawn');
-const { despawnTimers } = require('./utils/pokeAutoSpawner');
-
-(async () => {
-  try {
-    console.log('[PokéCache] Building Kanto Pokémon cache...');
-    await pokeCache.buildKantoCache();
-    console.log('[PokéCache] Kanto Pokémon cache ready!');
-    // --- Startup cleanup for activeSpawns and despawnTimers ---
-    if (activeSpawns && activeSpawns.size > 0) {
-      console.warn(`[Startup] activeSpawns is not empty at startup! Clearing ${activeSpawns.size} entries. This may indicate missed despawn(s) or a previous crash.`);
-      for (const [channelId, spawn] of activeSpawns.entries()) {
-        console.warn(`[Startup] Clearing stuck spawn in channel ${channelId}:`, spawn);
-        activeSpawns.delete(channelId);
-      }
-    } else {
-      console.log('[Startup] activeSpawns is empty at startup.');
-    }
-    if (typeof despawnTimers !== 'undefined' && despawnTimers.size > 0) {
-      console.warn(`[Startup] despawnTimers is not empty at startup! Clearing ${despawnTimers.size} entries.`);
-      for (const [channelId, timer] of despawnTimers.entries()) {
-        clearTimeout(timer.timeout);
-        despawnTimers.delete(channelId);
-      }
-    } else {
-      console.log('[Startup] despawnTimers is empty at startup.');
-    }
-    // --- End startup cleanup ---
-    startAutoSpawner(client, backendApiUrl);
-    await client.login(process.env.DISCORD_TOKEN);
-  } catch (err) {
-    console.error('[PokéCache] Failed to build Kanto cache:', err);
-    process.exit(1);
-  }
-})();
+// Helper for paginating options
+function paginateOptions(options, page = 0, pageSize = 25) {
+  const totalPages = Math.ceil(options.length / pageSize);
+  const paged = options.slice(page * pageSize, (page + 1) * pageSize);
+  return { paged, totalPages };
+}
 

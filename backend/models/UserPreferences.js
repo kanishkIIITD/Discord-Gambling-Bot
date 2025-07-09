@@ -37,6 +37,11 @@ const userPreferencesSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
+  // Selected Pokémon for Pokédex display
+  selectedPokedexPokemonId: {
+    type: String,
+    default: null
+  },
   // Add other preferences here as we define them
 });
 

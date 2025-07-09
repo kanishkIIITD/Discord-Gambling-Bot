@@ -4,6 +4,8 @@ const clientId = process.env.CLIENT_ID;
 const token = process.env.DISCORD_TOKEN;
 const guildId1 = process.env.GUILD_ID_1;
 const guildId2 = process.env.GUILD_ID_2;
+const { setSelectPokedexPokemonCommand } = require('./commands/pokedex');
+const { spawnCustomPokemonCommand } = require('./commands/pokespawn');
 
 const commands = [
 	{
@@ -981,6 +983,9 @@ const commands = [
 		]
 	},
 ];
+
+commands.push(setSelectPokedexPokemonCommand.data.toJSON());
+commands.push(spawnCustomPokemonCommand.data.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
 

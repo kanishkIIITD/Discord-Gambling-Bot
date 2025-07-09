@@ -93,8 +93,8 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
       // If still active, despawn
       if (activeSpawns.has(channelId)) {
         const spawn = activeSpawns.get(channelId);
-        // Only update the message if no one tried to catch
-        if (!spawn.attemptedBy || spawn.attemptedBy.length === 0) {
+        // Only skip editing if the Pokémon was caught
+        if (!spawn.caughtBy) {
           try {
             // Fetch the Pokémon info again for the despawn embed
             const { pokemonId } = spawn;
@@ -108,7 +108,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
             const goneEmbed = new EmbedBuilder()
               .setColor(0x636e72)
               .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${name} ran away!`)
-              .setDescription(`No one tried to catch ${name} in time.`)
+              .setDescription(`No one was able to catch ${name} in time.`)
               .setImage(artwork);
             const msg = await channel.messages.fetch(message.id);
             await msg.edit({ embeds: [goneEmbed] });

@@ -1,5 +1,23 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder } = require('discord.js');
 const axios = require('axios');
+
+// Helper to fetch user preferences
+async function getUserPreferences(userId, guildId, backendUrl) {
+  const res = await axios.get(`${backendUrl}/users/${userId}/preferences`, {
+    headers: { 'x-guild-id': guildId }
+  });
+  return res.data;
+}
+
+// Helper to update user preferences
+async function setSelectedPokedexPokemon(userId, guildId, backendUrl, pokemonId) {
+  await axios.put(`${backendUrl}/users/${userId}/preferences`, {
+    selectedPokedexPokemonId: pokemonId,
+    guildId
+  }, {
+    headers: { 'x-guild-id': guildId }
+  });
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -21,21 +39,34 @@ module.exports = {
       const pageSize = 10;
       let page = 0;
       const totalPages = Math.ceil(pokedex.length / pageSize);
+      // Fetch user preferences to get selected Pokémon
+      let selectedPokedexPokemonId = null;
+      try {
+        const prefs = await getUserPreferences(interaction.user.id, interaction.guildId, backendUrl);
+        selectedPokedexPokemonId = prefs.selectedPokedexPokemonId;
+      } catch {}
       const getPageEmbed = async (pageIdx) => {
         const start = pageIdx * pageSize;
         const end = Math.min(start + pageSize, pokedex.length);
         const pageMons = pokedex.slice(start, end);
-        // Fetch PokéAPI data for the first Pokémon for artwork
+        // Find the selected Pokémon in the user's pokedex
+        let selectedMon = null;
+        if (selectedPokedexPokemonId) {
+          selectedMon = pokedex.find(mon => String(mon.pokemonId) === String(selectedPokedexPokemonId));
+        }
+        // If not set or not found, use the top of the current page
+        if (!selectedMon) selectedMon = pageMons[0];
+        // Fetch PokéAPI data for the selected Pokémon for artwork
         let artwork = null;
         try {
           const fetch = require('node-fetch');
-          const pokeData = await fetch(`https://pokeapi.co/api/v2/pokemon/${pageMons[0].pokemonId}/`).then(r => r.json());
+          const pokeData = await fetch(`https://pokeapi.co/api/v2/pokemon/${selectedMon.pokemonId}/`).then(r => r.json());
           // Use shiny artwork if shiny, else normal
-          if (pageMons[0].isShiny && pokeData.sprites.other['official-artwork'].front_shiny) {
+          if (selectedMon.isShiny && pokeData.sprites.other['official-artwork'].front_shiny) {
             artwork = pokeData.sprites.other['official-artwork'].front_shiny;
           } else if (pokeData.sprites.other['official-artwork'].front_default) {
             artwork = pokeData.sprites.other['official-artwork'].front_default;
-          } else if (pageMons[0].isShiny && pokeData.sprites.front_shiny) {
+          } else if (selectedMon.isShiny && pokeData.sprites.front_shiny) {
             // fallback to shiny sprite if no shiny artwork
             artwork = pokeData.sprites.front_shiny;
           } else if (pokeData.sprites.front_default) {
@@ -83,4 +114,81 @@ module.exports = {
       await interaction.editReply('Failed to fetch your Pokédex. Please try again later.');
     }
   },
+
+  // New command: /setpokedexpokemon
+  setSelectPokedexPokemonCommand: {
+    data: new SlashCommandBuilder()
+      .setName('setpokedexpokemon')
+      .setDescription('Choose which Pokémon to display in your Pokédex!'),
+    async execute(interaction) {
+      await interaction.deferReply({ ephemeral: true });
+      const backendUrl = process.env.BACKEND_API_URL;
+      // Fetch user's pokedex
+      let pokedex = [];
+      try {
+        const res = await axios.get(`${backendUrl}/users/${interaction.user.id}/pokedex`, {
+          headers: { 'x-guild-id': interaction.guildId }
+        });
+        pokedex = res.data.pokedex;
+      } catch (err) {
+        return await interaction.editReply('Failed to fetch your Pokédex.');
+      }
+      if (!pokedex || pokedex.length === 0) {
+        return await interaction.editReply('You have not caught any Pokémon yet!');
+      }
+      // Paginate select menu (25 per page)
+      const pageSize = 25;
+      let page = 0;
+      const totalPages = Math.ceil(pokedex.length / pageSize);
+      const getSelectMenu = (pageIdx) => {
+        const start = pageIdx * pageSize;
+        const end = Math.min(start + pageSize, pokedex.length);
+        const options = pokedex.slice(start, end).map(mon => ({
+          label: `#${mon.pokemonId.toString().padStart(3, '0')} ${mon.name.charAt(0).toUpperCase() + mon.name.slice(1)}${mon.isShiny ? ' ✨' : ''}`,
+          value: `${mon.pokemonId}-${mon.isShiny ? 'shiny' : 'normal'}-${mon.caughtAt}`
+        }));
+        return new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId('select_pokemon')
+            .setPlaceholder('Select a Pokémon to display')
+            .addOptions(options)
+        );
+      };
+      const getNavRow = () => new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('prev').setLabel('Previous').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
+        new ButtonBuilder().setCustomId('next').setLabel('Next').setStyle(ButtonStyle.Secondary).setDisabled(page === totalPages - 1)
+      );
+      let selectRow = getSelectMenu(page);
+      let navRow = getNavRow();
+      const msg = await interaction.editReply({ content: 'Select a Pokémon to display in your Pokédex:', components: [selectRow, navRow], ephemeral: true });
+      const collector = msg.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60000 });
+      const buttonCollector = msg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
+      collector.on('collect', async i => {
+        if (i.user.id !== interaction.user.id) {
+          return i.reply({ content: 'This select menu is not for you!', ephemeral: true });
+        }
+        const selectedValue = i.values[0];
+        // Parse the value to get the pokemonId
+        const [pokemonId] = selectedValue.split('-');
+        await setSelectedPokedexPokemon(interaction.user.id, interaction.guildId, backendUrl, pokemonId);
+        await i.reply({ content: `Pokédex will now always display #${pokemonId} as the main Pokémon!`, ephemeral: true });
+      });
+      buttonCollector.on('collect', async i => {
+        if (i.user.id !== interaction.user.id) {
+          return i.reply({ content: 'These buttons are not for you!', ephemeral: true });
+        }
+        if (i.customId === 'prev' && page > 0) page--;
+        if (i.customId === 'next' && page < totalPages - 1) page++;
+        selectRow = getSelectMenu(page);
+        navRow = getNavRow();
+        await i.update({ content: 'Select a Pokémon to display in your Pokédex:', components: [selectRow, navRow] });
+      });
+      collector.on('end', async () => {
+        try { await msg.edit({ components: [] }); } catch {}
+      });
+      buttonCollector.on('end', async () => {
+        try { await msg.edit({ components: [] }); } catch {}
+      });
+    }
+  }
 }; 
