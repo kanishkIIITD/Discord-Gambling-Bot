@@ -2,6 +2,7 @@ const axios = require('axios');
 const pokeCache = require('./pokeCache');
 const { activeSpawns } = require('../commands/pokespawn');
 const { EmbedBuilder } = require('discord.js');
+const customSpawnRates = require('../data/customSpawnRates.json');
 
 // const SPAWN_INTERVAL = 10 * 60 * 1000; // 10 minutes
 const DESPAWN_TIME = 2 * 60 * 1000; // 2 minutes
@@ -45,6 +46,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     }
     const pokemonId = pokeCache.getRandomKantoPokemonId();
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
+    const pokemonName = pokemonData.name;
     const fetch = require('node-fetch');
     const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonId}/`);
     const speciesData = await speciesRes.json();
@@ -55,6 +57,11 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     const flavorText = flavorEntries.length > 0
       ? flavorEntries[Math.floor(Math.random() * flavorEntries.length)].flavor_text.replace(/\f/g, ' ')
       : `A wild ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} is watching you closely...`;
+    // Set catchRateOverride if available in customSpawnRates
+    let catchRateOverride;
+    if (customSpawnRates[pokemonName] && typeof customSpawnRates[pokemonName].catchRate === 'number') {
+      catchRateOverride = customSpawnRates[pokemonName].catchRate;
+    }
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
       .setTitle(`A wild #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} appeared!`)
@@ -85,7 +92,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     } catch (e) {
       console.error(`[AutoSpawner] Error fetching message after sending in channel ${channelId}, messageId: ${message.id}:`, e);
     }
-    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id, attempts: 0 });
+    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id, attempts: 0, ...(catchRateOverride !== undefined && { catchRateOverride }) });
     console.log(`[AutoSpawner] activeSpawns after spawn:`, Array.from(activeSpawns.entries()));
     // Set despawn timer
     if (despawnTimers.has(channelId)) clearTimeout(despawnTimers.get(channelId).timeout);

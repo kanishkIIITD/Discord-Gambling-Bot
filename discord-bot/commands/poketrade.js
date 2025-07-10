@@ -31,7 +31,7 @@ module.exports = {
     ]);
     const initiatorMons = initiatorRes.data.pokedex;
     const recipientMons = recipientRes.data.pokedex;
-    if (!initiatorMons.length || !recipientMons.length) {
+    if (!initiatorMons.length && !recipientMons.length) {
       return interaction.editReply('Both users must have at least one Pokémon to trade.');
     }
 

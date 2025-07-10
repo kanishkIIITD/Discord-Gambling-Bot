@@ -1,43 +1,97 @@
 // battleUtils.js
 
 /**
- * Calculate real Pokémon stats at a given level using base stats from PokéAPI.
+ * Calculate real Pokémon stats at a given level using base stats, IVs, EVs, nature, and ability multipliers.
  * @param {Object} pokeApiStats - Array from PokéAPI's pokemon.stats
  * @param {number} level - Level to calculate stats for (default 50)
+ * @param {Object} [ivs] - { hp, attack, defense, spAttack, spDefense, speed } (0-31)
+ * @param {Object} [evs] - { hp, attack, defense, spAttack, spDefense, speed } (0-252)
+ * @param {string} [nature] - Nature name (e.g. 'adamant')
+ * @param {string} [ability] - Ability name (optional)
  * @returns {Object} stats: { hp, attack, defense, spAttack, spDefense, speed }
  */
-function calculateStats(pokeApiStats, level = 50) {
-  // IV = 31, EV = 0, neutral nature
-  const IV = 31;
-  const EV = 0;
-  const nature = 1.0; // neutral
+function calculateStats(pokeApiStats, level = 50, ivs = {}, evs = {}, nature = 'hardy', ability = '') {
+  // Default IV/EV if not provided
+  const IV = (stat, fallback = 31) => typeof ivs[stat] === 'number' ? ivs[stat] : fallback;
+  const EV = (stat, fallback = 0) => typeof evs[stat] === 'number' ? evs[stat] : fallback;
 
-  // Helper to get base stat by name
+  // Helper to get base stat by name, mapping to stat keys
+  const statKeyMap = {
+    'hp': 'hp',
+    'attack': 'attack',
+    'defense': 'defense',
+    'special-attack': 'spAttack',
+    'special-defense': 'spDefense',
+    'speed': 'speed',
+  };
   const getBase = (name) => {
     const statObj = pokeApiStats.find(s => s.stat.name === name);
     return statObj ? statObj.base_stat : 0;
   };
 
-  const baseHP = getBase('hp');
-  const baseAtk = getBase('attack');
-  const baseDef = getBase('defense');
-  const baseSpA = getBase('special-attack');
-  const baseSpD = getBase('special-defense');
-  const baseSpe = getBase('speed');
-
-  // HP formula
-  const hp = Math.floor(((2 * baseHP + IV + Math.floor(EV / 4)) * level) / 100) + level + 10;
-  // Other stats formula
-  const stat = (base) => Math.floor(( (2 * base + IV + Math.floor(EV / 4)) * level ) / 100 ) + 5;
-
-  return {
-    hp,
-    attack: Math.floor(stat(baseAtk) * nature),
-    defense: Math.floor(stat(baseDef) * nature),
-    spAttack: Math.floor(stat(baseSpA) * nature),
-    spDefense: Math.floor(stat(baseSpD) * nature),
-    speed: Math.floor(stat(baseSpe) * nature),
+  // Nature chart: maps nature to per-stat multipliers
+  const natureChart = {
+    hardy:   { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
+    lonely:  { attack: 1.1, defense: 0.9, spAttack: 1, spDefense: 1, speed: 1 },
+    brave:   { attack: 1.1, defense: 1, spAttack: 1, spDefense: 1, speed: 0.9 },
+    adamant: { attack: 1.1, defense: 1, spAttack: 0.9, spDefense: 1, speed: 1 },
+    naughty: { attack: 1.1, defense: 1, spAttack: 1, spDefense: 0.9, speed: 1 },
+    bold:    { attack: 0.9, defense: 1.1, spAttack: 1, spDefense: 1, speed: 1 },
+    docile:  { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
+    relaxed: { attack: 1, defense: 1.1, spAttack: 1, spDefense: 1, speed: 0.9 },
+    impish:  { attack: 1, defense: 1.1, spAttack: 0.9, spDefense: 1, speed: 1 },
+    lax:     { attack: 1, defense: 1.1, spAttack: 1, spDefense: 0.9, speed: 1 },
+    timid:   { attack: 0.9, defense: 1, spAttack: 1, spDefense: 1, speed: 1.1 },
+    hasty:   { attack: 1, defense: 0.9, spAttack: 1, spDefense: 1, speed: 1.1 },
+    serious: { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
+    jolly:   { attack: 1, defense: 1, spAttack: 0.9, spDefense: 1, speed: 1.1 },
+    naive:   { attack: 1, defense: 1, spAttack: 1, spDefense: 0.9, speed: 1.1 },
+    modest:  { attack: 0.9, defense: 1, spAttack: 1.1, spDefense: 1, speed: 1 },
+    mild:    { attack: 1, defense: 0.9, spAttack: 1.1, spDefense: 1, speed: 1 },
+    quiet:   { attack: 1, defense: 1, spAttack: 1.1, spDefense: 1, speed: 0.9 },
+    bashful: { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
+    rash:    { attack: 1, defense: 1, spAttack: 1.1, spDefense: 0.9, speed: 1 },
+    calm:    { attack: 0.9, defense: 1, spAttack: 1, spDefense: 1.1, speed: 1 },
+    gentle:  { attack: 1, defense: 0.9, spAttack: 1, spDefense: 1.1, speed: 1 },
+    sassy:   { attack: 1, defense: 1, spAttack: 1, spDefense: 1.1, speed: 0.9 },
+    careful: { attack: 1, defense: 1, spAttack: 0.9, spDefense: 1.1, speed: 1 },
+    quirky:  { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
   };
+  const nat = natureChart[nature?.toLowerCase()] || natureChart['hardy'];
+
+  // Ability multipliers
+  let abilityMultipliers = {};
+  if (ability && typeof ability === 'string') {
+    const ab = abilityRegistry?.[ability.toLowerCase?.()];
+    if (ab && ab.staticMultipliers) abilityMultipliers = ab.staticMultipliers;
+  }
+
+  // Calculate stats
+  const stats = {};
+  for (const [pokeKey, statKey] of Object.entries(statKeyMap)) {
+    if (pokeKey === 'hp') {
+      stats.hp = Math.floor(((2 * getBase('hp') + IV('hp') + Math.floor(EV('hp') / 4)) * level) / 100) + level + 10;
+    } else {
+      // e.g., statKey = 'spAttack', pokeKey = 'special-attack'
+      const base = getBase(pokeKey);
+      const natMult = nat[statKey] || 1;
+      const abMult = abilityMultipliers[statKey] || 1;
+      stats[statKey] = Math.floor(( (2 * base + IV(statKey) + Math.floor(EV(statKey) / 4)) * level ) / 100 + 5) * natMult * abMult;
+      stats[statKey] = Math.floor(stats[statKey]);
+    }
+  }
+  return stats;
+}
+
+/**
+ * Convert stat stage (-6 to +6) to multiplier.
+ * @param {number} stage
+ * @returns {number}
+ */
+function stageMultiplier(stage) {
+  if (stage === 0) return 1;
+  if (stage > 0) return (2 + stage) / 2;
+  return 2 / (2 - stage);
 }
 
 const axios = require('axios');
@@ -53,65 +107,82 @@ const axios = require('axios');
  */
 async function getLegalMoveset(
   pokemonName,
-  level = 50,
-  battleSize = 5,
-  versionGroup = 'red-blue'
+  level = 100,
+  battleSize = 5
 ) {
-  // Fetch Pokémon data
   const res = await axios.get(`https://pokeapi.co/api/v2/pokemon/${pokemonName.toLowerCase()}`);
   const data = res.data;
-  // Allow both level-up and TM/tutor moves
-  const methods = ['level-up'];
-  const levelUpMoves = data.moves
+
+  const allowedMethods = ['level-up', 'machine', 'tutor', 'egg'];
+
+  const allMoves = data.moves
     .map(m => {
-      // Find the highest level_learned_at for this version group and allowed methods
+      // Filter version_group_details that use allowed learning methods
       const details = m.version_group_details.filter(d =>
-        methods.includes(d.move_learn_method.name) &&
-        d.version_group.name === versionGroup &&
-        d.level_learned_at <= level // TM/tutor entries often have level_learned_at = 0
+        allowedMethods.includes(d.move_learn_method.name)
       );
       if (details.length === 0) return null;
       return {
         name: m.move.name,
         url: m.move.url,
-        learnedAt: Math.max(...details.map(d => d.level_learned_at)),
+        learnedAt: Math.max(...details.map(d => d.level_learned_at || 0)), // some methods may have level 0
       };
     })
     .filter(Boolean);
-  // Fetch move details for all moves
-  const moveDetails = await Promise.all(levelUpMoves.map(async (move) => {
-    const moveRes = await axios.get(move.url);
-    const moveData = moveRes.data;
-    const basePP = moveData.pp || 5;
-    const effectivePP = Math.ceil(basePP * (battleSize / 5));
-    return {
-      name: move.name,
-      power: moveData.power || 0,
-      moveType: moveData.type.name,
-      category: moveData.damage_class.name,
-      accuracy: moveData.accuracy || 100,
-      effectivePP,
-      currentPP: effectivePP,
-      learnedAt: move.learnedAt,
-    };
+
+  // Fetch move details and effect info
+  const moveDetails = await Promise.all(allMoves.map(async (move) => {
+    try {
+      const moveRes = await axios.get(move.url);
+      const moveData = moveRes.data;
+      const basePP = moveData.pp || 5;
+      const effectivePP = Math.ceil(basePP * (battleSize / 5));
+      return {
+        name: move.name,
+        power: moveData.power || 0,
+        moveType: moveData.type.name,
+        category: moveData.damage_class.name,
+        accuracy: moveData.accuracy || 100,
+        effectivePP,
+        currentPP: effectivePP,
+        learnedAt: move.learnedAt,
+        effectType: moveEffectRegistry[move.name]?.type || null,
+      };
+    } catch (err) {
+      return null; // skip failed fetches
+    }
   }));
-  // Only damaging moves, sort by power, then learnedAt
-  return moveDetails
-    .filter(m => m.power > 0)
-    .sort((a, b) => b.power - a.power || b.learnedAt - a.learnedAt)
-    .slice(0, 4);
+
+  // Separate damaging and effect moves
+  const damagingMoves = moveDetails
+    .filter(m => m && m.power > 0)
+    .sort((a, b) => b.power - a.power || b.learnedAt - a.learnedAt);
+  const effectMoves = moveDetails
+    .filter(m => m && m.power === 0 && m.effectType)
+    .sort((a, b) => b.learnedAt - a.learnedAt);
+
+  // Pick up to 2 of each for a balanced set
+  const selectedMoves = [
+    ...damagingMoves.slice(0, 2),
+    ...effectMoves.slice(0, 2)
+  ].slice(0, 4);
+
+  return selectedMoves;
 }
 
+
 /**
- * Calculate damage using the official Pokémon formula.
+ * Calculate damage using the official Pokémon formula, with weather and terrain modifiers.
  * @param {Object} attacker - { level, stats: {attack, spAttack}, types: [string] }
  * @param {Object} defender - { stats: {defense, spDefense}, types: [string] }
  * @param {Object} move - { power, type, category }
  * @param {number} [typeEffectiveness=1.0] - Multiplier for type effectiveness
+ * @param {string|null} [weather] - Current weather condition
+ * @param {string|null} [terrain] - Current terrain condition
  * @returns {Object} { damage, breakdown }
  */
-function calculateDamage(attacker, defender, move, typeEffectiveness = 1.0) {
-  const level = attacker.level || 50;
+function calculateDamage(attacker, defender, move, typeEffectiveness = 1.0, weather = null, terrain = null) {
+  const level = attacker.level || 100;
   const power = move.power;
   if (!power) return { damage: 0, breakdown: { reason: 'No power' } };
   // Determine if move is physical or special
@@ -124,12 +195,25 @@ function calculateDamage(attacker, defender, move, typeEffectiveness = 1.0) {
   const critical = Math.random() < 0.0625 ? 1.5 : 1.0;
   // Random factor
   const random = 0.85 + Math.random() * 0.15;
+  // Weather modifier
+  let weatherMod = 1.0;
+  if (weather === 'rain') {
+    if (move.type === 'water') weatherMod = 1.5;
+    if (move.type === 'fire') weatherMod = 0.5;
+  } else if (weather === 'sunny') {
+    if (move.type === 'fire') weatherMod = 1.5;
+    if (move.type === 'water') weatherMod = 0.5;
+  }
+  // Terrain modifier
+  let terrainMod = 1.0;
+  if (terrain === 'electric' && move.type === 'electric') terrainMod = 1.3;
+  // Add more terrain effects as needed
   // Base damage
   const base = Math.floor(
     ((2 * level / 5 + 2) * power * A / D) / 50 + 2
   );
   // Modifier
-  const modifier = stab * typeEffectiveness * critical * random;
+  const modifier = stab * typeEffectiveness * critical * random * weatherMod * terrainMod;
   const damage = Math.max(1, Math.floor(base * modifier));
   return {
     damage,
@@ -139,6 +223,10 @@ function calculateDamage(attacker, defender, move, typeEffectiveness = 1.0) {
       typeEffectiveness,
       critical,
       random,
+      weather,
+      weatherMod,
+      terrain,
+      terrainMod,
       modifier,
       A,
       D,
@@ -188,9 +276,154 @@ function getTypeEffectiveness(moveType, defenderTypes) {
   return multiplier;
 }
 
+/**
+ * Get the accuracy/evasion multiplier for a given stage (-6 to +6).
+ * @param {number} stage
+ * @returns {number}
+ */
+function accuracyEvasionMultiplier(stage) {
+  if (stage === 0) return 1;
+  if (stage > 0) return (3 + stage) / 3;
+  return 3 / (3 - stage);
+}
+
+/**
+ * Calculate the final hit chance for a move, factoring in accuracy/evasion boosts.
+ * @param {number} baseAccuracy - The move's base accuracy (e.g., 90)
+ * @param {number} userAccuracyStage - The user's accuracy boost stage
+ * @param {number} targetEvasionStage - The target's evasion boost stage
+ * @returns {number} - Final hit chance as a percentage (0-100)
+ */
+function calcFinalAccuracy(baseAccuracy, userAccuracyStage = 0, targetEvasionStage = 0) {
+  const accMult = accuracyEvasionMultiplier(userAccuracyStage);
+  const evaMult = accuracyEvasionMultiplier(-targetEvasionStage); // evasion is inverted
+  return Math.max(1, Math.min(100, Math.round(baseAccuracy * accMult * evaMult)));
+}
+
+// --- Move Effect Registry ---
+// Maps move names (lowercase, hyphenated) to effect metadata
+const moveEffectRegistry = {
+  // Stat-boosting moves
+  "swords-dance": {
+    type: "boost",
+    stat: "attack",
+    delta: 2,
+    target: "self",
+    message: "Attack sharply rose!"
+  },
+  "growl": {
+    type: "boost",
+    stat: "attack",
+    delta: -1,
+    target: "foe",
+    message: "Attack fell!"
+  },
+  "tail-whip": {
+    type: "boost",
+    stat: "defense",
+    delta: -1,
+    target: "foe",
+    message: "Defense fell!"
+  },
+  // Status-inflicting moves
+  "thunder-wave": {
+    type: "status",
+    status: "paralyzed",
+    target: "foe",
+    chance: 100,
+    message: "was paralyzed! It may be unable to move!"
+  },
+  "toxic": {
+    type: "status",
+    status: "badly-poisoned",
+    target: "foe",
+    chance: 90,
+    message: "was badly poisoned!"
+  },
+  // Weather/terrain moves
+  "rain-dance": {
+    type: "weather",
+    weather: "rain",
+    duration: 5,
+    message: "It started to rain!"
+  },
+  "sunny-day": {
+    type: "weather",
+    weather: "sunny",
+    duration: 5,
+    message: "The sunlight turned harsh!"
+  },
+  "electric-terrain": {
+    type: "terrain",
+    terrain: "electric",
+    duration: 5,
+    message: "An electric current runs across the battlefield!"
+  },
+  // Multi-boost example
+  "cosmic-power": {
+    type: "multi-boost",
+    boosts: [
+      { stat: "defense", delta: 1 },
+      { stat: "spDefense", delta: 1 }
+    ],
+    target: "self",
+    message: "Defense and Sp. Def rose!"
+  },
+  // Damage + status example
+  "scald": {
+    type: "damage+status",
+    status: "burned",
+    target: "foe",
+    chance: 30,
+    message: "was burned!"
+  },
+};
+
+// --- Ability Registry ---
+// Maps ability names (lowercase, hyphenated) to effect metadata and event handlers
+const abilityRegistry = {
+  // Huge Power: doubles attack stat
+  "huge-power": {
+    staticMultipliers: { attack: 2 },
+    description: "Doubles the Pokémon's Attack stat.",
+  },
+  // Pure Power: doubles attack stat
+  "pure-power": {
+    staticMultipliers: { attack: 2 },
+    description: "Doubles the Pokémon's Attack stat.",
+  },
+  // Intimidate: lowers opponent's attack by 1 stage on switch-in
+  "intimidate": {
+    onSwitch: (self, target, session, log) => {
+      target.boosts = target.boosts || {};
+      target.boosts.attack = Math.max(-6, (target.boosts.attack || 0) - 1);
+      log.push({ side: 'user', userId: self.ownerId, text: `${self.name}'s Intimidate lowered ${target.name}'s Attack!` });
+    },
+    description: "Lowers the opponent's Attack by 1 stage on switch-in.",
+  },
+  // Rough Skin: damages attacker on contact (for future onDamage)
+  "rough-skin": {
+    onDamage: (self, attacker, move, session, log) => {
+      // Example: deal 1/8 max HP to attacker if move is contact
+      if (move.category === 'physical') {
+        const dmg = Math.max(1, Math.floor(self.maxHp / 8));
+        attacker.currentHp = Math.max(0, (attacker.currentHp || attacker.maxHp) - dmg);
+        log.push({ side: 'user', userId: self.ownerId, text: `${attacker.name} was hurt by ${self.name}'s Rough Skin!` });
+      }
+    },
+    description: "Damages attacker on contact.",
+  },
+  // Add more abilities as needed
+};
+
 module.exports = {
   calculateStats,
   getLegalMoveset,
   calculateDamage,
   getTypeEffectiveness,
+  stageMultiplier,
+  moveEffectRegistry,
+  abilityRegistry,
+  accuracyEvasionMultiplier,
+  calcFinalAccuracy,
 }; 

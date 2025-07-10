@@ -21,6 +21,7 @@ const {
   calculateBailAmount
 } = require('../utils/gamblingUtils');
 const Pokemon = require('../models/Pokemon');
+const pokeApi = require('../utils/pokeApi');
 
 // Rarity weights for buffs
 const baseWeights = {
@@ -91,6 +92,21 @@ router.post('/:discordId/pokemon/catch', requireGuildId, async (req, res) => {
       pokemon.caughtAt = new Date();
       await pokemon.save();
     } else {
+      // --- Fetch abilities from PokéAPI and pick one at random ---
+      let ability = '';
+      try {
+        const pokeData = await pokeApi.getPokemonDataById(pokemonId);
+        const abilitiesArr = pokeData.abilities || [];
+        // Prefer non-hidden abilities
+        const nonHidden = abilitiesArr.filter(a => !a.is_hidden);
+        const pool = nonHidden.length > 0 ? nonHidden : abilitiesArr;
+        if (pool.length > 0) {
+          const idx = Math.floor(Math.random() * pool.length);
+          ability = pool[idx].ability.name;
+        }
+      } catch (e) {
+        ability = '';
+      }
       pokemon = new Pokemon({
         user: user._id,
         discordId,
@@ -99,7 +115,25 @@ router.post('/:discordId/pokemon/catch', requireGuildId, async (req, res) => {
         name,
         isShiny: !!isShiny,
         caughtAt: new Date(),
-        count: 1
+        count: 1,
+        // --- Competitive fields ---
+        ivs: {
+          hp: Math.floor(Math.random() * 32),
+          attack: Math.floor(Math.random() * 32),
+          defense: Math.floor(Math.random() * 32),
+          spAttack: Math.floor(Math.random() * 32),
+          spDefense: Math.floor(Math.random() * 32),
+          speed: Math.floor(Math.random() * 32),
+        },
+        evs: {
+          hp: 0, attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0,
+        },
+        nature: randomNature(), // Helper function below
+        ability, // Set to random ability
+        status: null,
+        boosts: {
+          attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0, accuracy: 0, evasion: 0,
+        },
       });
       await pokemon.save();
     }
@@ -5150,5 +5184,14 @@ router.get('/duel/:duelId', async (req, res) => {
     res.status(500).json({ message: 'Server error fetching duel.' });
   }
 });
+
+function randomNature() {
+  const natures = [
+    'hardy','lonely','brave','adamant','naughty','bold','docile','relaxed','impish','lax',
+    'timid','hasty','serious','jolly','naive','modest','mild','quiet','bashful','rash',
+    'calm','gentle','sassy','careful','quirky'
+  ];
+  return natures[Math.floor(Math.random() * natures.length)];
+}
 
 module.exports = router;

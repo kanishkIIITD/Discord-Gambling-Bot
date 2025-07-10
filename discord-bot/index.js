@@ -1013,27 +1013,35 @@ client.on('interactionCreate', async interaction => {
 								otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
 							}
 							const battleEmbed = new EmbedBuilder()
-								.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${turnPoke.maxHp} HP)`)
+								.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 								.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
 								.setImage(turnImg)
 								.setThumbnail(otherImg)
 								.addFields(
-									{ name: 'Active Pokémon', value: `${turnPoke.name} (${turnPoke.maxHp} HP)`, inline: true },
-									{ name: 'Other Pokémon', value: `${otherPoke.name} (${otherPoke.maxHp} HP)`, inline: true }
+									{ name: 'Active Pokémon', value: `${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
+									{ name: 'Opponent', value: `${otherPoke.name}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
+									{ name: ' ', value: ' ', inline: true },
+									{ name: 'Weather', value: session2.weather || 'None', inline: true },
+									{ name: 'Terrain', value: session2.terrain || 'None', inline: true }
 								);
 							const moves = (turnPoke.moves || []).slice(0, 4);
 							const moveRow = new ActionRowBuilder().addComponents(
 								moves.map(m => new ButtonBuilder()
 									.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
 									.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
-									.setStyle(ButtonStyle.Primary)
+									.setStyle(
+										m.power > 0
+											? ButtonStyle.Secondary // Damaging move (red)
+											: ButtonStyle.Success // Effect move (green)
+									)
 									.setDisabled(m.currentPP === 0)
 								)
 							);
 							const { getBattleActionRow } = require('./utils/discordUtils');
 							const actionRow = getBattleActionRow(battleId, turnUserId);
+							const logText = (session2.log && session2.log.length) ? session2.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 							await message.channel.send({
-								content: `<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+								content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
 								embeds: [battleEmbed],
 								components: [moveRow, actionRow],
 								allowedMentions: { users: [turnUserId] },
@@ -1094,20 +1102,24 @@ client.on('interactionCreate', async interaction => {
 				if (otherPoke.isShiny) {
 					otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
 				}
-				const logText = session.log.slice(-5).join('\n');
+				const logText = (session.log && session.log.length) ? session.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 				const battleEmbed = new EmbedBuilder()
-				  .setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${turnPoke.currentHp} HP)`)
-				  // .setDescription(logText)
+					.setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				  .setImage(turnImg)
 				  .setThumbnail(otherImg)
 				  .addFields(
-					{ name: 'Active Pokémon', value: `${turnPoke.name} (${turnPoke.currentHp} HP)`, inline: true },
-					{ name: 'Other Pokémon', value: `${otherPoke.name} (${otherPoke.currentHp} HP)`, inline: true }
-				  );
+						{ name: 'Active Pokémon', value: `${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
+						{ name: 'Opponent', value: `${otherPoke.name}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
+						{ name: ' ', value: ' ', inline: true },
+						{ name: 'Weather', value: session.weather || 'None', inline: true },
+						{ name: 'Terrain', value: session.terrain || 'None', inline: true }
+					);
 				// Check for fainted Pokémon or battle end
 				if (challengerPoke.currentHp <= 0 || opponentPoke.currentHp <= 0 || session.status === 'finished') {
+					let faintedName = challengerPoke.currentHp <= 0 ? challengerPoke.name : opponentPoke.name;
+					let winnerMention = session.winnerId ? `<@${session.winnerId}>` : 'Unknown';
 					await interaction.update({
-						content: `${logText}\nBattle ended! (${challengerPoke.currentHp <= 0 ? challengerPoke.name : opponentPoke.name} fainted)` ,
+						content: `${logText}\nBattle ended! (${faintedName} fainted) Winner: ${winnerMention}`,
 						embeds: [battleEmbed],
 						components: [],
 					});
@@ -1119,14 +1131,18 @@ client.on('interactionCreate', async interaction => {
 					moves.map(m => new ButtonBuilder()
 						.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
 						.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
-						.setStyle(ButtonStyle.Primary)
+						.setStyle(
+							m.power > 0
+								? ButtonStyle.Secondary // Damaging move (red)
+								: ButtonStyle.Success // Effect move (green)
+						)
 						.setDisabled(m.currentPP === 0)
 					)
 				);
 				const { getBattleActionRow } = require('./utils/discordUtils');
 				const actionRow = getBattleActionRow(battleId, turnUserId);
 				await interaction.update({
-					content: `<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+					content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
 					embeds: [battleEmbed],
 					components: [moveRow, actionRow],
 					allowedMentions: { users: [turnUserId] },
@@ -1279,27 +1295,35 @@ client.on('interactionCreate', async interaction => {
 				otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
 			}
 			const battleEmbed = new EmbedBuilder()
-				.setTitle(`${updatedSession.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${turnPoke.currentHp} HP)`)
+				.setTitle(`${updatedSession.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				.setImage(turnImg)
 				.setThumbnail(otherImg)
 				.addFields(
-					{ name: 'Active Pokémon', value: `${turnPoke.name} (${turnPoke.currentHp} HP)`, inline: true },
-					{ name: 'Other Pokémon', value: `${otherPoke.name} (${otherPoke.currentHp} HP)`, inline: true }
+					{ name: 'Active Pokémon', value: `${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
+					{ name: 'Opponent', value: `${otherPoke.name}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
+					{ name: ' ', value: ' ', inline: true },
+					{ name: 'Weather', value: updatedSession.weather || 'None', inline: true },
+					{ name: 'Terrain', value: updatedSession.terrain || 'None', inline: true }
 				);
 			const moves = (turnPoke.moves || []).slice(0, 4);
 			const moveRow = new ActionRowBuilder().addComponents(
 				moves.map(m => new ButtonBuilder()
 					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
 					.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
-					.setStyle(ButtonStyle.Primary)
+					.setStyle(
+						m.power > 0
+							? ButtonStyle.Secondary // Damaging move (red)
+							: ButtonStyle.Success // Effect move (green)
+					)
 					.setDisabled(m.currentPP === 0)
 				)
 			);
 			const { getBattleActionRow } = require('./utils/discordUtils');
 			const actionRow = getBattleActionRow(battleId, turnUserId);
+			const logText = (updatedSession.log && updatedSession.log.length) ? updatedSession.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 			// Update the main battle message in place
 			await interaction.update({
-				content: `<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+				content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
 				embeds: [battleEmbed],
 				components: [moveRow, actionRow],
 				allowedMentions: { users: [turnUserId] },
@@ -1416,27 +1440,35 @@ client.on('interactionCreate', async interaction => {
 				otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
 			}
 			const battleEmbed = new EmbedBuilder()
-				.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${turnPoke.maxHp} HP)`)
+				.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
 				.setImage(turnImg)
 				.setThumbnail(otherImg)
 				.addFields(
-					{ name: 'Active Pokémon', value: `${turnPoke.name} (${turnPoke.maxHp} HP)`, inline: true },
-					{ name: 'Other Pokémon', value: `${otherPoke.name} (${otherPoke.maxHp} HP)`, inline: true }
+					{ name: 'Active Pokémon', value: `${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
+					{ name: 'Opponent', value: `${otherPoke.name}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
+					{ name: ' ', value: ' ', inline: true },
+					{ name: 'Weather', value: session2.weather || 'None', inline: true },
+					{ name: 'Terrain', value: session2.terrain || 'None', inline: true }
 				);
 			const moves = (turnPoke.moves || []).slice(0, 4);
 			const moveRow = new ActionRowBuilder().addComponents(
 				moves.map(m => new ButtonBuilder()
 					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
 					.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
-					.setStyle(ButtonStyle.Primary)
+					.setStyle(
+						m.power > 0
+							? ButtonStyle.Secondary // Damaging move (red)
+							: ButtonStyle.Success // Effect move (green)
+					)
 					.setDisabled(m.currentPP === 0)
 				)
 			);
 			const { getBattleActionRow } = require('./utils/discordUtils');
 			const actionRow = getBattleActionRow(battleId, turnUserId);
+			const logText = (session2.log && session2.log.length) ? session2.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 			await interaction.update({
-				content: `<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+				content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
 				embeds: [battleEmbed],
 				components: [moveRow, actionRow],
 				allowedMentions: { users: [turnUserId] },
@@ -4395,4 +4427,28 @@ function getTypeEmoji(type) {
   };
   return map[type] || '';
 }
+
+// --- Add helper to format boosts ---
+function formatBoosts(boosts) {
+  if (!boosts) return 'None';
+  const keys = ['attack','defense','spAttack','spDefense','speed','accuracy','evasion'];
+  const out = [];
+  for (const k of keys) {
+    const v = boosts[k] || 0;
+    if (v !== 0) out.push(`${k[0].toUpperCase()+k.slice(1)} ${v > 0 ? '+'+v : v}`);
+  }
+  return out.length ? out.join(', ') : 'None';
+}
+
+// Add this helper near the other helpers:
+function formatBattleLogLine(log, currentTurnUserId) {
+  if (!log || typeof log === 'string') return log;
+  if (log.side === 'user' && log.userId === currentTurnUserId) return `*${log.text}*`;
+  return log.text;
+}
+//
+// In all move selection UIs, replace:
+//   const logText = (session.log && session.log.length) ? session.log.slice(-5).join('\n') + '\n' : '';
+// with:
+//   const logText = (session.log && session.log.length) ? session.log.slice(-5).map(l => formatBattleLogLine(l, session)).join('\n') + '\n' : '';
 
