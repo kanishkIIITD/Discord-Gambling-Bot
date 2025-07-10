@@ -88,8 +88,8 @@ module.exports = {
       }
       // Add navigation buttons
       const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('prev').setLabel('Previous').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
-        new ButtonBuilder().setCustomId('next').setLabel('Next').setStyle(ButtonStyle.Secondary).setDisabled(page === totalPages - 1)
+        new ButtonBuilder().setCustomId('prev').setLabel('Previous').setStyle(ButtonStyle.Primary).setDisabled(page === 0),
+        new ButtonBuilder().setCustomId('next').setLabel('Next').setStyle(ButtonStyle.Primary).setDisabled(page === totalPages - 1)
       );
       const msg = await interaction.editReply({ embeds: [embed], components: [row] });
       const collector = msg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
@@ -155,8 +155,8 @@ module.exports = {
         );
       };
       const getNavRow = () => new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('prev').setLabel('Previous').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
-        new ButtonBuilder().setCustomId('next').setLabel('Next').setStyle(ButtonStyle.Secondary).setDisabled(page === totalPages - 1)
+        new ButtonBuilder().setCustomId('prev').setLabel('Previous').setStyle(ButtonStyle.Primary).setDisabled(page === 0),
+        new ButtonBuilder().setCustomId('next').setLabel('Next').setStyle(ButtonStyle.Primary).setDisabled(page === totalPages - 1)
       );
       let selectRow = getSelectMenu(page);
       let navRow = getNavRow();

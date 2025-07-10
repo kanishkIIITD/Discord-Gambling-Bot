@@ -69,12 +69,12 @@ module.exports = {
         new ButtonBuilder()
           .setCustomId(`poketrade_prev_${type}_page_${page}`)
           .setLabel('Prev')
-          .setStyle(ButtonStyle.Secondary)
+          .setStyle(ButtonStyle.Primary)
           .setDisabled(page === 0),
         new ButtonBuilder()
           .setCustomId(`poketrade_next_${type}_page_${page}`)
           .setLabel('Next')
-          .setStyle(ButtonStyle.Secondary)
+          .setStyle(ButtonStyle.Primary)
           .setDisabled(page >= totalPages - 1)
       );
       return [row, btnRow];

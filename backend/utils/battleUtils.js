@@ -95,6 +95,7 @@ function stageMultiplier(stage) {
 }
 
 const axios = require('axios');
+const { VERSION_GROUPS } = require('./versionGroupConfig');
 
 /**
  * Fetch all level-up moves for a Pokémon at a given level and version group.
@@ -107,7 +108,7 @@ const axios = require('axios');
  */
 async function getLegalMoveset(
   pokemonName,
-  level = 100,
+  level = 50,
   battleSize = 5
 ) {
   const res = await axios.get(`https://pokeapi.co/api/v2/pokemon/${pokemonName.toLowerCase()}`);
@@ -115,58 +116,67 @@ async function getLegalMoveset(
 
   const allowedMethods = ['level-up', 'machine', 'tutor', 'egg'];
 
-  const allMoves = data.moves
-    .map(m => {
-      // Filter version_group_details that use allowed learning methods
-      const details = m.version_group_details.filter(d =>
-        allowedMethods.includes(d.move_learn_method.name)
-      );
-      if (details.length === 0) return null;
-      return {
-        name: m.move.name,
-        url: m.move.url,
-        learnedAt: Math.max(...details.map(d => d.level_learned_at || 0)), // some methods may have level 0
-      };
-    })
-    .filter(Boolean);
-
-  // Fetch move details and effect info
-  const moveDetails = await Promise.all(allMoves.map(async (move) => {
-    try {
-      const moveRes = await axios.get(move.url);
-      const moveData = moveRes.data;
-      const basePP = moveData.pp || 5;
-      const effectivePP = Math.ceil(basePP * (battleSize / 5));
-      return {
-        name: move.name,
-        power: moveData.power || 0,
-        moveType: moveData.type.name,
-        category: moveData.damage_class.name,
-        accuracy: moveData.accuracy || 100,
-        effectivePP,
-        currentPP: effectivePP,
-        learnedAt: move.learnedAt,
-        effectType: moveEffectRegistry[move.name]?.type || null,
-      };
-    } catch (err) {
-      return null; // skip failed fetches
-    }
-  }));
-
-  // Separate damaging and effect moves
-  const damagingMoves = moveDetails
-    .filter(m => m && m.power > 0)
-    .sort((a, b) => b.power - a.power || b.learnedAt - a.learnedAt);
-  const effectMoves = moveDetails
-    .filter(m => m && m.power === 0 && m.effectType)
-    .sort((a, b) => b.learnedAt - a.learnedAt);
-
-  // Pick up to 2 of each for a balanced set
+  // --- New: Try filtering by version group, expanding until enough moves are found ---
+  let allMoves = [];
+  let usedVersionGroups = [];
+  let damagingMoves = [];
+  let effectMoves = [];
+  const uniqueByName = arr => Object.values(arr.reduce((acc, m) => { if (m && !acc[m.name]) acc[m.name] = m; return acc; }, {}));
+  for (const vg of VERSION_GROUPS) {
+    usedVersionGroups.push(vg.key);
+    // Accumulate all moves from the current set of version groups
+    const filteredMoves = data.moves
+      .map(m => {
+        const details = m.version_group_details.filter(d =>
+          allowedMethods.includes(d.move_learn_method.name) &&
+          usedVersionGroups.includes(d.version_group.name)
+        );
+        if (details.length === 0) return null;
+        const learnedAt = Math.max(...details.map(d => d.level_learned_at || 0));
+        if (learnedAt > level) return null;
+        return {
+          name: m.move.name,
+          url: m.move.url,
+          learnedAt,
+        };
+      })
+      .filter(Boolean);
+    allMoves = [...allMoves, ...filteredMoves];
+    // Fetch move details for new moves only
+    const moveDetails = await Promise.all(filteredMoves.map(async (move) => {
+      try {
+        const moveRes = await axios.get(move.url);
+        const moveData = moveRes.data;
+        const basePP = moveData.pp || 5;
+        const effectivePP = Math.ceil(basePP * (battleSize / 5) * 2);
+        return {
+          name: move.name,
+          power: moveData.power || 0,
+          moveType: moveData.type.name,
+          category: moveData.damage_class.name,
+          accuracy: moveData.accuracy || 100,
+          effectivePP,
+          currentPP: effectivePP,
+          learnedAt: move.learnedAt,
+          effectType: moveEffectRegistry[move.name]?.type || null,
+        };
+      } catch (err) {
+        return null;
+      }
+    }));
+    damagingMoves = uniqueByName([...damagingMoves, ...moveDetails.filter(m => m && m.power > 0)]);
+    effectMoves = uniqueByName([...effectMoves, ...moveDetails.filter(m => m && m.power === 0 && m.effectType)]);
+    // If we have at least 3 unique damaging moves, stop expanding
+    if (damagingMoves.length >= 3) break;
+  }
+  // Sort and select moves
+  damagingMoves = damagingMoves.sort((a, b) => b.power - a.power || b.learnedAt - a.learnedAt);
+  effectMoves = effectMoves.sort((a, b) => b.learnedAt - a.learnedAt);
   const selectedMoves = [
-    ...damagingMoves.slice(0, 2),
+    ...damagingMoves.slice(0, 3),
     ...effectMoves.slice(0, 2)
-  ].slice(0, 4);
-
+  ].slice(0, 5);
+  // console.log(pokemonName, selectedMoves);
   return selectedMoves;
 }
 
@@ -182,7 +192,7 @@ async function getLegalMoveset(
  * @returns {Object} { damage, breakdown }
  */
 function calculateDamage(attacker, defender, move, typeEffectiveness = 1.0, weather = null, terrain = null) {
-  const level = attacker.level || 100;
+  const level = attacker.level || 50;
   const power = move.power;
   if (!power) return { damage: 0, breakdown: { reason: 'No power' } };
   // Determine if move is physical or special
@@ -304,94 +314,59 @@ function calcFinalAccuracy(baseAccuracy, userAccuracyStage = 0, targetEvasionSta
 // Maps move names (lowercase, hyphenated) to effect metadata
 const moveEffectRegistry = {
   // Stat-boosting moves
-  "swords-dance": {
-    type: "boost",
-    stat: "attack",
-    delta: 2,
-    target: "self",
-    message: "Attack sharply rose!"
-  },
-  "growl": {
-    type: "boost",
-    stat: "attack",
-    delta: -1,
-    target: "foe",
-    message: "Attack fell!"
-  },
-  "tail-whip": {
-    type: "boost",
-    stat: "defense",
-    delta: -1,
-    target: "foe",
-    message: "Defense fell!"
-  },
+  "swords-dance":    { type: "boost",      stat: "attack",       delta: 2, target: "self", message: "Attack sharply rose!" },
+  "growl":           { type: "boost",      stat: "attack",       delta: -1, target: "foe",  message: "Attack fell!" },
+  "tail-whip":       { type: "boost",      stat: "defense",      delta: -1, target: "foe",  message: "Defense fell!" },
+  "calm-mind":       { type: "multi-boost", boosts: [{ stat: "specialAttack", delta: 1 }, { stat: "specialDefense", delta: 1 }], target: "self", message: "Sp. Atk and Sp. Def rose!" },
+
   // Status-inflicting moves
-  "thunder-wave": {
-    type: "status",
-    status: "paralyzed",
-    target: "foe",
-    chance: 100,
-    message: "was paralyzed! It may be unable to move!"
-  },
-  "toxic": {
-    type: "status",
-    status: "badly-poisoned",
-    target: "foe",
-    chance: 90,
-    message: "was badly poisoned!"
-  },
+  "thunder-wave":    { type: "status",     status: "paralyzed",     target: "foe", chance: 100, message: "was paralyzed! It may be unable to move!" },
+  "toxic":           { type: "status",     status: "badly-poisoned", target: "foe", chance: 90,  message: "was badly poisoned!" },
+  "will-o-wisp":     { type: "status",     status: "burned",        target: "foe", chance: 100, message: "was burned!" },
+
+  // Healing moves
+  "rest":            { type: "heal",       amount: "full",            target: "self", message: "fell asleep and restored HP!" },
+  "drain-punch":     { type: "drain",      percent: 50,               target: "foe",  message: "had its health drained!" },
+
+  // Recoil moves
+  "double-edge":     { type: "damage+recoil", recoil: 25,   target: "foe", message: "was hurt by recoil!" },
+
+  // Stealth and hazards
+  "spikes":          { type: "hazard",     hazard: "spikes",          layers: 1, duration: null, message: "Spikes were scattered on the foe's side!" },
+  "toxic-spikes":    { type: "hazard",     hazard: "toxic-spikes",    layers: 1, duration: null, message: "Toxic Spikes were scattered around the foe!" },
+
   // Weather/terrain moves
-  "rain-dance": {
-    type: "weather",
-    weather: "rain",
-    duration: 5,
-    message: "It started to rain!"
-  },
-  "sunny-day": {
-    type: "weather",
-    weather: "sunny",
-    duration: 5,
-    message: "The sunlight turned harsh!"
-  },
-  "electric-terrain": {
-    type: "terrain",
-    terrain: "electric",
-    duration: 5,
-    message: "An electric current runs across the battlefield!"
-  },
-  // Multi-boost example
-  "cosmic-power": {
-    type: "multi-boost",
-    boosts: [
-      { stat: "defense", delta: 1 },
-      { stat: "spDefense", delta: 1 }
-    ],
-    target: "self",
-    message: "Defense and Sp. Def rose!"
-  },
+  "rain-dance":      { type: "weather",    weather: "rain",   duration: 5, message: "It started to rain!" },
+  "sunny-day":       { type: "weather",    weather: "sunny",  duration: 5, message: "The sunlight turned harsh!" },
+  "sandstorm":       { type: "weather",    weather: "sandstorm", duration: 5, message: "A sandstorm brewed!" },
+  "electric-terrain":{ type: "terrain",   terrain: "electric", duration: 5, message: "An electric current runs across the battlefield!" },
+
   // Damage + status example
-  "scald": {
-    type: "damage+status",
-    status: "burned",
-    target: "foe",
-    chance: 30,
-    message: "was burned!"
-  },
+  "scald":           { type: "damage+status", status: "burned",   target: "foe", chance: 30, message: "was burned!" },
+
+  // Sound-based moves
+  "hyper-voice":     { type: "sound",      damage: "normal", target: "foe", message: "was hit by a hyper voice!" },
+
+  // Example multi-turn moves
+  "solar-beam":      { type: "charge-attack", chargeTurns: 1, damageType: "special", message: "absorbed sunlight!" },
+
+  // Entry move example
+  "stealth-rock":    { type: "hazard",     hazard: "stealth-rock", layers: 1, duration: null, message: "Pointed stones float in the air around the foe!" }
 };
 
 // --- Ability Registry ---
 // Maps ability names (lowercase, hyphenated) to effect metadata and event handlers
 const abilityRegistry = {
-  // Huge Power: doubles attack stat
+  // Huge Power & Pure Power: doubles attack stat
   "huge-power": {
     staticMultipliers: { attack: 2 },
-    description: "Doubles the Pokémon's Attack stat.",
+    description: "Doubles the Pokémon's Attack stat."
   },
-  // Pure Power: doubles attack stat
   "pure-power": {
     staticMultipliers: { attack: 2 },
-    description: "Doubles the Pokémon's Attack stat.",
+    description: "Doubles the Pokémon's Attack stat."
   },
+
   // Intimidate: lowers opponent's attack by 1 stage on switch-in
   "intimidate": {
     onSwitch: (self, target, session, log) => {
@@ -399,21 +374,68 @@ const abilityRegistry = {
       target.boosts.attack = Math.max(-6, (target.boosts.attack || 0) - 1);
       log.push({ side: 'user', userId: self.ownerId, text: `${self.name}'s Intimidate lowered ${target.name}'s Attack!` });
     },
-    description: "Lowers the opponent's Attack by 1 stage on switch-in.",
+    description: "Lowers the opponent's Attack by 1 stage on switch-in."
   },
-  // Rough Skin: damages attacker on contact (for future onDamage)
+
+  // Rough Skin: damages attacker on contact
   "rough-skin": {
     onDamage: (self, attacker, move, session, log) => {
-      // Example: deal 1/8 max HP to attacker if move is contact
       if (move.category === 'physical') {
         const dmg = Math.max(1, Math.floor(self.maxHp / 8));
         attacker.currentHp = Math.max(0, (attacker.currentHp || attacker.maxHp) - dmg);
         log.push({ side: 'user', userId: self.ownerId, text: `${attacker.name} was hurt by ${self.name}'s Rough Skin!` });
       }
     },
-    description: "Damages attacker on contact.",
+    description: "Damages attacker on contact."
   },
-  // Add more abilities as needed
+
+  // Levitate: immune to Ground-type moves
+  "levitate": {
+    onTryHit: (self, move, target, session, log) => {
+      if (move.type === 'ground') {
+        log.push({ side: 'user', userId: self.ownerId, text: `${self.name} is immune to Ground moves due to Levitate!` });
+        return false;
+      }
+      return true;
+    },
+    description: "Grants immunity to Ground-type moves."
+  },
+
+  // Sturdy: withstands one-hit KO from full HP
+  "sturdy": {
+    onDamage: (self, attacker, move, session, log) => {
+      if (self.currentHp === self.maxHp && move.damage >= self.currentHp) {
+        self.currentHp = 1;
+        log.push({ side: 'user', userId: self.ownerId, text: `${self.name} hung on with Sturdy!` });
+        return false;
+      }
+    },
+    description: "Prevents being knocked out in one hit from full HP."
+  },
+
+  // Immunity: prevent poison
+  "immunity": {
+    onStatus: (self, status, target, session, log) => {
+      if (status === 'poisoned' || status === 'badly-poisoned') {
+        log.push({ side: 'user', userId: self.ownerId, text: `${self.name} is immune to poisoning due to Immunity!` });
+        return false;
+      }
+      return true;
+    },
+    description: "Prevents the Pokémon from being poisoned."
+  },
+
+  // Wonder Guard: only super-effective damage
+  "wonder-guard": {
+    onTryHit: (self, move, target, session, log) => {
+      if (!move.isSuperEffective) {
+        log.push({ side: 'user', userId: target.ownerId, text: `${self.name} avoided the attack with Wonder Guard!` });
+        return false;
+      }
+      return true;
+    },
+    description: "Only allows super-effective moves to hit."
+  }
 };
 
 module.exports = {

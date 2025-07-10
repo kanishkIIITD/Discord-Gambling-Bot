@@ -921,12 +921,12 @@ client.on('interactionCreate', async interaction => {
 									new ButtonBuilder()
 										.setCustomId(`pokebattle_seqprev_${type}_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
 										.setLabel('Prev')
-										.setStyle(ButtonStyle.Secondary)
+										.setStyle(ButtonStyle.Primary)
 										.setDisabled(safePage === 0),
 									new ButtonBuilder()
 										.setCustomId(`pokebattle_seqnext_${type}_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
 										.setLabel('Next')
-										.setStyle(ButtonStyle.Secondary)
+										.setStyle(ButtonStyle.Primary)
 										.setDisabled(safePage >= totalPages - 1)
 								);
 								return [row, btnRow];
@@ -1004,6 +1004,8 @@ client.on('interactionCreate', async interaction => {
 							const turnUserId = session2.turn === 'challenger' ? session2.challengerId : session2.opponentId;
 							const turnPoke = session2.turn === 'challenger' ? challengerPoke : opponentPoke;
 							const otherPoke = session2.turn === 'challenger' ? opponentPoke : challengerPoke;
+							const turnTeam = session2.turn === 'challenger' ? session2.challengerPokemons : session2.opponentPokemons;
+							const otherTeam = session2.turn === 'challenger' ? session2.opponentPokemons : session2.challengerPokemons;
 							let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
 							let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
 							if (turnPoke.isShiny) {
@@ -1013,7 +1015,7 @@ client.on('interactionCreate', async interaction => {
 								otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
 							}
 							const battleEmbed = new EmbedBuilder()
-								.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
+								.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 								.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
 								.setImage(turnImg)
 								.setThumbnail(otherImg)
@@ -1024,7 +1026,7 @@ client.on('interactionCreate', async interaction => {
 									{ name: 'Weather', value: session2.weather || 'None', inline: true },
 									{ name: 'Terrain', value: session2.terrain || 'None', inline: true }
 								);
-							const moves = (turnPoke.moves || []).slice(0, 4);
+							const moves = (turnPoke.moves || []).slice(0, 5);
 							const moveRow = new ActionRowBuilder().addComponents(
 								moves.map(m => new ButtonBuilder()
 									.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
@@ -1094,6 +1096,8 @@ client.on('interactionCreate', async interaction => {
 				const turnUserId = session.turn === 'challenger' ? session.challengerId : session.opponentId;
 				const turnPoke = session.turn === 'challenger' ? challengerPoke : opponentPoke;
 				const otherPoke = session.turn === 'challenger' ? opponentPoke : challengerPoke;
+				const turnTeam = session.turn === 'challenger' ? session.challengerPokemons : session.opponentPokemons;
+				const otherTeam = session.turn === 'challenger' ? session.opponentPokemons : session.challengerPokemons;
 				let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
 				let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
 				if (turnPoke.isShiny) {
@@ -1104,7 +1108,7 @@ client.on('interactionCreate', async interaction => {
 				}
 				const logText = (session.log && session.log.length) ? session.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 				const battleEmbed = new EmbedBuilder()
-					.setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
+					.setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				  .setImage(turnImg)
 				  .setThumbnail(otherImg)
 				  .addFields(
@@ -1126,7 +1130,7 @@ client.on('interactionCreate', async interaction => {
 					return;
 				}
 				// Show real move buttons for the next user
-				const moves = (turnPoke.moves || []).slice(0, 4);
+				const moves = (turnPoke.moves || []).slice(0, 5);
 				const moveRow = new ActionRowBuilder().addComponents(
 					moves.map(m => new ButtonBuilder()
 						.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
@@ -1286,6 +1290,8 @@ client.on('interactionCreate', async interaction => {
 			const otherPoke = updatedSession.turn === 'challenger'
 				? updatedSession.opponentPokemons[updatedSession.activeOpponentIndex || 0]
 				: updatedSession.challengerPokemons[updatedSession.activeChallengerIndex || 0];
+			const turnTeam = updatedSession.turn === 'challenger' ? updatedSession.challengerPokemons : updatedSession.opponentPokemons;
+			const otherTeam = updatedSession.turn === 'challenger' ? updatedSession.opponentPokemons : updatedSession.challengerPokemons;
 			let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
 			let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
 			if (turnPoke.isShiny) {
@@ -1295,7 +1301,7 @@ client.on('interactionCreate', async interaction => {
 				otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
 			}
 			const battleEmbed = new EmbedBuilder()
-				.setTitle(`${updatedSession.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
+				.setTitle(`${updatedSession.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				.setImage(turnImg)
 				.setThumbnail(otherImg)
 				.addFields(
@@ -1305,7 +1311,7 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Weather', value: updatedSession.weather || 'None', inline: true },
 					{ name: 'Terrain', value: updatedSession.terrain || 'None', inline: true }
 				);
-			const moves = (turnPoke.moves || []).slice(0, 4);
+			const moves = (turnPoke.moves || []).slice(0, 5);
 			const moveRow = new ActionRowBuilder().addComponents(
 				moves.map(m => new ButtonBuilder()
 					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
@@ -1431,6 +1437,8 @@ client.on('interactionCreate', async interaction => {
 			const turnUserId = session2.turn === 'challenger' ? session2.challengerId : session2.opponentId;
 			const turnPoke = session2.turn === 'challenger' ? challengerPoke : opponentPoke;
 			const otherPoke = session2.turn === 'challenger' ? opponentPoke : challengerPoke;
+			const turnTeam = session2.turn === 'challenger' ? session2.challengerPokemons : session2.opponentPokemons;
+			const otherTeam = session2.turn === 'challenger' ? session2.opponentPokemons : session2.challengerPokemons;
 			let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
 			let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
 			if (turnPoke.isShiny) {
@@ -1440,7 +1448,7 @@ client.on('interactionCreate', async interaction => {
 				otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
 			}
 			const battleEmbed = new EmbedBuilder()
-				.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
+				.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
 				.setImage(turnImg)
 				.setThumbnail(otherImg)
@@ -1451,7 +1459,7 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Weather', value: session2.weather || 'None', inline: true },
 					{ name: 'Terrain', value: session2.terrain || 'None', inline: true }
 				);
-			const moves = (turnPoke.moves || []).slice(0, 4);
+			const moves = (turnPoke.moves || []).slice(0, 5);
 			const moveRow = new ActionRowBuilder().addComponents(
 				moves.map(m => new ButtonBuilder()
 					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
@@ -4451,4 +4459,10 @@ function formatBattleLogLine(log, currentTurnUserId) {
 //   const logText = (session.log && session.log.length) ? session.log.slice(-5).join('\n') + '\n' : '';
 // with:
 //   const logText = (session.log && session.log.length) ? session.log.slice(-5).map(l => formatBattleLogLine(l, session)).join('\n') + '\n' : '';
+
+// Helper to count non-fainted Pokémon
+function getAliveCount(pokemons) {
+  if (!Array.isArray(pokemons)) return 0;
+  return pokemons.filter(p => p.currentHp > 0).length;
+}
 
