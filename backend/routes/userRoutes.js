@@ -179,19 +179,6 @@ router.post('/:discordId/pokemon/catch', requireGuildId, async (req, res) => {
   }
 });
 
-// GET /:discordId - Get user info for shop and profile
-router.get('/:discordId', requireGuildId, async (req, res) => {
-  try {
-    const { discordId } = req.params;
-    const guildId = req.headers['x-guild-id'];
-    const user = await User.findOne({ discordId, guildId });
-    if (!user) return res.status(404).json({ message: 'User not found.' });
-    res.json({ user });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch user.' });
-  }
-});
-
 // --- SHOP ENDPOINTS ---
 // POST /:discordId/shop/buy - Buy a shop item (one of: rare, ultra, xp, evolution)
 router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
@@ -5516,6 +5503,19 @@ router.get('/duel/:duelId', async (req, res) => {
   } catch (error) {
     console.error('Error fetching duel by ID:', error);
     res.status(500).json({ message: 'Server error fetching duel.' });
+  }
+});
+
+// GET /:discordId - Get user info for shop and profile
+router.get('/:discordId', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch user.' });
   }
 });
 

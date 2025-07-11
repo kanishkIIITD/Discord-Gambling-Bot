@@ -170,10 +170,23 @@ async function getLegalMoveset(
     if (damagingMoves.length >= 3) break;
   }
   // Sort and select moves
-  damagingMoves = damagingMoves.sort((a, b) => b.power - a.power || b.learnedAt - a.learnedAt);
+  // Separate colorless and non-colorless damaging moves
+  const colorlessMoves = damagingMoves.filter(m => m.moveType === 'normal' || m.moveType === 'none' || m.moveType === 'typeless');
+  const nonColorlessMoves = damagingMoves.filter(m => m.moveType !== 'normal' && m.moveType !== 'none' && m.moveType !== 'typeless');
+
+  // Sort both groups
+  const sortedColorless = colorlessMoves.sort((a, b) => b.power - a.power || b.learnedAt - a.learnedAt);
+  const sortedNonColorless = nonColorlessMoves.sort((a, b) => b.power - a.power || b.learnedAt - a.learnedAt);
+
+  // Pick top 1 colorless and top 2 non-colorless (or fewer if not available)
+  damagingMoves = [
+    ...(sortedColorless.slice(0, 1)),
+    ...(sortedNonColorless.slice(0, 3))
+  ].slice(0, 3); // just in case both groups are smaller
+
   effectMoves = effectMoves.sort((a, b) => b.learnedAt - a.learnedAt);
   const selectedMoves = [
-    ...damagingMoves.slice(0, 3),
+    ...damagingMoves,
     ...effectMoves.slice(0, 2)
   ].slice(0, 5);
   // console.log(pokemonName, selectedMoves);
