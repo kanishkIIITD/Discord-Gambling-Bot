@@ -6,6 +6,9 @@ const pokeApi = require('../utils/pokeApi');
 const battleUtils = require('../utils/battleUtils');
 const { moveEffectRegistry, stageMultiplier, abilityRegistry } = require('../utils/battleUtils');
 
+const DAILY_GOALS = { catch: 10, battle: 3, evolve: 2 };
+const WEEKLY_GOALS = { catch: 50, battle: 15, evolve: 7 };
+
 // Helper function to get Pokémon data for selection
 const getUserPokemons = async (userId, selectedPokemonIds) => {
   const pokemons = await Pokemon.find({ _id: { $in: selectedPokemonIds }, discordId: userId });
@@ -89,7 +92,7 @@ function applyPerTurnWeatherEffects(session, log) {
 
 // POST /battles - Create a new battle session
 router.post('/', async (req, res) => {
-  const { challengerId, opponentId, guildId, count } = req.body;
+  const { challengerId, opponentId, guildId, count, friendly } = req.body;
   if (!count || count < 1 || count > 5) {
     return res.status(400).json({ error: 'Number of Pokémon must be between 1 and 5.' });
   }
@@ -133,6 +136,7 @@ router.post('/', async (req, res) => {
       status: 'pending',
       log: [],
       count,
+      friendly: friendly !== false, // default to true if not provided
     });
     return res.json({ battleId: session._id, session });
   } catch (err) {
@@ -738,6 +742,92 @@ router.post('/:battleId/move', async (req, res) => {
     if (session.status === 'finished') {
       const winnerMention = `<@${session.winnerId}>`;
       summary += `\nBattle ended! Winner: ${winnerMention}`;
+      // Award XP and Stardust to the winner
+      try {
+        const { getCustomSpawnInfo } = require('../utils/pokeApi');
+        const User = require('../models/User');
+        const winnerUser = await User.findOne({ discordId: session.winnerId, guildId: session.guildId });
+        if (winnerUser) {
+          // Determine which team won
+          const winnerPokemons = session.winnerId === session.challengerId ? session.challengerPokemons : session.opponentPokemons;
+          let totalXp = 0;
+          let totalDust = 0;
+          for (const poke of winnerPokemons) {
+            const spawnInfo = getCustomSpawnInfo(poke.name);
+            if (spawnInfo) {
+              totalXp += spawnInfo.xpYield || 0;
+              totalDust += spawnInfo.dustYield || 0;
+            }
+          }
+          // If not friendly, double the rewards
+          if (session.friendly === false) {
+            totalXp *= 2;
+            totalDust *= 2;
+          }
+          winnerUser.poke_xp = (winnerUser.poke_xp || 0) + totalXp;
+          winnerUser.poke_stardust = (winnerUser.poke_stardust || 0) + totalDust;
+          winnerUser.poke_quest_daily_battle = (winnerUser.poke_quest_daily_battle || 0) + 1;
+          winnerUser.poke_quest_weekly_battle = (winnerUser.poke_quest_weekly_battle || 0) + 1;
+          if (
+            winnerUser.poke_quest_daily_battle >= DAILY_GOALS.battle
+          ) winnerUser.poke_quest_daily_completed = true;
+          if (
+            winnerUser.poke_quest_weekly_battle >= WEEKLY_GOALS.battle
+          ) winnerUser.poke_quest_weekly_completed = true;
+          // Level up logic
+          const { getLevelForXp, getUnlockedShopItems } = require('../utils/pokeApi');
+          const prevLevel = winnerUser.poke_level || 1;
+          const newLevel = getLevelForXp(winnerUser.poke_xp);
+          let newlyUnlocked = [];
+          if (newLevel > prevLevel) {
+            winnerUser.poke_level = newLevel;
+            // Determine newly unlocked shop items
+            const prevUnlocks = new Set(getUnlockedShopItems(prevLevel).map(i => i.key));
+            const newUnlocks = getUnlockedShopItems(newLevel).filter(i => !prevUnlocks.has(i.key));
+            newlyUnlocked = newUnlocks.map(i => i.name);
+            // Optionally: trigger unlocks, send notifications, etc.
+          }
+          await winnerUser.save();
+          // If not friendly, transfer all loser's Pokémon to winner
+          if (session.friendly === false) {
+            const loserId = session.winnerId === session.challengerId ? session.opponentId : session.challengerId;
+            const loserPokemons = session.winnerId === session.challengerId ? session.opponentPokemons : session.challengerPokemons;
+            const LoserUser = require('../models/User');
+            const PokemonModel = require('../models/Pokemon');
+            for (const poke of loserPokemons) {
+              // Remove all from loser
+              await PokemonModel.deleteMany({ discordId: loserId, guildId: session.guildId, pokemonId: poke.pokemonId, isShiny: poke.isShiny });
+              // Add to winner (stack if possible)
+              let winnerStack = await PokemonModel.findOne({ discordId: session.winnerId, guildId: session.guildId, pokemonId: poke.pokemonId, isShiny: poke.isShiny });
+              if (winnerStack) {
+                winnerStack.count = (winnerStack.count || 1) + 1;
+                await winnerStack.save();
+              } else {
+                await PokemonModel.create({
+                  user: winnerUser ? winnerUser._id : undefined,
+                  discordId: session.winnerId,
+                  guildId: session.guildId,
+                  pokemonId: poke.pokemonId,
+                  name: poke.name,
+                  isShiny: poke.isShiny,
+                  count: 1,
+                  caughtAt: new Date()
+                });
+              }
+            }
+            session.log.push({ side: 'system', text: `All of the loser's Pokémon were transferred to the winner!` });
+          }
+          // If level up, add info to summary
+          if (newLevel > prevLevel) {
+            summary += `\nLevel up! You reached level ${newLevel}.`;
+            if (newlyUnlocked.length > 0) {
+              summary += `\nUnlocked: ${newlyUnlocked.join(', ')}`;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to award XP/Stardust to battle winner:', e);
+      }
     }
     return res.json({ session, summary });
   } catch (err) {

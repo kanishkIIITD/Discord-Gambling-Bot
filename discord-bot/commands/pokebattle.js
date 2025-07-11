@@ -16,6 +16,10 @@ module.exports = {
         .setDescription('Number of Pokémon to battle with (max 5)')
         .setMinValue(1)
         .setMaxValue(5)
+        .setRequired(false))
+    .addBooleanOption(option =>
+      option.setName('friendly')
+        .setDescription('If false, winner gets 2x rewards and loser loses all Pokémon to winner (default: true)')
         .setRequired(false)),
   async execute(interaction) {
     const challengerId = interaction.user.id;
@@ -23,6 +27,9 @@ module.exports = {
     const opponentId = opponent.id;
     const guildId = interaction.guildId;
     const count = interaction.options.getInteger('count') || 1;
+    const friendly = interaction.options.getBoolean('friendly');
+    // Default to true if not specified
+    const isFriendly = friendly !== false;
 
     if (count < 1 || count > 5) {
       await interaction.reply({
@@ -38,6 +45,7 @@ module.exports = {
       opponentId,
       guildId,
       count,
+      friendly: isFriendly,
     }, {
       headers: { 'x-guild-id': guildId }
     });

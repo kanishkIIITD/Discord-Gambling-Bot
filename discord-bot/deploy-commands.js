@@ -6,7 +6,10 @@ const guildId1 = process.env.GUILD_ID_1;
 const guildId2 = process.env.GUILD_ID_2;
 const { setSelectPokedexPokemonCommand } = require('./commands/pokedex');
 const { spawnCustomPokemonCommand } = require('./commands/pokespawn');
-
+const shopCommand = require('./commands/shop');
+const pokeevolveCommand = require('./commands/pokeevolve');
+const questsCommand = require('./commands/quests');
+const pokebattleCommand = require('./commands/pokebattle');
 const commands = [
 	{
 		name: 'balance',
@@ -952,24 +955,24 @@ const commands = [
 		description: 'Set this channel as the Pokémon spawn channel for your server (admin only).',
 		defaultMemberPermissions: '0',
 	},
-	{
-		name: 'pokebattle',
-		description: 'Challenge another user to a Pokémon battle!',
-		options: [
-			{
-				name: 'opponent',
-				description: 'The user to challenge',
-				type: 6,
-				required: true
-			},
-			{
-				name: 'count',
-				description: 'Number of Pokémon to battle with (max 5)',
-				type: 4,
-				required: false,
-			},
-		]
-	},
+	// {
+	// 	name: 'pokebattle',
+	// 	description: 'Challenge another user to a Pokémon battle!',
+	// 	options: [
+	// 		{
+	// 			name: 'opponent',
+	// 			description: 'The user to challenge',
+	// 			type: 6,
+	// 			required: true
+	// 		},
+	// 		{
+	// 			name: 'count',
+	// 			description: 'Number of Pokémon to battle with (max 5)',
+	// 			type: 4,
+	// 			required: false,
+	// 		},
+	// 	]
+	// },
 	{
 		name: 'poketrade',
 		description: 'Trade Pokémon with another user!',
@@ -986,6 +989,10 @@ const commands = [
 
 commands.push(setSelectPokedexPokemonCommand.data.toJSON());
 commands.push(spawnCustomPokemonCommand.data.toJSON());
+commands.push(shopCommand.data.toJSON());
+commands.push(pokeevolveCommand.data.toJSON());
+commands.push(questsCommand.data.toJSON());
+commands.push(pokebattleCommand.data.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
 

@@ -8,7 +8,7 @@ const UserPreferences = require('../models/UserPreferences');
 const Duel = require('../models/Duel');
 const { requireGuildId } = require('../middleware/auth');
 const { calculateTimeoutCost, isValidTimeoutDuration, isOnTimeoutCooldown, getRemainingCooldown, BASE_COST_PER_MINUTE, BALANCE_PERCENTAGE } = require('../utils/timeoutUtils');
-const { auth, requireSuperAdmin } = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const { getUserGuilds } = require('../utils/discordClient');
 const { 
   selectPunishment,
@@ -22,6 +22,9 @@ const {
 } = require('../utils/gamblingUtils');
 const Pokemon = require('../models/Pokemon');
 const pokeApi = require('../utils/pokeApi');
+
+const DAILY_GOALS = { catch: 10, battle: 3, evolve: 2 };
+const WEEKLY_GOALS = { catch: 50, battle: 15, evolve: 7 };
 
 // Rarity weights for buffs
 const baseWeights = {
@@ -137,10 +140,241 @@ router.post('/:discordId/pokemon/catch', requireGuildId, async (req, res) => {
       });
       await pokemon.save();
     }
-    res.json({ message: 'Pokémon added to collection!', pokemon });
+    // Award XP and Stardust based on customSpawnRates.json
+    const { getCustomSpawnInfo, getLevelForXp, getUnlockedShopItems } = require('../utils/pokeApi');
+    const spawnInfo = getCustomSpawnInfo(name);
+    let xpAward = 0;
+    let dustAward = 0;
+    if (spawnInfo) {
+      xpAward = spawnInfo.xpYield || 0;
+      dustAward = spawnInfo.dustYield || 0;
+    }
+    user.poke_xp = (user.poke_xp || 0) + xpAward;
+    user.poke_stardust = (user.poke_stardust || 0) + dustAward;
+    user.poke_quest_daily_catch = (user.poke_quest_daily_catch || 0) + 1;
+    user.poke_quest_weekly_catch = (user.poke_quest_weekly_catch || 0) + 1;
+    if (
+      user.poke_quest_daily_catch >= DAILY_GOALS.catch
+    ) user.poke_quest_daily_completed = true;
+    if (
+      user.poke_quest_weekly_catch >= WEEKLY_GOALS.catch
+    ) user.poke_quest_weekly_completed = true;
+    // Level up logic
+    const prevLevel = user.poke_level || 1;
+    const newLevel = getLevelForXp(user.poke_xp);
+    let newlyUnlocked = [];
+    if (newLevel > prevLevel) {
+      user.poke_level = newLevel;
+      // Determine newly unlocked shop items
+      const prevUnlocks = new Set(getUnlockedShopItems(prevLevel).map(i => i.key));
+      const newUnlocks = getUnlockedShopItems(newLevel).filter(i => !prevUnlocks.has(i.key));
+      newlyUnlocked = newUnlocks.map(i => i.name);
+      // Optionally: trigger unlocks, send notifications, etc.
+    }
+    await user.save();
+    res.json({ message: 'Pokémon added to collection!', pokemon, levelUp: newLevel > prevLevel ? { newLevel, newlyUnlocked } : null });
   } catch (error) {
     console.error('[Pokemon Catch] Error:', error);
     res.status(500).json({ message: 'Failed to add Pokémon to collection.' });
+  }
+});
+
+// GET /:discordId - Get user info for shop and profile
+router.get('/:discordId', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch user.' });
+  }
+});
+
+// --- SHOP ENDPOINTS ---
+// POST /:discordId/shop/buy - Buy a shop item (one of: rare, ultra, xp, evolution)
+router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const { item } = req.body; // item: 'rare', 'ultra', 'xp', 'evolution'
+    const now = new Date();
+    const SHOP_ITEMS = {
+      rare: { name: 'Rare Poké Ball', level: 5, price: 150, cooldownField: 'poke_rareball_ts' },
+      ultra: { name: 'Ultra Poké Ball', level: 10, price: 200, cooldownField: 'poke_ultraball_ts' },
+      xp: { name: 'XP Booster', level: 15, price: 100, cooldownField: 'poke_xp_booster_ts' },
+      evolution: { name: "Evolver's Ring", level: 20, price: 200, cooldownField: 'poke_daily_ring_ts' },
+    };
+    if (!SHOP_ITEMS[item]) {
+      return res.status(400).json({ message: 'Invalid shop item.' });
+    }
+    let user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    // Check level
+    if ((user.poke_level || 1) < SHOP_ITEMS[item].level) {
+      return res.status(403).json({ message: `You must be level ${SHOP_ITEMS[item].level} to buy this item.` });
+    }
+    // Check cooldown (1 per day)
+    const lastTs = user[SHOP_ITEMS[item].cooldownField];
+    if (lastTs && now - lastTs < 24 * 60 * 60 * 1000) {
+      return res.status(429).json({ message: `You can only buy 1 ${SHOP_ITEMS[item].name} per day.` });
+    }
+    // Check stardust
+    if ((user.poke_stardust || 0) < SHOP_ITEMS[item].price) {
+      return res.status(403).json({ message: `Not enough Stardust. Requires ${SHOP_ITEMS[item].price}.` });
+    }
+    // Deduct stardust and set cooldown
+    user.poke_stardust -= SHOP_ITEMS[item].price;
+    user[SHOP_ITEMS[item].cooldownField] = now;
+    if (item === 'evolution') {
+      user.poke_ring_charges = 3;
+    } else if (item === 'rare') {
+      user.poke_rareball_uses = 1;
+    } else if (item === 'ultra') {
+      user.poke_ultraball_uses = 1;
+    } else if (item === 'xp') {
+      user.poke_xp_booster_uses = 1;
+    }
+    await user.save();
+    return res.json({ message: `Successfully bought ${SHOP_ITEMS[item].name}!`, item: SHOP_ITEMS[item].name });
+  } catch (error) {
+    console.error('[Shop Buy] Error:', error);
+    res.status(500).json({ message: 'Failed to buy shop item.' });
+  }
+});
+
+// POST /:discordId/evolve-duplicate - Duplicate evolution with Evolver's Ring
+router.post('/:discordId/evolve-duplicate', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const { pokemonId, isShiny = false, stage, count } = req.body;
+    const now = new Date();
+    // --- Fetch user and validate ring ---
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    if ((user.poke_level || 1) < 20) return res.status(403).json({ message: 'You must be level 20+ to use Evolver\'s Ring.' });
+    // Check ring purchase (within 24h)
+    if (!user.poke_daily_ring_ts || now - user.poke_daily_ring_ts > 24*60*60*1000) {
+      return res.status(403).json({ message: 'You must buy an Evolver\'s Ring from the shop today.' });
+    }
+    if (!user.poke_ring_charges || user.poke_ring_charges <= 0) {
+      return res.status(403).json({ message: 'Your Evolver\'s Ring has no charges left. Buy a new one tomorrow.' });
+    }
+    // --- Evolution requirements ---
+    const stageReqs = [null, 8, 5, 3]; // index: stage (1-based)
+    const chargeReqs = [null, 1, 1, 2];
+    if (!stage || stage < 1 || stage > 3) return res.status(400).json({ message: 'Invalid evolution stage.' });
+    const neededDupes = stageReqs[stage];
+    const neededCharges = chargeReqs[stage];
+    if (count !== neededDupes) return res.status(400).json({ message: `Stage ${stage} evolution requires ${neededDupes} duplicates.` });
+    if (user.poke_ring_charges < neededCharges) return res.status(403).json({ message: `Not enough ring charges. Need ${neededCharges}.` });
+    // --- Fetch Pokémon and validate ---
+    const pokemons = await Pokemon.find({ discordId, guildId, pokemonId, isShiny });
+    const totalDupes = pokemons.reduce((sum, p) => sum + (p.count || 1), 0);
+    if (totalDupes < neededDupes) return res.status(403).json({ message: `You need at least ${neededDupes} duplicates to evolve.` });
+    // --- Legendary/Mythical lockout ---
+    const spawnInfo = require('../utils/pokeApi').getCustomSpawnInfo ? require('../utils/pokeApi').getCustomSpawnInfo(pokemons[0]?.name) : null;
+    if (spawnInfo && (spawnInfo.rarity === 'legendary' || spawnInfo.rarity === 'mythical')) {
+      return res.status(403).json({ message: 'Legendary/Mythical species cannot use duplicate evolution.' });
+    }
+    // --- Weekly cap ---
+    const weekKey = String(pokemonId);
+    const evolMap = user.poke_weekly_evolutions || {};
+    if ((evolMap[weekKey] || 0) >= 2) return res.status(403).json({ message: 'Max 2 duplicate evolutions per species per week.' });
+    // --- Perform evolution ---
+    let toRemove = neededDupes;
+    for (const p of pokemons) {
+      if (toRemove <= 0) break;
+      const take = Math.min(p.count, toRemove);
+      p.count -= take;
+      toRemove -= take;
+      if (p.count <= 0) await p.deleteOne();
+      else await p.save();
+    }
+    // Deduct ring charges
+    user.poke_ring_charges -= neededCharges;
+    // Add evolved form (next stage)
+    const nextEvoId = await pokeApi.getNextEvolutionId(pokemonId, 1); // Always evolve to the next stage
+    if (!nextEvoId) return res.status(500).json({ message: 'Could not determine next evolution.' });
+    // Add evolved Pokémon to user
+    let evolved = await Pokemon.findOne({ discordId, guildId, pokemonId: nextEvoId, isShiny });
+    if (evolved) {
+      evolved.count += 1;
+      await evolved.save();
+    } else {
+      let evoName = '';
+      try {
+        const evoData = await pokeApi.getPokemonDataById(nextEvoId);
+        evoName = evoData.name || '';
+      } catch {}
+      evolved = new Pokemon({
+        user: user._id,
+        discordId,
+        guildId,
+        pokemonId: nextEvoId,
+        name: evoName,
+        isShiny,
+        count: 1,
+        caughtAt: new Date(),
+      });
+      await evolved.save();
+    }
+    // Update weekly evolutions
+    evolMap[weekKey] = (evolMap[weekKey] || 0) + 1;
+    user.poke_weekly_evolutions = evolMap;
+    user.poke_quest_daily_evolve = (user.poke_quest_daily_evolve || 0) + 1;
+    user.poke_quest_weekly_evolve = (user.poke_quest_weekly_evolve || 0) + 1;
+    if (
+      user.poke_quest_daily_evolve >= DAILY_GOALS.evolve
+    ) user.poke_quest_daily_completed = true;
+    if (
+      user.poke_quest_weekly_evolve >= WEEKLY_GOALS.evolve  
+    ) user.poke_quest_weekly_completed = true;
+    await user.save();
+    res.json({ message: `Evolved to next stage!`, evolved, ringCharges: user.poke_ring_charges });
+  } catch (error) {
+    console.error('[Evolver Ring Evolution] Error:', error);
+    res.status(500).json({ message: 'Failed to evolve with duplicates.' });
+  }
+});
+
+// --- CLAIM ENDPOINTS ---
+// POST /:discordId/quests/claim-daily
+router.post('/:discordId/quests/claim-daily', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    if (!user.poke_quest_daily_completed) return res.status(400).json({ message: 'Daily quest not completed.' });
+    if (user.poke_quest_daily_claimed) return res.status(400).json({ message: 'Daily quest reward already claimed.' });
+    // Grant reward (e.g., 100 Stardust)
+    user.poke_stardust = (user.poke_stardust || 0) + 100;
+    user.poke_quest_daily_claimed = true;
+    await user.save();
+    res.json({ message: 'Daily quest reward claimed!', reward: 100 });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to claim daily quest reward.' });
+  }
+});
+// POST /:discordId/quests/claim-weekly
+router.post('/:discordId/quests/claim-weekly', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    if (!user.poke_quest_weekly_completed) return res.status(400).json({ message: 'Weekly quest not completed.' });
+    if (user.poke_quest_weekly_claimed) return res.status(400).json({ message: 'Weekly quest reward already claimed.' });
+    // Grant reward (e.g., 500 Stardust)
+    user.poke_stardust = (user.poke_stardust || 0) + 500;
+    user.poke_quest_weekly_claimed = true;
+    await user.save();
+    res.json({ message: 'Weekly quest reward claimed!', reward: 500 });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to claim weekly quest reward.' });
   }
 });
 
@@ -308,6 +542,114 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
   } catch (error) {
     console.error('Error in timeout endpoint:', error);
     res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// --- ADMIN GIVE POKEMON ENDPOINT ---
+const ALLOWED_DISCORD_ID = '294497956348821505'; // <-- Replace with the allowed Discord ID
+router.post('/admin/give-pokemon', async (req, res) => {
+  try {
+    const { userId, targetDiscordId, guildId, pokemonId, isShiny, count } = req.body;
+    if (userId !== ALLOWED_DISCORD_ID) {
+      return res.status(403).json({ message: 'You are not authorized to use this command.' });
+    }
+    if (!targetDiscordId || !guildId || !pokemonId) {
+      return res.status(400).json({ message: 'Missing required fields: targetDiscordId, guildId, pokemonId.' });
+    }
+    const giveCount = parseInt(count) || 1;
+    // Find or create user
+    let user = await User.findOne({ discordId: targetDiscordId, guildId });
+    if (!user) {
+      user = new User({ discordId: targetDiscordId, guildId, username: targetDiscordId });
+      await user.save();
+    }
+    // Fetch Pokémon data for name and ability
+    let name = '';
+    let ability = '';
+    try {
+      const pokeData = await pokeApi.getPokemonDataById(pokemonId);
+      name = pokeData.name;
+      const abilitiesArr = pokeData.abilities || [];
+      const nonHidden = abilitiesArr.filter(a => !a.is_hidden);
+      const pool = nonHidden.length > 0 ? nonHidden : abilitiesArr;
+      if (pool.length > 0) {
+        const idx = Math.floor(Math.random() * pool.length);
+        ability = pool[idx].ability.name;
+      }
+    } catch (e) {
+      name = `pokemon_${pokemonId}`;
+      ability = '';
+    }
+    // Check if this Pokémon (with shiny status) already exists
+    let pokemon = await Pokemon.findOne({ discordId: targetDiscordId, guildId, pokemonId, isShiny: !!isShiny });
+    if (pokemon) {
+      pokemon.count = (pokemon.count || 1) + giveCount;
+      pokemon.caughtAt = new Date();
+      await pokemon.save();
+    } else {
+      pokemon = new Pokemon({
+        user: user._id,
+        discordId: targetDiscordId,
+        guildId,
+        pokemonId,
+        name,
+        isShiny: !!isShiny,
+        caughtAt: new Date(),
+        count: giveCount,
+        ivs: {
+          hp: Math.floor(Math.random() * 32),
+          attack: Math.floor(Math.random() * 32),
+          defense: Math.floor(Math.random() * 32),
+          spAttack: Math.floor(Math.random() * 32),
+          spDefense: Math.floor(Math.random() * 32),
+          speed: Math.floor(Math.random() * 32),
+        },
+        evs: {
+          hp: 0, attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0,
+        },
+        nature: randomNature(),
+        ability,
+        status: null,
+        boosts: {
+          attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0, accuracy: 0, evasion: 0,
+        },
+      });
+      await pokemon.save();
+    }
+    res.json({ message: `Successfully gave ${giveCount}x ${isShiny ? 'shiny ' : ''}${name} (ID: ${pokemonId}) to user ${targetDiscordId}.`, pokemon });
+  } catch (error) {
+    console.error('[Admin Give Pokemon] Error:', error);
+    res.status(500).json({ message: 'Failed to give Pokémon.' });
+  }
+});
+
+// POST /:discordId/quests/reset-daily
+router.post('/:discordId/quests/reset-daily', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    user.resetDailyQuests();
+    await user.save();
+    res.json({ message: 'Daily quests reset.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to reset daily quests.' });
+  }
+});
+
+// POST /:discordId/quests/reset-weekly
+router.post('/:discordId/quests/reset-weekly', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    user.resetWeeklyQuests();
+    await user.save();
+    res.json({ message: 'Weekly quests reset.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to reset weekly quests.' });
   }
 });
 
@@ -596,7 +938,6 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
         cooldownTime: cooldownField ? attacker[cooldownField] : attacker.stealPointsCooldown,
         stealType
       });
-      
     } else {
       // Failure: apply punishment
       const failureCount = attacker.stealFailureCount || 0;
@@ -4268,13 +4609,6 @@ router.post('/:discordId/trade-preview', async (req, res) => {
         itemsToPreview = (sender.inventory || []).map(item => ({ type: item.type, name: item.name, count: item.count, value: item.value }));
         totalValue = (sender.inventory || []).reduce((sum, item) => sum + (item.value * item.count), 0);
         actionDescription = `Trading everything (${sender.inventory?.length || 0} types) to <@${targetDiscordId}>`;
-        break;
-
-      case 'duplicates':
-        const duplicateItems = (sender.inventory || []).filter(i => i.count > 1);
-        itemsToPreview = duplicateItems.map(item => ({ type: item.type, name: item.name, count: item.count - 1, value: item.value }));
-        totalValue = duplicateItems.reduce((sum, item) => sum + (item.value * (item.count - 1)), 0);
-        actionDescription = `Trading all duplicates (keeping one of each, ${duplicateItems.length} types) to <@${targetDiscordId}>`;
         break;
 
       default:

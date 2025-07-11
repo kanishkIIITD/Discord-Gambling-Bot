@@ -96,10 +96,56 @@ const userSchema = new mongoose.Schema({
     totalTimeouts: { type: Number, default: 0 },
     totalCost: { type: Number, default: 0 }
   },
-  lastGoldenTicketRedemption: { type: Date, default: null }
+  lastGoldenTicketRedemption: { type: Date, default: null },
+  // --- Pokémon Progression System Fields ---
+  poke_level: { type: Number, default: 1 }, // User's Pokémon level
+  poke_xp: { type: Number, default: 0 }, // User's Pokémon XP
+  poke_stardust: { type: Number, default: 0 }, // Stardust currency
+  poke_daily_ring_ts: { type: Date, default: null }, // Last Evolver's Ring purchase timestamp
+  poke_weekly_evolutions: {
+    type: Object, // { speciesId: count }
+    default: {}
+  },
+  poke_xp_booster_ts: { type: Date, default: null }, // Last XP booster purchase timestamp
+  poke_rareball_ts: { type: Date, default: null }, // Last Rare Poké Ball purchase timestamp
+  poke_ultraball_ts: { type: Date, default: null }, // Last Ultra Poké Ball purchase timestamp
+  // Daily quest progress
+  poke_quest_daily_catch: { type: Number, default: 0 },
+  poke_quest_daily_battle: { type: Number, default: 0 },
+  poke_quest_daily_evolve: { type: Number, default: 0 },
+  poke_quest_daily_completed: { type: Boolean, default: false },
+  poke_quest_daily_last_reset: { type: Date, default: null },
+  poke_quest_daily_claimed: { type: Boolean, default: false },
+  // Weekly quest progress
+  poke_quest_weekly_catch: { type: Number, default: 0 },
+  poke_quest_weekly_battle: { type: Number, default: 0 },
+  poke_quest_weekly_evolve: { type: Number, default: 0 },
+  poke_quest_weekly_completed: { type: Boolean, default: false },
+  poke_quest_weekly_last_reset: { type: Date, default: null },
+  poke_quest_weekly_claimed: { type: Boolean, default: false },
+  poke_ring_charges: { type: Number, default: 0 }, // Evolver's Ring charges
+  poke_rareball_uses: { type: Number, default: 0 }, // Rare Poké Ball uses left
+  poke_ultraball_uses: { type: Number, default: 0 }, // Ultra Poké Ball uses left
+  poke_xp_booster_uses: { type: Number, default: 0 }, // XP Booster uses left
 });
 
 userSchema.index({ discordId: 1, guildId: 1 }, { unique: true });
+
+// --- Quest Reset Helpers ---
+userSchema.methods.resetDailyQuests = function() {
+  this.poke_quest_daily_catch = 0;
+  this.poke_quest_daily_battle = 0;
+  this.poke_quest_daily_evolve = 0;
+  this.poke_quest_daily_completed = false;
+  this.poke_quest_daily_last_reset = new Date();
+};
+userSchema.methods.resetWeeklyQuests = function() {
+  this.poke_quest_weekly_catch = 0;
+  this.poke_quest_weekly_battle = 0;
+  this.poke_quest_weekly_evolve = 0;
+  this.poke_quest_weekly_completed = false;
+  this.poke_quest_weekly_last_reset = new Date();
+};
 
 const User = mongoose.model('User', userSchema);
 

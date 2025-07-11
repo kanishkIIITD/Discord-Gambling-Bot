@@ -63,6 +63,7 @@ const battleSessionSchema = new mongoose.Schema({
   weather:     { type: String, enum: [null, 'rain', 'sunny', 'hail', 'sandstorm'], default: null },
   terrain:     { type: String, enum: [null, 'electric', 'grassy', 'misty', 'psychic'], default: null },
   fieldEffects: [{ type: String, default: [] }], // e.g. 'reflect', 'light-screen', etc.
+  friendly: { type: Boolean, default: true }, // true = normal, false = winner gets 2x rewards and loser loses all Pokémon
 }, {
   timestamps: true
 });

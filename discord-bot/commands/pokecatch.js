@@ -74,13 +74,64 @@ module.exports = {
       // Save to backend
       try {
         const backendUrl = process.env.BACKEND_API_URL;
-        await axios.post(`${backendUrl}/users/${interaction.user.id}/pokemon/catch`, {
+        // Fetch user's pokedex before catch to check for duplicate
+        let isDuplicate = false;
+        try {
+          const pokedexRes = await axios.get(`${backendUrl}/users/${interaction.user.id}/pokedex`, {
+            headers: { 'x-guild-id': interaction.guildId }
+          });
+          const pokedex = pokedexRes.data.pokedex || [];
+          isDuplicate = pokedex.some(mon => String(mon.pokemonId) === String(pokemonId) && !!mon.isShiny === !!isShiny);
+        } catch (e) {
+          // If pokedex fetch fails, default to duplicate = false
+        }
+        const res = await axios.post(`${backendUrl}/users/${interaction.user.id}/pokemon/catch`, {
           pokemonId,
           name: pokemonData.name,
           isShiny
         }, {
           headers: { 'x-guild-id': interaction.guildId }
         });
+        // --- Build embed content ---
+        let title = isDuplicate
+          ? `You caught another ${isShiny ? '✨ SHINY ' : ''}${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)}!`
+          : `🎉 This is your first ${isShiny ? '✨ SHINY ' : ''}${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)}! Added to your Pokédex!`;
+        let description = '';
+        if (res.data && res.data.levelUp) {
+          const { newLevel, newlyUnlocked } = res.data.levelUp;
+          description += `🎉 **Level Up!** You reached level ${newLevel}!\n`;
+          if (newlyUnlocked && newlyUnlocked.length > 0) {
+            description += `Unlocked: ${newlyUnlocked.join(', ')}\n`;
+          }
+        }
+        description += flavorText || (isShiny ? '✨ Incredible! You caught a shiny Pokémon! ✨' : 'Congratulations! The wild Pokémon is now yours.');
+        // --- Build embed ---
+        embed = new EmbedBuilder()
+          .setColor(0x2ecc71)
+          .setTitle(title)
+          .setImage(artwork)
+          .addFields(
+            { name: 'Type', value: types, inline: true },
+            { name: 'Region', value: 'Kanto', inline: true },
+            { name: 'Catch Chance', value: `${Math.round(finalChance * 100)}%`, inline: true },
+            { name: 'Shiny', value: isShiny ? 'Yes ✨' : 'No', inline: true }
+          )
+          .setDescription(description)
+          .setFooter({ text: 'Gotta catch ’em all!' });
+        // Mark as caught (atomic)
+        spawn = activeSpawns.get(channelId);
+        if (spawn.caughtBy) {
+          return interaction.reply({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
+        }
+        spawn.caughtBy = interaction.user.id;
+        activeSpawns.set(channelId, spawn);
+        // Clear manual despawn timer if exists
+        if (manualDespawnTimers && manualDespawnTimers.has(channelId)) {
+          clearTimeout(manualDespawnTimers.get(channelId).timeout);
+          manualDespawnTimers.delete(channelId);
+        }
+        activeSpawns.delete(channelId);
+        return await interaction.reply({ embeds: [embed] });
       } catch (err) {
         console.error('Failed to save caught Pokémon:', err);
         // Continue, but inform user
@@ -99,32 +150,6 @@ module.exports = {
         activeSpawns.delete(channelId);
         return await interaction.reply({ embeds: [embed] });
       }
-      // Mark as caught (atomic)
-      spawn = activeSpawns.get(channelId);
-      if (spawn.caughtBy) {
-        return interaction.reply({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
-      }
-      spawn.caughtBy = interaction.user.id;
-      activeSpawns.set(channelId, spawn);
-      // Clear manual despawn timer if exists
-      if (manualDespawnTimers && manualDespawnTimers.has(channelId)) {
-        clearTimeout(manualDespawnTimers.get(channelId).timeout);
-        manualDespawnTimers.delete(channelId);
-      }
-      activeSpawns.delete(channelId);
-      embed = new EmbedBuilder()
-        .setColor(0x2ecc71)
-        .setTitle(`🎉 You caught ${isShiny ? 'a SHINY ' : ''}#${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)}!`)
-        .setImage(artwork)
-        .addFields(
-          { name: 'Type', value: types, inline: true },
-          { name: 'Region', value: 'Kanto', inline: true },
-          { name: 'Catch Chance', value: `${Math.round(finalChance * 100)}%`, inline: true },
-          { name: 'Shiny', value: isShiny ? 'Yes ✨' : 'No', inline: true }
-        )
-        .setDescription(flavorText || (isShiny ? '✨ Incredible! You caught a shiny Pokémon! ✨' : 'Congratulations! The wild Pokémon is now yours.'))
-        .setFooter({ text: 'Gotta catch ’em all!' });
-      return await interaction.reply({ embeds: [embed] });
     } else {
       // Failure
       // ATOMICITY: already incremented attempts and attemptedBy above

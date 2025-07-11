@@ -32,6 +32,9 @@ const pokedexCommand = require('./commands/pokedex');
 const setpokechannelCommand = require('./commands/setpokechannel');
 const pokebattleCommand = require('./commands/pokebattle');
 const poketradeCommand = require('./commands/poketrade');
+const shopCommand = require('./commands/shop');
+const pokeevolveCommand = require('./commands/pokeevolve');
+const questsCommand = require('./commands/quests');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 const pokeCache = require('./utils/pokeCache');
@@ -1127,6 +1130,20 @@ client.on('interactionCreate', async interaction => {
 						embeds: [battleEmbed],
 						components: [],
 					});
+					// If the backend response includes a summary, check for level up/unlock
+					if (response.data && response.data.summary) {
+						const summary = response.data.summary;
+						const levelUpMatch = summary.match(/Level up! You reached level (\d+)\./i);
+						const unlockMatch = summary.match(/Unlocked: (.+)/i);
+						if (levelUpMatch) {
+							let msg = `🎉 **Level Up!** You reached level ${levelUpMatch[1]}!`;
+							if (unlockMatch) {
+								msg += `\nUnlocked: ${unlockMatch[1]}`;
+							}
+							// Send a follow-up message to the winner
+							await interaction.followUp({ content: msg, ephemeral: false });
+						}
+					}
 					return;
 				}
 				// Show real move buttons for the next user
@@ -3847,13 +3864,15 @@ client.on('interactionCreate', async interaction => {
 						{ name: '🔄 Trading', value:
 							'`/poketrade` - Trade Pokémon with another user!'
 						},
-						{ name: 'ℹ️ Features', value:
-							'• Pokémon rarity and catch chance based on official PokéAPI data\n' +
-							'• Shiny Pokémon can appear (1 in 4096 chance)\n' +
-							'• Only Kanto region for now (more coming soon)\n' +
-							'• All data, images, and flavor text from PokéAPI\n' +
-							'• Server admins can configure spawn channel per guild'
-						}
+						{ name: '🛒 Shop', value:
+							'`/pokeshop` - View and buy special progression items (Poké Balls, XP Booster, Evolver\'s Ring)!',
+						},
+						{ name: '🎯 Quests', value:
+							'`/pokequests` - View your Pokémon quests and claim rewards!'
+						},
+						{ name:"Evolve", value:
+							'`/pokeevolve` - Evolve your Pokémon!'
+						},
 					],
 					timestamp: new Date()
 				};
@@ -4316,6 +4335,12 @@ client.on('interactionCreate', async interaction => {
 		await pokebattleCommand.execute(interaction);
 	} else if (commandName === 'poketrade') {
 		await poketradeCommand.execute(interaction);
+	} else if (commandName === 'pokeshop') {
+		await shopCommand.execute(interaction);
+	} else if (commandName === 'pokeevolve') {
+		await pokeevolveCommand.execute(interaction);
+	} else if (commandName === 'pokequests') {
+		await questsCommand.execute(interaction);
 	} else if (commandName === 'setpokedexpokemon') {
 		await pokedexCommand.setSelectPokedexPokemonCommand.execute(interaction);
 	} else if (commandName === 'spawncustompokemon') {
