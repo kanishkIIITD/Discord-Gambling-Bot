@@ -39,7 +39,10 @@ module.exports = {
       }
       return xp;
     }
-    const nextLevelXp = getNextLevelXp(currentLevel);
+    const xpForCurrentLevel = getNextLevelXp(currentLevel - 1);
+    const xpForNextLevel = getNextLevelXp(currentLevel);
+    const xpThisLevel = currentXp - xpForCurrentLevel;
+    const xpNeeded = xpForNextLevel - xpForCurrentLevel;
     // Build shop embed
     const embed = new EmbedBuilder()
       .setTitle('🛒 Poké Shop')
@@ -48,7 +51,7 @@ module.exports = {
       .addFields(
         { name: 'Your Level', value: String(currentLevel), inline: true },
         { name: 'Stardust', value: String(user.poke_stardust || 0), inline: true },
-        { name: 'XP to level up', value: `${currentXp} / ${nextLevelXp}`, inline: true },
+        { name: 'XP to level up', value: `${xpThisLevel} / ${xpNeeded}`, inline: true },
       );
     const rows = [new ActionRowBuilder()];
     SHOP_ITEMS.forEach((item, idx) => {

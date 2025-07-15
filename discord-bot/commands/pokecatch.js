@@ -109,6 +109,8 @@ module.exports = {
         return interaction.followUp({ content: `❌ ${msg}`, ephemeral: true });
       }
       const data = result.data;
+      // Calculate attempts left
+      const attemptsLeft = 5 - spawn.attempts;
       // Build result embed
       const types = pokemonData.types.map(t => t.type.name.charAt(0).toUpperCase() + t.type.name.slice(1)).join(', ');
       const region = 'Kanto';
@@ -121,16 +123,23 @@ module.exports = {
           { name: 'Region', value: region, inline: true },
           { name: 'Ball Used', value: data.ballUsed || ballType, inline: true },
           { name: 'Catch Chance', value: data.embedData?.catchChance || '?', inline: true },
-          { name: 'Shiny', value: data.embedData?.isShiny ? 'Yes ✨' : 'No', inline: true }
+          { name: 'Shiny', value: data.embedData?.isShiny ? 'Yes ✨' : 'No', inline: true },
+          { name: 'Attempts Left', value: `${attemptsLeft}/5`, inline: true }
         )
-        .setDescription(data.embedData?.description || (data.success ? 'Congratulations! The wild Pokémon is now yours.' : 'Better luck next time!'))
         .setFooter({ text: 'Gotta catch ’em all!' });
+      // Add extra fields if present
       if (data.xpAward) embed.addFields({ name: 'XP Gained', value: `${data.xpAward}`, inline: true });
       if (data.dustAward) embed.addFields({ name: 'Dust Gained', value: `${data.dustAward}`, inline: true });
       if (data.xpBoosterUsed) embed.addFields({ name: 'XP Booster', value: '2x XP!', inline: true });
       if (data.isDuplicate) embed.addFields({ name: 'Duplicate', value: 'Yes', inline: true });
       if (data.newLevel) embed.addFields({ name: 'Level Up!', value: `Level ${data.newLevel}`, inline: true });
       if (data.newlyUnlocked && data.newlyUnlocked.length > 0) embed.addFields({ name: 'Unlocked', value: data.newlyUnlocked.join(', '), inline: false });
+      // Set description to mention the user who caught it
+      if (data.success) {
+        embed.setDescription(`<@${interaction.user.id}> caught the wild Pokémon!`);
+      } else {
+        embed.setDescription(data.embedData?.description || 'Better luck next time!');
+      }
       // Mark as caught if successful
       if (data.success) {
         spawn = activeSpawns.get(channelId);
