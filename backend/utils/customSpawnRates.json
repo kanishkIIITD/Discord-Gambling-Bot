@@ -1,7 +1,7 @@
 {
   "pidgey": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0039,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -9,7 +9,7 @@
   },
   "rattata": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0039,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -17,7 +17,7 @@
   },
   "zubat": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0039,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -25,7 +25,7 @@
   },
   "magikarp": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0039,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -33,7 +33,7 @@
   },
   "caterpie": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0039,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -41,7 +41,7 @@
   },
   "weedle": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0039,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -49,7 +49,7 @@
   },
   "bellsprout": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0039,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -57,7 +57,7 @@
   },
   "oddish": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0039,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -65,7 +65,7 @@
   },
   "geodude": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0039,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -73,7 +73,7 @@
   },
   "spearow": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0039,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -81,7 +81,7 @@
   },
   "paras": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0029,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -89,7 +89,7 @@
   },
   "krabby": {
     "spawn": 25,
-    "catchRate": 0.6,
+    "catchRate": 0.0035,
     "rarity": "common",
     "xpYield": 15,
     "dustYield": 10,
@@ -97,7 +97,7 @@
   },
   "pikachu": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -105,7 +105,7 @@
   },
   "vulpix": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -113,7 +113,7 @@
   },
   "meowth": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0039,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -121,7 +121,7 @@
   },
   "machop": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0028,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -129,7 +129,7 @@
   },
   "psyduck": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -137,7 +137,7 @@
   },
   "growlithe": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -145,7 +145,7 @@
   },
   "tentacool": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -153,7 +153,7 @@
   },
   "horsea": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0035,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -161,7 +161,7 @@
   },
   "goldeen": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0035,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -169,7 +169,7 @@
   },
   "sandshrew": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0039,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -177,7 +177,7 @@
   },
   "slowpoke": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -185,7 +185,7 @@
   },
   "gastly": {
     "spawn": 12,
-    "catchRate": 0.4667,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -193,7 +193,7 @@
   },
   "bulbasaur": {
     "spawn": 10,
-    "catchRate": 0.3667,
+    "catchRate": 0.0007,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -201,7 +201,7 @@
   },
   "charmander": {
     "spawn": 10,
-    "catchRate": 0.3667,
+    "catchRate": 0.0007,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -209,7 +209,7 @@
   },
   "squirtle": {
     "spawn": 10,
-    "catchRate": 0.3667,
+    "catchRate": 0.0007,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -217,7 +217,7 @@
   },
   "ivysaur": {
     "spawn": 4,
-    "catchRate": 0.2667,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -225,7 +225,7 @@
   },
   "charmeleon": {
     "spawn": 4,
-    "catchRate": 0.2667,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -233,7 +233,7 @@
   },
   "wartortle": {
     "spawn": 4,
-    "catchRate": 0.2667,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -241,7 +241,7 @@
   },
   "pidgeotto": {
     "spawn": 4,
-    "catchRate": 0.2667,
+    "catchRate": 0.0018,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -249,7 +249,7 @@
   },
   "pidgeot": {
     "spawn": 2,
-    "catchRate": 0.2667,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -257,7 +257,7 @@
   },
   "butterfree": {
     "spawn": 4,
-    "catchRate": 0.2667,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -265,7 +265,7 @@
   },
   "beedrill": {
     "spawn": 2,
-    "catchRate": 0.2667,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -273,7 +273,7 @@
   },
   "gloom": {
     "spawn": 4,
-    "catchRate": 0.2667,
+    "catchRate": 0.0018,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -281,7 +281,7 @@
   },
   "nidorina": {
     "spawn": 4,
-    "catchRate": 0.2667,
+    "catchRate": 0.0018,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -289,7 +289,7 @@
   },
   "nidorino": {
     "spawn": 4,
-    "catchRate": 0.2667,
+    "catchRate": 0.0018,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -297,7 +297,7 @@
   },
   "kadabra": {
     "spawn": 4,
-    "catchRate": 0.2667,
+    "catchRate": 0.0015,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -305,7 +305,7 @@
   },
   "machoke": {
     "spawn": 4,
-    "catchRate": 0.2667,
+    "catchRate": 0.0014,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -313,7 +313,7 @@
   },
   "haunter": {
     "spawn": 4,
-    "catchRate": 0.2667,
+    "catchRate": 0.0014,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -321,7 +321,7 @@
   },
   "scyther": {
     "spawn": 2,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -329,7 +329,7 @@
   },
   "jynx": {
     "spawn": 2,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -337,7 +337,7 @@
   },
   "electabuzz": {
     "spawn": 2,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -345,7 +345,7 @@
   },
   "magmar": {
     "spawn": 2,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -353,7 +353,7 @@
   },
   "lickitung": {
     "spawn": 3,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -361,7 +361,7 @@
   },
   "porygon": {
     "spawn": 2,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -369,7 +369,7 @@
   },
   "omanyte": {
     "spawn": 3,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -377,7 +377,7 @@
   },
   "kabuto": {
     "spawn": 3,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -385,7 +385,7 @@
   },
   "eevee": {
     "spawn": 3,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -393,7 +393,7 @@
   },
   "dratini": {
     "spawn": 3,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -401,7 +401,7 @@
   },
   "dragonair": {
     "spawn": 3,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -409,7 +409,7 @@
   },
   "onix": {
     "spawn": 3,
-    "catchRate": 0.2,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -417,7 +417,7 @@
   },
   "mewtwo": {
     "spawn": 1,
-    "catchRate": 0.0667,
+    "catchRate": 0.0,
     "rarity": "legendary",
     "xpYield": 100,
     "dustYield": 100,
@@ -425,7 +425,7 @@
   },
   "mew": {
     "spawn": 1,
-    "catchRate": 0.0667,
+    "catchRate": 0.0007,
     "rarity": "legendary",
     "xpYield": 100,
     "dustYield": 100,
@@ -433,7 +433,7 @@
   },
   "articuno": {
     "spawn": 1,
-    "catchRate": 0.0667,
+    "catchRate": 0.0,
     "rarity": "legendary",
     "xpYield": 100,
     "dustYield": 100,
@@ -441,7 +441,7 @@
   },
   "zapdos": {
     "spawn": 1,
-    "catchRate": 0.0667,
+    "catchRate": 0.0,
     "rarity": "legendary",
     "xpYield": 100,
     "dustYield": 100,
@@ -449,7 +449,7 @@
   },
   "moltres": {
     "spawn": 1,
-    "catchRate": 0.0667,
+    "catchRate": 0.0,
     "rarity": "legendary",
     "xpYield": 100,
     "dustYield": 100,
@@ -457,7 +457,7 @@
   },
   "aerodactyl": {
     "spawn": 2,
-    "catchRate": 0.0667,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -465,7 +465,7 @@
   },
   "kabutops": {
     "spawn": 2,
-    "catchRate": 0.0667,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -473,7 +473,7 @@
   },
   "omastar": {
     "spawn": 2,
-    "catchRate": 0.0667,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -481,7 +481,7 @@
   },
   "dragonite": {
     "spawn": 2,
-    "catchRate": 0.0667,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -489,7 +489,7 @@
   },
   "venusaur": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -497,7 +497,7 @@
   },
   "charizard": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -505,7 +505,7 @@
   },
   "blastoise": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -513,7 +513,7 @@
   },
   "metapod": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0018,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -521,7 +521,7 @@
   },
   "kakuna": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0018,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -529,7 +529,7 @@
   },
   "raticate": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.002,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -537,7 +537,7 @@
   },
   "fearow": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0014,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -545,7 +545,7 @@
   },
   "ekans": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0039,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -553,7 +553,7 @@
   },
   "arbok": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0014,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -561,7 +561,7 @@
   },
   "raichu": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -569,7 +569,7 @@
   },
   "sandslash": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0014,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -577,7 +577,7 @@
   },
   "nidoran-f": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0036,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -585,7 +585,7 @@
   },
   "nidoqueen": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -593,7 +593,7 @@
   },
   "nidoran-m": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0036,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -601,7 +601,7 @@
   },
   "nidoking": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -609,7 +609,7 @@
   },
   "clefairy": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0023,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -617,7 +617,7 @@
   },
   "clefable": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0004,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -625,7 +625,7 @@
   },
   "ninetales": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -633,7 +633,7 @@
   },
   "jigglypuff": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0026,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -641,7 +641,7 @@
   },
   "wigglytuff": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0008,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -649,7 +649,7 @@
   },
   "golbat": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0014,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -657,7 +657,7 @@
   },
   "vileplume": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -665,7 +665,7 @@
   },
   "parasect": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -673,7 +673,7 @@
   },
   "venonat": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -681,7 +681,7 @@
   },
   "venomoth": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -689,7 +689,7 @@
   },
   "diglett": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0039,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -697,7 +697,7 @@
   },
   "dugtrio": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0008,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -705,7 +705,7 @@
   },
   "persian": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0014,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -713,7 +713,7 @@
   },
   "golduck": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -721,7 +721,7 @@
   },
   "mankey": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -729,7 +729,7 @@
   },
   "primeape": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -737,7 +737,7 @@
   },
   "arcanine": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -745,7 +745,7 @@
   },
   "poliwag": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0039,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -753,7 +753,7 @@
   },
   "poliwhirl": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0018,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -761,7 +761,7 @@
   },
   "poliwrath": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -769,7 +769,7 @@
   },
   "abra": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0031,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -777,7 +777,7 @@
   },
   "alakazam": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0008,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -785,7 +785,7 @@
   },
   "machamp": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -793,7 +793,7 @@
   },
   "weepinbell": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0018,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -801,7 +801,7 @@
   },
   "victreebel": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -809,7 +809,7 @@
   },
   "tentacruel": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0009,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -817,7 +817,7 @@
   },
   "graveler": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0018,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -825,7 +825,7 @@
   },
   "golem": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -833,7 +833,7 @@
   },
   "ponyta": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -841,7 +841,7 @@
   },
   "rapidash": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0009,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -849,7 +849,7 @@
   },
   "slowbro": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -857,7 +857,7 @@
   },
   "magnemite": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -865,7 +865,7 @@
   },
   "magneton": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0009,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -873,7 +873,7 @@
   },
   "farfetchd": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -881,7 +881,7 @@
   },
   "doduo": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -889,7 +889,7 @@
   },
   "dodrio": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -897,7 +897,7 @@
   },
   "seel": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -905,7 +905,7 @@
   },
   "dewgong": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -913,7 +913,7 @@
   },
   "grimer": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -921,7 +921,7 @@
   },
   "muk": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -929,7 +929,7 @@
   },
   "shellder": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -937,7 +937,7 @@
   },
   "cloyster": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0009,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -945,7 +945,7 @@
   },
   "gengar": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -953,7 +953,7 @@
   },
   "drowzee": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -961,7 +961,7 @@
   },
   "hypno": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -969,7 +969,7 @@
   },
   "kingler": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0009,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -977,7 +977,7 @@
   },
   "voltorb": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -985,7 +985,7 @@
   },
   "electrode": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0009,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -993,7 +993,7 @@
   },
   "exeggcute": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0014,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -1001,7 +1001,7 @@
   },
   "exeggutor": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1009,7 +1009,7 @@
   },
   "cubone": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -1017,7 +1017,7 @@
   },
   "marowak": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1025,7 +1025,7 @@
   },
   "hitmonlee": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1033,7 +1033,7 @@
   },
   "hitmonchan": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1041,7 +1041,7 @@
   },
   "koffing": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0029,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -1049,7 +1049,7 @@
   },
   "weezing": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0009,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1057,7 +1057,7 @@
   },
   "rhyhorn": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0018,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -1065,7 +1065,7 @@
   },
   "rhydon": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0009,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1073,7 +1073,7 @@
   },
   "chansey": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0005,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1081,7 +1081,7 @@
   },
   "tangela": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1089,7 +1089,7 @@
   },
   "kangaskhan": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1097,7 +1097,7 @@
   },
   "seadra": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0012,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1105,7 +1105,7 @@
   },
   "seaking": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0009,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1113,7 +1113,7 @@
   },
   "staryu": {
     "spawn": 6,
-    "catchRate": 0.3333,
+    "catchRate": 0.0035,
     "rarity": "uncommon",
     "xpYield": 25,
     "dustYield": 20,
@@ -1121,7 +1121,7 @@
   },
   "starmie": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0009,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1129,7 +1129,7 @@
   },
   "mr-mime": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1137,7 +1137,7 @@
   },
   "pinsir": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1145,7 +1145,7 @@
   },
   "tauros": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1153,7 +1153,7 @@
   },
   "gyarados": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1161,7 +1161,7 @@
   },
   "lapras": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1169,7 +1169,7 @@
   },
   "ditto": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0005,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1177,7 +1177,7 @@
   },
   "vaporeon": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1185,7 +1185,7 @@
   },
   "jolteon": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1193,7 +1193,7 @@
   },
   "flareon": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0007,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,
@@ -1201,7 +1201,7 @@
   },
   "snorlax": {
     "spawn": 2,
-    "catchRate": 0.3333,
+    "catchRate": 0.0004,
     "rarity": "rare",
     "xpYield": 50,
     "dustYield": 50,

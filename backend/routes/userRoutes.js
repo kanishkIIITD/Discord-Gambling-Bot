@@ -305,11 +305,11 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     if (item === 'evolution') {
       user.poke_ring_charges = 3;
     } else if (item === 'rare') {
-      user.poke_rareball_uses = 1;
+      user.poke_rareball_uses = 3;
     } else if (item === 'ultra') {
-      user.poke_ultraball_uses = 1;
+      user.poke_ultraball_uses = 3;
     } else if (item === 'xp') {
-      user.poke_xp_booster_uses = 1;
+      user.poke_xp_booster_uses = 3;
       }
       await user.save();
     return res.json({ message: `Successfully bought ${SHOP_ITEMS[item].name}!`, item: SHOP_ITEMS[item].name });

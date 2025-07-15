@@ -40,6 +40,10 @@ const pokemonBattleSchema = new mongoose.Schema({
     accuracy:  { type: Number, default: 0 },
     evasion:   { type: Number, default: 0 },
   },
+  // --- Battle state counters ---
+  sleepCounter: { type: Number, default: null }, // For sleep status (Rest, etc.)
+  chargeTurns:  { type: Number, default: null }, // For charge moves (Solar Beam, etc.)
+  statusCounter: { type: Number, default: null }, // For badly poisoned status
 }, { _id: false });
 
 const battleSessionSchema = new mongoose.Schema({

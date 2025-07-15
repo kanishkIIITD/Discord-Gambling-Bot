@@ -414,6 +414,10 @@ const moveEffectRegistry = {
   // Recoil moves
   "double-edge":     { type: "damage+recoil", recoil: 25,   target: "foe", message: "was hurt by recoil!" },
 
+  // Self-fainting moves
+  "self-destruct":   { type: "user-faints", message: "used Self-Destruct! It fainted!" },
+  "explosion":       { type: "user-faints", message: "used Explosion! It fainted!" },
+
   // Stealth and hazards
   "spikes":          { type: "hazard",     hazard: "spikes",          layers: 1, duration: null, message: "Spikes were scattered on the foe's side!" },
   "toxic-spikes":    { type: "hazard",     hazard: "toxic-spikes",    layers: 1, duration: null, message: "Toxic Spikes were scattered around the foe!" },
