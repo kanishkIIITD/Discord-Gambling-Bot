@@ -3,7 +3,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -11,7 +11,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -19,7 +19,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -27,7 +27,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -35,7 +35,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -43,7 +43,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -51,7 +51,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -59,7 +59,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -67,7 +67,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -75,7 +75,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -83,7 +83,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -91,7 +91,7 @@
     "spawn": 25,
     "catchRate": 0.6,
     "rarity": "common",
-    "xpYield": 5,
+    "xpYield": 15,
     "dustYield": 10,
     "evolutionStage": 1
   },
@@ -99,7 +99,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -107,7 +107,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -115,7 +115,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -123,7 +123,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -131,7 +131,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -139,7 +139,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -147,7 +147,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -155,7 +155,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -163,7 +163,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -171,7 +171,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -179,7 +179,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -187,7 +187,7 @@
     "spawn": 12,
     "catchRate": 0.4667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -195,7 +195,7 @@
     "spawn": 10,
     "catchRate": 0.3667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -203,7 +203,7 @@
     "spawn": 10,
     "catchRate": 0.3667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -211,7 +211,7 @@
     "spawn": 10,
     "catchRate": 0.3667,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -219,7 +219,7 @@
     "spawn": 4,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -227,7 +227,7 @@
     "spawn": 4,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -235,7 +235,7 @@
     "spawn": 4,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -243,7 +243,7 @@
     "spawn": 4,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -251,7 +251,7 @@
     "spawn": 2,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -259,7 +259,7 @@
     "spawn": 4,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -267,7 +267,7 @@
     "spawn": 2,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -275,7 +275,7 @@
     "spawn": 4,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -283,7 +283,7 @@
     "spawn": 4,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -291,7 +291,7 @@
     "spawn": 4,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -299,7 +299,7 @@
     "spawn": 4,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -307,7 +307,7 @@
     "spawn": 4,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -315,7 +315,7 @@
     "spawn": 4,
     "catchRate": 0.2667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -323,7 +323,7 @@
     "spawn": 2,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -331,7 +331,7 @@
     "spawn": 2,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -339,7 +339,7 @@
     "spawn": 2,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -347,7 +347,7 @@
     "spawn": 2,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -355,7 +355,7 @@
     "spawn": 3,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -363,7 +363,7 @@
     "spawn": 2,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -371,7 +371,7 @@
     "spawn": 3,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -379,7 +379,7 @@
     "spawn": 3,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -387,7 +387,7 @@
     "spawn": 3,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -395,7 +395,7 @@
     "spawn": 3,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -403,7 +403,7 @@
     "spawn": 3,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -411,7 +411,7 @@
     "spawn": 3,
     "catchRate": 0.2,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -419,7 +419,7 @@
     "spawn": 1,
     "catchRate": 0.0667,
     "rarity": "legendary",
-    "xpYield": 35,
+    "xpYield": 100,
     "dustYield": 100,
     "evolutionStage": 1
   },
@@ -427,7 +427,7 @@
     "spawn": 1,
     "catchRate": 0.0667,
     "rarity": "legendary",
-    "xpYield": 35,
+    "xpYield": 100,
     "dustYield": 100,
     "evolutionStage": 1
   },
@@ -435,7 +435,7 @@
     "spawn": 1,
     "catchRate": 0.0667,
     "rarity": "legendary",
-    "xpYield": 35,
+    "xpYield": 100,
     "dustYield": 100,
     "evolutionStage": 1
   },
@@ -443,7 +443,7 @@
     "spawn": 1,
     "catchRate": 0.0667,
     "rarity": "legendary",
-    "xpYield": 35,
+    "xpYield": 100,
     "dustYield": 100,
     "evolutionStage": 1
   },
@@ -451,7 +451,7 @@
     "spawn": 1,
     "catchRate": 0.0667,
     "rarity": "legendary",
-    "xpYield": 35,
+    "xpYield": 100,
     "dustYield": 100,
     "evolutionStage": 1
   },
@@ -459,7 +459,7 @@
     "spawn": 2,
     "catchRate": 0.0667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -467,7 +467,7 @@
     "spawn": 2,
     "catchRate": 0.0667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -475,7 +475,7 @@
     "spawn": 2,
     "catchRate": 0.0667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -483,7 +483,7 @@
     "spawn": 2,
     "catchRate": 0.0667,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -491,7 +491,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -499,7 +499,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -507,7 +507,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -515,7 +515,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 2
   },
@@ -523,7 +523,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 2
   },
@@ -531,7 +531,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -539,7 +539,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -547,7 +547,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -555,7 +555,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -563,7 +563,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -571,7 +571,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -579,7 +579,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -587,7 +587,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -595,7 +595,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -603,7 +603,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -611,7 +611,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -619,7 +619,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -627,7 +627,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -635,7 +635,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -643,7 +643,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -651,7 +651,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -659,7 +659,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -667,7 +667,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -675,7 +675,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -683,7 +683,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -691,7 +691,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -699,7 +699,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -707,7 +707,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -715,7 +715,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -723,7 +723,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -731,7 +731,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -739,7 +739,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -747,7 +747,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -755,7 +755,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 2
   },
@@ -763,7 +763,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -771,7 +771,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -779,7 +779,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -787,7 +787,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -795,7 +795,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 2
   },
@@ -803,7 +803,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -811,7 +811,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -819,7 +819,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 2
   },
@@ -827,7 +827,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -835,7 +835,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -843,7 +843,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -851,7 +851,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -859,7 +859,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -867,7 +867,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -875,7 +875,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -883,7 +883,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -891,7 +891,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -899,7 +899,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -907,7 +907,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -915,7 +915,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -923,7 +923,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -931,7 +931,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -939,7 +939,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -947,7 +947,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 3
   },
@@ -955,7 +955,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -963,7 +963,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -971,7 +971,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -979,7 +979,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -987,7 +987,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -995,7 +995,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -1003,7 +1003,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -1011,7 +1011,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -1019,7 +1019,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -1027,7 +1027,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -1035,7 +1035,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -1043,7 +1043,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -1051,7 +1051,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -1059,7 +1059,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -1067,7 +1067,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -1075,7 +1075,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -1083,7 +1083,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -1091,7 +1091,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -1099,7 +1099,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -1107,7 +1107,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -1115,7 +1115,7 @@
     "spawn": 6,
     "catchRate": 0.3333,
     "rarity": "uncommon",
-    "xpYield": 10,
+    "xpYield": 25,
     "dustYield": 20,
     "evolutionStage": 1
   },
@@ -1123,7 +1123,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -1131,7 +1131,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -1139,7 +1139,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -1147,7 +1147,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -1155,7 +1155,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -1163,7 +1163,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -1171,7 +1171,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   },
@@ -1179,7 +1179,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -1187,7 +1187,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -1195,7 +1195,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 2
   },
@@ -1203,7 +1203,7 @@
     "spawn": 2,
     "catchRate": 0.3333,
     "rarity": "rare",
-    "xpYield": 20,
+    "xpYield": 50,
     "dustYield": 50,
     "evolutionStage": 1
   }

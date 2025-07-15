@@ -1123,18 +1123,18 @@ client.on('interactionCreate', async interaction => {
 					);
 				// Check for fainted Pokémon or battle end
 				if (challengerPoke.currentHp <= 0 || opponentPoke.currentHp <= 0 || session.status === 'finished') {
-					let faintedName = challengerPoke.currentHp <= 0 ? challengerPoke.name : opponentPoke.name;
-					let winnerMention = session.winnerId ? `<@${session.winnerId}>` : 'Unknown';
+					const summary = response.data && response.data.summary
+						? `${logText}\n${response.data.summary}`
+						: `${logText}\nBattle ended!`;
 					await interaction.update({
-						content: `${logText}\nBattle ended! (${faintedName} fainted) Winner: ${winnerMention}`,
+						content: summary,
 						embeds: [battleEmbed],
 						components: [],
 					});
 					// If the backend response includes a summary, check for level up/unlock
 					if (response.data && response.data.summary) {
-						const summary = response.data.summary;
-						const levelUpMatch = summary.match(/Level up! You reached level (\d+)\./i);
-						const unlockMatch = summary.match(/Unlocked: (.+)/i);
+						const levelUpMatch = response.data.summary.match(/Level up! You reached level (\d+)\./i);
+						const unlockMatch = response.data.summary.match(/Unlocked: (.+)/i);
 						if (levelUpMatch) {
 							let msg = `🎉 **Level Up!** You reached level ${levelUpMatch[1]}!`;
 							if (unlockMatch) {

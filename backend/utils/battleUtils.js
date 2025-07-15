@@ -158,7 +158,10 @@ async function getLegalMoveset(
           effectivePP,
           currentPP: effectivePP,
           learnedAt: move.learnedAt,
-          effectType: moveEffectRegistry[move.name]?.type || null,
+          // --- PATCH: Normalize move name for effectType lookup ---
+          effectType: moveEffectRegistry[move.name.toLowerCase()]?.type || null,
+          effectEntries: moveData.effect_entries || [],
+          meta: moveData.meta || {},
         };
       } catch (err) {
         return null;
@@ -185,10 +188,77 @@ async function getLegalMoveset(
   ].slice(0, 3); // just in case both groups are smaller
 
   effectMoves = effectMoves.sort((a, b) => b.learnedAt - a.learnedAt);
-  const selectedMoves = [
+  let selectedMoves = [
     ...damagingMoves,
     ...effectMoves.slice(0, 2)
   ].slice(0, 5);
+
+  // --- PATCH: If no damaging moves, include all effect moves (not just whitelisted) ---
+  if (selectedMoves.length === 0) {
+    // Fetch all effect moves (power === 0)
+    const allEffectMoves = await Promise.all(allMoves.map(async (move) => {
+      try {
+        const moveRes = await axios.get(move.url);
+        const moveData = moveRes.data;
+        const basePP = moveData.pp || 5;
+        const effectivePP = Math.ceil(basePP * (battleSize / 5) * 2);
+        return {
+          name: move.name,
+          power: moveData.power || 0,
+          moveType: moveData.type.name,
+          category: moveData.damage_class.name,
+          accuracy: moveData.accuracy || 100,
+          effectivePP,
+          currentPP: effectivePP,
+          learnedAt: move.learnedAt,
+          // --- PATCH: Normalize move name for effectType lookup ---
+          effectType: moveEffectRegistry[move.name.toLowerCase()]?.type || null,
+          effectEntries: moveData.effect_entries || [],
+          meta: moveData.meta || {},
+        };
+      } catch (err) {
+        return null;
+      }
+    }));
+    // Filter to only effect moves (power === 0)
+    const allEffectMovesFiltered = uniqueByName(allEffectMoves.filter(m => m && m.power === 0));
+    selectedMoves = allEffectMovesFiltered.slice(0, 4); // up to 4 effect moves
+  }
+  // --- PATCH: For Ditto, always include Transform if available ---
+  if (pokemonName.toLowerCase() === 'ditto') {
+    // Find Transform in allMoves
+    const transformMove = allMoves.find(m => m.name === 'transform');
+    if (transformMove) {
+      // Fetch move details if not already present
+      let moveObj = selectedMoves.find(m => m.name === 'transform');
+      if (!moveObj) {
+        try {
+          const moveRes = await axios.get(transformMove.url);
+          const moveData = moveRes.data;
+          const basePP = moveData.pp || 5;
+          const effectivePP = Math.ceil(basePP * (battleSize / 5) * 2);
+          moveObj = {
+            name: 'transform',
+            power: moveData.power || 0,
+            moveType: moveData.type.name,
+            category: moveData.damage_class.name,
+            accuracy: moveData.accuracy || 100,
+            effectivePP,
+            currentPP: effectivePP,
+            learnedAt: transformMove.learnedAt,
+            // --- PATCH: Normalize move name for effectType lookup ---
+            effectType: moveEffectRegistry['transform']?.type || null,
+            effectEntries: moveData.effect_entries || [],
+            meta: moveData.meta || {},
+          };
+        } catch (err) { moveObj = null; }
+      }
+      if (moveObj && !selectedMoves.some(m => m.name === 'transform')) {
+        selectedMoves.unshift(moveObj);
+        selectedMoves = selectedMoves.slice(0, 4); // keep moveset size reasonable
+      }
+    }
+  }
   // console.log(pokemonName, selectedMoves);
   return selectedMoves;
 }

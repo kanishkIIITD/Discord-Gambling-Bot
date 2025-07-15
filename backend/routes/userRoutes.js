@@ -76,106 +76,194 @@ router.get('/:discordId/guilds', auth, async (req, res) => {
   }
 });
 
-// POST /:discordId/pokemon/catch - Add a caught Pokémon to the user's collection
-router.post('/:discordId/pokemon/catch', requireGuildId, async (req, res) => {
+// POST /:discordId/pokemon/attempt-catch - Full catch logic with Poké Ball and XP booster support
+router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res) => {
   try {
     const { discordId } = req.params;
     const guildId = req.headers['x-guild-id'];
-    const { pokemonId, name, isShiny } = req.body;
+    const { pokemonId, name, isShiny, ballType = 'normal' } = req.body;
+    if (!pokemonId || !name) {
+      return res.status(400).json({ success: false, message: 'Missing pokemonId or name.' });
+    }
     // Find or create user
     let user = await User.findOne({ discordId, guildId });
     if (!user) {
       user = new User({ discordId, guildId, username: discordId });
       await user.save();
     }
-    // Check if this Pokémon (with shiny status) already exists
+    // --- Poké Ball usage logic ---
+    let ballField = null, ballLabel = 'Poké Ball', ballBonus = 1.0;
+    if (ballType === 'rare') {
+      ballField = 'poke_rareball_uses';
+      ballLabel = 'Rare Poké Ball';
+      ballBonus = 1.25;
+    } else if (ballType === 'ultra') {
+      ballField = 'poke_ultraball_uses';
+      ballLabel = 'Ultra Poké Ball';
+      ballBonus = 1.5;
+    }
+    if (ballField) {
+      if ((user[ballField] || 0) <= 0) {
+        return res.status(400).json({ success: false, message: `You have no ${ballLabel}s left!`, ballUsed: ballLabel });
+      }
+      user[ballField] -= 1;
+    }
+    // --- Use customSpawnRates if available ---
+    const { getCustomSpawnInfo, getLevelForXp, getUnlockedShopItems } = require('../utils/pokeApi');
+    const spawnInfo = getCustomSpawnInfo(name);
+    let catchRate = null;
+    let xpYield = 0;
+    let dustYield = 0;
+    if (spawnInfo) {
+      if (typeof spawnInfo.catchRate === 'number') catchRate = spawnInfo.catchRate;
+      if (typeof spawnInfo.xpYield === 'number') xpYield = spawnInfo.xpYield;
+      if (typeof spawnInfo.dustYield === 'number') dustYield = spawnInfo.dustYield;
+    }
+    // --- Fetch PokéAPI data for fallback and flavor text ---
+    let captureRate = null;
+    let dexNum = pokemonId;
+    let flavorText = '';
+    try {
+      const speciesRes = await pokeApi.getPokemonDataById(pokemonId);
+      if (speciesRes && speciesRes.species && speciesRes.species.url) {
+        const fetch = require('node-fetch');
+        const speciesData = await fetch(speciesRes.species.url).then(r => r.json());
+        if (captureRate === null) captureRate = speciesData.capture_rate || 120;
+        dexNum = speciesData.id || pokemonId;
+        const flavorEntries = (speciesData.flavor_text_entries || []).filter(e => e.language.name === 'en');
+        flavorText = flavorEntries.length > 0
+          ? flavorEntries[Math.floor(Math.random() * flavorEntries.length)].flavor_text.replace(/\f/g, ' ')
+          : '';
+      }
+    } catch (e) { /* fallback to defaults */ }
+    // --- Use custom catchRate if available, else fallback to PokéAPI's capture_rate ---
+    let baseChance = (catchRate !== null ? catchRate : (captureRate !== null ? captureRate / 255 : 120 / 255));
+    if (catchRate !== null && catchRate <= 1) baseChance = catchRate; // If customSpawnRates uses 0-1 scale
+    else if (catchRate !== null) baseChance = catchRate / 255; // If customSpawnRates uses 0-255 scale
+    let finalChance = Math.min(baseChance * ballBonus, 0.99); // cap at 99%
+    const roll = Math.random();
+    // --- XP Booster logic ---
+    let xpBoosterUsed = false;
+    let xpMultiplier = 1;
+    // --- Prepare embed fields ---
+    let embedData = {
+      title: '',
+      description: '',
+      dexNum,
+      ballUsed: ballLabel,
+      catchChance: Math.round(finalChance * 100) + '%',
+      isShiny: !!isShiny,
+      flavorText,
+      xpBoosterUsed,
+    };
+    // --- Atomicity: check for duplicate after asyncs ---
+    let isDuplicate = false;
     let pokemon = await Pokemon.findOne({ discordId, guildId, pokemonId, isShiny: !!isShiny });
-    if (pokemon) {
-      pokemon.count = (pokemon.count || 1) + 1;
-      pokemon.caughtAt = new Date();
-      await pokemon.save();
-    } else {
-      // --- Fetch abilities from PokéAPI and pick one at random ---
+    if (pokemon) isDuplicate = true;
+    // --- Catch logic ---
+    if (roll < finalChance) {
+      // Success: add Pokémon to collection (as in old endpoint)
+      if ((user.poke_xp_booster_uses || 0) > 0) {
+        xpMultiplier = 2;
+        xpBoosterUsed = true;
+        user.poke_xp_booster_uses -= 1;
+      }
       let ability = '';
       try {
         const pokeData = await pokeApi.getPokemonDataById(pokemonId);
         const abilitiesArr = pokeData.abilities || [];
-        // Prefer non-hidden abilities
         const nonHidden = abilitiesArr.filter(a => !a.is_hidden);
         const pool = nonHidden.length > 0 ? nonHidden : abilitiesArr;
         if (pool.length > 0) {
           const idx = Math.floor(Math.random() * pool.length);
           ability = pool[idx].ability.name;
         }
-      } catch (e) {
-        ability = '';
+      } catch (e) { ability = ''; }
+      if (pokemon) {
+        pokemon.count = (pokemon.count || 1) + 1;
+        pokemon.caughtAt = new Date();
+        await pokemon.save();
+      } else {
+        pokemon = new Pokemon({
+          user: user._id,
+          discordId,
+          guildId,
+          pokemonId,
+          name,
+          isShiny: !!isShiny,
+          caughtAt: new Date(),
+          count: 1,
+          ivs: {
+            hp: Math.floor(Math.random() * 32),
+            attack: Math.floor(Math.random() * 32),
+            defense: Math.floor(Math.random() * 32),
+            spAttack: Math.floor(Math.random() * 32),
+            spDefense: Math.floor(Math.random() * 32),
+            speed: Math.floor(Math.random() * 32),
+          },
+          evs: {
+            hp: 0, attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0,
+          },
+          nature: randomNature(),
+          ability,
+          status: null,
+          boosts: {
+            attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0, accuracy: 0, evasion: 0,
+          },
+        });
+        await pokemon.save();
       }
-      pokemon = new Pokemon({
-        user: user._id,
-        discordId,
-        guildId,
-        pokemonId,
-        name,
-        isShiny: !!isShiny,
-        caughtAt: new Date(),
-        count: 1,
-        // --- Competitive fields ---
-        ivs: {
-          hp: Math.floor(Math.random() * 32),
-          attack: Math.floor(Math.random() * 32),
-          defense: Math.floor(Math.random() * 32),
-          spAttack: Math.floor(Math.random() * 32),
-          spDefense: Math.floor(Math.random() * 32),
-          speed: Math.floor(Math.random() * 32),
-        },
-        evs: {
-          hp: 0, attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0,
-        },
-        nature: randomNature(), // Helper function below
-        ability, // Set to random ability
-        status: null,
-        boosts: {
-          attack: 0, defense: 0, spAttack: 0, spDefense: 0, speed: 0, accuracy: 0, evasion: 0,
-        },
+      // Award XP and Stardust
+      let xpAward = xpYield * xpMultiplier;
+      let dustAward = dustYield;
+      user.poke_xp = (user.poke_xp || 0) + xpAward;
+      user.poke_stardust = (user.poke_stardust || 0) + dustAward;
+      user.poke_quest_daily_catch = (user.poke_quest_daily_catch || 0) + 1;
+      user.poke_quest_weekly_catch = (user.poke_quest_weekly_catch || 0) + 1;
+      if (user.poke_quest_daily_catch >= DAILY_GOALS.catch) user.poke_quest_daily_completed = true;
+      if (user.poke_quest_weekly_catch >= WEEKLY_GOALS.catch) user.poke_quest_weekly_completed = true;
+      // Level up logic
+      const prevLevel = user.poke_level || 1;
+      const newLevel = getLevelForXp(user.poke_xp);
+      let newlyUnlocked = [];
+      if (newLevel > prevLevel) {
+        user.poke_level = newLevel;
+        const prevUnlocks = new Set(getUnlockedShopItems(prevLevel).map(i => i.key));
+        const newUnlocks = getUnlockedShopItems(newLevel).filter(i => !prevUnlocks.has(i.key));
+        newlyUnlocked = newUnlocks.map(i => i.name);
+      }
+      await user.save();
+      embedData.title = isDuplicate
+        ? `You caught another ${isShiny ? '✨ SHINY ' : ''}${name.charAt(0).toUpperCase() + name.slice(1)}!`
+        : `🎉 This is your first ${isShiny ? '✨ SHINY ' : ''}${name.charAt(0).toUpperCase() + name.slice(1)}! Added to your Pokédex!`;
+      embedData.description = flavorText || (isShiny ? '✨ Incredible! You caught a shiny Pokémon! ✨' : 'Congratulations! The wild Pokémon is now yours.');
+      return res.json({
+        success: true,
+        message: embedData.title,
+        embedData,
+        xpAward,
+        dustAward,
+        ballUsed: ballLabel,
+        isDuplicate,
+        newLevel: newLevel > prevLevel ? newLevel : null,
+        newlyUnlocked,
+        xpBoosterUsed
       });
-      await pokemon.save();
+    } else {
+      // Failure: Pokémon broke free
+      await user.save(); // Save ball decrement and XP booster decrement if any
+      embedData.title = `Oh no! The #${String(dexNum).padStart(3, '0')} ${name.charAt(0).toUpperCase() + name.slice(1)} broke free!`;
+      embedData.description = flavorText || 'Better luck next time! The wild Pokémon is still here, but will run after 5 failed attempts.';
+      return res.json({
+        success: false,
+        message: embedData.title,
+        embedData,
+        ballUsed: ballLabel
+      });
     }
-    // Award XP and Stardust based on customSpawnRates.json
-    const { getCustomSpawnInfo, getLevelForXp, getUnlockedShopItems } = require('../utils/pokeApi');
-    const spawnInfo = getCustomSpawnInfo(name);
-    let xpAward = 0;
-    let dustAward = 0;
-    if (spawnInfo) {
-      xpAward = spawnInfo.xpYield || 0;
-      dustAward = spawnInfo.dustYield || 0;
-    }
-    user.poke_xp = (user.poke_xp || 0) + xpAward;
-    user.poke_stardust = (user.poke_stardust || 0) + dustAward;
-    user.poke_quest_daily_catch = (user.poke_quest_daily_catch || 0) + 1;
-    user.poke_quest_weekly_catch = (user.poke_quest_weekly_catch || 0) + 1;
-    if (
-      user.poke_quest_daily_catch >= DAILY_GOALS.catch
-    ) user.poke_quest_daily_completed = true;
-    if (
-      user.poke_quest_weekly_catch >= WEEKLY_GOALS.catch
-    ) user.poke_quest_weekly_completed = true;
-    // Level up logic
-    const prevLevel = user.poke_level || 1;
-    const newLevel = getLevelForXp(user.poke_xp);
-    let newlyUnlocked = [];
-    if (newLevel > prevLevel) {
-      user.poke_level = newLevel;
-      // Determine newly unlocked shop items
-      const prevUnlocks = new Set(getUnlockedShopItems(prevLevel).map(i => i.key));
-      const newUnlocks = getUnlockedShopItems(newLevel).filter(i => !prevUnlocks.has(i.key));
-      newlyUnlocked = newUnlocks.map(i => i.name);
-      // Optionally: trigger unlocks, send notifications, etc.
-    }
-    await user.save();
-    res.json({ message: 'Pokémon added to collection!', pokemon, levelUp: newLevel > prevLevel ? { newLevel, newlyUnlocked } : null });
   } catch (error) {
-    console.error('[Pokemon Catch] Error:', error);
-    res.status(500).json({ message: 'Failed to add Pokémon to collection.' });
+    console.error('[Attempt Catch] Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to attempt catch.' });
   }
 });
 
@@ -222,8 +310,8 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
       user.poke_ultraball_uses = 1;
     } else if (item === 'xp') {
       user.poke_xp_booster_uses = 1;
-    }
-    await user.save();
+      }
+      await user.save();
     return res.json({ message: `Successfully bought ${SHOP_ITEMS[item].name}!`, item: SHOP_ITEMS[item].name });
   } catch (error) {
     console.error('[Shop Buy] Error:', error);

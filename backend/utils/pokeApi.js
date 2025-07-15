@@ -35,12 +35,12 @@ function getCustomSpawnInfo(name) {
   return customSpawnRates[key] || null;
 }
 
-// Level curve: Level 1→2: 100 XP, then each next level requires 1.5x previous (rounded)
+// Level curve: Level 1→2: 100 XP, then each next level requires 1.4x previous (rounded)
 function getNextLevelXp(level) {
   if (level <= 1) return 100;
   let xp = 100;
   for (let i = 2; i <= level; i++) {
-    xp = Math.round(xp * 1.5);
+    xp = Math.round(xp * 1.4);
   }
   return xp;
 }

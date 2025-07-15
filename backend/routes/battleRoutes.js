@@ -355,8 +355,12 @@ router.post('/:battleId/move', async (req, res) => {
         summary += ` Switched to ${myPokemons[newActiveIndex].name}.`;
       }
       if (session.status === 'finished') {
-        const winnerMention = `<@${session.winnerId}>`;
-        summary += `\nBattle ended! Winner: ${winnerMention}`;
+        if (session.winnerId) {
+          const winnerMention = `<@${session.winnerId}>`;
+          summary += `\nBattle ended! Winner: ${winnerMention}`;
+        } else {
+          summary += `\nBattle ended! It's a draw!`;
+        }
       }
       return res.json({ session, summary });
     }
@@ -369,31 +373,31 @@ router.post('/:battleId/move', async (req, res) => {
     // Find the move object (must be in myPoke.moves)
     let moveObj = (myPoke.moves || []).find(m => m.name === moveName);
     if (!moveObj) return res.status(400).json({ error: 'Move not found or not usable by this Pokémon.' });
-    // --- Prevent use if out of PP ---
-    if (moveObj.currentPP === 0) {
-      return res.status(400).json({ error: 'This move is out of PP and cannot be used.' });
-    }
-    // --- Ability: onTryHit (defender) ---
-    let tryHitAllowed = true;
-    const theirAbilityObj = abilityRegistry[theirPoke.ability?.toLowerCase?.()];
-    if (theirAbilityObj && typeof theirAbilityObj.onTryHit === 'function') {
-      const result = theirAbilityObj.onTryHit(theirPoke, moveObj, myPoke, session, session.log);
-      if (result === false) {
-        tryHitAllowed = false;
-        session.log.push({ side: 'user', userId, text: `${theirPoke.name}'s ability prevented the move!` });
-      }
-    }
-    if (!tryHitAllowed) {
+
+    // --- Special-case: Transform ---
+    if (moveObj.name === 'transform') {
+      // Copy opponent's stats, types, and moves
+      myPoke.stats = { ...theirPoke.stats };
+      myPoke.types = [...theirPoke.types];
+      myPoke.moves = theirPoke.moves.map(m => ({ ...m }));
+      myPoke.ability = theirPoke.ability;
+      myPoke.nature = theirPoke.nature;
+      session.log.push({ side: 'user', userId, text: `${myPoke.name} transformed into ${theirPoke.name}!` });
+      moveObj.currentPP = Math.max(0, (moveObj.currentPP || 0) - 1);
       session.turn = isChallenger ? 'opponent' : 'challenger';
       await session.save();
-      return res.json({ session, summary: `${myPoke.name} used ${moveName}, but it failed due to ability!` });
+      return res.json({ session, summary: `${myPoke.name} transformed into ${theirPoke.name}!` });
     }
-    // --- Move effect logic: branch early for effect moves ---
+
+    // --- Use effectType from moveObj if present, fallback to registry ---
+    const effectType = moveObj.effectType || (moveEffectRegistry[moveName]?.type);
     const effect = moveEffectRegistry[moveName];
-    if (effect && ["boost","multi-boost","status","weather","terrain"].includes(effect.type)) {
+    if (effectType && [
+      "boost","multi-boost","status","weather","terrain","heal","drain","damage+recoil","hazard","sound","charge-attack","damage+status"
+    ].includes(effectType)) {
       let effectMsg = '';
       let effectSucceeded = false;
-      if (effect.type === 'boost') {
+      if (effectType === 'boost') {
         // Stat-boosting move (single stat)
         const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
         const stat = effect.stat;
@@ -408,7 +412,7 @@ router.post('/:battleId/move', async (req, res) => {
         } else {
           effectMsg = `${myPoke.name} used ${moveName}! But it failed.`;
         }
-      } else if (effect.type === 'multi-boost') {
+      } else if (effectType === 'multi-boost') {
         const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
         targetPoke.boosts = targetPoke.boosts || {};
         let changed = false;
@@ -428,7 +432,7 @@ router.post('/:battleId/move', async (req, res) => {
         } else {
           effectMsg = `${myPoke.name} used ${moveName}! But it failed.`;
         }
-      } else if (effect.type === 'status') {
+      } else if (effectType === 'status') {
         const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
         // --- Ability: onStatus (target) ---
         let allowStatus = true;
@@ -453,7 +457,7 @@ router.post('/:battleId/move', async (req, res) => {
         } else {
           effectMsg = `${myPoke.name} used ${moveName}! But ${targetPoke.name} is already affected.`;
         }
-      } else if (effect.type === 'weather') {
+      } else if (effectType === 'weather') {
         if (session.weather !== effect.weather) {
           session.weather = effect.weather;
           effectSucceeded = true;
@@ -461,7 +465,7 @@ router.post('/:battleId/move', async (req, res) => {
         } else {
           effectMsg = `${myPoke.name} used ${moveName}! But the weather is already ${effect.weather}.`;
         }
-      } else if (effect.type === 'terrain') {
+      } else if (effectType === 'terrain') {
         if (session.terrain !== effect.terrain) {
           session.terrain = effect.terrain;
           effectSucceeded = true;
@@ -469,7 +473,7 @@ router.post('/:battleId/move', async (req, res) => {
         } else {
           effectMsg = `${myPoke.name} used ${moveName}! But the terrain is already ${effect.terrain}.`;
         }
-      } else if (effect.type === 'heal') {
+      } else if (effectType === 'heal') {
         // Healing move (e.g. Rest)
         let healAmount = 0;
         if (effect.amount === 'full') {
@@ -481,7 +485,7 @@ router.post('/:battleId/move', async (req, res) => {
         myPoke.status = 'asleep'; // For Rest
         effectSucceeded = true;
         effectMsg = `${myPoke.name} used ${moveName}! ${effect.message}`;
-      } else if (effect.type === 'drain') {
+      } else if (effectType === 'drain') {
         // Drain punch, Giga Drain, etc. (deal damage, heal user for percent)
         // We'll treat as a damaging move with healing
         // Use normal damage calculation
@@ -502,7 +506,7 @@ router.post('/:battleId/move', async (req, res) => {
         myPoke.currentHp = Math.min(myPoke.maxHp, (myPoke.currentHp || 0) + heal);
         effectSucceeded = true;
         effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage and restored ${heal} HP! ${effect.message}`;
-      } else if (effect.type === 'damage+recoil') {
+      } else if (effectType === 'damage+recoil') {
         // Deal damage, then deal recoil to user
         const attackerStats = myPoke.stats;
         const defenderStats = theirPoke.stats;
@@ -522,13 +526,13 @@ router.post('/:battleId/move', async (req, res) => {
         myPoke.currentHp = Math.max(0, (myPoke.currentHp || myPoke.stats.hp) - recoil);
         effectSucceeded = true;
         effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage, but was hurt by recoil (${recoil} HP)! ${effect.message}`;
-      } else if (effect.type === 'hazard') {
+      } else if (effectType === 'hazard') {
         // Set a field effect (e.g. spikes, toxic spikes, stealth rock)
         if (!session.fieldEffects) session.fieldEffects = [];
         session.fieldEffects.push(effect.hazard);
         effectSucceeded = true;
         effectMsg = `${myPoke.name} used ${moveName}! ${effect.message}`;
-      } else if (effect.type === 'sound') {
+      } else if (effectType === 'sound') {
         // For now, treat as a normal damaging move
         const attackerStats = myPoke.stats;
         const defenderStats = theirPoke.stats;
@@ -545,7 +549,7 @@ router.post('/:battleId/move', async (req, res) => {
         theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - damage);
         effectSucceeded = true;
         effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage! ${effect.message}`;
-      } else if (effect.type === 'charge-attack') {
+      } else if (effectType === 'charge-attack') {
         // Multi-turn move: require a charge turn before attacking
         if (!myPoke.chargeTurns) myPoke.chargeTurns = 0;
         if (myPoke.chargeTurns < (effect.chargeTurns || 1)) {
@@ -571,9 +575,31 @@ router.post('/:battleId/move', async (req, res) => {
           effectSucceeded = true;
           effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage!`;
         }
+      } else if (effectType === 'damage+status') {
+        // Damaging move with a status effect (e.g. Scald)
+        const attackerStats = myPoke.stats;
+        const defenderStats = theirPoke.stats;
+        const typeEffectiveness = battleUtils.getTypeEffectiveness(moveObj.moveType, theirPoke.types);
+        const dmgResult = battleUtils.calculateDamage(
+          { level: myPoke.level, stats: attackerStats, types: myPoke.types },
+          { stats: defenderStats, types: theirPoke.types },
+          moveObj,
+          typeEffectiveness,
+          session.weather,
+          session.terrain
+        );
+        const damage = dmgResult.damage;
+        theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - damage);
+        if (!theirPoke.status && (!effect.chance || Math.random() * 100 < effect.chance)) {
+          theirPoke.status = effect.status;
+          session.log.push({ side: 'user', userId, text: `${theirPoke.name} ${effect.message}` });
+          session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+        }
+        effectSucceeded = true;
+        effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage!`;
       }
-      // Only decrement PP if effect succeeded
-      if (effectSucceeded) {
+      // Only decrement PP if effect succeeded (except for heal, which is always decremented above)
+      if (effectSucceeded && effectType !== 'heal') {
         moveObj.currentPP = Math.max(0, (moveObj.currentPP || 0) - 1);
       }
       session.log.push({ side: 'user', userId, text: effectMsg });
@@ -594,8 +620,12 @@ router.post('/:battleId/move', async (req, res) => {
       await session.save();
       let summary = effectMsg;
       if (session.status === 'finished') {
-        const winnerMention = `<@${session.winnerId}>`;
-        summary += `\nBattle ended! Winner: ${winnerMention}`;
+        if (session.winnerId) {
+          const winnerMention = `<@${session.winnerId}>`;
+          summary += `\nBattle ended! Winner: ${winnerMention}`;
+        } else {
+          summary += `\nBattle ended! It's a draw!`;
+        }
       }
       return res.json({ session, summary });
     }
@@ -731,17 +761,79 @@ router.post('/:battleId/move', async (req, res) => {
     }
     patchPPFields(session.challengerPokemons);
     patchPPFields(session.opponentPokemons);
+    // // --- Drain effect ---
+    // if (isDrain && typeof damage === 'number' && damage > 0) {
+    //   const heal = Math.floor(damage * (meta.drain / 100));
+    //   myPoke.currentHp = Math.min(myPoke.maxHp, (myPoke.currentHp || 0) + heal);
+    //   session.log.push({ side: 'user', userId, text: `${myPoke.name} restored ${heal} HP with drain!` });
+    // }
+    // // --- Recoil effect ---
+    // if (isRecoil && typeof damage === 'number' && damage > 0) {
+    //   const recoil = Math.max(1, Math.floor(damage * (meta.recoil / 100)));
+    //   myPoke.currentHp = Math.max(0, (myPoke.currentHp || myPoke.stats.hp) - recoil);
+    //   session.log.push({ side: 'user', userId, text: `${myPoke.name} took ${recoil} recoil damage!` });
+    // }
+    // // --- Healing effect ---
+    // if (isHealing) {
+    //   const heal = Math.floor(myPoke.maxHp * (meta.healing / 100));
+    //   myPoke.currentHp = Math.min(myPoke.maxHp, (myPoke.currentHp || 0) + heal);
+    //   session.log.push({ side: 'user', userId, text: `${myPoke.name} healed ${heal} HP!` });
+    // }
+    // // --- Status effect ---
+    // if (isStatus && !theirPoke.status) {
+    //   // Use ailment chance if present
+    //   const ailmentChance = typeof meta.ailment_chance === 'number' ? meta.ailment_chance : 100;
+    //   if (ailmentChance >= 100 || Math.random() * 100 < ailmentChance) {
+    //     const ailmentName = typeof meta.ailment === 'object' ? meta.ailment.name : meta.ailment;
+    //     theirPoke.status = ailmentName;
+    //     session.log.push({ side: 'user', userId, text: `${theirPoke.name} is now ${ailmentName}!` });
+    //   }
+    // }
+    // // --- Selfdestruct or user faints effect ---
+    // if (isSelfDestructMeta || isUserFaints) {
+    //   myPoke.currentHp = 0;
+    //   session.log.push({ side: 'user', userId, text: `${myPoke.name} fainted after using ${moveObj.name}!` });
+    // }
+    // // Now check if all Pokémon for either side have fainted
+    // if (allFainted(session.challengerPokemons)) {
+    //   session.status = 'finished';
+    //   session.winnerId = session.opponentId;
+    // } else if (allFainted(session.opponentPokemons)) {
+    //   session.status = 'finished';
+    //   session.winnerId = session.challengerId;
+    // } else {
+    //   // Switch turn as usual
+    //   session.turn = isChallenger ? 'opponent' : 'challenger';
+    // }
+    // session.markModified('challengerPokemons');
+    // session.markModified('opponentPokemons');
+    // await session.save();
+    // // --- Winner/draw logic ---
+    // // After all effects, check if both active Pokémon fainted
+    // const bothFainted = myPoke.currentHp <= 0 && theirPoke.currentHp <= 0;
+    // if (bothFainted) {
+    //   session.status = 'finished';
+    //   session.winnerId = null;
+    //   session.log.push({ side: 'system', text: `Both Pokémon fainted! It's a draw!` });
+    // }
     // Return summary
     let summary = `${myPoke.name} used ${moveName}! It dealt ${damage} damage to ${theirPoke.name}.${effectivenessText} (${theirPoke.currentHp} HP left)`;
     if (fainted) {
       summary += `\n${faintedName} fainted!`;
       if (switched && newActiveIndex !== null) {
-        summary += ` Switched to ${theirPokemons[newActiveIndex].name}.`;
+        summary += ` Switched to ${myPokemons[newActiveIndex].name}.`;
       }
     }
+    // if (isSelfDestructMeta) {
+    //   summary += `\n${myPoke.name} fainted after using ${moveObj.name}!`;
+    // }
     if (session.status === 'finished') {
-      const winnerMention = `<@${session.winnerId}>`;
-      summary += `\nBattle ended! Winner: ${winnerMention}`;
+      if (session.winnerId) {
+        const winnerMention = `<@${session.winnerId}>`;
+        summary += `\nBattle ended! Winner: ${winnerMention}`;
+      } else {
+        summary += `\nBattle ended! It's a draw!`;
+      }
       // Award XP and Stardust to the winner
       try {
         const { getCustomSpawnInfo } = require('../utils/pokeApi');
@@ -763,6 +855,13 @@ router.post('/:battleId/move', async (req, res) => {
           if (session.friendly === false) {
             totalXp *= 2;
             totalDust *= 2;
+          }
+          let xpBoosterUsed = false;
+          // XP Booster logic
+          if ((winnerUser.poke_xp_booster_uses || 0) > 0) {
+            totalXp *= 2;
+            winnerUser.poke_xp_booster_uses -= 1;
+            xpBoosterUsed = true;
           }
           winnerUser.poke_xp = (winnerUser.poke_xp || 0) + totalXp;
           winnerUser.poke_stardust = (winnerUser.poke_stardust || 0) + totalDust;
@@ -824,6 +923,7 @@ router.post('/:battleId/move', async (req, res) => {
               summary += `\nUnlocked: ${newlyUnlocked.join(', ')}`;
             }
           }
+          if (xpBoosterUsed) summary += `\nXP Booster used: 2x XP!`;
         }
       } catch (e) {
         console.error('Failed to award XP/Stardust to battle winner:', e);

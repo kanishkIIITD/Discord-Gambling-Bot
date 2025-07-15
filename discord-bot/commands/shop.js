@@ -4,7 +4,7 @@ const axios = require('axios');
 const SHOP_ITEMS = [
   { key: 'rare', name: 'Rare Poké Ball', level: 5, price: 150, effect: '1.25x catch rate', cooldownField: 'poke_rareball_ts' },
   { key: 'ultra', name: 'Ultra Poké Ball', level: 10, price: 200, effect: '1.5x catch rate', cooldownField: 'poke_ultraball_ts' },
-  { key: 'xp', name: 'XP Booster', level: 15, price: 100, effect: '1.5x XP (1 battle/catch)', cooldownField: 'poke_xp_booster_ts' },
+  { key: 'xp', name: 'XP Booster', level: 15, price: 100, effect: '2x XP (1 battle/catch)', cooldownField: 'poke_xp_booster_ts' },
   { key: 'evolution', name: "Evolver's Ring", level: 20, price: 200, effect: 'Evolve with duplicates', cooldownField: 'poke_daily_ring_ts' },
 ];
 
@@ -27,14 +27,28 @@ module.exports = {
       return interaction.editReply('Failed to fetch your user data. Please try again later.');
     }
     const now = Date.now();
+    // --- XP to next level calculation ---
+    const currentXp = user.poke_xp || 0;
+    const currentLevel = user.poke_level || 1;
+    // Replicate backend getNextLevelXp logic
+    function getNextLevelXp(level) {
+      if (level <= 1) return 100;
+      let xp = 100;
+      for (let i = 2; i <= level; i++) {
+        xp = Math.round(xp * 1.4);
+      }
+      return xp;
+    }
+    const nextLevelXp = getNextLevelXp(currentLevel);
     // Build shop embed
     const embed = new EmbedBuilder()
       .setTitle('🛒 Poké Shop')
       .setDescription('Buy special items with Stardust!')
       .setColor(0x3498db)
       .addFields(
-        { name: 'Your Level', value: String(user.poke_level || 1), inline: true },
+        { name: 'Your Level', value: String(currentLevel), inline: true },
         { name: 'Stardust', value: String(user.poke_stardust || 0), inline: true },
+        { name: 'XP to level up', value: `${currentXp} / ${nextLevelXp}`, inline: true },
       );
     const rows = [new ActionRowBuilder()];
     SHOP_ITEMS.forEach((item, idx) => {

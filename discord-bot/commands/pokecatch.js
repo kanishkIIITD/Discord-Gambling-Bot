@@ -1,8 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const pokeCache = require('../utils/pokeCache');
 const { activeSpawns } = require('./pokespawn');
 const { manualDespawnTimers } = require('./pokespawn');
-const fetch = require('node-fetch');
 const axios = require('axios');
 
 const SHINY_ODDS = 1 / 1024;
@@ -35,93 +34,109 @@ module.exports = {
     }
     const pokemonId = spawn.pokemonId;
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
-    // Fetch species data for capture_rate, dex number, and flavor text
-    const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonId}/`);
-    const speciesData = await speciesRes.json();
-    const captureRate = speciesData.capture_rate;
-    const dexNum = speciesData.id;
-    // Get random English flavor text
-    const flavorEntries = speciesData.flavor_text_entries.filter(e => e.language.name === 'en');
-    const flavorText = flavorEntries.length > 0
-      ? flavorEntries[Math.floor(Math.random() * flavorEntries.length)].flavor_text.replace(/\f/g, ' ')
-      : '';
-    // Calculate catch chance (normalize 0-1)
-    let finalChance;
-    if (spawn.catchRateOverride !== undefined) {
-      finalChance = spawn.catchRateOverride;
-    } else {
-      const baseChance = captureRate / 255;
-      finalChance = Math.min(baseChance, 0.95); // Cap at 95%
+    const backendUrl = process.env.BACKEND_API_URL;
+    // Fetch user's Poké Ball inventory
+    let user;
+    try {
+      const userRes = await axios.get(`${backendUrl}/users/${interaction.user.id}`, { headers: { 'x-guild-id': interaction.guildId } });
+      user = userRes.data.user || userRes.data;
+    } catch (e) {
+      return interaction.reply({ content: 'Failed to fetch your Poké Ball inventory. Please try again later.', ephemeral: true });
     }
-    const roll = Math.random();
-    const isShiny = Math.random() < SHINY_ODDS;
-    // Get types
-    const types = pokemonData.types.map(t => t.type.name.charAt(0).toUpperCase() + t.type.name.slice(1)).join(', ');
-    // Use official artwork for large image
-    const artwork = isShiny && pokemonData.sprites.other['official-artwork'].front_shiny ? pokemonData.sprites.other['official-artwork'].front_shiny : pokemonData.sprites.other['official-artwork'].front_default;
-    let embed;
-    // ATOMICITY: lock the spawn for this attempt (simulate atomic update)
-    spawn.attemptedBy.push(interaction.user.id);
-    spawn.attempts = (spawn.attempts || 0) + 1;
-    activeSpawns.set(channelId, spawn);
-    // Re-fetch spawn after asyncs to ensure no one else has caught it
-    spawn = activeSpawns.get(channelId);
-    if (spawn.caughtBy) {
-      return interaction.reply({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
+    // Build Poké Ball selection buttons
+    const buttons = [];
+    buttons.push(new ButtonBuilder()
+      .setCustomId('pokecatch_normal')
+      .setLabel('Poké Ball')
+      .setStyle(ButtonStyle.Primary)
+    );
+    if ((user.poke_rareball_uses || 0) > 0) {
+      buttons.push(new ButtonBuilder()
+        .setCustomId('pokecatch_rare')
+        .setLabel(`Rare Ball (${user.poke_rareball_uses})`)
+        .setStyle(ButtonStyle.Success)
+      );
     }
-    if (roll < finalChance) {
-      // Success
-      // Save to backend
+    if ((user.poke_ultraball_uses || 0) > 0) {
+      buttons.push(new ButtonBuilder()
+        .setCustomId('pokecatch_ultra')
+        .setLabel(`Ultra Ball (${user.poke_ultraball_uses})`)
+        .setStyle(ButtonStyle.Danger)
+      );
+    }
+    const row = new ActionRowBuilder().addComponents(buttons);
+    // Show artwork and ask for ball selection
+    const artwork = pokemonData.sprites.other['official-artwork'].front_default;
+    const promptEmbed = new EmbedBuilder()
+      .setColor(0x3498db)
+      .setTitle(`A wild ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} appeared!`)
+      .setImage(artwork)
+      .setDescription('Which Poké Ball would you like to use?');
+    await interaction.reply({ embeds: [promptEmbed], components: [row], ephemeral: true });
+    // Wait for button interaction
+    const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('pokecatch_');
+    try {
+      const buttonInt = await interaction.channel.awaitMessageComponent({ filter, time: 20000, componentType: ComponentType.Button });
+      await buttonInt.deferUpdate();
+      // Mark as attempted
+      spawn.attemptedBy.push(interaction.user.id);
+      spawn.attempts = (spawn.attempts || 0) + 1;
+      activeSpawns.set(channelId, spawn);
+      // Re-fetch spawn after asyncs to ensure no one else has caught it
+      spawn = activeSpawns.get(channelId);
+      if (spawn.caughtBy) {
+        return interaction.followUp({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
+      }
+      // Determine ball type
+      let ballType = 'normal';
+      if (buttonInt.customId === 'pokecatch_rare') ballType = 'rare';
+      if (buttonInt.customId === 'pokecatch_ultra') ballType = 'ultra';
+      // Random shiny roll (keep in bot for now)
+      const isShiny = Math.random() < SHINY_ODDS;
+      // Call backend catch endpoint
+      let result;
       try {
-        const backendUrl = process.env.BACKEND_API_URL;
-        // Fetch user's pokedex before catch to check for duplicate
-        let isDuplicate = false;
-        try {
-          const pokedexRes = await axios.get(`${backendUrl}/users/${interaction.user.id}/pokedex`, {
-            headers: { 'x-guild-id': interaction.guildId }
-          });
-          const pokedex = pokedexRes.data.pokedex || [];
-          isDuplicate = pokedex.some(mon => String(mon.pokemonId) === String(pokemonId) && !!mon.isShiny === !!isShiny);
-        } catch (e) {
-          // If pokedex fetch fails, default to duplicate = false
-        }
-        const res = await axios.post(`${backendUrl}/users/${interaction.user.id}/pokemon/catch`, {
+        result = await axios.post(`${backendUrl}/users/${interaction.user.id}/pokemon/attempt-catch`, {
           pokemonId,
           name: pokemonData.name,
-          isShiny
+          isShiny,
+          ballType
         }, {
           headers: { 'x-guild-id': interaction.guildId }
         });
-        // --- Build embed content ---
-        let title = isDuplicate
-          ? `You caught another ${isShiny ? '✨ SHINY ' : ''}${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)}!`
-          : `🎉 This is your first ${isShiny ? '✨ SHINY ' : ''}${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)}! Added to your Pokédex!`;
-        let description = '';
-        if (res.data && res.data.levelUp) {
-          const { newLevel, newlyUnlocked } = res.data.levelUp;
-          description += `🎉 **Level Up!** You reached level ${newLevel}!\n`;
-          if (newlyUnlocked && newlyUnlocked.length > 0) {
-            description += `Unlocked: ${newlyUnlocked.join(', ')}\n`;
-          }
-        }
-        description += flavorText || (isShiny ? '✨ Incredible! You caught a shiny Pokémon! ✨' : 'Congratulations! The wild Pokémon is now yours.');
-        // --- Build embed ---
-        embed = new EmbedBuilder()
-          .setColor(0x2ecc71)
-          .setTitle(title)
-          .setImage(artwork)
-          .addFields(
-            { name: 'Type', value: types, inline: true },
-            { name: 'Region', value: 'Kanto', inline: true },
-            { name: 'Catch Chance', value: `${Math.round(finalChance * 100)}%`, inline: true },
-            { name: 'Shiny', value: isShiny ? 'Yes ✨' : 'No', inline: true }
-          )
-          .setDescription(description)
-          .setFooter({ text: 'Gotta catch ’em all!' });
-        // Mark as caught (atomic)
+      } catch (err) {
+        const msg = err.response?.data?.message || 'Failed to attempt catch.';
+        return interaction.followUp({ content: `❌ ${msg}`, ephemeral: true });
+      }
+      const data = result.data;
+      // Build result embed
+      const types = pokemonData.types.map(t => t.type.name.charAt(0).toUpperCase() + t.type.name.slice(1)).join(', ');
+      const region = 'Kanto';
+      const embed = new EmbedBuilder()
+        .setColor(data.success ? 0x2ecc71 : 0xe74c3c)
+        .setTitle(data.embedData?.title || (data.success ? 'Pokémon Caught!' : 'Catch Failed'))
+        .setImage(artwork)
+        .addFields(
+          { name: 'Type', value: types, inline: true },
+          { name: 'Region', value: region, inline: true },
+          { name: 'Ball Used', value: data.ballUsed || ballType, inline: true },
+          { name: 'Catch Chance', value: data.embedData?.catchChance || '?', inline: true },
+          { name: 'Shiny', value: data.embedData?.isShiny ? 'Yes ✨' : 'No', inline: true }
+        )
+        .setDescription(data.embedData?.description || (data.success ? 'Congratulations! The wild Pokémon is now yours.' : 'Better luck next time!'))
+        .setFooter({ text: 'Gotta catch ’em all!' });
+      if (data.xpAward) embed.addFields({ name: 'XP Gained', value: `${data.xpAward}`, inline: true });
+      if (data.dustAward) embed.addFields({ name: 'Dust Gained', value: `${data.dustAward}`, inline: true });
+      if (data.xpBoosterUsed) embed.addFields({ name: 'XP Booster', value: '2x XP!', inline: true });
+      if (data.isDuplicate) embed.addFields({ name: 'Duplicate', value: 'Yes', inline: true });
+      if (data.newLevel) embed.addFields({ name: 'Level Up!', value: `Level ${data.newLevel}`, inline: true });
+      if (data.newlyUnlocked && data.newlyUnlocked.length > 0) embed.addFields({ name: 'Unlocked', value: data.newlyUnlocked.join(', '), inline: false });
+      // Mark as caught if successful
+      if (data.success) {
         spawn = activeSpawns.get(channelId);
         if (spawn.caughtBy) {
-          return interaction.reply({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
+          // Already caught by someone else
+          return interaction.followUp({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
         }
         spawn.caughtBy = interaction.user.id;
         activeSpawns.set(channelId, spawn);
@@ -131,61 +146,17 @@ module.exports = {
           manualDespawnTimers.delete(channelId);
         }
         activeSpawns.delete(channelId);
-        return await interaction.reply({ embeds: [embed] });
-      } catch (err) {
-        console.error('Failed to save caught Pokémon:', err);
-        // Continue, but inform user
-        embed = new EmbedBuilder()
-          .setColor(0xe67e22)
-          .setTitle(`⚠️ You caught ${isShiny ? 'a SHINY ' : ''}#${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)}!`)
-          .setImage(artwork)
-          .addFields(
-            { name: 'Type', value: types, inline: true },
-            { name: 'Region', value: 'Kanto', inline: true },
-            { name: 'Catch Chance', value: `${Math.round(finalChance * 100)}%`, inline: true },
-            { name: 'Shiny', value: isShiny ? 'Yes ✨' : 'No', inline: true }
-          )
-          .setDescription('You caught the Pokémon, but there was an error saving it to your collection. Please contact an admin.')
-          .setFooter({ text: 'Gotta catch ’em all!' });
-        activeSpawns.delete(channelId);
-        return await interaction.reply({ embeds: [embed] });
-      }
-    } else {
-      // Failure
-      // ATOMICITY: already incremented attempts and attemptedBy above
-      if (spawn.attempts >= 5) {
-        // Despawn and update message
-        const goneEmbed = new EmbedBuilder()
-          .setColor(0x636e72)
-          .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} ran away!`)
-          .setDescription(`No one was able to catch ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} after 5 attempts.`)
-          .setImage(artwork);
-        // Try to update the original spawn message if possible
-        try {
-          const channel = await interaction.client.channels.fetch(channelId);
-          const msg = await channel.messages.fetch(spawn.messageId);
-          await msg.edit({ embeds: [goneEmbed] });
-        } catch (e) { /* ignore */ }
-        activeSpawns.delete(channelId);
-        embed = goneEmbed;
-        return await interaction.reply({ embeds: [embed] });
       } else {
-        // Update the spawn with incremented attempts
-        activeSpawns.set(channelId, spawn);
-        embed = new EmbedBuilder()
-          .setColor(0xe74c3c)
-          .setTitle(`Oh no! The #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} broke free!`)
-          .setImage(artwork)
-          .addFields(
-            { name: 'Type', value: types, inline: true },
-            { name: 'Region', value: 'Kanto', inline: true },
-            { name: 'Catch Chance', value: `${Math.round(finalChance * 100)}%`, inline: true },
-            { name: 'Attempts Left', value: `${5 - spawn.attempts}`, inline: true }
-          )
-          .setDescription(flavorText || 'Better luck next time! The wild Pokémon is still here, but will run after 5 failed attempts.')
-          .setFooter({ text: 'Wait for another wild Pokémon.' });
-        return await interaction.reply({ embeds: [embed] });
+        // If 5 attempts, despawn
+        if (spawn.attempts >= 5) {
+          activeSpawns.delete(channelId);
+        } else {
+          activeSpawns.set(channelId, spawn);
+        }
       }
+      await interaction.followUp({ embeds: [embed], ephemeral: false });
+    } catch (e) {
+      return interaction.followUp({ content: 'No Poké Ball selected or time expired. Try again!', ephemeral: true });
     }
   },
 }; 

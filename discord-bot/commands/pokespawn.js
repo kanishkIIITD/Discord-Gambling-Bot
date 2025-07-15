@@ -137,9 +137,9 @@ module.exports.spawnCustomPokemonCommand = {
     const isShiny = interaction.options.getBoolean('ishiny');
     // Call backend endpoint
     try {
-      const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+      const backendUrl = process.env.BACKEND_API_URL;
       const response = await axios.post(
-        `${backendUrl}/api/users/admin/give-pokemon`,
+        `${backendUrl}/users/admin/give-pokemon`,
         { userId: interaction.user.id, targetDiscordId, guildId, pokemonId, isShiny, count }
       );
       const msg = response.data.message || 'Pokémon given.';
