@@ -5,7 +5,7 @@ const { EmbedBuilder } = require('discord.js');
 const customSpawnRates = require('../data/customSpawnRates.json');
 
 // const SPAWN_INTERVAL = 10 * 60 * 1000; // 10 minutes
-const DESPAWN_TIME = 20 * 1000; // 20 seconds
+const DESPAWN_TIME = 30 * 1000; // 30 seconds
 
 // Map: channelId -> { timeout, messageId }
 const despawnTimers = new Map();
@@ -116,7 +116,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
           const goneEmbed = new EmbedBuilder()
             .setColor(0x636e72)
             .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${name} ran away!`)
-            .setDescription(`The wild Pokémon ran away after 20 seconds.`)
+            .setDescription(`The wild Pokémon ran away after 30 seconds.`)
             .setImage(artwork);
           const msg = await channel.messages.fetch(message.id);
           await msg.edit({ embeds: [goneEmbed] });

@@ -22,7 +22,12 @@ async function setSelectedPokedexPokemon(userId, guildId, backendUrl, pokemonId)
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('pokedex')
-    .setDescription('View your collected Pokémon!'),
+    .setDescription('View your collected Pokémon!')
+    .addBooleanOption(option =>
+      option.setName('duplicates')
+        .setDescription('Show only duplicate Pokémon (count > 1)')
+        .setRequired(false)
+    ),
 
   async execute(interaction) {
     await interaction.deferReply();
@@ -31,9 +36,17 @@ module.exports = {
       const res = await axios.get(`${backendUrl}/users/${interaction.user.id}/pokedex`, {
         headers: { 'x-guild-id': interaction.guildId }
       });
-      const pokedex = res.data.pokedex;
+      let pokedex = res.data.pokedex;
       if (!pokedex || pokedex.length === 0) {
         return await interaction.editReply('You have not caught any Pokémon yet!');
+      }
+      // --- Duplicates filter ---
+      const showDuplicates = interaction.options.getBoolean('duplicates');
+      if (showDuplicates) {
+        pokedex = pokedex.filter(mon => (mon.count || 1) > 1);
+        if (pokedex.length === 0) {
+          return await interaction.editReply('You have no duplicate Pokémon!');
+        }
       }
       // Paginate 10 per page
       const pageSize = 10;

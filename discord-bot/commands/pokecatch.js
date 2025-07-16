@@ -81,6 +81,10 @@ module.exports = {
     try {
       const buttonInt = await interaction.channel.awaitMessageComponent({ filter, time: 20000, componentType: ComponentType.Button });
       await buttonInt.deferUpdate();
+      // --- FIX: Re-check if the Pokémon is still present after button selection ---
+      if (!activeSpawns.has(channelId)) {
+        return interaction.followUp({ content: 'The Pokémon has already run away!', ephemeral: true });
+      }
       // Mark as attempted
       spawn.attemptedBy.push(interaction.user.id);
       spawn.attempts = (spawn.attempts || 0) + 1;

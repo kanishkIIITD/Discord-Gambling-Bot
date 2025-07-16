@@ -4,6 +4,7 @@ const clientId = process.env.CLIENT_ID;
 const token = process.env.DISCORD_TOKEN;
 const guildId1 = process.env.GUILD_ID_1;
 const guildId2 = process.env.GUILD_ID_2;
+const pokedexCommand = require('./commands/pokedex');
 const { setSelectPokedexPokemonCommand } = require('./commands/pokedex');
 const { spawnCustomPokemonCommand } = require('./commands/pokespawn');
 const shopCommand = require('./commands/shop');
@@ -946,10 +947,10 @@ const commands = [
 		name: 'pokecatch',
 		description: 'Try to catch the wild Pokémon in this channel!',
 	},
-	{
-		name: 'pokedex',
-		description: 'View your collected Pokémon!',
-	},
+	// {
+	// 	name: 'pokedex',
+	// 	description: 'View your collected Pokémon!',
+	// },
 	{
 		name: 'setpokechannel',
 		description: 'Set this channel as the Pokémon spawn channel for your server (admin only).',
@@ -993,6 +994,7 @@ commands.push(shopCommand.data.toJSON());
 commands.push(pokeevolveCommand.data.toJSON());
 commands.push(questsCommand.data.toJSON());
 commands.push(pokebattleCommand.data.toJSON());
+commands.push(pokedexCommand.data.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
 

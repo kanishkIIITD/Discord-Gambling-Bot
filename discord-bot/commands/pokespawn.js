@@ -102,14 +102,17 @@ module.exports = {
             .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} ran away!`)
             .setDescription(`The wild Pokémon ran away after 20 seconds.`)
             .setImage(artwork);
+          // --- Update: fetch channel and message like auto-spawn ---
           const channel = await interaction.client.channels.fetch(channelId);
           const msg = await channel.messages.fetch(sentMsg.id);
           await msg.edit({ embeds: [goneEmbed] });
-        } catch (e) { /* ignore */ }
+        } catch (e) { console.error('[PokeSpawn] Failed to edit despawn message:', e); }
         activeSpawns.delete(channelId);
         console.log(`[PokeSpawn] Deleted spawn for channel ${channelId} (messageId: ${sentMsg.id}, spawnedAt: ${spawn.spawnedAt})`);
       } else {
-        console.log(`[PokeSpawn] Despawn timer fired for channel ${channelId}, but messageId did not match. No action taken.`);
+        // Fallback: always delete the spawn if the timer fires, to prevent stale spawns
+        activeSpawns.delete(channelId);
+        console.log(`[PokeSpawn] Despawn timer fired for channel ${channelId}, but messageId did not match. Fallback: deleted spawn.`);
       }
       manualDespawnTimers.delete(channelId);
       console.log(`[PokeSpawn] Cleared manual despawn timer for channel ${channelId}`);
