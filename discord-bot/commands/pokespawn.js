@@ -43,6 +43,16 @@ module.exports = {
     }
     pokespawnCooldowns.set(guildId, now);
     const channelId = interaction.channelId;
+    // Before spawning, clear any old manual despawn timer and delete old spawn
+    if (manualDespawnTimers.has(channelId)) {
+      console.log(`[PokeSpawn] Clearing previous manual despawn timer for channel ${channelId} before new spawn.`);
+      clearTimeout(manualDespawnTimers.get(channelId).timeout);
+      manualDespawnTimers.delete(channelId);
+    }
+    if (activeSpawns.has(channelId)) {
+      console.log(`[PokeSpawn] Removing stale spawn for channel ${channelId} before new spawn.`);
+      activeSpawns.delete(channelId);
+    }
     if (activeSpawns.has(channelId)) {
       return interaction.reply({ content: 'A wild Pokémon is already present in this channel! Use /pokecatch to try catching it.', ephemeral: true });
     }
@@ -81,10 +91,6 @@ module.exports = {
       .setFooter({ text: 'Type /pokecatch to try catching!' });
     const sentMsg = await interaction.reply({ embeds: [embed], fetchReply: true });
     // Set manual despawn timer
-    if (manualDespawnTimers.has(channelId)) {
-      console.log(`[PokeSpawn] Clearing previous manual despawn timer for channel ${channelId}`);
-      clearTimeout(manualDespawnTimers.get(channelId).timeout);
-    }
     const DESPAWN_TIME = 20 * 1000; // 20 seconds
     const timeout = setTimeout(async () => {
       // If still active, despawn only if messageId matches

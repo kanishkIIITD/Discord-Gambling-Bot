@@ -149,6 +149,16 @@ async function startAutoSpawner(client, backendUrl) {
     for (const s of servers) {
       if (s.pokeSpawnChannelId) {
         console.log(`[AutoSpawner] Considering guild ${s.guildId}, channel ${s.pokeSpawnChannelId}`);
+        // Before spawning, clear any old despawn timer and delete old spawn
+        if (despawnTimers.has(s.pokeSpawnChannelId)) {
+          console.log(`[AutoSpawner] Clearing previous despawn timer for channel ${s.pokeSpawnChannelId} before new spawn.`);
+          clearTimeout(despawnTimers.get(s.pokeSpawnChannelId).timeout);
+          despawnTimers.delete(s.pokeSpawnChannelId);
+        }
+        if (activeSpawns.has(s.pokeSpawnChannelId)) {
+          console.log(`[AutoSpawner] Removing stale spawn for channel ${s.pokeSpawnChannelId} before new spawn.`);
+          activeSpawns.delete(s.pokeSpawnChannelId);
+        }
         await spawnPokemonInChannel(client, s.guildId, s.pokeSpawnChannelId, backendUrl);
       } else {
         console.log(`[AutoSpawner] Guild ${s.guildId} has no spawn channel set, skipping.`);
