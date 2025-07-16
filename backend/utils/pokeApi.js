@@ -37,9 +37,9 @@ function getCustomSpawnInfo(name) {
 
 // Level curve: Level 1→2: 100 XP, then each next level requires 1.4x previous (rounded)
 function getNextLevelXp(level) {
-  if (level <= 1) return 100;
+  if (level <= 1) return 0; // Fix: XP required to reach level 1 is 0
   let xp = 100;
-  for (let i = 2; i <= level; i++) {
+  for (let i = 2; i < level; i++) {
     xp = Math.round(xp * 1.4);
   }
   return xp;
@@ -48,9 +48,11 @@ function getNextLevelXp(level) {
 function getLevelForXp(xp) {
   let level = 1;
   let nextLevelXp = 100;
+  let currentLevelXp = 0;
   while (xp >= nextLevelXp) {
     level++;
-    nextLevelXp = getNextLevelXp(level);
+    currentLevelXp = nextLevelXp;
+    nextLevelXp = getNextLevelXp(level + 1);
   }
   return level;
 }

@@ -236,7 +236,7 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
       embedData.title = isDuplicate
         ? `You caught another ${isShiny ? '✨ SHINY ' : ''}${name.charAt(0).toUpperCase() + name.slice(1)}!`
         : `🎉 This is your first ${isShiny ? '✨ SHINY ' : ''}${name.charAt(0).toUpperCase() + name.slice(1)}! Added to your Pokédex!`;
-      embedData.description = flavorText || (isShiny ? '✨ Incredible! You caught a shiny Pokémon! ✨' : 'Congratulations! The wild Pokémon is now yours.');
+      embedData.description = flavorText || (isShiny ? `✨ Incredible! <@${discordId}> caught a shiny Pokémon! ✨` : `Congratulations <@${discordId}>! The wild Pokémon is now yours.`);
       return res.json({
         success: true,
         message: embedData.title,
@@ -253,7 +253,7 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
       // Failure: Pokémon broke free
       await user.save(); // Save ball decrement and XP booster decrement if any
       embedData.title = `Oh no! The #${String(dexNum).padStart(3, '0')} ${name.charAt(0).toUpperCase() + name.slice(1)} broke free!`;
-      embedData.description = flavorText || 'Better luck next time! The wild Pokémon is still here, but will run after 5 failed attempts.';
+      embedData.description = flavorText || `<@${discordId}> Better luck next time! The wild Pokémon is still here, but will run after 5 failed attempts.`;
       return res.json({
         success: false,
         message: embedData.title,
@@ -305,11 +305,11 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     if (item === 'evolution') {
       user.poke_ring_charges = 3;
     } else if (item === 'rare') {
-      user.poke_rareball_uses = 3;
+      user.poke_rareball_uses = 5;
     } else if (item === 'ultra') {
       user.poke_ultraball_uses = 3;
     } else if (item === 'xp') {
-      user.poke_xp_booster_uses = 3;
+      user.poke_xp_booster_uses = 1;
       }
       await user.save();
     return res.json({ message: `Successfully bought ${SHOP_ITEMS[item].name}!`, item: SHOP_ITEMS[item].name });

@@ -39,7 +39,8 @@ module.exports = {
       }
       return xp;
     }
-    const xpForCurrentLevel = getNextLevelXp(currentLevel - 1);
+    // Fix: For level 1, xpForCurrentLevel should be 0
+    const xpForCurrentLevel = currentLevel === 1 ? 0 : getNextLevelXp(currentLevel - 1);
     const xpForNextLevel = getNextLevelXp(currentLevel);
     const xpThisLevel = currentXp - xpForCurrentLevel;
     const xpNeeded = xpForNextLevel - xpForCurrentLevel;

@@ -172,24 +172,64 @@ async function getLegalMoveset(
     // If we have at least 3 unique damaging moves, stop expanding
     if (damagingMoves.length >= 3) break;
   }
-  // Sort and select moves
+
+  // --- Custom move selection logic ---
+  // Get Pokémon's types
+  const pokemonTypes = data.types.map(t => t.type.name);
+
   // Separate colorless and non-colorless damaging moves
   const colorlessMoves = damagingMoves.filter(m => m.moveType === 'normal' || m.moveType === 'none' || m.moveType === 'typeless');
   const nonColorlessMoves = damagingMoves.filter(m => m.moveType !== 'normal' && m.moveType !== 'none' && m.moveType !== 'typeless');
 
-  // Sort both groups
+  // Sort by power, then by learnedAt
   const sortedColorless = colorlessMoves.sort((a, b) => b.power - a.power || b.learnedAt - a.learnedAt);
   const sortedNonColorless = nonColorlessMoves.sort((a, b) => b.power - a.power || b.learnedAt - a.learnedAt);
 
-  // Pick top 1 colorless and top 2 non-colorless (or fewer if not available)
-  damagingMoves = [
-    ...(sortedColorless.slice(0, 1)),
-    ...(sortedNonColorless.slice(0, 3))
-  ].slice(0, 3); // just in case both groups are smaller
+  // Find the most powerful colorless move (if any)
+  const bestColorless = sortedColorless[0];
 
+  // Find the most powerful STAB move (same type as Pokémon)
+  const stabMoves = sortedNonColorless.filter(m => pokemonTypes.includes(m.moveType));
+  const bestStab = stabMoves[0];
+
+  // Find the most powerful non-STAB move (excluding colorless)
+  const nonStabMoves = sortedNonColorless.filter(m => !pokemonTypes.includes(m.moveType));
+  const bestNonStab = nonStabMoves[0];
+
+  // Build the damaging moveset
+  let selectedDamaging = [];
+  if (bestColorless) selectedDamaging.push(bestColorless);
+  if (bestStab) selectedDamaging.push(bestStab);
+
+  // If bestNonStab is more powerful than bestStab, include it, but always keep at least one STAB
+  if (bestNonStab && (!bestStab || bestNonStab.power > bestStab.power)) {
+    if (!selectedDamaging.some(m => m.name === bestNonStab.name)) {
+      selectedDamaging.push(bestNonStab);
+    }
+  }
+
+  // Fill up to 3 damaging moves, but only allow one colorless
+  // Prefer non-colorless for the third slot
+  let alreadyColorless = !!bestColorless;
+  const allSortedNonColorless = sortedNonColorless.filter(m => !selectedDamaging.some(sel => sel.name === m.name));
+  for (const move of allSortedNonColorless) {
+    if (selectedDamaging.length >= 3) break;
+    selectedDamaging.push(move);
+  }
+  // If still less than 3, allow a second colorless ONLY if not already present
+  if (selectedDamaging.length < 3 && !alreadyColorless) {
+    const moreColorless = sortedColorless.filter(m => !selectedDamaging.some(sel => sel.name === m.name));
+    for (const move of moreColorless) {
+      if (selectedDamaging.length >= 3) break;
+      selectedDamaging.push(move);
+    }
+  }
+  selectedDamaging = selectedDamaging.slice(0, 3);
+
+  // Sort effect moves by learnedAt
   effectMoves = effectMoves.sort((a, b) => b.learnedAt - a.learnedAt);
   let selectedMoves = [
-    ...damagingMoves,
+    ...selectedDamaging,
     ...effectMoves.slice(0, 2)
   ].slice(0, 5);
 

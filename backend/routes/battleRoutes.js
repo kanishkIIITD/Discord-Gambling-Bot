@@ -48,10 +48,10 @@ async function processBattleRewards(session) {
       let totalXp = 0;
       let totalDust = 0;
       
-      // Get the winner's Pokémon team
-      const winnerPokemons = session.winnerId === session.challengerId ? session.challengerPokemons : session.opponentPokemons;
+      // Get the loser's Pokémon team
+      const loserPokemons = session.winnerId === session.challengerId ? session.opponentPokemons : session.challengerPokemons;
       
-      for (const poke of winnerPokemons) {
+      for (const poke of loserPokemons) {
         const spawnInfo = getCustomSpawnInfo(poke.name);
         if (spawnInfo) {
           totalXp += spawnInfo.xpYield || 0;
