@@ -24,13 +24,16 @@ module.exports = {
       return interaction.reply({ content: 'There is no wild Pokémon to catch in this channel. Ask an admin to use /pokespawn!', ephemeral: true });
     }
     // ATOMICITY: re-fetch spawn from activeSpawns after any async operation
-    if (spawn.caughtBy) {
-      return interaction.reply({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
-    }
+    // (No need to check spawn.caughtBy for single-catch logic anymore)
     // Prevent same user from trying more than once per spawn
     if (!spawn.attemptedBy) spawn.attemptedBy = [];
+    if (!spawn.caughtBy) spawn.caughtBy = [];
     if (spawn.attemptedBy.includes(interaction.user.id)) {
       return interaction.reply({ content: 'You have already tried to catch this Pokémon. Wait for the next spawn!', ephemeral: true });
+    }
+    // If despawned (should not happen, but just in case)
+    if (!activeSpawns.has(channelId)) {
+      return interaction.reply({ content: 'The Pokémon has already run away!', ephemeral: true });
     }
     const pokemonId = spawn.pokemonId;
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
@@ -84,9 +87,6 @@ module.exports = {
       activeSpawns.set(channelId, spawn);
       // Re-fetch spawn after asyncs to ensure no one else has caught it
       spawn = activeSpawns.get(channelId);
-      if (spawn.caughtBy) {
-        return interaction.followUp({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
-      }
       // Determine ball type
       let ballType = 'normal';
       if (buttonInt.customId === 'pokecatch_rare') ballType = 'rare';
@@ -123,8 +123,7 @@ module.exports = {
           { name: 'Region', value: region, inline: true },
           { name: 'Ball Used', value: data.ballUsed || ballType, inline: true },
           { name: 'Catch Chance', value: data.embedData?.catchChance || '?', inline: true },
-          { name: 'Shiny', value: data.embedData?.isShiny ? 'Yes ✨' : 'No', inline: true },
-          { name: 'Attempts Left', value: `${attemptsLeft}/5`, inline: true }
+          { name: 'Shiny', value: data.embedData?.isShiny ? 'Yes ✨' : 'No', inline: true }
         )
         .setFooter({ text: 'Gotta catch ’em all!' });
       // Add extra fields if present
@@ -143,25 +142,12 @@ module.exports = {
       // Mark as caught if successful
       if (data.success) {
         spawn = activeSpawns.get(channelId);
-        if (spawn.caughtBy) {
-          // Already caught by someone else
-          return interaction.followUp({ content: `This Pokémon has already been caught by <@${spawn.caughtBy}>!`, ephemeral: true });
-        }
-        spawn.caughtBy = interaction.user.id;
-        activeSpawns.set(channelId, spawn);
-        // Clear manual despawn timer if exists
-        if (manualDespawnTimers && manualDespawnTimers.has(channelId)) {
-          clearTimeout(manualDespawnTimers.get(channelId).timeout);
-          manualDespawnTimers.delete(channelId);
-        }
-        activeSpawns.delete(channelId);
-      } else {
-        // If 5 attempts, despawn
-        if (spawn.attempts >= 5) {
-          activeSpawns.delete(channelId);
-        } else {
+        if (!spawn.caughtBy.includes(interaction.user.id)) {
+          spawn.caughtBy.push(interaction.user.id);
           activeSpawns.set(channelId, spawn);
         }
+      } else {
+        activeSpawns.set(channelId, spawn);
       }
       await interaction.followUp({ embeds: [embed], ephemeral: false });
     } catch (e) {

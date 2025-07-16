@@ -68,7 +68,7 @@ module.exports = {
     if (customSpawnRates[pokemonName] && typeof customSpawnRates[pokemonName].catchRate === 'number') {
       catchRateOverride = customSpawnRates[pokemonName].catchRate;
     }
-    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), attempts: 0, ...(catchRateOverride !== undefined && { catchRateOverride }) });
+    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
       .setTitle(`A wild #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} appeared!`)
@@ -82,16 +82,16 @@ module.exports = {
     const sentMsg = await interaction.reply({ embeds: [embed], fetchReply: true });
     // Set manual despawn timer
     if (manualDespawnTimers.has(channelId)) clearTimeout(manualDespawnTimers.get(channelId).timeout);
-    const DESPAWN_TIME = 2 * 60 * 1000; // 2 minutes
+    const DESPAWN_TIME = 20 * 1000; // 20 seconds
     const timeout = setTimeout(async () => {
-      // If still active and not caught, despawn
+      // If still active, despawn
       const spawn = activeSpawns.get(channelId);
-      if (spawn && !spawn.caughtBy) {
+      if (spawn) {
         try {
           const goneEmbed = new EmbedBuilder()
             .setColor(0x636e72)
             .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} ran away!`)
-            .setDescription(`No one was able to catch ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} in time.`)
+            .setDescription(`The wild Pokémon ran away after 20 seconds.`)
             .setImage(artwork);
           const channel = await interaction.client.channels.fetch(channelId);
           const msg = await channel.messages.fetch(sentMsg.id);

@@ -31,6 +31,15 @@ module.exports = {
     // Default to true if not specified
     const isFriendly = friendly !== false;
 
+    // Prevent user from battling themselves
+    if (challengerId === opponentId) {
+      await interaction.reply({
+        content: '❌ You cannot battle yourself!',
+        ephemeral: true
+      });
+      return;
+    }
+
     if (count < 1 || count > 5) {
       await interaction.reply({
         content: '❌ Number of Pokémon must be between 1 and 5.',

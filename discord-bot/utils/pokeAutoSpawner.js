@@ -5,7 +5,7 @@ const { EmbedBuilder } = require('discord.js');
 const customSpawnRates = require('../data/customSpawnRates.json');
 
 // const SPAWN_INTERVAL = 10 * 60 * 1000; // 10 minutes
-const DESPAWN_TIME = 2 * 60 * 1000; // 2 minutes
+const DESPAWN_TIME = 20 * 1000; // 20 seconds
 
 // Map: channelId -> { timeout, messageId }
 const despawnTimers = new Map();
@@ -92,7 +92,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     } catch (e) {
       console.error(`[AutoSpawner] Error fetching message after sending in channel ${channelId}, messageId: ${message.id}:`, e);
     }
-    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id, attempts: 0, ...(catchRateOverride !== undefined && { catchRateOverride }) });
+    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id, attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
     console.log(`[AutoSpawner] activeSpawns after spawn:`, Array.from(activeSpawns.entries()));
     // Set despawn timer
     if (despawnTimers.has(channelId)) clearTimeout(despawnTimers.get(channelId).timeout);
@@ -100,28 +100,25 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
       // If still active, despawn
       if (activeSpawns.has(channelId)) {
         const spawn = activeSpawns.get(channelId);
-        // Only skip editing if the Pokémon was caught
-        if (!spawn.caughtBy) {
-          try {
-            // Fetch the Pokémon info again for the despawn embed
-            const { pokemonId } = spawn;
-            const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
-            const fetch = require('node-fetch');
-            const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonId}/`);
-            const speciesData = await speciesRes.json();
-            const dexNum = speciesData.id;
-            const artwork = pokemonData.sprites.other['official-artwork'].front_default;
-            const name = pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1);
-            const goneEmbed = new EmbedBuilder()
-              .setColor(0x636e72)
-              .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${name} ran away!`)
-              .setDescription(`No one was able to catch ${name} in time.`)
-              .setImage(artwork);
-            const msg = await channel.messages.fetch(message.id);
-            await msg.edit({ embeds: [goneEmbed] });
-            console.log(`[AutoSpawner] Despawned Pokémon in channel ${channelId} (guild ${guildId}), messageId: ${message.id}`);
-          } catch (e) { console.error('[AutoSpawner] Failed to edit despawn message:', e); }
-        }
+        try {
+          // Fetch the Pokémon info again for the despawn embed
+          const { pokemonId } = spawn;
+          const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
+          const fetch = require('node-fetch');
+          const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonId}/`);
+          const speciesData = await speciesRes.json();
+          const dexNum = speciesData.id;
+          const artwork = pokemonData.sprites.other['official-artwork'].front_default;
+          const name = pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1);
+          const goneEmbed = new EmbedBuilder()
+            .setColor(0x636e72)
+            .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${name} ran away!`)
+            .setDescription(`The wild Pokémon ran away after 20 seconds.`)
+            .setImage(artwork);
+          const msg = await channel.messages.fetch(message.id);
+          await msg.edit({ embeds: [goneEmbed] });
+          console.log(`[AutoSpawner] Despawned Pokémon in channel ${channelId} (guild ${guildId}), messageId: ${message.id}`);
+        } catch (e) { console.error('[AutoSpawner] Failed to edit despawn message:', e); }
         activeSpawns.delete(channelId);
         console.log(`[AutoSpawner] activeSpawns after despawn:`, Array.from(activeSpawns.entries()));
       }

@@ -253,7 +253,7 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
       // Failure: Pokémon broke free
       await user.save(); // Save ball decrement and XP booster decrement if any
       embedData.title = `Oh no! The #${String(dexNum).padStart(3, '0')} ${name.charAt(0).toUpperCase() + name.slice(1)} broke free!`;
-      embedData.description = flavorText || `<@${discordId}> Better luck next time! The wild Pokémon is still here, but will run after 5 failed attempts.`;
+      embedData.description = flavorText || `<@${discordId}> Better luck next time!`;
       return res.json({
         success: false,
         message: embedData.title,
