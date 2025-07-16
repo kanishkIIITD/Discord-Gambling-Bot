@@ -95,11 +95,14 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id, attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
     console.log(`[AutoSpawner] activeSpawns after spawn:`, Array.from(activeSpawns.entries()));
     // Set despawn timer
-    if (despawnTimers.has(channelId)) clearTimeout(despawnTimers.get(channelId).timeout);
+    if (despawnTimers.has(channelId)) {
+      console.log(`[AutoSpawner] Clearing previous despawn timer for channel ${channelId}`);
+      clearTimeout(despawnTimers.get(channelId).timeout);
+    }
     const timeout = setTimeout(async () => {
-      // If still active, despawn
-      if (activeSpawns.has(channelId)) {
-        const spawn = activeSpawns.get(channelId);
+      // If still active, despawn only if messageId matches
+      const spawn = activeSpawns.get(channelId);
+      if (spawn && spawn.messageId === message.id) {
         try {
           // Fetch the Pokémon info again for the despawn embed
           const { pokemonId } = spawn;
@@ -120,7 +123,9 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
           console.log(`[AutoSpawner] Despawned Pokémon in channel ${channelId} (guild ${guildId}), messageId: ${message.id}`);
         } catch (e) { console.error('[AutoSpawner] Failed to edit despawn message:', e); }
         activeSpawns.delete(channelId);
-        console.log(`[AutoSpawner] activeSpawns after despawn:`, Array.from(activeSpawns.entries()));
+        console.log(`[AutoSpawner] Deleted spawn for channel ${channelId} (messageId: ${message.id}, spawnedAt: ${spawn.spawnedAt})`);
+      } else {
+        console.log(`[AutoSpawner] Despawn timer fired for channel ${channelId}, but messageId did not match. No action taken.`);
       }
       despawnTimers.delete(channelId);
       console.log(`[AutoSpawner] Cleared despawn timer for channel ${channelId}`);
