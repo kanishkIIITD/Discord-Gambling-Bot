@@ -34,12 +34,22 @@ module.exports = {
         });
       }
 
-      // Create options for select menu
-      const options = duplicates.map(pokemon => ({
-        label: `${pokemon.name}${pokemon.isShiny ? ' ✨' : ''} x${pokemon.count}`,
-        value: `${pokemon.pokemonId}_${pokemon.isShiny}`,
-        description: `Sellable: ${pokemon.sellableCount} | Value: ${pokemon.dustYield.toLocaleString()} dust each`
-      }));
+      // Create options for select menu with "Sell All" option first
+      const sellAllTotalValue = duplicates.reduce((sum, p) => sum + (p.dustYield * p.sellableCount), 0);
+      const sellAllTotalCount = duplicates.reduce((sum, p) => sum + p.sellableCount, 0);
+      
+      const options = [
+        {
+          label: `💰 Sell ALL Duplicates (${sellAllTotalCount})`,
+          value: 'sell_all_duplicates',
+          description: `Sell all ${sellAllTotalCount} duplicates for ${sellAllTotalValue.toLocaleString()} dust total`
+        },
+        ...duplicates.map(pokemon => ({
+          label: `${pokemon.name}${pokemon.isShiny ? ' ✨' : ''} x${pokemon.count}`,
+          value: `${pokemon.pokemonId}_${pokemon.isShiny}`,
+          description: `Sellable: ${pokemon.sellableCount} | Value: ${pokemon.dustYield.toLocaleString()} dust each`
+        }))
+      ];
 
       // State for pagination
       let currentPage = 0;
@@ -137,6 +147,87 @@ module.exports = {
         // Handle selection
         if (i.customId.startsWith('pokesellduplicates_select_page_')) {
           const selectedValue = i.values[0];
+          
+          selectionDone = true;
+          collector.stop();
+
+          // Handle "Sell All Duplicates" option
+          if (selectedValue === 'sell_all_duplicates') {
+            // Process the sale for all duplicates immediately without modal
+            try {
+              let totalDustEarned = 0;
+              let totalPokemonSold = 0;
+              const soldPokemonList = [];
+
+              // Sell all duplicates
+              for (const pokemon of duplicates) {
+                const saleResponse = await axios.post(`${backendUrl}/users/${interaction.user.id}/pokemon/sell-duplicates`, {
+                  pokemonId: pokemon.pokemonId,
+                  isShiny: pokemon.isShiny,
+                  quantity: pokemon.sellableCount
+                }, {
+                  headers: { 'x-guild-id': interaction.guildId }
+                });
+
+                const { soldPokemon, newStardustBalance } = saleResponse.data;
+                totalDustEarned += soldPokemon.totalDust;
+                totalPokemonSold += pokemon.sellableCount;
+                soldPokemonList.push({
+                  name: pokemon.name,
+                  isShiny: pokemon.isShiny,
+                  count: pokemon.sellableCount,
+                  dust: soldPokemon.totalDust
+                });
+              }
+
+              // Success embed
+              const successEmbed = new EmbedBuilder()
+                .setColor(0x00ff00)
+                .setTitle('✅ Bulk Sale Successful!')
+                .setDescription(`You sold **ALL ${totalPokemonSold} duplicate Pokémon** for **${totalDustEarned.toLocaleString()}** stardust!`)
+                .addFields(
+                  { name: '💰 Total Stardust Earned', value: totalDustEarned.toLocaleString(), inline: true },
+                  { name: '🎣 Total Pokémon Sold', value: totalPokemonSold.toString(), inline: true },
+                  { name: '📋 Pokémon Types Sold', value: soldPokemonList.length.toString(), inline: true }
+                )
+                .setTimestamp();
+
+              // Add detailed breakdown if there are multiple types
+              if (soldPokemonList.length > 1) {
+                let breakdown = soldPokemonList.map(p => 
+                  `${p.name}${p.isShiny ? '✨' : ''} x${p.count} (${p.dust.toLocaleString()} dust)`
+                ).join('\n');
+                
+                // Check if breakdown exceeds Discord's 1024 character limit
+                if (breakdown.length > 1024) {
+                  // Truncate and add ellipsis
+                  breakdown = breakdown.substring(0, 1021) + '...';
+                }
+                
+                successEmbed.addFields({
+                  name: '📊 Sale Breakdown',
+                  value: breakdown,
+                  inline: false
+                });
+              }
+
+              await interaction.editReply({
+                embeds: [successEmbed],
+                components: []
+              });
+
+            } catch (e) {
+              console.error('[PokeSellDuplicates] Bulk sale error:', e);
+              await interaction.editReply({
+                content: 'An error occurred while processing your bulk sale. Please try again.',
+                embeds: [],
+                components: []
+              });
+            }
+            return;
+          }
+
+          // Handle individual Pokémon selection
           const [pokemonId, isShiny] = selectedValue.split('_');
           
           selectedPokemon = duplicates.find(p => 
@@ -153,10 +244,7 @@ module.exports = {
             return;
           }
 
-          selectionDone = true;
-          collector.stop();
-
-          // Build modal for quantity input
+          // Show modal for quantity input
           const modal = new ModalBuilder()
             .setCustomId('pokesellduplicates_quantity_modal')
             .setTitle(`Sell ${selectedPokemon.name}${selectedPokemon.isShiny ? ' ✨' : ''}`);
