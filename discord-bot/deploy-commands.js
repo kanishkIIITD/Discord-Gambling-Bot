@@ -11,6 +11,7 @@ const shopCommand = require('./commands/shop');
 const pokeevolveCommand = require('./commands/pokeevolve');
 const questsCommand = require('./commands/quests');
 const pokebattleCommand = require('./commands/pokebattle');
+const pokesellduplicatesCommand = require('./commands/pokesellduplicates');
 const commands = [
 	{
 		name: 'balance',
@@ -995,6 +996,7 @@ commands.push(pokeevolveCommand.data.toJSON());
 commands.push(questsCommand.data.toJSON());
 commands.push(pokebattleCommand.data.toJSON());
 commands.push(pokedexCommand.data.toJSON());
+commands.push(pokesellduplicatesCommand.data.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
 

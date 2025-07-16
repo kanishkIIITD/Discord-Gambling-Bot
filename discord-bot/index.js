@@ -35,6 +35,7 @@ const poketradeCommand = require('./commands/poketrade');
 const shopCommand = require('./commands/shop');
 const pokeevolveCommand = require('./commands/pokeevolve');
 const questsCommand = require('./commands/quests');
+const pokesellduplicatesCommand = require('./commands/pokesellduplicates');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 const pokeCache = require('./utils/pokeCache');
@@ -4345,6 +4346,8 @@ client.on('interactionCreate', async interaction => {
 		await pokedexCommand.setSelectPokedexPokemonCommand.execute(interaction);
 	} else if (commandName === 'spawncustompokemon') {
 		await spawnCustomPokemonCommand.execute(interaction);
+	} else if (commandName === 'pokesellduplicates') {
+		await pokesellduplicatesCommand.execute(interaction);
 	}
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);

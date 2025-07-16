@@ -466,6 +466,130 @@ router.get('/:discordId/pokedex', requireGuildId, async (req, res) => {
   }
 });
 
+// POST /:discordId/pokemon/sell-duplicates - Sell duplicate Pokémon for stardust
+router.post('/:discordId/pokemon/sell-duplicates', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const { pokemonId, isShiny, quantity, preview = false } = req.body;
+
+    // Find or create user
+    let user = await User.findOne({ discordId, guildId });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // If preview is true, return list of duplicates with dust values
+    if (preview) {
+      const duplicates = await Pokemon.find({ 
+        discordId, 
+        guildId, 
+        count: { $gt: 1 } 
+      }).sort({ pokemonId: 1, isShiny: 1 });
+
+      const duplicateList = [];
+      for (const pokemon of duplicates) {
+        // Get dust value from customSpawnRates
+        const { getCustomSpawnInfo } = require('../utils/pokeApi');
+        const spawnInfo = getCustomSpawnInfo(pokemon.name);
+        const dustYield = spawnInfo?.dustYield || 10; // Default to 10 if not found
+        
+        duplicateList.push({
+          _id: pokemon._id,
+          pokemonId: pokemon.pokemonId,
+          name: pokemon.name,
+          isShiny: pokemon.isShiny,
+          count: pokemon.count,
+          dustYield: dustYield,
+          totalValue: dustYield * (pokemon.count - 1), // Value for all duplicates (keeping 1)
+          sellableCount: pokemon.count - 1 // Can sell all but 1
+        });
+      }
+
+      return res.json({
+        duplicates: duplicateList,
+        totalDuplicates: duplicateList.length,
+        totalValue: duplicateList.reduce((sum, p) => sum + p.totalValue, 0)
+      });
+    }
+
+    // Validate required fields for actual sale
+    if (!pokemonId || typeof isShiny !== 'boolean' || !quantity || quantity < 1) {
+      return res.status(400).json({ 
+        message: 'Missing required fields: pokemonId, isShiny, and quantity (must be > 0).' 
+      });
+    }
+
+    // Find the Pokémon
+    const pokemon = await Pokemon.findOne({ 
+      discordId, 
+      guildId, 
+      pokemonId, 
+      isShiny 
+    });
+
+    if (!pokemon) {
+      return res.status(404).json({ message: 'Pokémon not found in your collection.' });
+    }
+
+    // Check if it's a duplicate (count > 1)
+    if (pokemon.count <= 1) {
+      return res.status(400).json({ message: 'This Pokémon is not a duplicate. You can only sell duplicates.' });
+    }
+
+    // Check if user has enough to sell
+    const sellableCount = pokemon.count - 1; // Keep at least 1
+    if (quantity > sellableCount) {
+      return res.status(400).json({ 
+        message: `You can only sell up to ${sellableCount} of this Pokémon (keeping 1).` 
+      });
+    }
+
+    // Get dust value from customSpawnRates
+    const { getCustomSpawnInfo } = require('../utils/pokeApi');
+    const spawnInfo = getCustomSpawnInfo(pokemon.name);
+    const dustYield = spawnInfo?.dustYield || 10; // Default to 10 if not found
+
+    // Calculate total dust to award
+    const totalDust = dustYield * quantity;
+
+    // Apply shiny bonus (2x dust for shiny Pokémon)
+    const finalDust = pokemon.isShiny ? totalDust * 2 : totalDust;
+
+    // Update Pokémon count
+    pokemon.count -= quantity;
+    if (pokemon.count <= 0) {
+      await pokemon.deleteOne();
+    } else {
+      await pokemon.save();
+    }
+
+    // Award stardust to user
+    user.poke_stardust = (user.poke_stardust || 0) + finalDust;
+    await user.save();
+
+    // Return success response
+    res.json({
+      success: true,
+      message: `Successfully sold ${quantity}x ${pokemon.isShiny ? '✨ SHINY ' : ''}${pokemon.name} for ${finalDust} stardust!`,
+      soldPokemon: {
+        name: pokemon.name,
+        isShiny: pokemon.isShiny,
+        quantity: quantity,
+        dustPerUnit: dustYield,
+        totalDust: finalDust,
+        shinyBonus: pokemon.isShiny ? '2x' : 'none'
+      },
+      remainingCount: pokemon.count > 0 ? pokemon.count : 0,
+      newStardustBalance: user.poke_stardust
+    });
+
+  } catch (error) {
+    console.error('[Sell Duplicates] Error:', error);
+    res.status(500).json({ message: 'Failed to sell Pokémon duplicates.' });
+  }
+});
+
 // --- TIMEOUT ENDPOINT ---
 router.post('/:userId/timeout', requireGuildId, async (req, res) => {
   try {
