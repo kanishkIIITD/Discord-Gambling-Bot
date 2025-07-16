@@ -81,12 +81,15 @@ module.exports = {
       .setFooter({ text: 'Type /pokecatch to try catching!' });
     const sentMsg = await interaction.reply({ embeds: [embed], fetchReply: true });
     // Set manual despawn timer
-    if (manualDespawnTimers.has(channelId)) clearTimeout(manualDespawnTimers.get(channelId).timeout);
+    if (manualDespawnTimers.has(channelId)) {
+      console.log(`[PokeSpawn] Clearing previous manual despawn timer for channel ${channelId}`);
+      clearTimeout(manualDespawnTimers.get(channelId).timeout);
+    }
     const DESPAWN_TIME = 20 * 1000; // 20 seconds
     const timeout = setTimeout(async () => {
-      // If still active, despawn
+      // If still active, despawn only if messageId matches
       const spawn = activeSpawns.get(channelId);
-      if (spawn) {
+      if (spawn && spawn.messageId === sentMsg.id) {
         try {
           const goneEmbed = new EmbedBuilder()
             .setColor(0x636e72)
@@ -98,10 +101,15 @@ module.exports = {
           await msg.edit({ embeds: [goneEmbed] });
         } catch (e) { /* ignore */ }
         activeSpawns.delete(channelId);
+        console.log(`[PokeSpawn] Deleted spawn for channel ${channelId} (messageId: ${sentMsg.id}, spawnedAt: ${spawn.spawnedAt})`);
+      } else {
+        console.log(`[PokeSpawn] Despawn timer fired for channel ${channelId}, but messageId did not match. No action taken.`);
       }
       manualDespawnTimers.delete(channelId);
+      console.log(`[PokeSpawn] Cleared manual despawn timer for channel ${channelId}`);
     }, DESPAWN_TIME);
     manualDespawnTimers.set(channelId, { timeout, messageId: sentMsg.id });
+    console.log(`[PokeSpawn] Set manual despawn timer for channel ${channelId}, messageId: ${sentMsg.id}`);
   },
 
   // Export for pokecatch.js to access
