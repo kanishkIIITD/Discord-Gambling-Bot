@@ -157,7 +157,8 @@ module.exports.spawnCustomPokemonCommand = {
       const backendUrl = process.env.BACKEND_API_URL;
       const response = await axios.post(
         `${backendUrl}/users/admin/give-pokemon`,
-        { userId: interaction.user.id, targetDiscordId, guildId, pokemonId, isShiny, count }
+        { userId: interaction.user.id, targetDiscordId, guildId, pokemonId, isShiny, count },
+        { headers: { 'x-admin-secret': process.env.ADMIN_GIVE_POKEMON_SECRET } }
       );
       const msg = response.data.message || 'Pokémon given.';
       return interaction.reply({ content: msg, ephemeral: true });

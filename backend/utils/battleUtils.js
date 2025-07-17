@@ -148,7 +148,7 @@ async function getLegalMoveset(
         const moveRes = await axios.get(move.url);
         const moveData = moveRes.data;
         const basePP = moveData.pp || 5;
-        const effectivePP = Math.ceil(basePP * (battleSize / 5) * 2);
+        const effectivePP = Math.ceil(basePP * (battleSize / 5));
         return {
           name: move.name,
           power: moveData.power || 0,
@@ -241,7 +241,7 @@ async function getLegalMoveset(
         const moveRes = await axios.get(move.url);
         const moveData = moveRes.data;
         const basePP = moveData.pp || 5;
-        const effectivePP = Math.ceil(basePP * (battleSize / 5) * 2);
+        const effectivePP = Math.ceil(basePP * (battleSize / 5));
         return {
           name: move.name,
           power: moveData.power || 0,
@@ -276,7 +276,7 @@ async function getLegalMoveset(
           const moveRes = await axios.get(transformMove.url);
           const moveData = moveRes.data;
           const basePP = moveData.pp || 5;
-          const effectivePP = Math.ceil(basePP * (battleSize / 5) * 2);
+          const effectivePP = Math.ceil(basePP * (battleSize / 5));
           moveObj = {
             name: 'transform',
             power: moveData.power || 0,

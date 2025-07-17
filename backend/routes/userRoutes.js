@@ -276,8 +276,8 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     const { item } = req.body; // item: 'rare', 'ultra', 'xp', 'evolution'
     const now = new Date();
     const SHOP_ITEMS = {
-      rare: { name: 'Rare Poké Ball', level: 5, price: 150, cooldownField: 'poke_rareball_ts' },
-      ultra: { name: 'Ultra Poké Ball', level: 10, price: 200, cooldownField: 'poke_ultraball_ts' },
+      rare: { name: '5 Rare Poké Balls', level: 5, price: 750, cooldownField: 'poke_rareball_ts' },
+      ultra: { name: '3 Ultra Poké Balls', level: 10, price: 600, cooldownField: 'poke_ultraball_ts' },
       xp: { name: 'XP Booster', level: 15, price: 100, cooldownField: 'poke_xp_booster_ts' },
       evolution: { name: "Evolver's Ring", level: 20, price: 200, cooldownField: 'poke_daily_ring_ts' },
     };
@@ -290,10 +290,10 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     if ((user.poke_level || 1) < SHOP_ITEMS[item].level) {
       return res.status(403).json({ message: `You must be level ${SHOP_ITEMS[item].level} to buy this item.` });
     }
-    // Check cooldown (1 per day)
+    // Check cooldown (1 per 12 hours)
     const lastTs = user[SHOP_ITEMS[item].cooldownField];
-    if (lastTs && now - lastTs < 24 * 60 * 60 * 1000) {
-      return res.status(429).json({ message: `You can only buy 1 ${SHOP_ITEMS[item].name} per day.` });
+    if (lastTs && now - lastTs < 12 * 60 * 60 * 1000) {
+      return res.status(429).json({ message: `You can only buy 1 ${SHOP_ITEMS[item].name} every 12 hours.` });
     }
     // Check stardust
     if ((user.poke_stardust || 0) < SHOP_ITEMS[item].price) {
@@ -747,6 +747,11 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
 // --- ADMIN GIVE POKEMON ENDPOINT ---
 const ALLOWED_DISCORD_ID = '294497956348821505'; // <-- Replace with the allowed Discord ID
 router.post('/admin/give-pokemon', async (req, res) => {
+  // Custom admin secret check
+  const adminSecret = req.header('x-admin-secret');
+  if (!adminSecret || adminSecret !== process.env.ADMIN_GIVE_POKEMON_SECRET) {
+    return res.status(403).json({ message: 'Invalid or missing admin secret.' });
+  }
   try {
     const { userId, targetDiscordId, guildId, pokemonId, isShiny, count } = req.body;
     if (userId !== ALLOWED_DISCORD_ID) {

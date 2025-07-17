@@ -811,8 +811,8 @@ router.post('/:battleId/move', async (req, res) => {
             effectSucceeded = true;
             effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage, but fainted!`;
           }
-          // Only decrement PP if effect succeeded (except for heal, which is always decremented above)
-          if (effectSucceeded && effectType !== 'heal') {
+          // Only decrement PP if effect succeeded
+          if (effectSucceeded) {
             moveObj.currentPP = Math.max(0, (moveObj.currentPP || 0) - 1);
           }
           session.log.push({ side: 'user', userId, text: effectMsg });
@@ -1017,11 +1017,7 @@ router.post('/:battleId/forfeit', async (req, res) => {
     session.winnerId = userId === session.challengerId ? session.opponentId : session.challengerId;
     session.log.push({ side: 'user', userId, text: `<@${userId}> forfeited!` });
     await session.save();
-    
-    // Process battle rewards
-    await processBattleRewards(session);
-    await session.save(); // Save again after processing rewards
-    
+    // Do NOT process battle rewards on forfeit
     return res.json({ session });
   } catch (err) {
     return res.status(500).json({ error: err.message });
