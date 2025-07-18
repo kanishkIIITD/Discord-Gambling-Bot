@@ -276,8 +276,8 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     const { item } = req.body; // item: 'rare', 'ultra', 'xp', 'evolution'
     const now = new Date();
     const SHOP_ITEMS = {
-      rare: { name: '5 Rare Poké Balls', level: 5, price: 750, cooldownField: 'poke_rareball_ts' },
-      ultra: { name: '3 Ultra Poké Balls', level: 10, price: 600, cooldownField: 'poke_ultraball_ts' },
+      rare: { name: '5 Rare Poké Balls', level: 5, price: 500, cooldownField: 'poke_rareball_ts' },
+      ultra: { name: '3 Ultra Poké Balls', level: 10, price: 450, cooldownField: 'poke_ultraball_ts' },
       xp: { name: 'XP Booster', level: 15, price: 100, cooldownField: 'poke_xp_booster_ts' },
       evolution: { name: "Evolver's Ring", level: 20, price: 200, cooldownField: 'poke_daily_ring_ts' },
     };
@@ -338,22 +338,28 @@ router.post('/:discordId/evolve-duplicate', requireGuildId, async (req, res) => 
       return res.status(403).json({ message: 'Your Evolver\'s Ring has no charges left. Buy a new one tomorrow.' });
     }
     // --- Evolution requirements ---
-    const stageReqs = [null, 8, 5, 3]; // index: stage (1-based)
-    const chargeReqs = [null, 1, 1, 2];
-    if (!stage || stage < 1 || stage > 3) return res.status(400).json({ message: 'Invalid evolution stage.' });
-    const neededDupes = stageReqs[stage];
-    const neededCharges = chargeReqs[stage];
-    if (count !== neededDupes) return res.status(400).json({ message: `Stage ${stage} evolution requires ${neededDupes} duplicates.` });
-    if (user.poke_ring_charges < neededCharges) return res.status(403).json({ message: `Not enough ring charges. Need ${neededCharges}.` });
+    const rarityMultipliers = {
+      common: 1,
+      uncommon: 2,
+      rare: 4,
+      legendary: null // lockout
+    };
+    const baseValue = 3;
     // --- Fetch Pokémon and validate ---
     const pokemons = await Pokemon.find({ discordId, guildId, pokemonId, isShiny });
+    if (!pokemons.length) return res.status(404).json({ message: 'No Pokémon found to evolve.' });
+    const spawnInfo = require('../utils/pokeApi').getCustomSpawnInfo ? require('../utils/pokeApi').getCustomSpawnInfo(pokemons[0]?.name) : null;
+    const rarity = spawnInfo?.rarity || 'common';
+    const multiplier = rarityMultipliers[rarity];
+    if (multiplier == null) {
+      return res.status(403).json({ message: 'Legendary Pokémon cannot use duplicate evolution.' });
+    }
+    const neededDupes = baseValue * multiplier;
+    const neededCharges = 1; // Keep as 1 for all
+    if (count !== neededDupes) return res.status(400).json({ message: `${rarity.charAt(0).toUpperCase() + rarity.slice(1)} Pokémon require ${neededDupes} duplicates to evolve.` });
+    if (user.poke_ring_charges < neededCharges) return res.status(403).json({ message: `Not enough ring charges. Need ${neededCharges}.` });
     const totalDupes = pokemons.reduce((sum, p) => sum + (p.count || 1), 0);
     if (totalDupes < neededDupes) return res.status(403).json({ message: `You need at least ${neededDupes} duplicates to evolve.` });
-    // --- Legendary/Mythical lockout ---
-    const spawnInfo = require('../utils/pokeApi').getCustomSpawnInfo ? require('../utils/pokeApi').getCustomSpawnInfo(pokemons[0]?.name) : null;
-    if (spawnInfo && (spawnInfo.rarity === 'legendary' || spawnInfo.rarity === 'mythical')) {
-      return res.status(403).json({ message: 'Legendary/Mythical species cannot use duplicate evolution.' });
-    }
     // --- Weekly cap ---
     const weekKey = String(pokemonId);
     const evolMap = user.poke_weekly_evolutions || {};

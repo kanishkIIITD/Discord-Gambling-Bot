@@ -33,16 +33,25 @@ module.exports = {
     if (!hasRing || ringCharges <= 0) {
       return interaction.editReply('You do not have an active Evolver\'s Ring or you are out of charges. Buy one from /pokeshop!');
     }
+    // Rarity-based requirements
+    const rarityMultipliers = {
+      common: 1,
+      uncommon: 2,
+      rare: 4,
+      legendary: null // lockout
+    };
+    const baseValue = 3;
     // Filter eligible Pokémon (duplicates, not legendary, not final stage, etc.)
-    const stageReqs = { 1: 8, 2: 5, 3: 3 };
     const eligible = pokedex.filter(mon => {
       const pokeName = mon.name?.toLowerCase();
-      const stage = customSpawnRates[pokeName]?.evolutionStage || 1;
-      const requiredDupes = stageReqs[stage] || 8;
-      return (mon.count || 1) >= requiredDupes && !mon.isLegendary && !mon.isFinalStage;
+      const rarity = customSpawnRates[pokeName]?.rarity || 'common';
+      const multiplier = rarityMultipliers[rarity];
+      if (multiplier == null) return false; // legendary lockout
+      const requiredDupes = baseValue * multiplier;
+      return (mon.count || 1) >= requiredDupes;
     });
     if (eligible.length === 0) {
-      return interaction.editReply('You do not have any eligible duplicate Pokémon to evolve. You need at least 2 of a non-legendary, non-final-stage Pokémon.');
+      return interaction.editReply('You do not have any eligible duplicate Pokémon to evolve. You need enough duplicates of a non-legendary Pokémon.');
     }
     // Build select menu
     const options = eligible.map(mon => ({
@@ -68,19 +77,17 @@ module.exports = {
       const selected = pokedex.find(mon => String(mon.pokemonId) === String(pokemonId) && !!mon.isShiny === isShiny);
       // Get name for config lookup
       const pokeName = selected?.name?.toLowerCase();
-      // Get evolution stage from config (default 1)
-      const stage = customSpawnRates[pokeName]?.evolutionStage || 1;
-      // Reverse requirements: stage 1 = 8, stage 2 = 5, stage 3 = 3
-      const stageReqs = { 1: 8, 2: 5, 3: 3 };
-      const count = stageReqs[stage] || 8;
+      const rarity = customSpawnRates[pokeName]?.rarity || 'common';
+      const multiplier = rarityMultipliers[rarity];
+      const count = baseValue * multiplier;
       await i.deferUpdate();
       // Call backend evolution endpoint
       try {
         const res = await axios.post(`${backendUrl}/users/${userId}/evolve-duplicate`, {
           pokemonId: Number(pokemonId),
           isShiny,
-          stage,
-          count
+          count,
+          stage: 1 // backend ignores this
         }, { headers: { 'x-guild-id': guildId } });
         const { evolved, ringCharges } = res.data;
         // Fetch evolved Pokémon data for art and details

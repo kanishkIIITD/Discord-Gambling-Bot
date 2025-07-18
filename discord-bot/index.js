@@ -1010,14 +1010,8 @@ client.on('interactionCreate', async interaction => {
 							const otherPoke = session2.turn === 'challenger' ? opponentPoke : challengerPoke;
 							const turnTeam = session2.turn === 'challenger' ? session2.challengerPokemons : session2.opponentPokemons;
 							const otherTeam = session2.turn === 'challenger' ? session2.opponentPokemons : session2.challengerPokemons;
-							let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
-							let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
-							if (turnPoke.isShiny) {
-								turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${turnPoke.pokemonId}.png`;
-							}
-							if (otherPoke.isShiny) {
-								otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
-							}
+							let turnImg = getShowdownGif(turnPoke.name, turnPoke.isShiny);
+							let otherImg = getShowdownGif(otherPoke.name, otherPoke.isShiny);
 							const battleEmbed = new EmbedBuilder()
 								.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 								.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
@@ -1102,14 +1096,8 @@ client.on('interactionCreate', async interaction => {
 				const otherPoke = session.turn === 'challenger' ? opponentPoke : challengerPoke;
 				const turnTeam = session.turn === 'challenger' ? session.challengerPokemons : session.opponentPokemons;
 				const otherTeam = session.turn === 'challenger' ? session.opponentPokemons : session.challengerPokemons;
-				let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
-				let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
-				if (turnPoke.isShiny) {
-					turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${turnPoke.pokemonId}.png`;
-				}
-				if (otherPoke.isShiny) {
-					otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
-				}
+				let turnImg = getShowdownGif(turnPoke.name, turnPoke.isShiny);
+				let otherImg = getShowdownGif(otherPoke.name, otherPoke.isShiny);
 				const logText = (session.log && session.log.length) ? session.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 				const battleEmbed = new EmbedBuilder()
 					.setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
@@ -1310,14 +1298,8 @@ client.on('interactionCreate', async interaction => {
 				: updatedSession.challengerPokemons[updatedSession.activeChallengerIndex || 0];
 			const turnTeam = updatedSession.turn === 'challenger' ? updatedSession.challengerPokemons : updatedSession.opponentPokemons;
 			const otherTeam = updatedSession.turn === 'challenger' ? updatedSession.opponentPokemons : updatedSession.challengerPokemons;
-			let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
-			let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
-			if (turnPoke.isShiny) {
-				turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${turnPoke.pokemonId}.png`;
-			}
-			if (otherPoke.isShiny) {
-				otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
-			}
+			let turnImg = getShowdownGif(turnPoke.name, turnPoke.isShiny);
+			let otherImg = getShowdownGif(otherPoke.name, otherPoke.isShiny);
 			const battleEmbed = new EmbedBuilder()
 				.setTitle(`${updatedSession.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				.setImage(turnImg)
@@ -1457,14 +1439,8 @@ client.on('interactionCreate', async interaction => {
 			const otherPoke = session2.turn === 'challenger' ? opponentPoke : challengerPoke;
 			const turnTeam = session2.turn === 'challenger' ? session2.challengerPokemons : session2.opponentPokemons;
 			const otherTeam = session2.turn === 'challenger' ? session2.opponentPokemons : session2.challengerPokemons;
-			let turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${turnPoke.pokemonId}.png`;
-			let otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${otherPoke.pokemonId}.png`;
-			if (turnPoke.isShiny) {
-				turnImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${turnPoke.pokemonId}.png`;
-			}
-			if (otherPoke.isShiny) {
-				otherImg = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${otherPoke.pokemonId}.png`;
-			}
+			let turnImg = getShowdownGif(turnPoke.name, turnPoke.isShiny);
+			let otherImg = getShowdownGif(otherPoke.name, otherPoke.isShiny);
 			const battleEmbed = new EmbedBuilder()
 				.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
@@ -4492,5 +4468,13 @@ function formatBattleLogLine(log, currentTurnUserId) {
 function getAliveCount(pokemons) {
   if (!Array.isArray(pokemons)) return 0;
   return pokemons.filter(p => p.currentHp > 0).length;
+}
+
+// Helper to get Showdown animated GIF URL
+function getShowdownGif(name, isShiny) {
+  const showdownName = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+  return isShiny
+    ? `https://play.pokemonshowdown.com/sprites/ani-shiny/${showdownName}.gif`
+    : `https://play.pokemonshowdown.com/sprites/ani/${showdownName}.gif`;
 }
 

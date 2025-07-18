@@ -2,8 +2,8 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const axios = require('axios');
 
 const SHOP_ITEMS = [
-  { key: 'rare', name: '5 Rare Poké Balls', level: 5, price: 750, effect: '1.25x catch rate', cooldownField: 'poke_rareball_ts' },
-  { key: 'ultra', name: '3 Ultra Poké Balls', level: 10, price: 600, effect: '1.5x catch rate', cooldownField: 'poke_ultraball_ts' },
+  { key: 'rare', name: '5 Rare Poké Balls', level: 5, price: 500, effect: '1.25x catch rate', cooldownField: 'poke_rareball_ts' },
+  { key: 'ultra', name: '3 Ultra Poké Balls', level: 10, price: 450, effect: '1.5x catch rate', cooldownField: 'poke_ultraball_ts' },
   { key: 'xp', name: 'XP Booster', level: 15, price: 100, effect: '2x XP (1 battle/catch)', cooldownField: 'poke_xp_booster_ts' },
   { key: 'evolution', name: "Evolver's Ring", level: 20, price: 200, effect: 'Evolve with duplicates', cooldownField: 'poke_daily_ring_ts' },
 ];

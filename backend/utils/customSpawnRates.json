@@ -192,27 +192,27 @@
     "evolutionStage": 1
   },
   "bulbasaur": {
-    "spawn": 10,
+    "spawn": 4,
     "catchRate": 0.07,
-    "rarity": "uncommon",
-    "xpYield": 25,
-    "dustYield": 20,
+    "rarity": "rare",
+    "xpYield": 50,
+    "dustYield": 50,
     "evolutionStage": 1
   },
   "charmander": {
-    "spawn": 10,
+    "spawn": 4,
     "catchRate": 0.07,
-    "rarity": "uncommon",
-    "xpYield": 25,
-    "dustYield": 20,
+    "rarity": "rare",
+    "xpYield": 50,
+    "dustYield": 50,
     "evolutionStage": 1
   },
   "squirtle": {
-    "spawn": 10,
+    "spawn": 4,
     "catchRate": 0.07,
-    "rarity": "uncommon",
-    "xpYield": 25,
-    "dustYield": 20,
+    "rarity": "rare",
+    "xpYield": 50,
+    "dustYield": 50,
     "evolutionStage": 1
   },
   "ivysaur": {
@@ -425,7 +425,7 @@
   },
   "mew": {
     "spawn": 1,
-    "catchRate": 0.07,
+    "catchRate": 0.03,
     "rarity": "legendary",
     "xpYield": 100,
     "dustYield": 100,
@@ -528,11 +528,11 @@
     "evolutionStage": 2
   },
   "raticate": {
-    "spawn": 2,
+    "spawn": 6,
     "catchRate": 0.2,
-    "rarity": "rare",
-    "xpYield": 50,
-    "dustYield": 50,
+    "rarity": "uncommon",
+    "xpYield": 25,
+    "dustYield": 20,
     "evolutionStage": 2
   },
   "fearow": {
@@ -872,11 +872,11 @@
     "evolutionStage": 2
   },
   "farfetchd": {
-    "spawn": 6,
+    "spawn": 4,
     "catchRate": 0.07,
-    "rarity": "uncommon",
-    "xpYield": 25,
-    "dustYield": 20,
+    "rarity": "rare",
+    "xpYield": 50,
+    "dustYield": 50,
     "evolutionStage": 1
   },
   "doduo": {

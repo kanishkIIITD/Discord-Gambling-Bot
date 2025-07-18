@@ -441,13 +441,35 @@ const moveEffectRegistry = {
   "growl":           { type: "boost",      stat: "attack",       delta: -1, target: "foe",  message: "Attack fell!" },
   "tail-whip":       { type: "boost",      stat: "defense",      delta: -1, target: "foe",  message: "Defense fell!" },
   "calm-mind":       { type: "multi-boost", boosts: [{ stat: "specialAttack", delta: 1 }, { stat: "specialDefense", delta: 1 }], target: "self", message: "Sp. Atk and Sp. Def rose!" },
-
-  // Status-inflicting moves
+  // --- Added Stat-Altering Moves ---
+  "leer":            { type: "boost",      stat: "defense",      delta: -1, target: "foe",  message: "Defense fell!" },
+  "howl":            { type: "boost",      stat: "attack",       delta: 1, target: "self", message: "Attack rose!" },
+  "work-up":         { type: "multi-boost", boosts: [{ stat: "attack", delta: 1 }, { stat: "specialAttack", delta: 1 }], target: "self", message: "Attack and Sp. Atk rose!" },
+  "agility":         { type: "boost",      stat: "speed",        delta: 2, target: "self", message: "Speed sharply rose!" },
+  "iron-defense":    { type: "boost",      stat: "defense",      delta: 2, target: "self", message: "Defense sharply rose!" },
+  "nasty-plot":      { type: "boost",      stat: "specialAttack", delta: 2, target: "self", message: "Sp. Atk sharply rose!" },
+  "amnesia":         { type: "boost",      stat: "specialDefense", delta: 2, target: "self", message: "Sp. Def sharply rose!" },
+  "cotton-guard":    { type: "boost",      stat: "defense",      delta: 3, target: "self", message: "Defense drastically rose!" },
+  "baby-doll-eyes":  { type: "boost",      stat: "attack",       delta: -1, target: "foe",  message: "Attack fell! (Priority)" },
+  // Status Infliction
   "thunder-wave":    { type: "status",     status: "paralyzed",     target: "foe", chance: 100, message: "was paralyzed! It may be unable to move!" },
   "toxic":           { type: "status",     status: "badly-poisoned", target: "foe", chance: 90,  message: "was badly poisoned!" },
   "will-o-wisp":     { type: "status",     status: "burned",        target: "foe", chance: 100, message: "was burned!" },
-
-  // Healing moves
+  // --- Added Status Infliction Moves ---
+  "sleep-powder":    { type: "status",     status: "asleep",        target: "foe", chance: 75,  message: "fell asleep!" },
+  "hypnosis":        { type: "status",     status: "asleep",        target: "foe", chance: 60,  message: "fell asleep!" },
+  "poison-powder":   { type: "status",     status: "poisoned",      target: "foe", chance: 75,  message: "was poisoned!" },
+  "stun-spore":      { type: "status",     status: "paralyzed",     target: "foe", chance: 75,  message: "was paralyzed!" },
+  "glare":           { type: "status",     status: "paralyzed",     target: "foe", chance: 100, message: "was paralyzed!" },
+  "spore":           { type: "status",     status: "asleep",        target: "foe", chance: 100, message: "fell asleep!" },
+  // Needs special implementation: confusion logic
+  // "confuse-ray":     { type: "status",     status: "confused",      target: "foe", chance: 100, message: "became confused!" },
+  // "swagger":         { type: "status",     status: "confused",      target: "foe", chance: 90,  message: "became confused! (Attack rose!)" },
+  // "supersonic":      { type: "status",     status: "confused",      target: "foe", chance: 55,  message: "became confused!" },
+  // Needs special implementation: delayed sleep
+  // "yawn":            { type: "status",     status: "asleep",        target: "foe", chance: 100, message: "became drowsy! Will fall asleep next turn." },
+  "lovely-kiss":     { type: "status",     status: "asleep",        target: "foe", chance: 75,  message: "fell asleep!" },
+  // Recovery / Heal
   "rest":            { type: "heal",       amount: "full",            target: "self", message: "fell asleep and restored HP!" },
   "drain-punch":     { type: "drain",      percent: 50,               target: "foe",  message: "had its health drained!" },
 
@@ -461,13 +483,26 @@ const moveEffectRegistry = {
   // Stealth and hazards
   "spikes":          { type: "hazard",     hazard: "spikes",          layers: 1, duration: null, message: "Spikes were scattered on the foe's side!" },
   "toxic-spikes":    { type: "hazard",     hazard: "toxic-spikes",    layers: 1, duration: null, message: "Toxic Spikes were scattered around the foe!" },
-
-  // Weather/terrain moves
+  // --- Added Recovery / Heal Moves ---
+  "recover":         { type: "heal",       amount: 50, target: "self", message: "restored its HP by half!" },
+  "soft-boiled":     { type: "heal",       amount: 50, target: "self", message: "restored its HP by half!" },
+  // Needs special implementation: flying type removal
+  // "roost":           { type: "heal",       amount: 50, target: "self", message: "restored its HP by half! (Flying type removed for 1 turn)" },
+  // Needs special implementation: delayed healing
+  // "wish":            { type: "heal",       amount: 50, target: "self", message: "made a wish! HP will be restored next turn." },
+  // Weather / Terrain
   "rain-dance":      { type: "weather",    weather: "rain",   duration: 5, message: "It started to rain!" },
   "sunny-day":       { type: "weather",    weather: "sunny",  duration: 5, message: "The sunlight turned harsh!" },
   "sandstorm":       { type: "weather",    weather: "sandstorm", duration: 5, message: "A sandstorm brewed!" },
   "electric-terrain":{ type: "terrain",   terrain: "electric", duration: 5, message: "An electric current runs across the battlefield!" },
-
+  "hail":            { type: "weather",    weather: "hail", duration: 5, message: "It started to hail!" },
+  // Needs special implementation: terrain effects
+  // "grassy-terrain":  { type: "terrain",   terrain: "grassy", duration: 5, message: "The battlefield became grassy!" },
+  // "misty-terrain":   { type: "terrain",   terrain: "misty", duration: 5, message: "A mist swirled around the battlefield!" },
+  // "psychic-terrain": { type: "terrain",   terrain: "psychic", duration: 5, message: "A psychic aura enveloped the battlefield!" },
+  // Needs special implementation: field effects
+  // "trick-room":      { type: "field",     field: "trick-room", duration: 5, message: "Twisted the dimensions! Move order is reversed for 5 turns." },
+  // "tailwind":        { type: "field",     field: "tailwind", duration: 4, message: "A tailwind blew from behind! Team's Speed is doubled for 4 turns." },
   // Damage + status example
   "scald":           { type: "damage+status", status: "burned",   target: "foe", chance: 30, message: "was burned!" },
 
