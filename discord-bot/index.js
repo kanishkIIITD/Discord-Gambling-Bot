@@ -33,9 +33,11 @@ const setpokechannelCommand = require('./commands/setpokechannel');
 const pokebattleCommand = require('./commands/pokebattle');
 const poketradeCommand = require('./commands/poketrade');
 const shopCommand = require('./commands/shop');
+const pokeshopdailyCommand = require('./commands/pokeshopdaily');
 const pokeevolveCommand = require('./commands/pokeevolve');
 const questsCommand = require('./commands/quests');
 const pokesellduplicatesCommand = require('./commands/pokesellduplicates');
+const pokestatsCommand = require('./commands/pokestats');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 const pokeCache = require('./utils/pokeCache');
@@ -3828,27 +3830,28 @@ client.on('interactionCreate', async interaction => {
 							'`/pokespawn` - (Admin) Manually spawn a wild Pokémon in the current channel with 1 hour cooldown\n' +
 							'`/setpokechannel` - (Admin) Set the channel for automatic Pokémon spawns (every 5-10 min)'
 						},
-						{ name: '�� Catching', value:
+						{ name: '🎣 Catching', value:
 							'`/pokecatch` - Attempt to catch the currently spawned Pokémon in this channel. Shiny Pokémon are extremely rare!'
 						},
-						{ name: '📖 Pokédex', value:
+						{ name: '📖 Pokédex & Stats', value:
 							'`/pokedex` - View your caught Pokémon, including shiny count and stats. Paginated for easy browsing.\n' +
+							'`/pokestats` - View detailed Pokémon statistics and collection information\n' +
 							'`/setpokedexpokemon` - Choose which Pokémon (including shiny/normal) is always displayed as the main artwork in your Pokédex.'
 						},
 						{ name: '👾 Battling', value:
 							'`/pokebattle` - Challenge another user to a Pokémon battle! (Pokémon per side: 1-5)'
 						},
-						{ name: '🔄 Trading', value:
-							'`/poketrade` - Trade Pokémon with another user!'
+						{ name: '🔄 Trading & Management', value:
+							'`/poketrade` - Trade Pokémon with another user!\n' +
+							'`/pokesellduplicates` - Sell duplicate Pokémon for stardust (requires Evolver\'s Ring)'
 						},
-						{ name: '🛒 Shop', value:
-							'`/pokeshop` - View and buy special progression items (Poké Balls, XP Booster, Evolver\'s Ring)!',
+						{ name: '🛒 Shops', value:
+							'`/pokeshop` - View and buy special progression items (Poké Balls, XP Booster, Evolver\'s Ring and more)!\n' +
+							'`/pokeshopdaily` - Daily rotating Pokémon shop with common, uncommon, and rare Pokémon (1 per rarity per day)'
 						},
-						{ name: '🎯 Quests', value:
-							'`/pokequests` - View your Pokémon quests and claim rewards!'
-						},
-						{ name:"Evolve", value:
-							'`/pokeevolve` - Evolve your Pokémon!'
+						{ name: '🎯 Quests & Progression', value:
+							'`/pokequests` - View your Pokémon quests and claim rewards!\n' +
+							'`/pokeevolve` - Evolve your Pokémon using duplicates!'
 						},
 					],
 					timestamp: new Date()
@@ -4314,6 +4317,8 @@ client.on('interactionCreate', async interaction => {
 		await poketradeCommand.execute(interaction);
 	} else if (commandName === 'pokeshop') {
 		await shopCommand.execute(interaction);
+	} else if (commandName === 'pokeshopdaily') {
+		await pokeshopdailyCommand.execute(interaction);
 	} else if (commandName === 'pokeevolve') {
 		await pokeevolveCommand.execute(interaction);
 	} else if (commandName === 'pokequests') {
@@ -4324,6 +4329,8 @@ client.on('interactionCreate', async interaction => {
 		await spawnCustomPokemonCommand.execute(interaction);
 	} else if (commandName === 'pokesellduplicates') {
 		await pokesellduplicatesCommand.execute(interaction);
+	} else if (commandName === 'pokestats') {
+		await pokestatsCommand.execute(interaction);
 	}
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);

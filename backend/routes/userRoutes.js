@@ -21,6 +21,7 @@ const {
   calculateBailAmount
 } = require('../utils/gamblingUtils');
 const Pokemon = require('../models/Pokemon');
+const DailyShopPurchase = require('../models/DailyShopPurchase');
 const pokeApi = require('../utils/pokeApi');
 
 const DAILY_GOALS = { catch: 10, battle: 3, evolve: 2 };
@@ -96,11 +97,11 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
     if (ballType === 'rare') {
       ballField = 'poke_rareball_uses';
       ballLabel = 'Rare Poké Ball';
-      ballBonus = 1.25;
+      ballBonus = 1.75;
     } else if (ballType === 'ultra') {
       ballField = 'poke_ultraball_uses';
       ballLabel = 'Ultra Poké Ball';
-      ballBonus = 1.5;
+      ballBonus = 2.0;
     }
     if (ballField) {
       if ((user[ballField] || 0) <= 0) {
@@ -276,10 +277,20 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     const { item } = req.body; // item: 'rare', 'ultra', 'xp', 'evolution'
     const now = new Date();
     const SHOP_ITEMS = {
-      rare: { name: '5 Rare Poké Balls', level: 5, price: 500, cooldownField: 'poke_rareball_ts' },
-      ultra: { name: '3 Ultra Poké Balls', level: 10, price: 450, cooldownField: 'poke_ultraball_ts' },
+      rare: { name: '5 Rare Poké Balls', level: 5, price: 250, cooldownField: 'poke_rareball_ts' },
+      ultra: { name: '3 Ultra Poké Balls', level: 10, price: 225, cooldownField: 'poke_ultraball_ts' },
       xp: { name: 'XP Booster', level: 15, price: 100, cooldownField: 'poke_xp_booster_ts' },
       evolution: { name: "Evolver's Ring", level: 20, price: 200, cooldownField: 'poke_daily_ring_ts' },
+      // EV-boosting items
+      hp_up: { name: 'HP Up', level: 25, price: 150, cooldownField: 'poke_hp_up_ts' },
+      protein: { name: 'Protein', level: 25, price: 150, cooldownField: 'poke_protein_ts' },
+      iron: { name: 'Iron', level: 25, price: 150, cooldownField: 'poke_iron_ts' },
+      calcium: { name: 'Calcium', level: 25, price: 150, cooldownField: 'poke_calcium_ts' },
+      zinc: { name: 'Zinc', level: 25, price: 150, cooldownField: 'poke_zinc_ts' },
+      carbos: { name: 'Carbos', level: 25, price: 150, cooldownField: 'poke_carbos_ts' },
+      rare_candy: { name: 'Rare Candy', level: 30, price: 500, cooldownField: 'poke_rare_candy_ts' },
+      master_ball: { name: 'Master Ball', level: 35, price: 1000, cooldownField: 'poke_master_ball_ts' },
+      reset_bag: { name: 'Reset Bag', level: 20, price: 300, cooldownField: 'poke_reset_bag_ts' },
     };
     if (!SHOP_ITEMS[item]) {
       return res.status(400).json({ message: 'Invalid shop item.' });
@@ -290,10 +301,21 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     if ((user.poke_level || 1) < SHOP_ITEMS[item].level) {
       return res.status(403).json({ message: `You must be level ${SHOP_ITEMS[item].level} to buy this item.` });
     }
-    // Check cooldown (1 per 12 hours)
+    // Check cooldown (different for different item types)
     const lastTs = user[SHOP_ITEMS[item].cooldownField];
-    if (lastTs && now - lastTs < 12 * 60 * 60 * 1000) {
-      return res.status(429).json({ message: `You can only buy 1 ${SHOP_ITEMS[item].name} every 12 hours.` });
+    let cooldownHours = 12; // Default cooldown
+    
+    // Set different cooldowns for EV items
+    if (item.includes('_')) {
+      // EV items have different cooldowns
+      if (item === 'rare_candy') cooldownHours = 12;
+      else if (item === 'master_ball') cooldownHours = 24;
+      else if (item === 'reset_bag') cooldownHours = 48;
+      else cooldownHours = 6; // Vitamins: 6 hours
+    }
+    
+    if (lastTs && now - lastTs < cooldownHours * 60 * 60 * 1000) {
+      return res.status(429).json({ message: `You can only buy 1 ${SHOP_ITEMS[item].name} every ${cooldownHours} hours.` });
     }
     // Check stardust
     if ((user.poke_stardust || 0) < SHOP_ITEMS[item].price) {
@@ -302,20 +324,223 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     // Deduct stardust and set cooldown
     user.poke_stardust -= SHOP_ITEMS[item].price;
     user[SHOP_ITEMS[item].cooldownField] = now;
+    
+    // Add items to existing stack (make them stackable)
     if (item === 'evolution') {
-      user.poke_ring_charges = 3;
+      user.poke_ring_charges = (user.poke_ring_charges || 0) + 3;
     } else if (item === 'rare') {
-      user.poke_rareball_uses = 5;
+      user.poke_rareball_uses = (user.poke_rareball_uses || 0) + 5;
     } else if (item === 'ultra') {
-      user.poke_ultraball_uses = 3;
+      user.poke_ultraball_uses = (user.poke_ultraball_uses || 0) + 3;
     } else if (item === 'xp') {
-      user.poke_xp_booster_uses = 1;
-      }
-      await user.save();
+      user.poke_xp_booster_uses = (user.poke_xp_booster_uses || 0) + 1;
+    } else if (item === 'hp_up') {
+      user.poke_hp_up_uses = (user.poke_hp_up_uses || 0) + 1;
+    } else if (item === 'protein') {
+      user.poke_protein_uses = (user.poke_protein_uses || 0) + 1;
+    } else if (item === 'iron') {
+      user.poke_iron_uses = (user.poke_iron_uses || 0) + 1;
+    } else if (item === 'calcium') {
+      user.poke_calcium_uses = (user.poke_calcium_uses || 0) + 1;
+    } else if (item === 'zinc') {
+      user.poke_zinc_uses = (user.poke_zinc_uses || 0) + 1;
+    } else if (item === 'carbos') {
+      user.poke_carbos_uses = (user.poke_carbos_uses || 0) + 1;
+    } else if (item === 'rare_candy') {
+      user.poke_rare_candy_uses = (user.poke_rare_candy_uses || 0) + 1;
+    } else if (item === 'master_ball') {
+      user.poke_master_ball_uses = (user.poke_master_ball_uses || 0) + 1;
+    } else if (item === 'reset_bag') {
+      user.poke_reset_bag_uses = (user.poke_reset_bag_uses || 0) + 1;
+    }
+    
+    await user.save();
     return res.json({ message: `Successfully bought ${SHOP_ITEMS[item].name}!`, item: SHOP_ITEMS[item].name });
   } catch (error) {
     console.error('[Shop Buy] Error:', error);
     res.status(500).json({ message: 'Failed to buy shop item.' });
+  }
+});
+
+// POST /:discordId/pokemon/purchase - Purchase a Pokémon from the daily shop
+router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const { pokemonName, price, rarity } = req.body;
+    const now = new Date();
+
+    // Validate required fields
+    if (!pokemonName || !price || !rarity) {
+      return res.status(400).json({ message: 'Missing required fields: pokemonName, price, rarity' });
+    }
+
+    // Find user
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Check if user has enough stardust
+    if ((user.poke_stardust || 0) < price) {
+      return res.status(403).json({ message: `Not enough Stardust. Requires ${price}.` });
+    }
+
+    // Check daily limit for this rarity (1 per rarity per day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayKey = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    // Check if user has already purchased this rarity today
+    const existingPurchase = await DailyShopPurchase.findOne({
+      discordId,
+      guildId,
+      date: todayKey,
+      rarity
+    });
+    
+    if (existingPurchase) {
+      return res.status(429).json({ message: `You have already purchased a ${rarity} Pokémon today. Limit: 1 per rarity per day.` });
+    }
+
+    // Get Pokémon data from PokeAPI
+    const pokeApi = require('../utils/pokeApi');
+    let pokemonData;
+    try {
+      // Find the Pokémon ID by name
+      const customSpawnRates = require('../utils/customSpawnRates.json');
+      const pokemonInfo = customSpawnRates[pokemonName.toLowerCase()];
+      if (!pokemonInfo) {
+        return res.status(400).json({ message: 'Invalid Pokémon name.' });
+      }
+      
+      // Get the Pokémon ID by name using axios
+      const axios = require('axios');
+      const speciesResponse = await axios.get(`https://pokeapi.co/api/v2/pokemon-species/${pokemonName.toLowerCase()}`);
+      const speciesData = speciesResponse.data;
+      
+      // Then get the full Pokémon data using the ID
+      pokemonData = await pokeApi.getPokemonDataById(speciesData.id);
+    } catch (error) {
+      console.error('[Pokemon Purchase] Error fetching Pokémon data:', error);
+      return res.status(500).json({ message: 'Failed to fetch Pokémon data.' });
+    }
+
+    // Deduct stardust
+    user.poke_stardust -= price;
+
+    // Add Pokémon to user's collection
+    let existingPokemon = await Pokemon.findOne({ 
+      discordId, 
+      guildId, 
+      pokemonId: pokemonData.id,
+      isShiny: false 
+    });
+
+    if (existingPokemon) {
+      existingPokemon.count += 1;
+      await existingPokemon.save();
+    } else {
+      const newPokemon = new Pokemon({
+        user: user._id,
+        discordId,
+        guildId,
+        pokemonId: pokemonData.id,
+        name: pokemonData.name,
+        isShiny: false,
+        count: 1,
+        caughtAt: now,
+        // Generate random IVs and EVs
+        ivs: {
+          hp: Math.floor(Math.random() * 32),
+          attack: Math.floor(Math.random() * 32),
+          defense: Math.floor(Math.random() * 32),
+          spAttack: Math.floor(Math.random() * 32),
+          spDefense: Math.floor(Math.random() * 32),
+          speed: Math.floor(Math.random() * 32)
+        },
+        evs: {
+          hp: 0,
+          attack: 0,
+          defense: 0,
+          spAttack: 0,
+          spDefense: 0,
+          speed: 0
+        },
+        nature: require('../utils/pokeApi').randomNature ? require('../utils/pokeApi').randomNature() : 'hardy',
+        ability: pokemonData.abilities?.[0]?.ability?.name || 'unknown'
+      });
+      await newPokemon.save();
+    }
+
+    // Record the daily shop purchase
+    const dailyPurchase = new DailyShopPurchase({
+      user: user._id,
+      discordId,
+      guildId,
+      date: todayKey,
+      rarity,
+      pokemonName: pokemonData.name,
+      price: price,
+      purchasedAt: now
+    });
+    await dailyPurchase.save();
+
+    // Update quest progress
+    user.poke_quest_daily_catch = (user.poke_quest_daily_catch || 0) + 1;
+    user.poke_quest_weekly_catch = (user.poke_quest_weekly_catch || 0) + 1;
+
+    // Check if daily/weekly quests are completed
+    if (user.poke_quest_daily_catch >= 10) {
+      user.poke_quest_daily_completed = true;
+    }
+    if (user.poke_quest_weekly_catch >= 50) {
+      user.poke_quest_weekly_completed = true;
+    }
+
+    await user.save();
+
+    res.json({ 
+      message: `Successfully purchased ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} for ${price} Stardust!`,
+      pokemon: pokemonData.name,
+      price: price,
+      rarity: rarity
+    });
+
+  } catch (error) {
+    console.error('[Pokemon Purchase] Error:', error);
+    res.status(500).json({ message: 'Failed to purchase Pokémon.' });
+  }
+});
+
+// GET /:discordId/pokemon/daily-purchases/:date - Get daily shop purchases for a specific date
+router.get('/:discordId/pokemon/daily-purchases/:date', requireGuildId, async (req, res) => {
+  try {
+    const { discordId, date } = req.params;
+    const guildId = req.headers['x-guild-id'];
+
+    // Validate date format (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
+    // Find user
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Get daily purchases for the specified date
+    const purchases = await DailyShopPurchase.find({
+      discordId,
+      guildId,
+      date
+    }).select('rarity pokemonName price purchasedAt');
+
+    res.json({ purchases });
+  } catch (error) {
+    console.error('[Daily Purchases] Error:', error);
+    res.status(500).json({ message: 'Failed to fetch daily purchases.' });
   }
 });
 
@@ -469,6 +694,214 @@ router.get('/:discordId/pokedex', requireGuildId, async (req, res) => {
   } catch (error) {
     console.error('[Pokedex] Error:', error);
     res.status(500).json({ message: 'Failed to fetch pokedex.' });
+  }
+});
+
+// GET /:discordId/pokemon/:pokemonId/stats - Get detailed stats for a specific Pokemon
+router.get('/:discordId/pokemon/:pokemonId/stats', requireGuildId, async (req, res) => {
+  try {
+    const { discordId, pokemonId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const { isShiny = false } = req.query;
+    
+    // Find the Pokemon
+    const pokemon = await Pokemon.findOne({ 
+      discordId, 
+      guildId, 
+      pokemonId: parseInt(pokemonId), 
+      isShiny: isShiny === 'true' 
+    });
+    
+    if (!pokemon) {
+      return res.status(404).json({ message: 'Pokemon not found.' });
+    }
+    
+    // Get Pokemon data from PokeAPI
+    const pokeApi = require('../utils/pokeApi');
+    const pokemonData = await pokeApi.getPokemonDataById(pokemon.pokemonId);
+    
+    // Calculate stats using battleUtils
+    const { calculateStats } = require('../utils/battleUtils');
+    const stats = calculateStats(
+      pokemonData.stats,
+      50, // Level 50
+      pokemon.ivs,
+      pokemon.evs,
+      pokemon.nature,
+      pokemon.ability
+    );
+    
+    res.json({
+      pokemon: {
+        _id: pokemon._id,
+        pokemonId: pokemon.pokemonId,
+        name: pokemon.name,
+        isShiny: pokemon.isShiny,
+        caughtAt: pokemon.caughtAt,
+        count: pokemon.count
+      },
+      stats,
+      evs: pokemon.evs,
+      ivs: pokemon.ivs,
+      nature: pokemon.nature,
+      ability: pokemon.ability
+    });
+  } catch (error) {
+    console.error('[Pokemon Stats] Error:', error);
+    res.status(500).json({ message: 'Failed to fetch Pokemon stats.' });
+  }
+});
+
+// POST /:discordId/pokemon/:pokemonId/apply-ev-item - Apply EV item to a Pokemon
+router.post('/:discordId/pokemon/:pokemonId/apply-ev-item', requireGuildId, async (req, res) => {
+  try {
+    const { discordId, pokemonId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const { itemType, isShiny = false } = req.body;
+    
+    // Find user and Pokemon
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    
+    const pokemon = await Pokemon.findOne({ 
+      discordId, 
+      guildId, 
+      pokemonId: parseInt(pokemonId), 
+      isShiny 
+    });
+    
+    if (!pokemon) {
+      return res.status(404).json({ message: 'Pokemon not found.' });
+    }
+    
+    // Define EV item effects
+    const EV_ITEMS = {
+      hp_up: { stat: 'hp', amount: 10, usesField: 'poke_hp_up_uses' },
+      protein: { stat: 'attack', amount: 10, usesField: 'poke_protein_uses' },
+      iron: { stat: 'defense', amount: 10, usesField: 'poke_iron_uses' },
+      calcium: { stat: 'spAttack', amount: 10, usesField: 'poke_calcium_uses' },
+      zinc: { stat: 'spDefense', amount: 10, usesField: 'poke_zinc_uses' },
+      carbos: { stat: 'speed', amount: 10, usesField: 'poke_carbos_uses' },
+      rare_candy: { multi: true, amount: 4, usesField: 'poke_rare_candy_uses' },
+      master_ball: { multi: true, amount: 8, usesField: 'poke_master_ball_uses' },
+      reset_bag: { reset: true, usesField: 'poke_reset_bag_uses' }
+    };
+    
+    const item = EV_ITEMS[itemType];
+    if (!item) {
+      return res.status(400).json({ message: 'Invalid EV item type.' });
+    }
+    
+    // Check if user has the item
+    if (!user[item.usesField] || user[item.usesField] <= 0) {
+      return res.status(403).json({ message: `You don't have any ${itemType.replace('_', ' ')} items.` });
+    }
+    
+    // Handle reset bag
+    if (item.reset) {
+      pokemon.evs = {
+        hp: 0,
+        attack: 0,
+        defense: 0,
+        spAttack: 0,
+        spDefense: 0,
+        speed: 0
+      };
+      
+      // Add to EV history
+      pokemon.evHistory.push({
+        item: itemType,
+        stat: 'all',
+        amount: -Object.values(pokemon.evs).reduce((sum, ev) => sum + ev, 0), // Negative for reset
+        appliedAt: new Date()
+      });
+      
+      user[item.usesField]--;
+      await user.save();
+      await pokemon.save();
+      
+      return res.json({ 
+        message: `Reset all EVs for ${pokemon.name}!`,
+        evs: pokemon.evs
+      });
+    }
+    
+    // Handle multi-stat boosters
+    if (item.multi) {
+      const stats = ['hp', 'attack', 'defense', 'spAttack', 'spDefense', 'speed'];
+      let applied = 0;
+      
+      for (const stat of stats) {
+        if (pokemon.evs[stat] < 252) {
+          const spaceLeft = 252 - pokemon.evs[stat];
+          const toAdd = Math.min(item.amount, spaceLeft);
+          pokemon.evs[stat] += toAdd;
+          applied += toAdd;
+        }
+      }
+      
+      if (applied === 0) {
+        return res.status(400).json({ message: 'All stats are already maxed out (252 EVs).' });
+      }
+      
+      // Add to EV history
+      pokemon.evHistory.push({
+        item: itemType,
+        stat: 'all',
+        amount: applied,
+        appliedAt: new Date()
+      });
+      
+      user[item.usesField]--;
+      await user.save();
+      await pokemon.save();
+      
+      return res.json({ 
+        message: `Applied ${item.amount} EVs to all stats for ${pokemon.name}! (${applied} total EVs added)`,
+        evs: pokemon.evs
+      });
+    }
+    
+    // Handle single stat boosters
+    const currentEV = pokemon.evs[item.stat];
+    if (currentEV >= 252) {
+      return res.status(400).json({ message: `${item.stat} is already maxed out (252 EVs).` });
+    }
+    
+    const spaceLeft = 252 - currentEV;
+    const toAdd = Math.min(item.amount, spaceLeft);
+    
+    // Check total EV limit (510 max)
+    const totalEVs = Object.values(pokemon.evs).reduce((sum, ev) => sum + ev, 0);
+    if (totalEVs + toAdd > 510) {
+      return res.status(400).json({ message: 'Cannot exceed 510 total EVs.' });
+    }
+    
+    pokemon.evs[item.stat] += toAdd;
+    
+    // Add to EV history
+    pokemon.evHistory.push({
+      item: itemType,
+      stat: item.stat,
+      amount: toAdd,
+      appliedAt: new Date()
+    });
+    
+    user[item.usesField]--;
+    
+    await user.save();
+    await pokemon.save();
+    
+    res.json({ 
+      message: `Applied ${toAdd} EVs to ${item.stat} for ${pokemon.name}!`,
+      evs: pokemon.evs
+    });
+    
+  } catch (error) {
+    console.error('[Apply EV Item] Error:', error);
+    res.status(500).json({ message: 'Failed to apply EV item.' });
   }
 });
 

@@ -127,6 +127,26 @@ const userSchema = new mongoose.Schema({
   poke_rareball_uses: { type: Number, default: 0 }, // Rare Poké Ball uses left
   poke_ultraball_uses: { type: Number, default: 0 }, // Ultra Poké Ball uses left
   poke_xp_booster_uses: { type: Number, default: 0 }, // XP Booster uses left
+  // EV item cooldown timestamps
+  poke_hp_up_ts: { type: Date, default: null },
+  poke_protein_ts: { type: Date, default: null },
+  poke_iron_ts: { type: Date, default: null },
+  poke_calcium_ts: { type: Date, default: null },
+  poke_zinc_ts: { type: Date, default: null },
+  poke_carbos_ts: { type: Date, default: null },
+  poke_rare_candy_ts: { type: Date, default: null },
+  poke_master_ball_ts: { type: Date, default: null },
+  poke_reset_bag_ts: { type: Date, default: null },
+  // EV item uses left
+  poke_hp_up_uses: { type: Number, default: 0 },
+  poke_protein_uses: { type: Number, default: 0 },
+  poke_iron_uses: { type: Number, default: 0 },
+  poke_calcium_uses: { type: Number, default: 0 },
+  poke_zinc_uses: { type: Number, default: 0 },
+  poke_carbos_uses: { type: Number, default: 0 },
+  poke_rare_candy_uses: { type: Number, default: 0 },
+  poke_master_ball_uses: { type: Number, default: 0 },
+  poke_reset_bag_uses: { type: Number, default: 0 },
 });
 
 userSchema.index({ discordId: 1, guildId: 1 }, { unique: true });

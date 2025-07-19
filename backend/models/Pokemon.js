@@ -38,6 +38,13 @@ const pokemonSchema = new mongoose.Schema({
     accuracy:  { type: Number, default: 0 },
     evasion:   { type: Number, default: 0 },
   },
+  // EV history tracking
+  evHistory: [{
+    item: { type: String, required: true }, // e.g., 'hp_up', 'protein', 'rare_candy'
+    stat: { type: String, required: true }, // e.g., 'hp', 'attack', 'all'
+    amount: { type: Number, required: true }, // EVs added
+    appliedAt: { type: Date, default: Date.now }
+  }],
   // Optionally add more fields: region, dexNum, types, etc.
 });
 

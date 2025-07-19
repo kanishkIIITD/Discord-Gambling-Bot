@@ -8,10 +8,12 @@ const pokedexCommand = require('./commands/pokedex');
 const { setSelectPokedexPokemonCommand } = require('./commands/pokedex');
 const { spawnCustomPokemonCommand } = require('./commands/pokespawn');
 const shopCommand = require('./commands/shop');
+const pokeshopdailyCommand = require('./commands/pokeshopdaily');
 const pokeevolveCommand = require('./commands/pokeevolve');
 const questsCommand = require('./commands/quests');
 const pokebattleCommand = require('./commands/pokebattle');
 const pokesellduplicatesCommand = require('./commands/pokesellduplicates');
+const pokestatsCommand = require('./commands/pokestats');
 const commands = [
 	{
 		name: 'balance',
@@ -992,11 +994,13 @@ const commands = [
 commands.push(setSelectPokedexPokemonCommand.data.toJSON());
 commands.push(spawnCustomPokemonCommand.data.toJSON());
 commands.push(shopCommand.data.toJSON());
+commands.push(pokeshopdailyCommand.data.toJSON());
 commands.push(pokeevolveCommand.data.toJSON());
 commands.push(questsCommand.data.toJSON());
 commands.push(pokebattleCommand.data.toJSON());
 commands.push(pokedexCommand.data.toJSON());
 commands.push(pokesellduplicatesCommand.data.toJSON());
+commands.push(pokestatsCommand.data.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
 

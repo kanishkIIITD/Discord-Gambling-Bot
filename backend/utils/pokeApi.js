@@ -101,6 +101,18 @@ async function getNextEvolutionId(currentId, stage) {
   return findEvolution(evoChainData.chain, currentId, 1);
 }
 
+// Helper to generate a random nature
+function randomNature() {
+  const natures = [
+    'hardy', 'lonely', 'brave', 'adamant', 'naughty',
+    'bold', 'docile', 'relaxed', 'impish', 'lax',
+    'timid', 'hasty', 'serious', 'jolly', 'naive',
+    'modest', 'mild', 'quiet', 'bashful', 'rash',
+    'calm', 'gentle', 'sassy', 'careful', 'quirky'
+  ];
+  return natures[Math.floor(Math.random() * natures.length)];
+}
+
 module.exports = {
   getPokemonDataById,
   getMoveDataByUrl,
@@ -109,4 +121,5 @@ module.exports = {
   getNextLevelXp,
   getUnlockedShopItems,
   getNextEvolutionId,
+  randomNature,
 }; 
