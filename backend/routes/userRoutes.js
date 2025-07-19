@@ -564,12 +564,12 @@ router.post('/:discordId/evolve-duplicate', requireGuildId, async (req, res) => 
     }
     // --- Evolution requirements ---
     const rarityMultipliers = {
-      common: 1,
-      uncommon: 2,
+      common: 6,
+      uncommon: 5,
       rare: 4,
       legendary: null // lockout
     };
-    const baseValue = 3;
+    const baseValue = 1;
     // --- Fetch Pokémon and validate ---
     const pokemons = await Pokemon.find({ discordId, guildId, pokemonId, isShiny });
     if (!pokemons.length) return res.status(404).json({ message: 'No Pokémon found to evolve.' });

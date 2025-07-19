@@ -35,12 +35,12 @@ module.exports = {
     }
     // Rarity-based requirements
     const rarityMultipliers = {
-      common: 1,
-      uncommon: 2,
+      common: 6,
+      uncommon: 5,
       rare: 4,
       legendary: null // lockout
     };
-    const baseValue = 3;
+    const baseValue = 1;
     // Filter eligible Pokémon (duplicates, not legendary, not final stage, etc.)
     const eligible = pokedex.filter(mon => {
       const pokeName = mon.name?.toLowerCase();

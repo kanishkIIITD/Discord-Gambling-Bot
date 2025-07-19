@@ -17,12 +17,14 @@ Object.entries(customSpawnRates).forEach(([name, data]) => {
   }
 });
 
-function getDailyPokemon(userId) {
+function getDailyPokemon(userId, guildId) {
   const today = new Date();
   const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
   
-  // Use day of year + user ID as seed for user-specific daily rotation
-  const seed = dayOfYear + parseInt(userId.slice(-6), 16); // Use last 6 characters of user ID
+  // Use day of year + user ID + guild ID as seed for user AND guild-specific daily rotation
+  const userSeed = parseInt(userId.slice(-6), 16); // Use last 6 characters of user ID
+  const guildSeed = parseInt(guildId.slice(-6), 16); // Use last 6 characters of guild ID
+  const seed = dayOfYear + userSeed + guildSeed;
   
   // Select one Pokémon from each rarity using the seed
   const commonPokemon = pokemonByRarity.common[seed % pokemonByRarity.common.length];
@@ -81,7 +83,7 @@ module.exports = {
       await pokeCache.buildKantoCache();
     }
     
-    const dailyPokemon = getDailyPokemon(userId);
+    const dailyPokemon = getDailyPokemon(userId, guildId);
     
     // Check daily shop purchases
     const today = new Date();
