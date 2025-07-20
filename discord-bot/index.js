@@ -38,6 +38,9 @@ const pokeevolveCommand = require('./commands/pokeevolve');
 const questsCommand = require('./commands/quests');
 const pokesellduplicatesCommand = require('./commands/pokesellduplicates');
 const pokestatsCommand = require('./commands/pokestats');
+const pokecollectionCommand = require('./commands/pokecollection');
+const pokeopenCommand = require('./commands/pokeopen');
+const pokepacksCommand = require('./commands/pokepacks');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 const pokeCache = require('./utils/pokeCache');
@@ -4331,6 +4334,12 @@ client.on('interactionCreate', async interaction => {
 		await pokesellduplicatesCommand.execute(interaction);
 	} else if (commandName === 'pokestats') {
 		await pokestatsCommand.execute(interaction);
+	} else if (commandName === 'pokecollection') {
+		await pokecollectionCommand.execute(interaction);
+	} else if (commandName === 'pokeopen') {
+		await pokeopenCommand.execute(interaction);
+	} else if (commandName === 'pokepacks') {
+		await pokepacksCommand.execute(interaction);
 	}
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);

@@ -31,7 +31,9 @@ const transactionSchema = new mongoose.Schema({
       'question',
       'steal',
       'stolen',
-      'penalty'
+      'penalty',
+      'pack_purchase',
+      'pack_opening'
     ],
     required: true
   },
