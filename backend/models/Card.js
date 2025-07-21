@@ -48,7 +48,10 @@ const cardSchema = new mongoose.Schema({
   },
   rarity: {
     type: String,
-    enum: ['Common', 'Uncommon', 'Rare', 'Rare Holo', 'Ultra Rare', 'Secret Rare', 'Amazing Rare'],
+    enum: [
+      'Common', 'Uncommon', 'Rare', 'Rare Holo', 'Ultra Rare', 'Secret Rare', 'Amazing Rare',
+      'Promo', 'Black Star Promo', 'Wizards Black Star Promo', 'Rare Secret', 'Rare Holo Foil'
+    ],
     required: true
   },
   supertype: {

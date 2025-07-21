@@ -179,19 +179,17 @@ cardPackSchema.statics.createDefaultPacks = async function() {
     {
       packId: 'base1',
       name: 'Base Set',
-      description: 'The original Pokémon TCG expansion (1999). Features the core 150 Pokémon including iconic cards like Charizard and Blastoise! Each pack contains 9 cards: 1 Rare (33% chance holo), 3 Uncommon, and 5 Common cards. No energy cards.',
-      price: 1500000,
-      cardCount: 9,
+      description: 'Base Set (1999). 7 Commons, 1 Rare, 3 Uncommons. Classic TCG slot order.',
+      price: 1000000,
+      cardCount: 11,
       rarityDistribution: {
-        common: 5,
-        uncommon: 3,
-        rare: 1,
-        'holo-rare': 0,
-        'ultra-rare': 0
+        Common: 7,
+        Uncommon: 3,
+        Rare: 1
       },
       packRarity: 'common',
       guaranteedRare: true,
-      holoChance: 0.33, // 33% chance of holo rare
+      holoChance: 0.15,
       allowedSets: ['base1'],
       releaseDate: '1999-01-09',
       setLogo: 'https://images.pokemontcg.io/base1/logo.png',
@@ -201,19 +199,17 @@ cardPackSchema.statics.createDefaultPacks = async function() {
     {
       packId: 'base2',
       name: 'Jungle',
-      description: 'The first true expansion (1999). Introduces favorites like Vileplume and Scyther with non-holo vs holo rare variants! Each pack contains 9 cards: 1 Rare (33% chance holo), 3 Uncommon, and 5 Common cards. No energy cards.',
-      price: 2000000,
-      cardCount: 9,
+      description: 'Jungle (1999). 7 Commons, 1 Rare, 3 Uncommons. Classic TCG slot order.',
+      price: 800000,
+      cardCount: 11,
       rarityDistribution: {
-        common: 5,
-        uncommon: 3,
-        rare: 1,
-        'holo-rare': 0,
-        'ultra-rare': 0
+        Common: 7,
+        Uncommon: 3,
+        Rare: 1
       },
-      packRarity: 'uncommon',
+      packRarity: 'common',
       guaranteedRare: true,
-      holoChance: 0.33, // 33% chance of holo rare
+      holoChance: 0.12,
       allowedSets: ['base2'],
       releaseDate: '1999-06-16',
       setLogo: 'https://images.pokemontcg.io/base2/logo.png',
@@ -221,24 +217,100 @@ cardPackSchema.statics.createDefaultPacks = async function() {
       weeklyLimit: 0
     },
     {
-      packId: 'base3',
-      name: 'Fossil',
-      description: 'The Fossil expansion (1999). Features fossil Pokémon like Aerodactyl and Ditto with the classic Starlight holo pattern! Each pack contains 9 cards: 1 Rare (33% chance holo), 3 Uncommon, and 5 Common cards. No energy cards.',
-      price: 3000000,
-      cardCount: 9,
+      packId: 'basep',
+      name: 'Wizards Black Star Promos',
+      description: 'Wizards Black Star Promos. 1 Promo card per pack.',
+      price: 1200000,
+      cardCount: 1,
       rarityDistribution: {
-        common: 5,
-        uncommon: 3,
-        rare: 1,
-        'holo-rare': 0,
-        'ultra-rare': 0
+        Promo: 1
       },
-      packRarity: 'rare',
+      packRarity: 'common',
       guaranteedRare: true,
-      holoChance: 0.33, // 33% chance of holo rare
-      allowedSets: ['base3'],
+      holoChance: 0.0,
+      allowedSets: ['basep'],
+      releaseDate: '1999-07-01',
+      setLogo: 'https://images.pokemontcg.io/basep/logo.png',
+      dailyLimit: 0,
+      weeklyLimit: 0
+    },
+    {
+      packId: 'base3', // Use TCG API set code for Fossil
+      name: 'Fossil',
+      description: 'Fossil (1999). 7 Commons, 1 Rare, 3 Uncommons. Classic TCG slot order.',
+      price: 750000,
+      cardCount: 11,
+      rarityDistribution: {
+        Common: 7,
+        Uncommon: 3,
+        Rare: 1
+      },
+      packRarity: 'common',
+      guaranteedRare: true,
+      holoChance: 0.12,
+      allowedSets: ['base3'], // TCG API set code
       releaseDate: '1999-10-10',
       setLogo: 'https://images.pokemontcg.io/base3/logo.png',
+      dailyLimit: 0,
+      weeklyLimit: 0
+    },
+    {
+      packId: 'base4',
+      name: 'Base Set 2',
+      description: 'Base Set 2 (2000). 7 Commons, 1 Rare, 3 Uncommons. Classic TCG slot order.',
+      price: 600000,
+      cardCount: 11,
+      rarityDistribution: {
+        Common: 7,
+        Uncommon: 3,
+        Rare: 1
+      },
+      packRarity: 'common',
+      guaranteedRare: true,
+      holoChance: 0.08,
+      allowedSets: ['base4'],
+      releaseDate: '2000-02-24',
+      setLogo: 'https://images.pokemontcg.io/base4/logo.png',
+      dailyLimit: 0,
+      weeklyLimit: 0
+    },
+    {
+      packId: 'base5',
+      name: 'Team Rocket',
+      description: 'Team Rocket (2000). 7 Commons, 1 Rare, 3 Uncommons. Classic TCG slot order.',
+      price: 900000,
+      cardCount: 11,
+      rarityDistribution: {
+        Common: 7,
+        Uncommon: 3,
+        Rare: 1
+      },
+      packRarity: 'common',
+      guaranteedRare: true,
+      holoChance: 0.14,
+      allowedSets: ['base5'],
+      releaseDate: '2000-04-24',
+      setLogo: 'https://images.pokemontcg.io/base5/logo.png',
+      dailyLimit: 0,
+      weeklyLimit: 0
+    },
+    {
+      packId: 'base6',
+      name: 'Legendary Collection',
+      description: 'Legendary Collection (2002). 7 Commons, 1 Rare, 3 Uncommons. Classic TCG slot order.',
+      price: 1100000,
+      cardCount: 11,
+      rarityDistribution: {
+        Common: 7,
+        Uncommon: 3,
+        Rare: 1
+      },
+      packRarity: 'common',
+      guaranteedRare: true,
+      holoChance: 0.20,
+      allowedSets: ['base6'],
+      releaseDate: '2002-05-24',
+      setLogo: 'https://images.pokemontcg.io/base6/logo.png',
       dailyLimit: 0,
       weeklyLimit: 0
     }

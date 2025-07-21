@@ -91,7 +91,7 @@ module.exports = {
       .setFooter({ text: 'Type /pokecatch to try catching!' });
     const sentMsg = await interaction.reply({ embeds: [embed], fetchReply: true });
     // Set manual despawn timer
-    const DESPAWN_TIME = 20 * 1000; // 20 seconds
+    const DESPAWN_TIME = 60 * 1000; // 1 minute
     const timeout = setTimeout(async () => {
       // If still active, despawn only if messageId matches
       const spawn = activeSpawns.get(channelId);

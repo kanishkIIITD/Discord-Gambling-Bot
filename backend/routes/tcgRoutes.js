@@ -328,7 +328,7 @@ router.post('/users/:discordId/packs/open', requireGuildId, async (req, res) => 
     const generatedCards = await packGenerator.generatePackCards(pack);
     
     // Debug: Log the first few cards to see their structure
-    console.log('[TCG Route] Generated cards sample:', generatedCards.slice(0, 3).map(card => ({
+    console.log('[TCG Route] Generated cards sample:', generatedCards.slice(0, 11).map(card => ({
       cardId: card.cardId,
       name: card.name,
       rarity: card.rarity
@@ -420,12 +420,12 @@ router.get('/users/:discordId/packs/opening-stats', requireGuildId, async (req, 
     // Get opening statistics
     const stats = await PackOpening.getUserStats(discordId, guildId, timeRange ? parseInt(timeRange) : null);
     
-    // Get recent openings
-    const recentOpenings = await PackOpening.getRecentOpenings(discordId, guildId, 5);
+    // Get all unopened packs
+    const unopenedPacks = await PackOpening.find({ discordId, guildId, cardsObtained: { $size: 0 } });
 
     res.json({
       stats,
-      recentOpenings
+      unopenedPacks
     });
 
   } catch (error) {

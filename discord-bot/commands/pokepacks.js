@@ -37,7 +37,7 @@ module.exports = {
 
       // Create individual pack embeds
       const packEmbeds = [];
-      const buttons = [];
+      const selectOptions = [];
 
       packs.forEach((pack, index) => {
         const rarityEmoji = getRarityEmoji(pack.packRarity);
@@ -50,7 +50,7 @@ module.exports = {
           .addFields(
             { name: '💰 Price', value: `${pack.price.toLocaleString()} points`, inline: true },
             { name: '📦 Cards', value: `${pack.cardCount} cards per pack`, inline: true },
-            { name: '📊 Rarity', value: formatRarityDistribution(pack.rarityDistribution), inline: false },
+            // { name: '📊 Rarity', value: formatRarityDistribution(pack.rarityDistribution), inline: false },
             { name: '🎯 Guarantees', value: formatGuarantees(pack), inline: false },
             { name: '✅ Status', value: statusEmoji, inline: false }
           );
@@ -61,93 +61,137 @@ module.exports = {
 
         packEmbeds.push(packEmbed);
 
-        // Create button for this pack
-        const button = new ButtonBuilder()
-          .setCustomId(`pack_buy_${pack.packId}`)
-          .setLabel(`Buy ${pack.name} (${pack.price})`)
-          .setStyle(pack.canAfford && pack.withinDailyLimit && pack.withinWeeklyLimit ? ButtonStyle.Primary : ButtonStyle.Secondary)
-          .setDisabled(!pack.canAfford || !pack.withinDailyLimit || !pack.withinWeeklyLimit);
-
-        buttons.push(button);
+        // Add option for select menu
+        selectOptions.push({
+          label: `${pack.name} (${pack.price.toLocaleString()} pts)` + (pack.canAfford && pack.withinDailyLimit && pack.withinWeeklyLimit ? '' : ' [Unavailable]'),
+          value: pack.packId,
+          description: pack.description?.slice(0, 90) || undefined,
+          default: false,
+          emoji: getRarityEmoji(pack.packRarity),
+          disabled: !(pack.canAfford && pack.withinDailyLimit && pack.withinWeeklyLimit)
+        });
       });
 
-      // Create button rows (max 5 buttons per row)
-      const buttonRows = [];
-      for (let i = 0; i < buttons.length; i += 5) {
-        const row = new ActionRowBuilder().addComponents(buttons.slice(i, i + 5));
-        buttonRows.push(row);
-      }
+      // Create select menu
+      const { StringSelectMenuBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, InteractionType } = require('discord.js');
+      const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('pack_select')
+        .setPlaceholder('Select a pack to purchase')
+        .addOptions(selectOptions.map(opt => {
+          // Discord.js v14 does not support 'disabled' on options, so filter out unavailable packs
+          if (opt.disabled) return null;
+          return {
+            label: opt.label,
+            value: opt.value,
+            description: opt.description,
+            emoji: opt.emoji
+          };
+        }).filter(Boolean));
+
+      const selectRow = new ActionRowBuilder().addComponents(selectMenu);
 
       // Combine all embeds
       const allEmbeds = [mainEmbed, ...packEmbeds];
       
       const message = await interaction.editReply({
         embeds: allEmbeds,
-        components: buttonRows
+        components: [selectRow]
       });
 
-      // Create button collector
-      const collector = message.createMessageComponentCollector({
-        filter: i => i.user.id === interaction.user.id && i.customId.startsWith('pack_buy_'),
+      // Create select menu collector
+      const selectCollector = message.createMessageComponentCollector({
+        filter: i => i.user.id === interaction.user.id && i.customId === 'pack_select',
         time: 60000
       });
 
-      collector.on('collect', async i => {
-        const packId = i.customId.replace('pack_buy_', '');
+      selectCollector.on('collect', async i => {
+        const packId = i.values[0];
         const pack = packs.find(p => p.packId === packId);
-        
         if (!pack) {
           await i.reply({ content: 'Pack not found.', ephemeral: true });
           return;
         }
 
-        await i.deferUpdate();
+        // Show modal for quantity input
+        const modal = new ModalBuilder()
+          .setCustomId(`pack_buy_modal_${pack.packId}`)
+          .setTitle(`Buy ${pack.name}`);
 
+        const quantityInput = new TextInputBuilder()
+          .setCustomId('quantity')
+          .setLabel('How many packs do you want to buy?')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Enter a number (e.g. 1)')
+          .setRequired(true)
+          .setMinLength(1)
+          .setMaxLength(4);
+
+        const modalRow = new ActionRowBuilder().addComponents(quantityInput);
+        modal.addComponents(modalRow);
+
+        await i.showModal(modal);
+
+        // Wait for modal submit
         try {
-          // Purchase the pack
-          const purchaseResponse = await axios.post(`${backendUrl}/tcg/users/${userId}/packs/purchase`, {
-            packId: pack.packId,
-            quantity: 1
-          }, {
-            headers: { 'x-guild-id': guildId }
+          const submitted = await i.awaitModalSubmit({
+            time: 60000,
+            filter: (modalInteraction) => modalInteraction.customId === `pack_buy_modal_${pack.packId}` && modalInteraction.user.id === interaction.user.id
           });
 
-          const { message: purchaseMessage, newBalance, packOpenings } = purchaseResponse.data;
+          const quantityStr = submitted.fields.getTextInputValue('quantity');
+          const quantity = parseInt(quantityStr, 10);
+          if (isNaN(quantity) || quantity < 1 || quantity > 9999) {
+            await submitted.reply({ content: 'Please enter a valid quantity (1-9999).', ephemeral: true });
+            return;
+          }
+          await submitted.deferUpdate();
+          try {
+            // Purchase the pack(s)
+            const purchaseResponse = await axios.post(`${backendUrl}/tcg/users/${userId}/packs/purchase`, {
+              packId: pack.packId,
+              quantity
+            }, {
+              headers: { 'x-guild-id': guildId }
+            });
 
-          // Create success embed
-          const successEmbed = new EmbedBuilder()
-            .setTitle('✅ Pack Purchased!')
-            .setDescription(purchaseMessage)
-            .setColor(0x2ecc71)
-            .addFields(
-              { name: 'Pack', value: pack.name, inline: true },
-              { name: 'Price', value: `${pack.price.toLocaleString()} points`, inline: true },
-              { name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true },
-              { name: 'Next Step', value: 'Use `/pokeopen` to open your pack!', inline: false }
-            );
+            const { message: purchaseMessage, newBalance, packOpenings } = purchaseResponse.data;
 
-          await interaction.followUp({
-            embeds: [successEmbed],
-            ephemeral: true
-          });
+            // Create success embed
+            const successEmbed = new EmbedBuilder()
+              .setTitle('✅ Pack(s) Purchased!')
+              .setDescription(purchaseMessage)
+              .setColor(0x2ecc71)
+              .addFields(
+                { name: 'Pack', value: pack.name, inline: true },
+                { name: 'Price', value: `${pack.price.toLocaleString()} points`, inline: true },
+                { name: 'Quantity', value: `${quantity}`, inline: true },
+                { name: 'Total Spent', value: `${(pack.price * quantity).toLocaleString()} points`, inline: true },
+                { name: 'New Balance', value: `${newBalance.toLocaleString()} points`, inline: true },
+                { name: 'Next Step', value: 'Use `/pokeopen` to open your pack(s)!', inline: false }
+              );
 
-        } catch (error) {
-          const errorMessage = error.response?.data?.message || 'Failed to purchase pack.';
-          await interaction.followUp({
-            content: `❌ ${errorMessage}`,
-            ephemeral: true
-          });
+            await interaction.followUp({
+              embeds: [successEmbed],
+              ephemeral: true
+            });
+          } catch (error) {
+            const errorMessage = error.response?.data?.message || 'Failed to purchase pack(s).';
+            await interaction.followUp({
+              content: `❌ ${errorMessage}`,
+              ephemeral: true
+            });
+          }
+        } catch (modalError) {
+          // Modal not submitted in time or error
+          await interaction.followUp({ content: 'Modal timed out or something went wrong. Please try again.', ephemeral: true });
         }
-
-        collector.stop();
+        selectCollector.stop();
       });
 
-      collector.on('end', () => {
-        // Disable buttons after timeout
-        buttonRows.forEach(row => {
-          row.components.forEach(btn => btn.setDisabled(true));
-        });
-        interaction.editReply({ components: buttonRows }).catch(() => {});
+      selectCollector.on('end', () => {
+        // Disable select menu after timeout
+        selectRow.components.forEach(comp => comp.setDisabled(true));
+        interaction.editReply({ components: [selectRow] }).catch(() => {});
       });
 
     } catch (error) {

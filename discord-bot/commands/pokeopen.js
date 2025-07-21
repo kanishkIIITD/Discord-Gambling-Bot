@@ -18,12 +18,7 @@ module.exports = {
         headers: { 'x-guild-id': guildId }
       });
 
-      const { recentOpenings } = response.data;
-
-      // Find unopened packs (packs with empty cardsObtained array)
-      const unopenedPacks = recentOpenings.filter(opening => 
-        opening.cardsObtained.length === 0
-      );
+      const { unopenedPacks } = response.data;
 
       if (unopenedPacks.length === 0) {
         return interaction.editReply('You have no unopened packs! Use `/pokepacks` to buy some packs first.');
@@ -35,11 +30,23 @@ module.exports = {
         .setDescription(`You have ${unopenedPacks.length} pack(s) ready to open!`)
         .setColor(0x3498db);
 
-      // Create pack selection buttons
-      const buttons = unopenedPacks.map(pack => {
+      // Group unopened packs by packName and packId
+      const packGroups = {};
+      unopenedPacks.forEach(pack => {
+        const key = `${pack.packId || pack.packName}`;
+        if (!packGroups[key]) {
+          packGroups[key] = { count: 0, packName: pack.packName, packId: pack.packId, packs: [] };
+        }
+        packGroups[key].count++;
+        packGroups[key].packs.push(pack);
+      });
+      const grouped = Object.values(packGroups);
+
+      // Create pack selection buttons (one per pack type)
+      const buttons = grouped.map(group => {
         return new ButtonBuilder()
-          .setCustomId(`open_pack_${pack._id}`)
-          .setLabel(`Open ${pack.packName}`)
+          .setCustomId(`open_packtype_${group.packId || group.packName}`)
+          .setLabel(`Open ${group.count}x ${group.packName}`)
           .setStyle(ButtonStyle.Primary);
       });
 
@@ -57,20 +64,26 @@ module.exports = {
 
       // Create button collector
       const collector = message.createMessageComponentCollector({
-        filter: i => i.user.id === interaction.user.id && i.customId.startsWith('open_pack_'),
+        filter: i => i.user.id === interaction.user.id && i.customId.startsWith('open_packtype_'),
         time: 60000
       });
 
       collector.on('collect', async i => {
-        const packOpeningId = i.customId.replace('open_pack_', '');
-        
+        const packTypeKey = i.customId.replace('open_packtype_', '');
+        const group = grouped.find(g => (g.packId || g.packName) == packTypeKey);
+        if (!group || group.packs.length === 0) {
+          await i.reply({ content: 'No unopened packs of this type found.', ephemeral: true });
+          return;
+        }
+        // Open the first unopened pack of this type
+        const packToOpen = group.packs[0];
+
         // Disable all pack selection buttons immediately, and set loading state on clicked button
         buttonRows.forEach(row => {
           row.components.forEach(btn => {
             btn.setDisabled(true);
             if (btn.data && btn.data.custom_id === i.customId) {
               btn.setLabel('Opening...');
-              // Optionally, set style to secondary or keep as is
               btn.setStyle(ButtonStyle.Secondary);
             }
           });
@@ -82,7 +95,7 @@ module.exports = {
         try {
           // Open the pack
           const openResponse = await axios.post(`${backendUrl}/tcg/users/${userId}/packs/open`, {
-            packOpeningId: packOpeningId
+            packOpeningId: packToOpen._id
           }, {
             headers: { 'x-guild-id': guildId }
           });
@@ -102,7 +115,7 @@ module.exports = {
           // Create opening result embed
           const resultEmbed = new EmbedBuilder()
             .setTitle('🎉 Pack Opened!')
-            .setDescription(`You opened a **${pack.name}** and found ${cards.length} cards!`)
+            .setDescription(`${interaction.user} opened a **${pack.name}** and found ${cards.length} cards!`)
             .setColor(0x2ecc71)
             .addFields(
               { name: '📦 Pack', value: pack.name, inline: true },
@@ -132,10 +145,37 @@ module.exports = {
           // Create interactive card viewer
           let currentCardIndex = 0;
           
+          // Add helper for rarity display
+          function getRarityDisplay(rarity, isFoil, isReverseHolo) {
+            const emojiMap = {
+              'common': '⚪',
+              'uncommon': '🟢',
+              'rare': '⭐️',
+              'rare holo': '✨',
+              'rare holo foil': '✨',
+              'holo-rare': '✨',
+              'ultra rare': '🟡',
+              'secret rare': '🟣',
+              'promo': '🎉',
+              'black star promo': '🎉',
+              'wizards black star promo': '🎉',
+            };
+            let base = rarity ? rarity.replace(/-/g, ' ').toLowerCase() : '';
+            let emoji = emojiMap[base] || '';
+            let special = '';
+            if (isFoil) special += '✨Foil';
+            if (isReverseHolo) special += (special ? ' ' : '') + '🔄Reverse Holo';
+            if (base.includes('secret')) special += (special ? ' ' : '') + '🟣Secret Rare';
+            if (base.includes('promo')) special += (special ? ' ' : '') + '🎉Promo';
+            return `${emoji} ${rarity}${special ? ' — ' + special : ''}`.trim();
+          }
+
+          // Create card embed
           const createCardEmbed = (card, index, total) => {
+            const rarityDisplay = getRarityDisplay(card.rarity, card.isFoil, card.isReverseHolo);
             const embed = new EmbedBuilder()
-              .setTitle(`${card.name}`)
-              .setColor(getRarityColor(card.rarity.toLowerCase()));
+              .setTitle(`${card.name} (${rarityDisplay})`)
+              .setColor(getRarityColor(card.rarity ? card.rarity.toLowerCase() : ''));
 
             // Add card image - use large image for better quality
             if (card.images && card.images.large) {
@@ -187,6 +227,7 @@ module.exports = {
           const createCardBackEmbed = (index, total) => {
             const embed = new EmbedBuilder()
               .setTitle('Card Back')
+              .setDescription(`${interaction.user} is opening a pack...`)
               .setColor(0x2c3e50)
               .setImage('https://images.pokemontcg.io/card-back.png') // Pokémon TCG card back
               .setFooter({ text: `Card ${index + 1} of ${total}` });

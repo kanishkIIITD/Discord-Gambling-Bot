@@ -1,6 +1,16 @@
 const tcgApi = require('./tcgApi');
 const Card = require('../models/Card');
 const CardPack = require('../models/CardPack');
+const packTemplates = require('./packTemplates');
+
+// Map logical rarities to all possible API values
+const rarityAliases = {
+  common: ['Common', 'common'],
+  uncommon: ['Uncommon', 'uncommon'],
+  rare: ['Rare', 'Rare Holo', 'Rare Holo Foil', 'Rare Secret', 'rare', 'Rare Holo Rare'],
+  promo: ['Promo', 'Black Star Promo', 'Wizards Black Star Promo', 'PROMO', 'promo'],
+  energy: ['Energy', 'energy'],
+};
 
 class PackGenerator {
   constructor() {
@@ -12,125 +22,105 @@ class PackGenerator {
       apiCalls: 0,
       fallbackUses: 0
     };
-    
-    // Official pack structure based on historical research
-    // Classic sets (Base, Jungle, Fossil): 5 commons + 3 uncommons + 1 rare + 2 energy = 11 cards
-    // Modern sets: 6 commons + 3 uncommons + 1 rare = 10 cards (energy/trainers replace commons)
-    this.officialPackStructure = {
-      commons: 5,
-      uncommons: 3,
-      rare: 1,
-      energy: 2
-    };
-    
-    // Rarity upgrade chances
-    this.rarityUpgrades = {
-      rareToHolo: 0.33, // 33% chance rare becomes holo (historical accuracy for classic sets)
-      rareToUltra: 0.05, // 5% chance rare becomes ultra rare
-      reverseHolo: 0.33 // 33% chance of reverse holo (only for modern sets)
-    };
   }
 
   /**
    * Generate cards for a pack based on its configuration
    */
   async generatePackCards(packConfig) {
-    console.log(`[PackGenerator] Generating pack: ${packConfig.name} (${packConfig.packId})`);
-    
-    try {
-      // Build the pack skeleton with official ratios
-      const packSkeleton = await this.buildPackSkeleton(packConfig);
-      
-      // Apply rarity upgrades and guarantees
-      await this.applyRarityUpgrades(packSkeleton, packConfig);
-      
-      // Apply reverse holo slot
-      await this.applyReverseHolo(packSkeleton, packConfig);
-      
-      // Shuffle the cards
-      const shuffledCards = this.shuffleCards(packSkeleton);
-      
-      // Check if this is a classic set for validation
-      const isClassicSet = packConfig.allowedSets.some(set => ['base1', 'base2', 'base3'].includes(set));
-      
-      // Ensure we have the correct number of cards
-      const expectedCards = isClassicSet ? 9 : 10;
-      if (shuffledCards.length !== expectedCards) {
-        console.warn(`[PackGenerator] Warning: Generated ${shuffledCards.length} cards, expected ${expectedCards}. Trimming/expanding to ${expectedCards}.`);
-        
-        if (shuffledCards.length > expectedCards) {
-          shuffledCards.splice(expectedCards); // Remove extra cards
-        } else {
-          // Add fallback cards to reach expected count
-          while (shuffledCards.length < expectedCards) {
-            const fallbackCard = await this.getFallbackCard('common');
-            shuffledCards.push(fallbackCard);
-          }
-        }
+    const setId = (packConfig.allowedSets && packConfig.allowedSets[0]) || packConfig.setId;
+    const template = packTemplates.find(t => t.setId === setId);
+    if (!template) throw new Error(`No pack template found for setId: ${setId}`);
+    console.log(`[PackGenerator] Generating pack: ${packConfig.name} (${setId}) using template`);
+    // Classic TCG slot order: 7 commons (including energy), 1 rare, 3 uncommons
+    let commons = [];
+    let rare = [];
+    let uncommons = [];
+    let promos = [];
+    // Draw cards for each slot
+    for (const slot of template.slots) {
+      for (const [rarity, count] of Object.entries(slot.composition)) {
+        const drawn = await this.drawCardsByRarity(rarity, count * slot.count, [setId]);
+        if (rarity === 'rare') rare.push(...drawn);
+        else if (rarity === 'uncommon') uncommons.push(...drawn);
+        else if (rarity === 'promo') promos.push(...drawn);
+        else if (rarity === 'common') commons.push(...drawn);
+        else commons.push(...drawn); // fallback: treat unknown as common
       }
-      
-      console.log(`[PackGenerator] Generated ${shuffledCards.length} cards for pack`);
-      this.logCacheStats();
-      
-      return shuffledCards;
-      
-    } catch (error) {
-      console.error('[PackGenerator] Error generating pack cards:', error);
-      // Return fallback cards if everything fails
-      return this.generateFallbackPack(packConfig);
     }
+    // Shuffle only the commons block
+    commons = this.shuffleCards(commons);
+    // Handle foil pull: if foilChance hits, replace one common with a holo rare
+    if (template.foilChance && Math.random() < template.foilChance && rare.length > 0) {
+      // Find a holo rare from the pool
+      const holoRares = await this.drawCardsByRarity('rare holo', 1, [setId]);
+      if (holoRares.length > 0) {
+        // Replace a random common with the holo rare
+        const idx = Math.floor(Math.random() * commons.length);
+        commons[idx] = holoRares[0];
+      }
+    }
+    // Concatenate in the classic order: 7 commons, 1 rare, 3 uncommons (or promo for basep)
+    let cards;
+    if (promos.length > 0) {
+      cards = [...promos];
+    } else {
+      cards = [...commons, ...rare, ...uncommons];
+    }
+    // Debug log before returning
+    console.log('[PackGenerator][DEBUG] Final cards:', cards.map(c => ({ name: c.name, rarity: c.rarity })));
+    this.logCacheStats();
+    return cards;
   }
 
-  /**
-   * Build the basic pack skeleton with official ratios
-   */
-  async buildPackSkeleton(packConfig) {
-    const skeleton = [];
-    const allowedSets = packConfig.allowedSets || [];
-    
-    // Check if this is a classic set (Base Set, Jungle, Fossil)
-    const isClassicSet = allowedSets.some(set => ['base1', 'base2', 'base3'].includes(set));
-    
-    if (isClassicSet) {
-      // Classic sets: 5 commons + 3 uncommons + 1 rare = 9 cards (no energy)
-      // Historical accuracy: No trainer cards, no reverse-holos, no energy cards
-      // Add commons (5 cards)
-      const commons = await this.getCardsByRarity('common', 5, allowedSets);
-      skeleton.push(...commons);
-      // Add uncommons (3 cards)
-      const uncommons = await this.getCardsByRarity('uncommon', 3, allowedSets);
-      skeleton.push(...uncommons);
-      // Add rare slot (1 card)
-      const rares = await this.getCardsByRarity('rare', 1, allowedSets);
-      skeleton.push(...rares);
-    } else {
-      // Modern sets: 6 commons + 3 uncommons + 1 rare = 10 cards
-      // Energy and trainer cards replace commons
-      
-      let commonsNeeded = this.officialPackStructure.commons;
-      let uncommonsNeeded = this.officialPackStructure.uncommons;
-      let raresNeeded = this.officialPackStructure.rare;
-      
-      // Add trainer cards (replaces commons)
-      const trainerCount = Math.min(2, commonsNeeded); // Max 2 trainers
-      const trainers = await this.getTrainerCards(trainerCount, allowedSets);
-      skeleton.push(...trainers);
-      commonsNeeded -= trainers.length;
-      
-      // Add remaining commons
-      const commons = await this.getCardsByRarity('common', commonsNeeded, allowedSets);
-      skeleton.push(...commons);
-      
-      // Add uncommons
-      const uncommons = await this.getCardsByRarity('uncommon', uncommonsNeeded, allowedSets);
-      skeleton.push(...uncommons);
-      
-      // Add rare slot
-      const rares = await this.getCardsByRarity('rare', raresNeeded, allowedSets);
-      skeleton.push(...rares);
+  async drawCardsByRarity(logicalRarity, count, allowedSets) {
+    const cards = [];
+    const apiRarities = rarityAliases[logicalRarity] || [logicalRarity];
+    for (const setCode of allowedSets) {
+      const setCache = await this.preloadSet(setCode);
+      if (setCache) {
+        let pool = [];
+        for (const apiRarity of apiRarities) {
+          // Special handling for energy
+          if (logicalRarity === 'energy') {
+            pool = pool.concat(setCache.energy || []);
+          } else if (logicalRarity === 'promo') {
+            pool = pool.concat(setCache.promo || []);
+          } else {
+            // Pool from all rarity arrays
+            pool = pool.concat(
+              (setCache.common || []).filter(card => card.rarity === apiRarity),
+              (setCache.uncommon || []).filter(card => card.rarity === apiRarity),
+              (setCache.rare || []).filter(card => card.rarity === apiRarity),
+              (setCache.holoRare || []).filter(card => card.rarity === apiRarity),
+              (setCache.ultraRare || []).filter(card => card.rarity === apiRarity)
+            );
+          }
+        }
+        // Remove trainers for these sets
+        pool = pool.filter(card => card.supertype !== 'Trainer');
+        // Debug log: pool size and rarity
+        console.log(`[PackGenerator][DEBUG] setId=${setCode}, logicalRarity=${logicalRarity}, poolSize=${pool.length}, apiRarities=${JSON.stringify(apiRarities)}`);
+        // Fallback for energy if pool is empty
+        if (logicalRarity === 'energy' && pool.length === 0) {
+          const fallbackEnergy = await this.getFallbackCard('energy');
+          cards.push(fallbackEnergy);
+        }
+        const selected = this.pickRandomFromPool(pool, count - cards.length);
+        for (const card of selected) {
+          const processedCard = await this.processCardData(card);
+          cards.push(processedCard);
+        }
+        if (cards.length >= count) return cards.slice(0, count);
+      }
     }
-    
-    return skeleton;
+    // Fallback if not enough cards
+    while (cards.length < count) {
+      this.cacheStats.fallbackUses++;
+      const fallbackCard = await this.getFallbackCard(logicalRarity);
+      cards.push(fallbackCard);
+    }
+    return cards.slice(0, count);
   }
 
   /**
@@ -154,10 +144,11 @@ class PackGenerator {
         rare: [],
         holoRare: [],
         ultraRare: [],
-        energy: []
+        energy: [],
+        promo: [] // Added promo pool
       };
       for (const card of allCards) {
-        if (card.supertype === 'Energy' && card.subtypes && card.subtypes.includes('Basic')) {
+        if (card.supertype === 'Energy') {
           byRarity.energy.push(card);
         } else if (card.rarity === 'Common') {
           byRarity.common.push(card);
@@ -170,7 +161,14 @@ class PackGenerator {
         } else if (card.rarity && card.rarity.includes('Ultra')) {
           byRarity.ultraRare.push(card);
         }
+        // Pool promo cards
+        if (card.rarity && rarityAliases.promo.includes(card.rarity)) {
+          if (!byRarity.promo) byRarity.promo = [];
+          byRarity.promo.push(card);
+        }
       }
+      const uniqueRarities = Array.from(new Set(allCards.map(card => card.rarity))).filter(Boolean);
+      console.log(`[PackGenerator][DEBUG] setId=${setCode}, uniqueRarities=${JSON.stringify(uniqueRarities)}`);
       this.cardCache[setCode] = byRarity;
       return byRarity;
     } catch (error) {
@@ -184,20 +182,43 @@ class PackGenerator {
    */
   async getCardsByRarity(rarity, count, allowedSets = []) {
     const cards = [];
+    // Use new classic set detection
     const isClassicSet = allowedSets.some(set => ['base1', 'base2', 'base3'].includes(set));
+    // Accept both lowercase and titlecase rarity keys
     let queryRarity = rarity;
-    if (isClassicSet && rarity === 'rare') {
-      queryRarity = '(rarity:"Rare" OR rarity:"Rare Holo" OR rarity:"Rare Holo Foil")';
-    }
-    // Try to use cache for each allowed set
+    // For classic sets, support all possible rarity keys
+    const rarityAliases = {
+      'common': ['Common'],
+      'uncommon': ['Uncommon'],
+      'rare': ['Rare', 'Rare Holo', 'Promo', 'Rare Secret'],
+      'Rare Holo': ['Rare Holo'],
+      'Promo': ['Promo'],
+      'Rare Secret': ['Rare Secret'],
+      'Rare': ['Rare']
+    };
     for (const setCode of allowedSets) {
       const setCache = await this.preloadSet(setCode);
       if (setCache) {
         let pool = [];
-        if (queryRarity === 'common') pool = setCache.common;
-        else if (queryRarity === 'uncommon') pool = setCache.uncommon;
-        else if (queryRarity === 'rare' || queryRarity.includes('Rare')) pool = setCache.rare.concat(setCache.holoRare, setCache.ultraRare);
-        else pool = setCache.common;
+        // Support all rarity keys
+        if (rarityAliases[queryRarity]) {
+          for (const alias of rarityAliases[queryRarity]) {
+            if (setCache[alias]) pool = pool.concat(setCache[alias]);
+            // Fallback to filter by card.rarity
+            pool = pool.concat(setCache.common?.filter(card => card.rarity === alias) || []);
+            pool = pool.concat(setCache.uncommon?.filter(card => card.rarity === alias) || []);
+            pool = pool.concat(setCache.rare?.filter(card => card.rarity === alias) || []);
+            pool = pool.concat(setCache.holoRare?.filter(card => card.rarity === alias) || []);
+            pool = pool.concat(setCache.ultraRare?.filter(card => card.rarity === alias) || []);
+            pool = pool.concat(setCache.energy?.filter(card => card.rarity === alias) || []);
+          }
+        } else {
+          // Fallback to original logic
+          if (queryRarity === 'common' || queryRarity === 'Common') pool = setCache.common;
+          else if (queryRarity === 'uncommon' || queryRarity === 'Uncommon') pool = setCache.uncommon;
+          else if (queryRarity === 'rare' || queryRarity === 'Rare') pool = setCache.rare.concat(setCache.holoRare, setCache.ultraRare);
+          else pool = setCache.common;
+        }
         // Remove trainers for classic sets
         if (isClassicSet) pool = pool.filter(card => card.supertype !== 'Trainer');
         const selected = this.pickRandomFromPool(pool, count - cards.length);
@@ -379,16 +400,22 @@ class PackGenerator {
    */
   pickRandomFromPool(pool, count) {
     const selected = [];
-    const poolCopy = [...pool];
-    
-    const actualCount = Math.min(count, poolCopy.length);
-    
-    for (let i = 0; i < actualCount; i++) {
-      const randomIndex = Math.floor(Math.random() * poolCopy.length);
-      selected.push(poolCopy[randomIndex]);
-      poolCopy.splice(randomIndex, 1);
+    if (pool.length === 0) return selected;
+    if (count <= pool.length) {
+      // No duplicates needed, sample without replacement
+      const poolCopy = [...pool];
+      for (let i = 0; i < count; i++) {
+        const randomIndex = Math.floor(Math.random() * poolCopy.length);
+        selected.push(poolCopy[randomIndex]);
+        poolCopy.splice(randomIndex, 1);
+      }
+    } else {
+      // Allow duplicates, sample with replacement
+      for (let i = 0; i < count; i++) {
+        const randomIndex = Math.floor(Math.random() * pool.length);
+        selected.push(pool[randomIndex]);
+      }
     }
-    
     return selected;
   }
 
@@ -602,6 +629,23 @@ class PackGenerator {
           small: 'https://images.pokemontcg.io/base1/4.png',
           large: 'https://images.pokemontcg.io/base1/4_hires.png'
         }
+      },
+      energy: {
+        name: 'Basic Energy',
+        rarity: 'Common',
+        supertype: 'Energy',
+        subtypes: ['Basic'],
+        types: ['Colorless'],
+        hp: '',
+        attacks: [],
+        weaknesses: [],
+        resistances: [],
+        retreatCost: [],
+        convertedRetreatCost: 0,
+        images: {
+          small: 'https://images.pokemontcg.io/base1/98.png',
+          large: 'https://images.pokemontcg.io/base1/98_hires.png'
+        }
       }
     };
     
@@ -644,34 +688,33 @@ class PackGenerator {
     const expectedCards = isClassicSet ? 11 : 10;
     
     if (isClassicSet) {
-      // Classic sets: 5 commons + 3 uncommons + 1 rare + 2 energy = 11 cards
-      
-      // Add 2 energy cards for classic sets
-      for (let i = 0; i < 2; i++) {
-        const energyCard = await this.getFallbackCard('common');
-        energyCard.name = 'Basic Energy';
-        energyCard.supertype = 'Energy';
-        energyCard.subtypes = ['Basic'];
-        energyCard.types = ['Colorless'];
-        fallbackCards.push(energyCard);
-      }
-      
-      // Add 5 commons
-      for (let i = 0; i < 5; i++) {
+      // Classic sets: 7 commons + 3 uncommons + 1 rare* = 11 cards
+      // Add 7 commons
+      for (let i = 0; i < 7; i++) {
         const fallbackCard = await this.getFallbackCard('common');
         fallbackCards.push(fallbackCard);
       }
-      
       // Add 3 uncommons
       for (let i = 0; i < 3; i++) {
         const fallbackCard = await this.getFallbackCard('uncommon');
         fallbackCards.push(fallbackCard);
       }
-      
-      // Add 1 rare
-      const rareCard = await this.getFallbackCard('rare');
-      fallbackCards.push(rareCard);
-      
+      // Add 1 rare (try rare, rare holo, promo, rare secret)
+      const rareTypes = ['rare', 'Rare Holo', 'Promo', 'Rare Secret'];
+      let rareAdded = false;
+      for (const rareType of rareTypes) {
+        if (!rareAdded) {
+          const fallbackCard = await this.getFallbackCard(rareType);
+          if (fallbackCard) {
+            fallbackCards.push(fallbackCard);
+            rareAdded = true;
+          }
+        }
+      }
+      if (!rareAdded) {
+        const fallbackCard = await this.getFallbackCard('common');
+        fallbackCards.push(fallbackCard);
+      }
     } else {
       // Modern sets: 6 commons + 3 uncommons + 1 rare = 10 cards
       
