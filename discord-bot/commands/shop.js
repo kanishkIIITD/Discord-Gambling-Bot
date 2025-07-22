@@ -42,16 +42,17 @@ module.exports = {
     const currentLevel = user.poke_level || 1;
     // Replicate backend getNextLevelXp logic
     function getNextLevelXp(level) {
-      if (level <= 1) return 100;
-      let xp = 100;
+      if (level <= 1) return 0;
+      // XP required to reach this level (cumulative): sum of 100 * i for i = 2 to level
+      let xp = 0;
       for (let i = 2; i <= level; i++) {
-        xp = Math.round(xp * 1.4);
+        xp += 100 * i;
       }
       return xp;
     }
     // Fix: For level 1, xpForCurrentLevel should be 0
-    const xpForCurrentLevel = currentLevel === 1 ? 0 : getNextLevelXp(currentLevel - 1);
-    const xpForNextLevel = getNextLevelXp(currentLevel);
+    const xpForCurrentLevel = getNextLevelXp(currentLevel);
+    const xpForNextLevel = getNextLevelXp(currentLevel + 1);
     const xpThisLevel = currentXp - xpForCurrentLevel;
     const xpNeeded = xpForNextLevel - xpForCurrentLevel;
     // Build shop embed
