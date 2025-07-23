@@ -2215,6 +2215,11 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Balance', value: `${wallet.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
 					{ name: 'Role', value: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User', inline: true },
 					{ name: '📦 Collection Value', value: `${collection.totalValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					// --- Pokémon Progression ---
+					{ name: '🐾 Pokémon Progression', value:
+						`Level: **${user.poke_level || 1}**\n` +
+						`Stardust: **${user.poke_stardust || 0}**\n` +
+						`XP to Level Up: **${user.poke_xp_this_level || 0} / ${user.poke_xp_to_level || 0}**`, inline: true },
 					{ name: '🎲 Betting', value:
 						`Total Bets: ${betting.totalBets.toLocaleString('en-US')}\n` +
 						`Total Wagered: ${betting.totalWagered.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\n` +

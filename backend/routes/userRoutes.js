@@ -277,20 +277,20 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     const { item } = req.body; // item: 'rare', 'ultra', 'xp', 'evolution'
     const now = new Date();
     const SHOP_ITEMS = {
-      rare: { name: '5 Rare Poké Balls', level: 5, price: 250, cooldownField: 'poke_rareball_ts' },
-      ultra: { name: '3 Ultra Poké Balls', level: 10, price: 225, cooldownField: 'poke_ultraball_ts' },
-      xp: { name: 'XP Booster', level: 15, price: 100, cooldownField: 'poke_xp_booster_ts' },
+      rare: { name: '5x Rare Poké Balls', level: 5, price: 250, cooldownField: 'poke_rareball_ts' },
+      ultra: { name: '3x Ultra Poké Balls', level: 10, price: 225, cooldownField: 'poke_ultraball_ts' },
+      xp: { name: '6x XP Booster', level: 15, price: 100, cooldownField: 'poke_xp_booster_ts' },
       evolution: { name: "Evolver's Ring", level: 20, price: 200, cooldownField: 'poke_daily_ring_ts' },
       // EV-boosting items
-      hp_up: { name: 'HP Up', level: 25, price: 150, cooldownField: 'poke_hp_up_ts' },
-      protein: { name: 'Protein', level: 25, price: 150, cooldownField: 'poke_protein_ts' },
-      iron: { name: 'Iron', level: 25, price: 150, cooldownField: 'poke_iron_ts' },
-      calcium: { name: 'Calcium', level: 25, price: 150, cooldownField: 'poke_calcium_ts' },
-      zinc: { name: 'Zinc', level: 25, price: 150, cooldownField: 'poke_zinc_ts' },
-      carbos: { name: 'Carbos', level: 25, price: 150, cooldownField: 'poke_carbos_ts' },
-      rare_candy: { name: 'Rare Candy', level: 30, price: 500, cooldownField: 'poke_rare_candy_ts' },
-      master_ball: { name: 'Master Ball', level: 35, price: 1000, cooldownField: 'poke_master_ball_ts' },
-      reset_bag: { name: 'Reset Bag', level: 20, price: 300, cooldownField: 'poke_reset_bag_ts' },
+      hp_up: { name: '4x HP Up', level: 25, price: 150, cooldownField: 'poke_hp_up_ts' },
+      protein: { name: '4x Protein', level: 25, price: 150, cooldownField: 'poke_protein_ts' },
+      iron: { name: '4x Iron', level: 25, price: 150, cooldownField: 'poke_iron_ts' },
+      calcium: { name: '4x Calcium', level: 25, price: 150, cooldownField: 'poke_calcium_ts' },
+      zinc: { name: '4x Zinc', level: 25, price: 150, cooldownField: 'poke_zinc_ts' },
+      carbos: { name: '4x Carbos', level: 25, price: 150, cooldownField: 'poke_carbos_ts' },
+      rare_candy: { name: '3x Rare Candy', level: 30, price: 500, cooldownField: 'poke_rare_candy_ts' },
+      master_ball: { name: '1 Master Ball', level: 35, price: 1000, cooldownField: 'poke_master_ball_ts' },
+      reset_bag: { name: '1 Reset Bag', level: 20, price: 300, cooldownField: 'poke_reset_bag_ts' },
     };
     if (!SHOP_ITEMS[item]) {
       return res.status(400).json({ message: 'Invalid shop item.' });
@@ -333,21 +333,21 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     } else if (item === 'ultra') {
       user.poke_ultraball_uses = (user.poke_ultraball_uses || 0) + 3;
     } else if (item === 'xp') {
-      user.poke_xp_booster_uses = (user.poke_xp_booster_uses || 0) + 1;
+      user.poke_xp_booster_uses = (user.poke_xp_booster_uses || 0) + 6;
     } else if (item === 'hp_up') {
-      user.poke_hp_up_uses = (user.poke_hp_up_uses || 0) + 1;
+      user.poke_hp_up_uses = (user.poke_hp_up_uses || 0) + 4;
     } else if (item === 'protein') {
-      user.poke_protein_uses = (user.poke_protein_uses || 0) + 1;
+      user.poke_protein_uses = (user.poke_protein_uses || 0) + 4;
     } else if (item === 'iron') {
-      user.poke_iron_uses = (user.poke_iron_uses || 0) + 1;
+      user.poke_iron_uses = (user.poke_iron_uses || 0) + 4;
     } else if (item === 'calcium') {
-      user.poke_calcium_uses = (user.poke_calcium_uses || 0) + 1;
+      user.poke_calcium_uses = (user.poke_calcium_uses || 0) + 4;
     } else if (item === 'zinc') {
-      user.poke_zinc_uses = (user.poke_zinc_uses || 0) + 1;
+      user.poke_zinc_uses = (user.poke_zinc_uses || 0) + 4;
     } else if (item === 'carbos') {
-      user.poke_carbos_uses = (user.poke_carbos_uses || 0) + 1;
+      user.poke_carbos_uses = (user.poke_carbos_uses || 0) + 4;
     } else if (item === 'rare_candy') {
-      user.poke_rare_candy_uses = (user.poke_rare_candy_uses || 0) + 1;
+      user.poke_rare_candy_uses = (user.poke_rare_candy_uses || 0) + 3;
     } else if (item === 'master_ball') {
       user.poke_master_ball_uses = (user.poke_master_ball_uses || 0) + 1;
     } else if (item === 'reset_bag') {
@@ -2417,6 +2417,25 @@ router.get('/:userId/profile', async (req, res) => {
     const roundedBalance = wallet ? Math.round(wallet.balance) : 0;
     const now = new Date();
     const isJailed = user.jailedUntil && user.jailedUntil > now;
+
+    // --- Pokémon Progression Fields ---
+    const poke_level = user.poke_level || 1;
+    const poke_xp = user.poke_xp || 0;
+    const poke_stardust = user.poke_stardust || 0;
+    // XP to next level calculation (match pokeshop command)
+    function getNextLevelXp(level) {
+      if (level <= 1) return 0;
+      let xp = 0;
+      for (let i = 2; i <= level; i++) {
+        xp += 100 * i;
+      }
+      return xp;
+    }
+    const xpForCurrentLevel = getNextLevelXp(poke_level);
+    const xpForNextLevel = getNextLevelXp(poke_level + 1);
+    const poke_xp_this_level = poke_xp - xpForCurrentLevel;
+    const poke_xp_to_level = xpForNextLevel - xpForCurrentLevel;
+
     res.json({
       user: {
         discordId: user.discordId,
@@ -2424,7 +2443,12 @@ router.get('/:userId/profile', async (req, res) => {
         createdAt: user.createdAt,
         isJailed,
         jailedUntil: user.jailedUntil,
-        role: user.role || 'user'
+        role: user.role || 'user',
+        poke_level,
+        poke_stardust,
+        poke_xp,
+        poke_xp_this_level,
+        poke_xp_to_level
       },
       wallet: {
         balance: roundedBalance

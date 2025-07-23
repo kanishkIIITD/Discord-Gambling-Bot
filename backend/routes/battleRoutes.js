@@ -331,26 +331,94 @@ router.get('/:battleId/pokemon/:userId', async (req, res) => {
   const { battleId, userId } = req.params;
   try {
     const session = await BattleSession.findById(battleId);
-    if (!session) return res.status(404).json({ error: 'BattleSession not found' });
+    if (!session) return res.status(404).json({ message: 'BattleSession not found' });
     if (![session.challengerId, session.opponentId].includes(userId)) {
-      return res.status(403).json({ error: 'User is not part of this battle' });
+      return res.status(403).json({ message: 'User is not part of this battle' });
     }
     // Find all Pokémon for this user in this guild
     const pokemons = await Pokemon.find({ discordId: userId, guildId: session.guildId });
-    // Flatten by count (e.g., 2x Pikachu = 2 entries)
-    let flatList = [];
+    // For each species, show at most 4: non-shiny/EV0, non-shiny/EVd, shiny/EV0, shiny/EVd
+    const speciesMap = new Map();
     for (const p of pokemons) {
-      for (let i = 0; i < (p.count || 1); i++) {
-        flatList.push({
-          pokemonId: p.pokemonId,
-          name: p.name,
-          isShiny: p.isShiny,
-          _id: `${p._id}_${i}`,
-          realId: p._id,
+      const key = `${p.pokemonId}`;
+      const isShiny = !!p.isShiny;
+      const hasNonZeroEV = Object.values(p.evs || {}).some(ev => ev > 0);
+      if (!speciesMap.has(key)) {
+        speciesMap.set(key, {
+          nonShinyZeroEv: null,
+          nonShinyNonZeroEv: null,
+          shinyZeroEv: null,
+          shinyNonZeroEv: null
         });
       }
+      const entry = speciesMap.get(key);
+      if (isShiny) {
+        if (hasNonZeroEV) {
+          if (!entry.shinyNonZeroEv) {
+            entry.shinyNonZeroEv = {
+              pokemonId: p.pokemonId,
+              name: p.name,
+              isShiny: p.isShiny,
+              nature: p.nature,
+              ability: p.ability,
+              ivs: p.ivs,
+              evs: p.evs,
+              _id: p._id,
+            };
+          }
+        } else {
+          if (!entry.shinyZeroEv) {
+            entry.shinyZeroEv = {
+              pokemonId: p.pokemonId,
+              name: p.name,
+              isShiny: p.isShiny,
+              nature: p.nature,
+              ability: p.ability,
+              ivs: p.ivs,
+              evs: p.evs,
+              _id: p._id,
+            };
+          }
+        }
+      } else {
+        if (hasNonZeroEV) {
+          if (!entry.nonShinyNonZeroEv) {
+            entry.nonShinyNonZeroEv = {
+              pokemonId: p.pokemonId,
+              name: p.name,
+              isShiny: p.isShiny,
+              nature: p.nature,
+              ability: p.ability,
+              ivs: p.ivs,
+              evs: p.evs,
+              _id: p._id,
+            };
+          }
+        } else {
+          if (!entry.nonShinyZeroEv) {
+            entry.nonShinyZeroEv = {
+              pokemonId: p.pokemonId,
+              name: p.name,
+              isShiny: p.isShiny,
+              nature: p.nature,
+              ability: p.ability,
+              ivs: p.ivs,
+              evs: p.evs,
+              _id: p._id,
+            };
+          }
+        }
+      }
     }
-    return res.json({ pokemons: flatList });
+    // Flatten to a list: for each species, include up to 4 variants
+    const uniqueList = [];
+    for (const entry of speciesMap.values()) {
+      if (entry.nonShinyZeroEv) uniqueList.push(entry.nonShinyZeroEv);
+      if (entry.nonShinyNonZeroEv) uniqueList.push(entry.nonShinyNonZeroEv);
+      if (entry.shinyZeroEv) uniqueList.push(entry.shinyZeroEv);
+      if (entry.shinyNonZeroEv) uniqueList.push(entry.shinyNonZeroEv);
+    }
+    return res.json({ pokemons: uniqueList });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

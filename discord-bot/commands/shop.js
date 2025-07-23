@@ -2,20 +2,20 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const axios = require('axios');
 
 const SHOP_ITEMS = [
-  { key: 'rare', name: '5 Rare Poké Balls', level: 5, price: 250, effect: '1.25x catch rate', cooldownField: 'poke_rareball_ts' },
-  { key: 'ultra', name: '3 Ultra Poké Balls', level: 10, price: 225, effect: '1.5x catch rate', cooldownField: 'poke_ultraball_ts' },
-  { key: 'xp', name: 'XP Booster', level: 15, price: 100, effect: '2x XP (1 battle/catch)', cooldownField: 'poke_xp_booster_ts' },
+  { key: 'rare', name: '5x Rare Poké Balls', level: 5, price: 250, effect: '1.25x catch rate', cooldownField: 'poke_rareball_ts' },
+  { key: 'ultra', name: '3x Ultra Poké Balls', level: 10, price: 225, effect: '1.5x catch rate', cooldownField: 'poke_ultraball_ts' },
+  { key: 'xp', name: '6x XP Booster', level: 15, price: 100, effect: '2x XP (1 battle/catch)', cooldownField: 'poke_xp_booster_ts' },
   { key: 'evolution', name: "Evolver's Ring", level: 20, price: 200, effect: 'Evolve with duplicates', cooldownField: 'poke_daily_ring_ts' },
   // EV-boosting items
-  { key: 'hp_up', name: 'HP Up', level: 25, price: 150, effect: '+10 HP EVs (max 252)', cooldownField: 'poke_hp_up_ts' },
-  { key: 'protein', name: 'Protein', level: 25, price: 150, effect: '+10 Attack EVs (max 252)', cooldownField: 'poke_protein_ts' },
-  { key: 'iron', name: 'Iron', level: 25, price: 150, effect: '+10 Defense EVs (max 252)', cooldownField: 'poke_iron_ts' },
-  { key: 'calcium', name: 'Calcium', level: 25, price: 150, effect: '+10 Sp. Attack EVs (max 252)', cooldownField: 'poke_calcium_ts' },
-  { key: 'zinc', name: 'Zinc', level: 25, price: 150, effect: '+10 Sp. Defense EVs (max 252)', cooldownField: 'poke_zinc_ts' },
-  { key: 'carbos', name: 'Carbos', level: 25, price: 150, effect: '+10 Speed EVs (max 252)', cooldownField: 'poke_carbos_ts' },
-  { key: 'rare_candy', name: 'Rare Candy', level: 30, price: 500, effect: '+4 EVs to all stats (max 252 each)', cooldownField: 'poke_rare_candy_ts' },
-  { key: 'master_ball', name: 'Master Ball', level: 35, price: 1000, effect: '+8 EVs to all stats (max 252 each)', cooldownField: 'poke_master_ball_ts' },
-  { key: 'reset_bag', name: 'Reset Bag', level: 20, price: 300, effect: 'Reset all EVs to 0', cooldownField: 'poke_reset_bag_ts' },
+  { key: 'hp_up', name: '4x HP Up', level: 25, price: 150, effect: '+10 HP EVs (max 252)', cooldownField: 'poke_hp_up_ts' },
+  { key: 'protein', name: '4x Protein', level: 25, price: 150, effect: '+10 Attack EVs (max 252)', cooldownField: 'poke_protein_ts' },
+  { key: 'iron', name: '4x Iron', level: 25, price: 150, effect: '+10 Defense EVs (max 252)', cooldownField: 'poke_iron_ts' },
+  { key: 'calcium', name: '4x Calcium', level: 25, price: 150, effect: '+10 Sp. Attack EVs (max 252)', cooldownField: 'poke_calcium_ts' },
+  { key: 'zinc', name: '4x Zinc', level: 25, price: 150, effect: '+10 Sp. Defense EVs (max 252)', cooldownField: 'poke_zinc_ts' },
+  { key: 'carbos', name: '4x Carbos', level: 25, price: 150, effect: '+10 Speed EVs (max 252)', cooldownField: 'poke_carbos_ts' },
+  { key: 'rare_candy', name: '3x Rare Candy', level: 30, price: 500, effect: '+4 EVs to all stats (max 252 each)', cooldownField: 'poke_rare_candy_ts' },
+  { key: 'master_ball', name: '1 Master Ball', level: 35, price: 1000, effect: '+8 EVs to all stats (max 252 each)', cooldownField: 'poke_master_ball_ts' },
+  { key: 'reset_bag', name: '1 Reset Bag', level: 20, price: 300, effect: 'Reset all EVs to 0', cooldownField: 'poke_reset_bag_ts' },
 ];
 
 module.exports = {
