@@ -124,7 +124,13 @@ async function processBattleRewards(session) {
               name: poke.name,
               isShiny: poke.isShiny,
               count: 1,
-              caughtAt: new Date()
+              caughtAt: new Date(),
+              ivs: poke.ivs,
+              evs: poke.evs,
+              nature: poke.nature,
+              ability: poke.ability,
+              status: poke.status,
+              boosts: poke.boosts
             });
           }
         }

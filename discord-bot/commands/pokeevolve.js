@@ -79,22 +79,113 @@ module.exports = {
       const pokeName = selected?.name?.toLowerCase();
       const rarity = customSpawnRates[pokeName]?.rarity || 'common';
       const multiplier = rarityMultipliers[rarity];
-      const count = baseValue * multiplier;
+      const count = isShiny ? 2 : baseValue * multiplier;
       await i.deferUpdate();
       // Call backend evolution endpoint
       try {
+        console.log('[pokeevolve] Sending evolve-duplicate request:', {
+          pokemonId: Number(pokemonId),
+          isShiny,
+          count,
+          stage: 1
+        });
         const res = await axios.post(`${backendUrl}/users/${userId}/evolve-duplicate`, {
           pokemonId: Number(pokemonId),
           isShiny,
           count,
           stage: 1 // backend ignores this
         }, { headers: { 'x-guild-id': guildId } });
+        console.log('[pokeevolve] evolve-duplicate response:', res.data);
+        // If multiple possible evolutions, show a select menu for the user to choose
+        if (res.data && res.data.possibleEvolutions) {
+          // Fetch names and images for each possible evolution
+          const evoOptions = await Promise.all(res.data.possibleEvolutions.map(async evoId => {
+            const evoData = await pokeCache.getPokemonDataById(evoId);
+            return {
+              label: `#${evoData.id.toString().padStart(3, '0')} ${evoData.name.charAt(0).toUpperCase() + evoData.name.slice(1)}`,
+              value: String(evoId),
+              description: evoData.types.map(t => t.type.name.charAt(0).toUpperCase() + t.type.name.slice(1)).join(', ')
+              // Removed emoji property with custom URL, as Discord.js select menus do not support arbitrary image URLs for emoji
+            };
+          }));
+          const evoSelectRow = new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId('pokeevolve_evo_select')
+              .setPlaceholder('Select an evolution')
+              .addOptions(evoOptions)
+          );
+          await interaction.followUp({ content: 'Select which evolution you want:', components: [evoSelectRow], ephemeral: true });
+          // Collector for evolution select
+          const evoCollector = interaction.channel.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60000 });
+          evoCollector.on('collect', async evoI => {
+            if (evoI.user.id !== interaction.user.id) {
+              return evoI.reply({ content: 'This select menu is not for you!', ephemeral: true });
+            }
+            const chosenEvoId = Number(evoI.values[0]);
+            console.log('[pokeevolve] User selected evolutionId:', chosenEvoId);
+            await evoI.deferUpdate();
+            // Call backend again with chosen evolutionId
+            try {
+              console.log('[pokeevolve] Sending evolve-duplicate request with evolutionId:', {
+                pokemonId: Number(pokemonId),
+                isShiny,
+                count,
+                stage: 1,
+                evolutionId: chosenEvoId
+              });
+              const finalRes = await axios.post(`${backendUrl}/users/${userId}/evolve-duplicate`, {
+                pokemonId: Number(pokemonId),
+                isShiny,
+                count,
+                stage: 1,
+                evolutionId: chosenEvoId
+              }, { headers: { 'x-guild-id': guildId } });
+              console.log('[pokeevolve] evolve-duplicate response (with evolutionId):', finalRes.data);
+              const { evolved, ringCharges } = finalRes.data;
+              let artwork = null, types = '', dexNum = evolved?.pokemonId;
+              try {
+                const pokeData = await pokeCache.getPokemonDataById(evolved.pokemonId);
+                if (evolved.isShiny && pokeData.sprites.other['official-artwork'].front_shiny) {
+                  artwork = pokeData.sprites.other['official-artwork'].front_shiny;
+                } else if (pokeData.sprites.other['official-artwork'].front_default) {
+                  artwork = pokeData.sprites.other['official-artwork'].front_default;
+                } else if (evolved.isShiny && pokeData.sprites.front_shiny) {
+                  artwork = pokeData.sprites.front_shiny;
+                } else if (pokeData.sprites.front_default) {
+                  artwork = pokeData.sprites.front_default;
+                }
+                types = pokeData.types.map(t => t.type.name.charAt(0).toUpperCase() + t.type.name.slice(1)).join(', ');
+                dexNum = pokeData.id;
+              } catch {}
+              // Place shinyMark logic before embed creation
+              const shinyMark = evolved && evolved.isShiny ? ' ✨' : '';
+              const embed = new EmbedBuilder()
+                .setTitle(`Evolution Successful!${shinyMark}`)
+                .setDescription(`Your Pokémon evolved to the next stage!${shinyMark}\nRing charges left: ${ringCharges}`)
+                .setColor(0x2ecc71);
+              if (evolved && evolved.pokemonId) {
+                embed.addFields({ name: 'New Pokémon', value: `#${dexNum} ${evolved.name || ''}${shinyMark}` });
+              }
+              if (types) embed.addFields({ name: 'Type', value: types, inline: true });
+              if (artwork) embed.setImage(artwork);
+              await interaction.followUp({ embeds: [embed], ephemeral: false });
+            } catch (err) {
+              console.error('[pokeevolve] Error in evolve-duplicate (with evolutionId):', err?.response?.data || err);
+              const msg = err.response?.data?.message || 'Failed to evolve Pokémon.';
+              await interaction.followUp({ content: `❌ ${msg}`, ephemeral: true });
+            }
+            evoCollector.stop();
+          });
+          evoCollector.on('end', async () => {
+            try { await interaction.editReply({ components: [] }); } catch {}
+          });
+          return;
+        }
+        // Otherwise, proceed as before
         const { evolved, ringCharges } = res.data;
-        // Fetch evolved Pokémon data for art and details
         let artwork = null, types = '', dexNum = evolved?.pokemonId;
         try {
           const pokeData = await pokeCache.getPokemonDataById(evolved.pokemonId);
-          // Use shiny artwork if shiny, else normal
           if (evolved.isShiny && pokeData.sprites.other['official-artwork'].front_shiny) {
             artwork = pokeData.sprites.other['official-artwork'].front_shiny;
           } else if (pokeData.sprites.other['official-artwork'].front_default) {
@@ -107,17 +198,20 @@ module.exports = {
           types = pokeData.types.map(t => t.type.name.charAt(0).toUpperCase() + t.type.name.slice(1)).join(', ');
           dexNum = pokeData.id;
         } catch {}
+        // Place shinyMark logic before embed creation
+        const shinyMark = evolved && evolved.isShiny ? ' ✨' : '';
         const embed = new EmbedBuilder()
-          .setTitle('Evolution Successful!')
-          .setDescription(`Your Pokémon evolved to the next stage!\nRing charges left: ${ringCharges}`)
+          .setTitle(`Evolution Successful!${shinyMark}`)
+          .setDescription(`Your Pokémon evolved to the next stage!${shinyMark}\nRing charges left: ${ringCharges}`)
           .setColor(0x2ecc71);
         if (evolved && evolved.pokemonId) {
-          embed.addFields({ name: 'New Pokémon', value: `#${dexNum} ${evolved.name || ''}` });
+          embed.addFields({ name: 'New Pokémon', value: `#${dexNum} ${evolved.name || ''}${shinyMark}` });
         }
         if (types) embed.addFields({ name: 'Type', value: types, inline: true });
         if (artwork) embed.setImage(artwork);
         await interaction.followUp({ embeds: [embed], ephemeral: false });
       } catch (err) {
+        console.error('[pokeevolve] Error in evolve-duplicate:', err?.response?.data || err);
         const msg = err.response?.data?.message || 'Failed to evolve Pokémon.';
         await interaction.followUp({ content: `❌ ${msg}`, ephemeral: true });
       }

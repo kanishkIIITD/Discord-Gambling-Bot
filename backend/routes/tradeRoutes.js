@@ -123,7 +123,13 @@ router.post('/:tradeId/respond', async (req, res) => {
           name: initiatorPoke.name,
           isShiny: initiatorPoke.isShiny,
           count: (trade.initiatorPokemon.quantity || 1),
-          caughtAt: new Date()
+          caughtAt: new Date(),
+          ivs: initiatorPoke.ivs,
+          evs: initiatorPoke.evs,
+          nature: initiatorPoke.nature,
+          ability: initiatorPoke.ability,
+          status: initiatorPoke.status,
+          boosts: initiatorPoke.boosts
         };
         await Pokemon.create(createPayload);
       }
@@ -154,7 +160,13 @@ router.post('/:tradeId/respond', async (req, res) => {
           name: recipientPoke.name,
           isShiny: recipientPoke.isShiny,
           count: (trade.recipientPokemon.quantity || 1),
-          caughtAt: new Date()
+          caughtAt: new Date(),
+          ivs: recipientPoke.ivs,
+          evs: recipientPoke.evs,
+          nature: recipientPoke.nature,
+          ability: recipientPoke.ability,
+          status: recipientPoke.status,
+          boosts: recipientPoke.boosts
         });
       }
     }

@@ -66,36 +66,46 @@ function getUnlockedShopItems(level) {
   return SHOP_UNLOCKS.filter(item => level >= item.level);
 }
 
-// Helper to get next evolution ID for a given Pokémon and stage
-async function getNextEvolutionId(currentId, stage) {
+// Helper to get next evolution IDs for a given Pokémon and stage offset
+async function getNextEvolutionIds(currentId, stage = 1) {
   // 1. Fetch species data
-  const speciesData = await fetchJson(`https://pokeapi.co/api/v2/pokemon-species/${currentId}/`);
-  if (!speciesData || !speciesData.evolution_chain || !speciesData.evolution_chain.url) return null;
+  const speciesData = await fetchJson(
+    `https://pokeapi.co/api/v2/pokemon-species/${currentId}/`
+  );
+  if (!speciesData?.evolution_chain?.url) return [];
+
   // 2. Fetch evolution chain
   const evoChainData = await fetchJson(speciesData.evolution_chain.url);
-  // 3. Walk the chain to find the current Pokémon and its next evolution
-  // The chain is a nested structure: chain -> evolves_to[] -> evolves_to[] ...
-  function findEvolution(chain, targetId, currentStage = 1) {
-    // Get the Pokémon ID from the species URL
-    const getId = url => parseInt(url.split('/').filter(Boolean).pop(), 10);
-    const thisId = getId(chain.species.url);
-    if (thisId === targetId) {
-      // Return the next evolution at the requested stage
-      let node = chain;
-      for (let i = 0; i < stage; i++) {
-        if (!node.evolves_to || node.evolves_to.length === 0) return null;
-        node = node.evolves_to[0];
-      }
-      return getId(node.species.url);
-    }
-    // Recurse into evolves_to
-    for (const evo of chain.evolves_to || []) {
-      const found = findEvolution(evo, targetId, currentStage + 1);
+
+  // 3. Walk the chain to find the node for currentId
+  function findNode(chain, targetId) {
+    const extractId = url =>
+      parseInt(url.split("/").filter(Boolean).pop(), 10);
+
+    if (extractId(chain.species.url) === targetId) return chain;
+
+    for (const child of chain.evolves_to || []) {
+      const found = findNode(child, targetId);
       if (found) return found;
     }
     return null;
   }
-  return findEvolution(evoChainData.chain, currentId, 1);
+
+  const startNode = findNode(evoChainData.chain, currentId);
+  if (!startNode) return [];
+
+  // 4. From that node, step `stage` levels deep over *all* branches
+  let frontier = [startNode];
+  for (let i = 0; i < stage; i++) {
+    frontier = frontier.flatMap((node) => node.evolves_to || []);
+    if (frontier.length === 0) return [];
+  }
+
+  // 5. Map each resulting node to its Pokémon ID
+  const extractId = url =>
+    parseInt(url.split("/").filter(Boolean).pop(), 10);
+
+  return frontier.map((node) => extractId(node.species.url));
 }
 
 // Helper to generate a random nature
@@ -117,6 +127,6 @@ module.exports = {
   getLevelForXp,
   getNextLevelXp,
   getUnlockedShopItems,
-  getNextEvolutionId,
+  getNextEvolutionIds,
   randomNature,
 }; 

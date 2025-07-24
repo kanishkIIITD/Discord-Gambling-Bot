@@ -549,7 +549,7 @@ router.post('/:discordId/evolve-duplicate', requireGuildId, async (req, res) => 
   try {
     const { discordId } = req.params;
     const guildId = req.headers['x-guild-id'];
-    const { pokemonId, isShiny = false, stage, count } = req.body;
+    const { pokemonId, isShiny = false, stage = 1, count, evolutionId } = req.body;
     const now = new Date();
     // --- Fetch user and validate ring ---
     const user = await User.findOne({ discordId, guildId });
@@ -579,9 +579,10 @@ router.post('/:discordId/evolve-duplicate', requireGuildId, async (req, res) => 
     if (multiplier == null) {
       return res.status(403).json({ message: 'Legendary Pokémon cannot use duplicate evolution.' });
     }
-    const neededDupes = baseValue * multiplier;
+    // --- Shiny requirement override ---
+    const neededDupes = isShiny ? 2 : baseValue * multiplier;
     const neededCharges = 1; // Keep as 1 for all
-    if (count !== neededDupes) return res.status(400).json({ message: `${rarity.charAt(0).toUpperCase() + rarity.slice(1)} Pokémon require ${neededDupes} duplicates to evolve.` });
+    if (count !== neededDupes) return res.status(400).json({ message: `${isShiny ? 'Shiny' : rarity.charAt(0).toUpperCase() + rarity.slice(1)} Pokémon require ${neededDupes} duplicates to evolve.` });
     if (user.poke_ring_charges < neededCharges) return res.status(403).json({ message: `Not enough ring charges. Need ${neededCharges}.` });
     const totalDupes = pokemons.reduce((sum, p) => sum + (p.count || 1), 0);
     if (totalDupes < neededDupes) return res.status(403).json({ message: `You need at least ${neededDupes} duplicates to evolve.` });
@@ -589,6 +590,18 @@ router.post('/:discordId/evolve-duplicate', requireGuildId, async (req, res) => 
     const weekKey = String(pokemonId);
     const evolMap = user.poke_weekly_evolutions || {};
     if ((evolMap[weekKey] || 0) >= 2) return res.status(403).json({ message: 'Max 2 duplicate evolutions per species per week.' });
+    // --- Get possible evolutions ---
+    const possibleEvos = await pokeApi.getNextEvolutionIds(pokemonId, stage);
+    if (!possibleEvos || possibleEvos.length === 0) return res.status(500).json({ message: 'Could not determine next evolution.' });
+    if (!evolutionId && possibleEvos.length > 1) {
+      // Multiple possible evolutions, client must choose
+      return res.status(200).json({
+        message: 'Multiple possible evolutions. Please choose one.',
+        possibleEvolutions: possibleEvos
+      });
+    }
+    // Determine which evolution to use
+    const nextEvoId = evolutionId && possibleEvos.includes(evolutionId) ? evolutionId : possibleEvos[0];
     // --- Perform evolution ---
     let toRemove = neededDupes;
     for (const p of pokemons) {
@@ -601,9 +614,6 @@ router.post('/:discordId/evolve-duplicate', requireGuildId, async (req, res) => 
     }
     // Deduct ring charges
     user.poke_ring_charges -= neededCharges;
-    // Add evolved form (next stage)
-    const nextEvoId = await pokeApi.getNextEvolutionId(pokemonId, 1); // Always evolve to the next stage
-    if (!nextEvoId) return res.status(500).json({ message: 'Could not determine next evolution.' });
     // Add evolved Pokémon to user
     let evolved = await Pokemon.findOne({ discordId, guildId, pokemonId: nextEvoId, isShiny });
     if (evolved) {
