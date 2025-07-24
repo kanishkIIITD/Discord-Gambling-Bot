@@ -41,13 +41,18 @@ module.exports = {
       legendary: null // lockout
     };
     const baseValue = 1;
+    const calcNeededDupes = (isShiny, rarity) =>
+      isShiny
+        ? 2
+        : baseValue * rarityMultipliers[rarity];
     // Filter eligible Pokémon (duplicates, not legendary, not final stage, etc.)
     const eligible = pokedex.filter(mon => {
-      const pokeName = mon.name?.toLowerCase();
-      const rarity = customSpawnRates[pokeName]?.rarity || 'common';
+      const pokeName = mon.name.toLowerCase();
+      const rarity    = customSpawnRates[pokeName]?.rarity || 'common';
       const multiplier = rarityMultipliers[rarity];
       if (multiplier == null) return false; // legendary lockout
-      const requiredDupes = baseValue * multiplier;
+    
+      const requiredDupes = calcNeededDupes(mon.isShiny, rarity);
       return (mon.count || 1) >= requiredDupes;
     });
     if (eligible.length === 0) {
@@ -79,7 +84,7 @@ module.exports = {
       const pokeName = selected?.name?.toLowerCase();
       const rarity = customSpawnRates[pokeName]?.rarity || 'common';
       const multiplier = rarityMultipliers[rarity];
-      const count = isShiny ? 2 : baseValue * multiplier;
+      const count = calcNeededDupes(isShiny, rarity);
       await i.deferUpdate();
       // Call backend evolution endpoint
       try {
