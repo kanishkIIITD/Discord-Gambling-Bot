@@ -466,7 +466,31 @@ router.post('/:battleId/select', async (req, res) => {
       })();
       const types = pokeData.types.map(t => t.type.name);
       // --- Pass battleSize to getLegalMoveset ---
-      const moves = await battleUtils.getLegalMoveset(pokeData.name, 50, battleSize, 'red-blue');
+      const moves = await battleUtils.getLegalMoveset(
+        pokeData.name,
+        50, // level
+        battleSize,
+        p.ability || '',
+        p.nature || 'hardy',
+        [
+          p.ivs?.hp ?? 31,
+          p.ivs?.attack ?? 31,
+          p.ivs?.defense ?? 31,
+          p.ivs?.spAttack ?? 31,
+          p.ivs?.spDefense ?? 31,
+          p.ivs?.speed ?? 31
+        ],
+        [
+          p.evs?.hp ?? 0,
+          p.evs?.attack ?? 0,
+          p.evs?.defense ?? 0,
+          p.evs?.spAttack ?? 0,
+          p.evs?.spDefense ?? 0,
+          p.evs?.speed ?? 0
+        ],
+        userId,
+        p._id?.toString() || ''
+      );
       return {
         pokemonId: p.pokemonId,
         name: p.name,

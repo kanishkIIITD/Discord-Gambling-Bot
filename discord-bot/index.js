@@ -173,8 +173,8 @@ client.once('ready', () => {
 });
 
 // Send a welcome embed when the bot is added to a new server
-const defaultDashboardUrl = 'https://discord-gambling-bot.vercel.app/dashboard';
-const defaultCommandsUrl = 'https://discord-gambling-bot.vercel.app/commands';
+const defaultDashboardUrl = 'https://playdex-bot.vercel.app/dashboard';
+const defaultCommandsUrl = 'https://playdex-bot.vercel.app/commands';
 const defaultSupportUrl = 'https://www.buymeacoffee.com/lostzoroman';
 client.on('guildCreate', async (guild) => {
 	try {
@@ -1029,26 +1029,28 @@ client.on('interactionCreate', async interaction => {
 									{ name: 'Weather', value: session2.weather || 'None', inline: true },
 									{ name: 'Terrain', value: session2.terrain || 'None', inline: true }
 								);
-							const moves = (turnPoke.moves || []).slice(0, 5);
-							const moveRow = new ActionRowBuilder().addComponents(
-								moves.map(m => new ButtonBuilder()
-									.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
-									.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
-									.setStyle(
-										m.power > 0
-											? ButtonStyle.Secondary // Damaging move (red)
-											: ButtonStyle.Success // Effect move (green)
-									)
-									.setDisabled(m.currentPP === 0)
+							const moves = (turnPoke.moves || []).slice(0, 6);
+							const moveButtons = moves.map(m => new ButtonBuilder()
+								.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
+								.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
+								.setStyle(
+									m.power > 0
+										? ButtonStyle.Secondary
+										: ButtonStyle.Success
 								)
+								.setDisabled(m.currentPP === 0)
 							);
+							// Split into rows of max 5
+							const moveRows = [];
+							if (moveButtons.length > 0) moveRows.push(new ActionRowBuilder().addComponents(moveButtons.slice(0, 5)));
+							if (moveButtons.length > 5) moveRows.push(new ActionRowBuilder().addComponents(moveButtons.slice(5, 10)));
 							const { getBattleActionRow } = require('./utils/discordUtils');
 							const actionRow = getBattleActionRow(battleId, turnUserId);
 							const logText = (session2.log && session2.log.length) ? session2.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 							await message.channel.send({
 								content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
 								embeds: [battleEmbed],
-								components: [moveRow, actionRow],
+								components: [...moveRows, actionRow],
 								allowedMentions: { users: [turnUserId] },
 							});
 						}
@@ -1141,25 +1143,27 @@ client.on('interactionCreate', async interaction => {
 					return;
 				}
 				// Show real move buttons for the next user
-				const moves = (turnPoke.moves || []).slice(0, 5);
-				const moveRow = new ActionRowBuilder().addComponents(
-					moves.map(m => new ButtonBuilder()
-						.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
-						.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
-						.setStyle(
-							m.power > 0
-								? ButtonStyle.Secondary // Damaging move (red)
-								: ButtonStyle.Success // Effect move (green)
-						)
-						.setDisabled(m.currentPP === 0)
+				const moves = (turnPoke.moves || []).slice(0, 6);
+				const moveButtons = moves.map(m => new ButtonBuilder()
+					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
+					.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
+					.setStyle(
+						m.power > 0
+							? ButtonStyle.Secondary
+							: ButtonStyle.Success
 					)
+					.setDisabled(m.currentPP === 0)
 				);
+				// Split into rows of max 5
+				const moveRows = [];
+				if (moveButtons.length > 0) moveRows.push(new ActionRowBuilder().addComponents(moveButtons.slice(0, 5)));
+				if (moveButtons.length > 5) moveRows.push(new ActionRowBuilder().addComponents(moveButtons.slice(5, 10)));
 				const { getBattleActionRow } = require('./utils/discordUtils');
 				const actionRow = getBattleActionRow(battleId, turnUserId);
 				await interaction.update({
 					content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
 					embeds: [battleEmbed],
-					components: [moveRow, actionRow],
+					components: [...moveRows, actionRow],
 					allowedMentions: { users: [turnUserId] },
 				});
 			} catch (error) {
@@ -1316,19 +1320,21 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Weather', value: updatedSession.weather || 'None', inline: true },
 					{ name: 'Terrain', value: updatedSession.terrain || 'None', inline: true }
 				);
-			const moves = (turnPoke.moves || []).slice(0, 5);
-			const moveRow = new ActionRowBuilder().addComponents(
-				moves.map(m => new ButtonBuilder()
-					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
-					.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
-					.setStyle(
-						m.power > 0
-							? ButtonStyle.Secondary // Damaging move (red)
-							: ButtonStyle.Success // Effect move (green)
-					)
-					.setDisabled(m.currentPP === 0)
+			const moves = (turnPoke.moves || []).slice(0, 6);
+			const moveButtons = moves.map(m => new ButtonBuilder()
+				.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
+				.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
+				.setStyle(
+					m.power > 0
+						? ButtonStyle.Secondary
+						: ButtonStyle.Success
 				)
+				.setDisabled(m.currentPP === 0)
 			);
+			// Split into rows of max 5
+			const moveRows = [];
+			if (moveButtons.length > 0) moveRows.push(new ActionRowBuilder().addComponents(moveButtons.slice(0, 5)));
+			if (moveButtons.length > 5) moveRows.push(new ActionRowBuilder().addComponents(moveButtons.slice(5, 10)));
 			const { getBattleActionRow } = require('./utils/discordUtils');
 			const actionRow = getBattleActionRow(battleId, turnUserId);
 			const logText = (updatedSession.log && updatedSession.log.length) ? updatedSession.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
@@ -1336,7 +1342,7 @@ client.on('interactionCreate', async interaction => {
 			await interaction.update({
 				content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
 				embeds: [battleEmbed],
-				components: [moveRow, actionRow],
+				components: [...moveRows, actionRow],
 				allowedMentions: { users: [turnUserId] },
 			});
 			return;
@@ -1458,26 +1464,28 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Weather', value: session2.weather || 'None', inline: true },
 					{ name: 'Terrain', value: session2.terrain || 'None', inline: true }
 				);
-			const moves = (turnPoke.moves || []).slice(0, 5);
-			const moveRow = new ActionRowBuilder().addComponents(
-				moves.map(m => new ButtonBuilder()
-					.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
-					.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
-					.setStyle(
-						m.power > 0
-							? ButtonStyle.Secondary // Damaging move (red)
-							: ButtonStyle.Success // Effect move (green)
-					)
-					.setDisabled(m.currentPP === 0)
+			const moves = (turnPoke.moves || []).slice(0, 6);
+			const moveButtons = moves.map(m => new ButtonBuilder()
+				.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
+				.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
+				.setStyle(
+					m.power > 0
+						? ButtonStyle.Secondary
+						: ButtonStyle.Success
 				)
+				.setDisabled(m.currentPP === 0)
 			);
+			// Split into rows of max 5
+			const moveRows = [];
+			if (moveButtons.length > 0) moveRows.push(new ActionRowBuilder().addComponents(moveButtons.slice(0, 5)));
+			if (moveButtons.length > 5) moveRows.push(new ActionRowBuilder().addComponents(moveButtons.slice(5, 10)));
 			const { getBattleActionRow } = require('./utils/discordUtils');
 			const actionRow = getBattleActionRow(battleId, turnUserId);
 			const logText = (session2.log && session2.log.length) ? session2.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 			await interaction.update({
 				content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
 				embeds: [battleEmbed],
-				components: [moveRow, actionRow],
+				components: [...moveRows, actionRow],
 				allowedMentions: { users: [turnUserId] },
 			});
 			return;

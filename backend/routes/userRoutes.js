@@ -2557,6 +2557,12 @@ router.post('/:userId/gift', async (req, res) => {
     const sender = await User.findOne({ discordId: senderDiscordId, guildId: req.guildId });
     const recipient = await User.findOne({ discordId: recipientDiscordId, guildId: req.guildId });
 
+    if (sender._id.equals(recipient._id)) {
+      return res
+        .status(400)
+        .json({ message: 'You cannot gift points to yourself.' });
+    }
+
     if (!sender || !recipient) {
       return res.status(404).json({ message: 'User not found.' });
     }

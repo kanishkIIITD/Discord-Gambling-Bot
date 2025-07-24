@@ -190,7 +190,7 @@ export const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
             <p className="text-text-secondary tracking-wide text-xs md:text-sm text-center md:text-left font-base">
-              © {new Date().getFullYear()} <a href='https://discord-gambling-bot.vercel.app/' target='_blank' rel='noopener noreferrer' className='text-primary hover:text-primary/80 transition-colors hover:underline'>Nopixel Gambling Bot</a>. All rights reserved.
+              © {new Date().getFullYear()} <a href='https://playdex-bot.vercel.app/' target='_blank' rel='noopener noreferrer' className='text-primary hover:text-primary/80 transition-colors hover:underline'>Nopixel Gambling Bot</a>. All rights reserved.
             </p>
             <div className="flex flex-wrap justify-center gap-4 text-xs md:text-sm">
               <button onClick={() => setModal('cookie')} className="text-text-secondary hover:text-primary transition-colors bg-transparent border-none p-0 m-0 cursor-pointer hover:underline underline-offset-2 focus:outline-none font-base">

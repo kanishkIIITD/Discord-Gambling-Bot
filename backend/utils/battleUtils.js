@@ -30,33 +30,6 @@ function calculateStats(pokeApiStats, level = 50, ivs = {}, evs = {}, nature = '
   };
 
   // Nature chart: maps nature to per-stat multipliers
-  const natureChart = {
-    hardy:   { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
-    lonely:  { attack: 1.1, defense: 0.9, spAttack: 1, spDefense: 1, speed: 1 },
-    brave:   { attack: 1.1, defense: 1, spAttack: 1, spDefense: 1, speed: 0.9 },
-    adamant: { attack: 1.1, defense: 1, spAttack: 0.9, spDefense: 1, speed: 1 },
-    naughty: { attack: 1.1, defense: 1, spAttack: 1, spDefense: 0.9, speed: 1 },
-    bold:    { attack: 0.9, defense: 1.1, spAttack: 1, spDefense: 1, speed: 1 },
-    docile:  { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
-    relaxed: { attack: 1, defense: 1.1, spAttack: 1, spDefense: 1, speed: 0.9 },
-    impish:  { attack: 1, defense: 1.1, spAttack: 0.9, spDefense: 1, speed: 1 },
-    lax:     { attack: 1, defense: 1.1, spAttack: 1, spDefense: 0.9, speed: 1 },
-    timid:   { attack: 0.9, defense: 1, spAttack: 1, spDefense: 1, speed: 1.1 },
-    hasty:   { attack: 1, defense: 0.9, spAttack: 1, spDefense: 1, speed: 1.1 },
-    serious: { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
-    jolly:   { attack: 1, defense: 1, spAttack: 0.9, spDefense: 1, speed: 1.1 },
-    naive:   { attack: 1, defense: 1, spAttack: 1, spDefense: 0.9, speed: 1.1 },
-    modest:  { attack: 0.9, defense: 1, spAttack: 1.1, spDefense: 1, speed: 1 },
-    mild:    { attack: 1, defense: 0.9, spAttack: 1.1, spDefense: 1, speed: 1 },
-    quiet:   { attack: 1, defense: 1, spAttack: 1.1, spDefense: 1, speed: 0.9 },
-    bashful: { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
-    rash:    { attack: 1, defense: 1, spAttack: 1.1, spDefense: 0.9, speed: 1 },
-    calm:    { attack: 0.9, defense: 1, spAttack: 1, spDefense: 1.1, speed: 1 },
-    gentle:  { attack: 1, defense: 0.9, spAttack: 1, spDefense: 1.1, speed: 1 },
-    sassy:   { attack: 1, defense: 1, spAttack: 1, spDefense: 1.1, speed: 0.9 },
-    careful: { attack: 1, defense: 1, spAttack: 0.9, spDefense: 1.1, speed: 1 },
-    quirky:  { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
-  };
   const nat = natureChart[nature?.toLowerCase()] || natureChart['hardy'];
 
   // Ability multipliers
@@ -98,25 +71,58 @@ const axios = require('axios');
 const { VERSION_GROUPS } = require('./versionGroupConfig');
 
 /**
+ * Determine a Pokémon's combat style based on IV, EV, and nature.
+ * @param {Object} params
+ * @param {Array} params.iv - IVs array [HP, Atk, Def, SpA, SpD, Spe]
+ * @param {Array} params.ev - EVs array [HP, Atk, Def, SpA, SpD, Spe]
+ * @param {string} params.nature - Nature name (e.g. 'adamant')
+ * @returns {string} Combat style: 'physical', 'special', 'defensive', 'speedster', or 'balanced'
+ */
+function getCombatStyle({ iv = [31,31,31,31,31,31], ev = [0,0,0,0,0,0], nature = 'hardy' }) {
+  // Biases: [HP, Atk, Def, SpA, SpD, Spe]
+  let phyBias = (iv[1] || 0) + (ev[1] || 0);
+  let spaBias = (iv[3] || 0) + (ev[3] || 0);
+  const defBias = (iv[2] || 0) + (ev[2] || 0) + (iv[4] || 0) + (ev[4] || 0);
+  const spdBias = (iv[5] || 0) + (ev[5] || 0);
+  // Apply nature multipliers to physical and special bias
+  const nat = natureChart[nature?.toLowerCase()] || natureChart['hardy'];
+  phyBias *= nat.attack || 1;
+  spaBias *= nat.spAttack || 1;
+  if (phyBias > spaBias + 30) return 'physical';
+  if (spaBias > phyBias + 30) return 'special';
+  if (defBias > phyBias + spaBias) return 'defensive';
+  if (spdBias > 100) return 'speedster';
+  return 'balanced';
+}
+
+/**
  * Fetch all level-up moves for a Pokémon at a given level and version group.
  * Returns up to 4 highest-power damaging moves (with power > 0).
  * @param {string} pokemonName - Name of the Pokémon (lowercase)
  * @param {number} level - Level to check (default 50)
- * @param {string} versionGroup - PokéAPI version group (default 'red-blue')
  * @param {number} battleSize - Number of Pokémon per team (default 5)
+ * @param {string} [ability] - Pokémon's ability (optional)
+ * @param {string} [nature] - Pokémon's nature (optional)
+ * @param {Array} [iv] - IVs array [HP, Atk, Def, SpA, SpD, Spe] (optional)
+ * @param {Array} [ev] - EVs array [HP, Atk, Def, SpA, SpD, Spe] (optional)
+ * @param {string} [ownerId] - Discord user ID (optional)
+ * @param {string} [pokemonUniqueId] - Unique per-captured-mon identifier (optional)
  * @returns {Promise<Array>} Array of move objects: { name, power, moveType, category, accuracy, effectivePP, currentPP, learnedAt }
  */
 async function getLegalMoveset(
   pokemonName,
   level = 50,
-  battleSize = 5
+  battleSize = 5,
+  ability = '',
+  nature = 'hardy',
+  iv = [31, 31, 31, 31, 31, 31],
+  ev = [0, 0, 0, 0, 0, 0],
+  ownerId = '',
+  pokemonUniqueId = ''
 ) {
   const res = await axios.get(`https://pokeapi.co/api/v2/pokemon/${pokemonName.toLowerCase()}`);
   const data = res.data;
-
   const allowedMethods = ['level-up', 'machine', 'tutor', 'egg'];
-
-  // --- New: Try filtering by version group, expanding until enough moves are found ---
   let allMoves = [];
   let usedVersionGroups = [];
   let damagingMoves = [];
@@ -124,7 +130,6 @@ async function getLegalMoveset(
   const uniqueByName = arr => Object.values(arr.reduce((acc, m) => { if (m && !acc[m.name]) acc[m.name] = m; return acc; }, {}));
   for (const vg of VERSION_GROUPS) {
     usedVersionGroups.push(vg.key);
-    // Accumulate all moves from the current set of version groups
     const filteredMoves = data.moves
       .map(m => {
         const details = m.version_group_details.filter(d =>
@@ -142,7 +147,6 @@ async function getLegalMoveset(
       })
       .filter(Boolean);
     allMoves = [...allMoves, ...filteredMoves];
-    // Fetch move details for new moves only
     const moveDetails = await Promise.all(filteredMoves.map(async (move) => {
       try {
         const moveRes = await axios.get(move.url);
@@ -158,7 +162,6 @@ async function getLegalMoveset(
           effectivePP,
           currentPP: effectivePP,
           learnedAt: move.learnedAt,
-          // --- PATCH: Normalize move name for effectType lookup ---
           effectType: moveEffectRegistry[move.name.toLowerCase()]?.type || null,
           effectEntries: moveData.effect_entries || [],
           meta: moveData.meta || {},
@@ -169,137 +172,116 @@ async function getLegalMoveset(
     }));
     damagingMoves = uniqueByName([...damagingMoves, ...moveDetails.filter(m => m && m.power > 0)]);
     effectMoves = uniqueByName([...effectMoves, ...moveDetails.filter(m => m && m.power === 0 && m.effectType)]);
-    // If we have at least 3 unique damaging moves, stop expanding
     if (damagingMoves.length >= 3) break;
   }
-
-  // --- Custom move selection logic ---
-  // Get Pokémon's types
+  // --- Categorize move pools ---
+  // Use existing pokemonTypes if already declared above
+  // If not, declare it here
+  // (Check if pokemonTypes is already declared in the function scope)
+  // For now, assume it's not declared above in this function
   const pokemonTypes = data.types.map(t => t.type.name);
+  let normalPool = damagingMoves.filter(m => m.moveType === 'normal' || m.moveType === 'none' || m.moveType === 'typeless');
+  let stabPool = damagingMoves.filter(m => pokemonTypes.includes(m.moveType));
+  let altPool = damagingMoves.filter(m => !pokemonTypes.includes(m.moveType) && m.moveType !== 'normal' && m.moveType !== 'none' && m.moveType !== 'typeless');
+  let effectPool = effectMoves;
+  // --- Expose categorized arrays for future logic ---
+  // normalPool, stabPool, altPool, effectPool
 
-  // Separate colorless and non-colorless damaging moves
-  const colorlessMoves = damagingMoves.filter(m => m.moveType === 'normal' || m.moveType === 'none' || m.moveType === 'typeless');
-  const nonColorlessMoves = damagingMoves.filter(m => m.moveType !== 'normal' && m.moveType !== 'none' && m.moveType !== 'typeless');
+  // --- Filter by ability (onTryHit) ---
+  const abObj = abilityRegistry[ability?.toLowerCase?.()];
+  if (abObj && typeof abObj.onTryHit === 'function') {
+    // For each move pool, filter out moves that would be blocked by the ability
+    const self = { types: pokemonTypes, ability };
+    // Target is a dummy for now (move type as type array)
+    const filterByAbility = (pool) => pool.filter(m => abObj.onTryHit(self, m, { types: m.moveType ? [m.moveType] : [] }, {}, []) !== false);
+    normalPool = filterByAbility(normalPool);
+    stabPool = filterByAbility(stabPool);
+    altPool = filterByAbility(altPool);
+    // effectPool is not filtered here
+  }
 
-  // Sort by power, then by learnedAt
-  const sortedColorless = colorlessMoves.sort((a, b) => b.power - a.power || b.learnedAt - a.learnedAt);
-  const sortedNonColorless = nonColorlessMoves.sort((a, b) => b.power - a.power || b.learnedAt - a.learnedAt);
-
-  // Find the most powerful colorless move (if any)
-  const bestColorless = sortedColorless[0];
-
-  // Find the most powerful STAB move (same type as Pokémon)
-  const stabMoves = sortedNonColorless.filter(m => pokemonTypes.includes(m.moveType));
-  const bestStab = stabMoves[0];
-
-  // Find the most powerful non-STAB move (excluding colorless)
-  const nonStabMoves = sortedNonColorless.filter(m => !pokemonTypes.includes(m.moveType));
-  const bestNonStab = nonStabMoves[0];
-
-  // Build the damaging moveset
-  let selectedDamaging = [];
-  if (bestColorless) selectedDamaging.push(bestColorless);
-  if (bestStab) selectedDamaging.push(bestStab);
-
-  // If bestNonStab is more powerful than bestStab, include it, but always keep at least one STAB
-  if (bestNonStab && (!bestStab || bestNonStab.power > bestStab.power)) {
-    if (!selectedDamaging.some(m => m.name === bestNonStab.name)) {
-      selectedDamaging.push(bestNonStab);
+  // --- Compute effective stats and expected damage for each move ---
+  // Calculate user's stats (using calculateStats)
+  const baseStats = data.stats;
+  const stats = calculateStats(
+    baseStats,
+    level,
+    { hp: iv[0], attack: iv[1], defense: iv[2], spAttack: iv[3], spDefense: iv[4], speed: iv[5] },
+    { hp: ev[0], attack: ev[1], defense: ev[2], spAttack: ev[3], spDefense: ev[4], speed: ev[5] },
+    nature,
+    ability
+  );
+  // Assume a generic defender: level 50, all base stats 80, no IV/EV, neutral nature
+  const genericDefender = {
+    level: 50,
+    stats: { attack: 80, defense: 80, spAttack: 80, spDefense: 80, speed: 80 },
+    types: ['normal']
+  };
+  // Helper to compute expected damage for a move
+  function computeExpectedDamage(move) {
+    if (!move.power) return 0;
+    const isPhysical = move.category === 'physical';
+    const atk = isPhysical ? stats.attack : stats.spAttack;
+    const def = isPhysical ? genericDefender.stats.defense : genericDefender.stats.spDefense;
+    const stab = pokemonTypes.includes(move.moveType) ? 1.5 : 1.0;
+    const typeEff = 1.0; // Assume neutral for now
+    const base = Math.floor(((2 * level / 5 + 2) * move.power * atk / def) / 50 + 2);
+    const modifier = stab * typeEff * (move.accuracy / 100);
+    return Math.max(1, Math.floor(base * modifier));
+  }
+  // Add expectedDamage to each move in the pools
+  for (const pool of [normalPool, stabPool, altPool]) {
+    for (const move of pool) {
+      move.expectedDamage = computeExpectedDamage(move);
     }
   }
 
-  // Fill up to 3 damaging moves, but only allow one colorless
-  // Prefer non-colorless for the third slot
-  let alreadyColorless = !!bestColorless;
-  const allSortedNonColorless = sortedNonColorless.filter(m => !selectedDamaging.some(sel => sel.name === m.name));
-  for (const move of allSortedNonColorless) {
-    if (selectedDamaging.length >= 3) break;
-    selectedDamaging.push(move);
-  }
-  // If still less than 3, allow a second colorless ONLY if not already present
-  if (selectedDamaging.length < 3 && !alreadyColorless) {
-    const moreColorless = sortedColorless.filter(m => !selectedDamaging.some(sel => sel.name === m.name));
-    for (const move of moreColorless) {
-      if (selectedDamaging.length >= 3) break;
-      selectedDamaging.push(move);
-    }
-  }
-  selectedDamaging = selectedDamaging.slice(0, 3);
-
-  // Sort effect moves by learnedAt
-  effectMoves = effectMoves.sort((a, b) => b.learnedAt - a.learnedAt);
-  let selectedMoves = [
-    ...selectedDamaging,
-    ...effectMoves.slice(0, 2)
-  ].slice(0, 5);
-
-  // --- PATCH: If no damaging moves, include all effect moves (not just whitelisted) ---
-  if (selectedMoves.length === 0) {
-    // Fetch all effect moves (power === 0)
-    const allEffectMoves = await Promise.all(allMoves.map(async (move) => {
-      try {
-        const moveRes = await axios.get(move.url);
-        const moveData = moveRes.data;
-        const basePP = moveData.pp || 5;
-        const effectivePP = Math.ceil(basePP * (battleSize / 5));
-        return {
-          name: move.name,
-          power: moveData.power || 0,
-          moveType: moveData.type.name,
-          category: moveData.damage_class.name,
-          accuracy: moveData.accuracy || 100,
-          effectivePP,
-          currentPP: effectivePP,
-          learnedAt: move.learnedAt,
-          // --- PATCH: Normalize move name for effectType lookup ---
-          effectType: moveEffectRegistry[move.name.toLowerCase()]?.type || null,
-          effectEntries: moveData.effect_entries || [],
-          meta: moveData.meta || {},
-        };
-      } catch (err) {
-        return null;
-      }
-    }));
-    // Filter to only effect moves (power === 0)
-    const allEffectMovesFiltered = uniqueByName(allEffectMoves.filter(m => m && m.power === 0));
-    selectedMoves = allEffectMovesFiltered.slice(0, 4); // up to 4 effect moves
-  }
-  // --- PATCH: For Ditto, always include Transform if available ---
-  if (pokemonName.toLowerCase() === 'ditto') {
-    // Find Transform in allMoves
-    const transformMove = allMoves.find(m => m.name === 'transform');
-    if (transformMove) {
-      // Fetch move details if not already present
-      let moveObj = selectedMoves.find(m => m.name === 'transform');
-      if (!moveObj) {
-        try {
-          const moveRes = await axios.get(transformMove.url);
-          const moveData = moveRes.data;
-          const basePP = moveData.pp || 5;
-          const effectivePP = Math.ceil(basePP * (battleSize / 5));
-          moveObj = {
-            name: 'transform',
-            power: moveData.power || 0,
-            moveType: moveData.type.name,
-            category: moveData.damage_class.name,
-            accuracy: moveData.accuracy || 100,
-            effectivePP,
-            currentPP: effectivePP,
-            learnedAt: transformMove.learnedAt,
-            // --- PATCH: Normalize move name for effectType lookup ---
-            effectType: moveEffectRegistry['transform']?.type || null,
-            effectEntries: moveData.effect_entries || [],
-            meta: moveData.meta || {},
-          };
-        } catch (err) { moveObj = null; }
-      }
-      if (moveObj && !selectedMoves.some(m => m.name === 'transform')) {
-        selectedMoves.unshift(moveObj);
-        selectedMoves = selectedMoves.slice(0, 4); // keep moveset size reasonable
+  // --- Apply nature bias to move selection (weighted scoring) ---
+  const nat = natureChart[nature?.toLowerCase()] || natureChart['hardy'];
+  for (const pool of [normalPool, stabPool, altPool]) {
+    for (const move of pool) {
+      if (move.category === 'physical') {
+        move.expectedDamage *= nat.attack || 1;
+      } else if (move.category === 'special') {
+        move.expectedDamage *= nat.spAttack || 1;
       }
     }
   }
-  // console.log(pokemonName, selectedMoves);
+
+  // --- Greedy selection with diversity ---
+  const allBattleMoves = [...stabPool, ...altPool, ...normalPool, ...effectPool];
+  // 1. Primary STAB
+  const primary = allBattleMoves.filter(m => isSameType(m, pokemonTypes)).sort((a, b) => b.expectedDamage - a.expectedDamage)[0];
+  // 2. Secondary STAB
+  const secondary = allBattleMoves.filter(m => isSameType(m, pokemonTypes) && m !== primary).sort((a, b) => b.expectedDamage - a.expectedDamage)[0];
+  // 3. Coverage by marginal coverage gain
+  let threatened = getThreatenedTypes([primary, secondary].filter(Boolean));
+  const coverageCandidates = allBattleMoves.filter(m => ![primary, secondary].includes(m));
+  const coverage = coverageCandidates
+    .map(m => ({ move: m, gain: marginalCoverageGain(m, threatened, defaultOpponentTypeDistribution) }))
+    .sort((a, b) => b.gain - a.gain)[0]?.move;
+  // 4. Utility/Priority
+  const utility = allBattleMoves.filter(m => m.category === 'status' || m.priority > 0).sort((a, b) => (b.priority || 0) - (a.priority || 0))[0];
+  // 5. Top 2 effect moves (by learnedAt)
+  const bestEffects = [...effectPool].sort((a, b) => b.learnedAt - a.learnedAt).slice(0, 2);
+  // Build selected moveset (up to 6 moves, ensuring diversity)
+  const selectedMoves = [];
+  if (primary) selectedMoves.push(primary);
+  if (secondary && !selectedMoves.some(m => m.name === secondary.name)) selectedMoves.push(secondary);
+  if (coverage && !selectedMoves.some(m => m.name === coverage.name)) selectedMoves.push(coverage);
+  if (utility && !selectedMoves.some(m => m.name === utility.name)) selectedMoves.push(utility);
+  for (const eff of bestEffects) {
+    if (!selectedMoves.some(m => m.name === eff.name)) selectedMoves.push(eff);
+    if (selectedMoves.length >= 6) break;
+  }
+  // If still less than 6, fill with more damaging or effect moves
+  if (selectedMoves.length < 6) {
+    const moreMoves = allBattleMoves.filter(m => !selectedMoves.some(sel => sel.name === m.name));
+    for (const move of moreMoves) {
+      if (selectedMoves.length >= 6) break;
+      selectedMoves.push(move);
+    }
+  }
   return selectedMoves;
 }
 
@@ -600,6 +582,68 @@ const abilityRegistry = {
   }
 };
 
+// --- Nature chart: maps nature to per-stat multipliers ---
+const natureChart = {
+  hardy:   { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
+  lonely:  { attack: 1.1, defense: 0.9, spAttack: 1, spDefense: 1, speed: 1 },
+  brave:   { attack: 1.1, defense: 1, spAttack: 1, spDefense: 1, speed: 0.9 },
+  adamant: { attack: 1.1, defense: 1, spAttack: 0.9, spDefense: 1, speed: 1 },
+  naughty: { attack: 1.1, defense: 1, spAttack: 1, spDefense: 0.9, speed: 1 },
+  bold:    { attack: 0.9, defense: 1.1, spAttack: 1, spDefense: 1, speed: 1 },
+  docile:  { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
+  relaxed: { attack: 1, defense: 1.1, spAttack: 1, spDefense: 1, speed: 0.9 },
+  impish:  { attack: 1, defense: 1.1, spAttack: 0.9, spDefense: 1, speed: 1 },
+  lax:     { attack: 1, defense: 1.1, spAttack: 1, spDefense: 0.9, speed: 1 },
+  timid:   { attack: 0.9, defense: 1, spAttack: 1, spDefense: 1, speed: 1.1 },
+  hasty:   { attack: 1, defense: 0.9, spAttack: 1, spDefense: 1, speed: 1.1 },
+  serious: { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
+  jolly:   { attack: 1, defense: 1, spAttack: 0.9, spDefense: 1, speed: 1.1 },
+  naive:   { attack: 1, defense: 1, spAttack: 1, spDefense: 0.9, speed: 1.1 },
+  modest:  { attack: 0.9, defense: 1, spAttack: 1.1, spDefense: 1, speed: 1 },
+  mild:    { attack: 1, defense: 0.9, spAttack: 1.1, spDefense: 1, speed: 1 },
+  quiet:   { attack: 1, defense: 1, spAttack: 1.1, spDefense: 1, speed: 0.9 },
+  bashful: { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
+  rash:    { attack: 1, defense: 1, spAttack: 1.1, spDefense: 0.9, speed: 1 },
+  calm:    { attack: 0.9, defense: 1, spAttack: 1, spDefense: 1.1, speed: 1 },
+  gentle:  { attack: 1, defense: 0.9, spAttack: 1, spDefense: 1.1, speed: 1 },
+  sassy:   { attack: 1, defense: 1, spAttack: 1, spDefense: 1.1, speed: 0.9 },
+  careful: { attack: 1, defense: 1, spAttack: 0.9, spDefense: 1.1, speed: 1 },
+  quirky:  { attack: 1, defense: 1, spAttack: 1, spDefense: 1, speed: 1 },
+};
+
+// Helper: check if move is same type as Pokémon
+function isSameType(move, pokemonTypes) {
+  return pokemonTypes.includes(move.moveType);
+}
+// Helper: get types threatened by a set of moves (types they are super effective against)
+function getThreatenedTypes(moves) {
+  const threatened = new Set();
+  for (const move of moves) {
+    if (!move || !move.moveType) continue;
+    // For each type, check if move is super effective
+    for (const defType in typeChart) {
+      if (typeChart[move.moveType] && typeChart[move.moveType][defType] > 1) {
+        threatened.add(defType);
+      }
+    }
+  }
+  return threatened;
+}
+// Helper: marginal coverage gain for a move
+function marginalCoverageGain(move, threatened, opponentTypeDistribution) {
+  let gain = 0;
+  for (const defType in typeChart[move.moveType] || {}) {
+    if (typeChart[move.moveType][defType] > 1 && !threatened.has(defType)) {
+      gain += opponentTypeDistribution[defType] || 1; // weight by frequency
+    }
+  }
+  return gain;
+}
+// Default opponent type distribution (uniform if not provided)
+const defaultOpponentTypeDistribution = {
+  normal: 1, fire: 1, water: 1, electric: 1, grass: 1, ice: 1, fighting: 1, poison: 1, ground: 1, flying: 1, psychic: 1, bug: 1, rock: 1, ghost: 1, dragon: 1, dark: 1, steel: 1, fairy: 1
+};
+
 module.exports = {
   calculateStats,
   getLegalMoveset,
@@ -610,4 +654,6 @@ module.exports = {
   abilityRegistry,
   accuracyEvasionMultiplier,
   calcFinalAccuracy,
+  getCombatStyle,
+  natureChart,
 }; 
