@@ -49,6 +49,7 @@ const { handleTimeoutRemoval } = require('./utils/discordUtils');
 const { activeSpawns } = require('./commands/pokespawn');
 const { despawnTimers } = require('./utils/pokeAutoSpawner');
 const { spawnCustomPokemonCommand } = require('./commands/pokespawn');
+const customSpawnRates = require('./data/customSpawnRates.json');
 let betMessageMap = {};
 
 const backendApiUrl = process.env.BACKEND_API_URL;
@@ -896,11 +897,19 @@ client.on('interactionCreate', async interaction => {
 						axios.get(`${backendApiUrl}/battles/${battleId}/pokemon/${session.opponentId}`, { headers: { 'x-guild-id': interaction.guildId } })
 					]);
 					const challengerOptions = challengerRes.data.pokemons.map(p => ({
-						label: `${p.name}${p.isShiny ? ' ✨' : ''}`,
+						label: (() => {
+							const lowerName = p.name.toLowerCase();
+							const xp = customSpawnRates[lowerName]?.xpYield;
+							return `${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
+						})(),
 						value: p._id,
 					}));
 					const opponentOptions = opponentRes.data.pokemons.map(p => ({
-						label: `${p.name}${p.isShiny ? ' ✨' : ''}`,
+						label: (() => {
+							const lowerName = p.name.toLowerCase();
+							const xp = customSpawnRates[lowerName]?.xpYield;
+							return `${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
+						})(),
 						value: p._id,
 					}));
 					const count = session.count || 1;
@@ -1405,7 +1414,11 @@ client.on('interactionCreate', async interaction => {
 				// Fetch opponent's available Pokémon
 				const opponentRes = await axios.get(`${backendApiUrl}/battles/${battleId}/pokemon/${session.opponentId}`, { headers: { 'x-guild-id': interaction.guildId } });
 				const opponentOptions = opponentRes.data.pokemons.map(p => ({
-					label: `${p.name}${p.isShiny ? ' ✨' : ''}`,
+					label: (() => {
+						const lowerName = p.name.toLowerCase();
+						const xp = customSpawnRates[lowerName]?.xpYield;
+						return `${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
+					})(),
 					value: p._id,
 				}));
 				const opponentMenu = new StringSelectMenuBuilder()

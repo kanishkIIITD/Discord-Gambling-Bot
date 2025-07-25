@@ -289,29 +289,50 @@ async function getLegalMoveset(
   // Selection order: primaryStab, secondaryStab, coverage, priority, recovery, field, setup (if style), utility, filler
   const selectedMoves = [];
   // 1. Primary STAB
-  if (primaryStab[0]) selectedMoves.push(primaryStab[0]);
+  if (primaryStab.length) {
+    const move = pickRandomTopN(primaryStab, 5);
+    if (move) selectedMoves.push(move);
+  }
   // 2. Secondary STAB
-  if (secondaryStab[0] && !selectedMoves.some(m => m.name === secondaryStab[0].name)) selectedMoves.push(secondaryStab[0]);
+  if (secondaryStab.length) {
+    const move = pickRandomTopN(secondaryStab, 5);
+    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+  }
   // 3. Coverage
-  if (coverage && !selectedMoves.some(m => m.name === coverage.name)) selectedMoves.push(coverage);
+  if (coverageCandidates && coverageCandidates.length) {
+    const move = pickRandomTopN(coverageCandidates, 5);
+    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+  }
   // 4. Priority
-  if (priorityPool[0] && !selectedMoves.some(m => m.name === priorityPool[0].name)) selectedMoves.push(priorityPool[0]);
+  if (priorityPool.length) {
+    const move = pickRandomTopN(priorityPool, 5);
+    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+  }
   // 5. Recovery
-  if (recoveryPool[0] && !selectedMoves.some(m => m.name === recoveryPool[0].name)) selectedMoves.push(recoveryPool[0]);
+  if (recoveryPool.length) {
+    const move = pickRandomTopN(recoveryPool, 5);
+    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+  }
   // 6. Field control
-  if (fieldPool[0] && !selectedMoves.some(m => m.name === fieldPool[0].name)) selectedMoves.push(fieldPool[0]);
+  if (fieldPool.length) {
+    const move = pickRandomTopN(fieldPool, 5);
+    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+  }
   // 7. Setup/booster if style matches
-  if ((combatStyle === 'physical' || combatStyle === 'special') && setupPool[0] && !selectedMoves.some(m => m.name === setupPool[0].name)) selectedMoves.push(setupPool[0]);
+  if ((combatStyle === 'physical' || combatStyle === 'special') && setupPool.length) {
+    const move = pickRandomTopN(setupPool, 5);
+    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+  }
   // 8. Utility/status
-  for (const move of utilityPool) {
-    if (selectedMoves.length >= 6) break;
-    if (!selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+  if (utilityPool.length) {
+    const move = pickRandomTopN(utilityPool, 5);
+    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
   }
   // 9. Filler/backfill: prefer high-PP, avoid redundancy and low-PP stacking
   const fillerSorted = [...fillerPool].sort((a, b) => (b.effectivePP || 0) - (a.effectivePP || 0));
-  for (const move of fillerSorted) {
-    if (selectedMoves.length >= 6) break;
-    if (!selectedMoves.some(m => m.name === move.name) && (move.effectivePP || 0) > 2) selectedMoves.push(move);
+  if (fillerSorted.length) {
+    const move = pickRandomTopN(fillerSorted, 5);
+    if (move && !selectedMoves.some(m => m.name === move.name) && (move.effectivePP || 0) > 2) selectedMoves.push(move);
   }
   // If still less than 6, allow any remaining moves
   if (selectedMoves.length < 6) {
@@ -322,7 +343,6 @@ async function getLegalMoveset(
   }
   return selectedMoves.slice(0, 6);
 }
-
 
 /**
  * Calculate damage using the official Pokémon formula, with weather and terrain modifiers.
@@ -796,6 +816,13 @@ function marginalCoverageGain(move, threatened, opponentTypeDistribution) {
 const defaultOpponentTypeDistribution = {
   normal: 1, fire: 1, water: 1, electric: 1, grass: 1, ice: 1, fighting: 1, poison: 1, ground: 1, flying: 1, psychic: 1, bug: 1, rock: 1, ghost: 1, dragon: 1, dark: 1, steel: 1, fairy: 1
 };
+
+// Helper: pick a random move from the top N of a pool
+function pickRandomTopN(pool, n = 5) {
+  if (!pool.length) return null;
+  const top = pool.slice(0, n);
+  return top[Math.floor(Math.random() * top.length)];
+}
 
 module.exports = {
   calculateStats,

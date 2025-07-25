@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder } = require('discord.js');
 const axios = require('axios');
+const customSpawnRates = require('../data/customSpawnRates.json');
 
 // Helper to fetch user preferences
 async function getUserPreferences(userId, guildId, backendUrl) {
@@ -90,7 +91,23 @@ module.exports = {
         const embed = new EmbedBuilder()
           .setColor(0x3498db)
           .setTitle(`Pokédex — Page ${pageIdx + 1} of ${totalPages}`)
-          .setDescription(pageMons.map(mon => `#${mon.pokemonId.toString().padStart(3, '0')} ${mon.name.charAt(0).toUpperCase() + mon.name.slice(1)}${mon.isShiny ? ' ✨' : ''} x${mon.count || 1} — Caught: <t:${Math.floor(new Date(mon.caughtAt).getTime()/1000)}:d>`).join('\n'))
+          .setDescription(pageMons.map(mon => {
+            const rarityMultipliers = { common: 6, uncommon: 5, rare: 4, legendary: null };
+            const rarity = customSpawnRates[mon.name.toLowerCase()]?.rarity || 'common';
+            const required = mon.isShiny ? 2 : rarityMultipliers[rarity];
+            let evoText = '';
+            if (required && required > 0) {
+              const more = Math.max(0, required - (mon.count || 1));
+              if (more === 0) {
+                evoText = '(Can be evolved)';
+              } else {
+                evoText = `(${more} more to evolve)`;
+              }
+            } else if (required === null) {
+              evoText = '(Cannot evolve)';
+            }
+            return `#${mon.pokemonId.toString().padStart(3, '0')} ${mon.name.charAt(0).toUpperCase() + mon.name.slice(1)}${mon.isShiny ? ' ✨' : ''} x${mon.count || 1}${evoText ? ` **${evoText}**` : ''}`;
+          }).join('\n'))
           .setFooter({ text: `Total caught: ${pokedex.length}` });
         if (artwork) embed.setImage(artwork);
         return embed;
