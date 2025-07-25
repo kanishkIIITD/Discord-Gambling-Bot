@@ -248,41 +248,79 @@ async function getLegalMoveset(
     }
   }
 
-  // --- Greedy selection with diversity ---
+  // --- Advanced competitive move selection ---
+  // Build allBattleMoves pool for advanced selection
   const allBattleMoves = [...stabPool, ...altPool, ...normalPool, ...effectPool];
-  // 1. Primary STAB
-  const primary = allBattleMoves.filter(m => isSameType(m, pokemonTypes)).sort((a, b) => b.expectedDamage - a.expectedDamage)[0];
-  // 2. Secondary STAB
-  const secondary = allBattleMoves.filter(m => isSameType(m, pokemonTypes) && m !== primary).sort((a, b) => b.expectedDamage - a.expectedDamage)[0];
-  // 3. Coverage by marginal coverage gain
-  let threatened = getThreatenedTypes([primary, secondary].filter(Boolean));
-  const coverageCandidates = allBattleMoves.filter(m => ![primary, secondary].includes(m));
+  // Build explicit pools
+  const primaryStab = allBattleMoves
+    .filter(m => isSameType(m, pokemonTypes))
+    .sort((a, b) => b.expectedDamage - a.expectedDamage);
+  const secondaryStab = primaryStab.filter((m, i) => i > 0);
+  // Coverage: maximize marginal coverage gain
+  let threatened = getThreatenedTypes([primaryStab[0]].filter(Boolean));
+  const coverageCandidates = allBattleMoves.filter(m => !primaryStab.slice(0, 2).includes(m));
   const coverage = coverageCandidates
     .map(m => ({ move: m, gain: marginalCoverageGain(m, threatened, defaultOpponentTypeDistribution) }))
     .sort((a, b) => b.gain - a.gain)[0]?.move;
-  // 4. Utility/Priority
-  const utility = allBattleMoves.filter(m => m.category === 'status' || m.priority > 0).sort((a, b) => (b.priority || 0) - (a.priority || 0))[0];
-  // 5. Top 2 effect moves (by learnedAt)
-  const bestEffects = [...effectPool].sort((a, b) => b.learnedAt - a.learnedAt).slice(0, 2);
-  // Build selected moveset (up to 6 moves, ensuring diversity)
+  // Priority moves
+  const priorityPool = allBattleMoves.filter(m => m.priority > 0);
+  // Recovery moves
+  const recoveryPool = allBattleMoves.filter(m => m.effectType === 'heal' || m.meta?.heal);
+  // Field control: hazards, weather, terrain
+  const fieldPool = allBattleMoves.filter(m => ['hazard', 'weather', 'terrain'].includes(m.effectType));
+  // Setup/boosters
+  const setupPool = allBattleMoves.filter(m => ['boost', 'multi-boost'].includes(m.effectType));
+  // Utility/status
+  const utilityPool = allBattleMoves.filter(m => ['status'].includes(m.effectType));
+  // Filler: any remaining effect moves
+  const fillerPool = allBattleMoves.filter(m => ![
+    ...primaryStab.slice(0, 2),
+    coverage,
+    ...priorityPool,
+    ...recoveryPool,
+    ...fieldPool,
+    ...setupPool,
+    ...utilityPool
+  ].includes(m));
+
+  // Use combat style to bias setup
+  const combatStyle = getCombatStyle({ iv, ev, nature });
+
+  // Selection order: primaryStab, secondaryStab, coverage, priority, recovery, field, setup (if style), utility, filler
   const selectedMoves = [];
-  if (primary) selectedMoves.push(primary);
-  if (secondary && !selectedMoves.some(m => m.name === secondary.name)) selectedMoves.push(secondary);
+  // 1. Primary STAB
+  if (primaryStab[0]) selectedMoves.push(primaryStab[0]);
+  // 2. Secondary STAB
+  if (secondaryStab[0] && !selectedMoves.some(m => m.name === secondaryStab[0].name)) selectedMoves.push(secondaryStab[0]);
+  // 3. Coverage
   if (coverage && !selectedMoves.some(m => m.name === coverage.name)) selectedMoves.push(coverage);
-  if (utility && !selectedMoves.some(m => m.name === utility.name)) selectedMoves.push(utility);
-  for (const eff of bestEffects) {
-    if (!selectedMoves.some(m => m.name === eff.name)) selectedMoves.push(eff);
+  // 4. Priority
+  if (priorityPool[0] && !selectedMoves.some(m => m.name === priorityPool[0].name)) selectedMoves.push(priorityPool[0]);
+  // 5. Recovery
+  if (recoveryPool[0] && !selectedMoves.some(m => m.name === recoveryPool[0].name)) selectedMoves.push(recoveryPool[0]);
+  // 6. Field control
+  if (fieldPool[0] && !selectedMoves.some(m => m.name === fieldPool[0].name)) selectedMoves.push(fieldPool[0]);
+  // 7. Setup/booster if style matches
+  if ((combatStyle === 'physical' || combatStyle === 'special') && setupPool[0] && !selectedMoves.some(m => m.name === setupPool[0].name)) selectedMoves.push(setupPool[0]);
+  // 8. Utility/status
+  for (const move of utilityPool) {
     if (selectedMoves.length >= 6) break;
+    if (!selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
   }
-  // If still less than 6, fill with more damaging or effect moves
+  // 9. Filler/backfill: prefer high-PP, avoid redundancy and low-PP stacking
+  const fillerSorted = [...fillerPool].sort((a, b) => (b.effectivePP || 0) - (a.effectivePP || 0));
+  for (const move of fillerSorted) {
+    if (selectedMoves.length >= 6) break;
+    if (!selectedMoves.some(m => m.name === move.name) && (move.effectivePP || 0) > 2) selectedMoves.push(move);
+  }
+  // If still less than 6, allow any remaining moves
   if (selectedMoves.length < 6) {
-    const moreMoves = allBattleMoves.filter(m => !selectedMoves.some(sel => sel.name === m.name));
-    for (const move of moreMoves) {
+    for (const move of allBattleMoves) {
       if (selectedMoves.length >= 6) break;
-      selectedMoves.push(move);
+      if (!selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
     }
   }
-  return selectedMoves;
+  return selectedMoves.slice(0, 6);
 }
 
 
@@ -302,8 +340,12 @@ function calculateDamage(attacker, defender, move, typeEffectiveness = 1.0, weat
   if (!power) return { damage: 0, breakdown: { reason: 'No power' } };
   // Determine if move is physical or special
   const isPhysical = move.category === 'physical';
-  const A = isPhysical ? attacker.stats.attack : attacker.stats.spAttack;
-  const D = isPhysical ? defender.stats.defense : defender.stats.spDefense;
+  let A = isPhysical ? attacker.stats.attack : attacker.stats.spAttack;
+  let D = isPhysical ? defender.stats.defense : defender.stats.spDefense;
+  // --- Sandstorm: Rock-type Sp. Def boost ---
+  if (weather === 'sandstorm' && defender.types && defender.types.includes('rock') && !isPhysical) {
+    D = Math.floor(D * 1.5);
+  }
   // STAB
   const stab = attacker.types.includes(move.type) ? 1.5 : 1.0;
   // Critical hit (6.25% chance)
@@ -318,10 +360,26 @@ function calculateDamage(attacker, defender, move, typeEffectiveness = 1.0, weat
   } else if (weather === 'sunny') {
     if (move.type === 'fire') weatherMod = 1.5;
     if (move.type === 'water') weatherMod = 0.5;
+  } else if (weather === 'hail') {
+    // Optional: In Gen 9, Blizzard does not always hit, but in older gens it does
+    if (move.name === 'blizzard') move.accuracy = 100;
+    // Optional: Ice-type moves can be boosted in hail (not in Gen 9, but some formats use it)
+    if (move.type === 'ice') weatherMod = 1.5;
+  } else if (weather === 'sandstorm') {
+    // No direct damage boost, but Rock-type Sp. Def boost is handled above
+    // (Per-turn chip damage is handled elsewhere)
   }
   // Terrain modifier
   let terrainMod = 1.0;
   if (terrain === 'electric' && move.type === 'electric') terrainMod = 1.3;
+  // Grassy Terrain: boost Grass-type moves
+  if (terrain === 'grassy' && move.type === 'grass') terrainMod = 1.3;
+  // Grassy Terrain: weaken Earthquake, Magnitude, Bulldoze
+  if (terrain === 'grassy' && ['earthquake','magnitude','bulldoze'].includes(move.name)) terrainMod = 0.5;
+  // Misty Terrain: halve Dragon-type move damage
+  if (terrain === 'misty' && move.type === 'dragon') terrainMod = 0.5;
+  // Psychic Terrain: boost Psychic-type moves
+  if (terrain === 'psychic' && move.type === 'psychic') terrainMod = 1.3;
   // Add more terrain effects as needed
   // Base damage
   const base = Math.floor(
@@ -444,12 +502,6 @@ const moveEffectRegistry = {
   "stun-spore":      { type: "status",     status: "paralyzed",     target: "foe", chance: 75,  message: "was paralyzed!" },
   "glare":           { type: "status",     status: "paralyzed",     target: "foe", chance: 100, message: "was paralyzed!" },
   "spore":           { type: "status",     status: "asleep",        target: "foe", chance: 100, message: "fell asleep!" },
-  // Needs special implementation: confusion logic
-  // "confuse-ray":     { type: "status",     status: "confused",      target: "foe", chance: 100, message: "became confused!" },
-  // "swagger":         { type: "status",     status: "confused",      target: "foe", chance: 90,  message: "became confused! (Attack rose!)" },
-  // "supersonic":      { type: "status",     status: "confused",      target: "foe", chance: 55,  message: "became confused!" },
-  // Needs special implementation: delayed sleep
-  // "yawn":            { type: "status",     status: "asleep",        target: "foe", chance: 100, message: "became drowsy! Will fall asleep next turn." },
   "lovely-kiss":     { type: "status",     status: "asleep",        target: "foe", chance: 75,  message: "fell asleep!" },
   // Recovery / Heal
   "rest":            { type: "heal",       amount: "full",            target: "self", message: "fell asleep and restored HP!" },
@@ -468,23 +520,12 @@ const moveEffectRegistry = {
   // --- Added Recovery / Heal Moves ---
   "recover":         { type: "heal",       amount: 50, target: "self", message: "restored its HP by half!" },
   "soft-boiled":     { type: "heal",       amount: 50, target: "self", message: "restored its HP by half!" },
-  // Needs special implementation: flying type removal
-  // "roost":           { type: "heal",       amount: 50, target: "self", message: "restored its HP by half! (Flying type removed for 1 turn)" },
-  // Needs special implementation: delayed healing
-  // "wish":            { type: "heal",       amount: 50, target: "self", message: "made a wish! HP will be restored next turn." },
   // Weather / Terrain
   "rain-dance":      { type: "weather",    weather: "rain",   duration: 5, message: "It started to rain!" },
   "sunny-day":       { type: "weather",    weather: "sunny",  duration: 5, message: "The sunlight turned harsh!" },
   "sandstorm":       { type: "weather",    weather: "sandstorm", duration: 5, message: "A sandstorm brewed!" },
   "electric-terrain":{ type: "terrain",   terrain: "electric", duration: 5, message: "An electric current runs across the battlefield!" },
   "hail":            { type: "weather",    weather: "hail", duration: 5, message: "It started to hail!" },
-  // Needs special implementation: terrain effects
-  // "grassy-terrain":  { type: "terrain",   terrain: "grassy", duration: 5, message: "The battlefield became grassy!" },
-  // "misty-terrain":   { type: "terrain",   terrain: "misty", duration: 5, message: "A mist swirled around the battlefield!" },
-  // "psychic-terrain": { type: "terrain",   terrain: "psychic", duration: 5, message: "A psychic aura enveloped the battlefield!" },
-  // Needs special implementation: field effects
-  // "trick-room":      { type: "field",     field: "trick-room", duration: 5, message: "Twisted the dimensions! Move order is reversed for 5 turns." },
-  // "tailwind":        { type: "field",     field: "tailwind", duration: 4, message: "A tailwind blew from behind! Team's Speed is doubled for 4 turns." },
   // Damage + status example
   "scald":           { type: "damage+status", status: "burned",   target: "foe", chance: 30, message: "was burned!" },
 
@@ -495,7 +536,60 @@ const moveEffectRegistry = {
   "solar-beam":      { type: "charge-attack", chargeTurns: 1, damageType: "special", message: "absorbed sunlight!" },
 
   // Entry move example
-  "stealth-rock":    { type: "hazard",     hazard: "stealth-rock", layers: 1, duration: null, message: "Pointed stones float in the air around the foe!" }
+  "stealth-rock":    { type: "hazard",     hazard: "stealth-rock", layers: 1, duration: null, message: "Pointed stones float in the air around the foe!" },
+  // --- Field Control & Hazard Removal ---
+  "rapid-spin":      { type: "hazard-remove", removes: ["spikes","toxic-spikes","stealth-rock","sticky-web"], target: "self", message: "cleared hazards with Rapid Spin!" },
+  "defog":           { type: "hazard-remove", removes: ["spikes","toxic-spikes","stealth-rock","sticky-web"], clearsBoosts: true, target: "self", message: "blew away hazards with Defog!" },
+  "tailwind":        { type: "field", field: "tailwind", duration: 4, message: "A tailwind blew from behind! Team's Speed doubled!" },
+  "trick-room":      { type: "field", field: "trick-room", duration: 5, message: "Dimensions twisted! Move order reversed!" },
+  // --- Status-Curing & Team Support ---
+  "heal-bell":       { type: "cure-team", cures: ["all-status"], target: "self", message: "calmed the party with Heal Bell!" },
+  "aromatherapy":    { type: "cure-team", cures: ["all-status"], target: "self", message: "healed status with Aromatherapy!" },
+  // --- Taunt / Encore / Disable ---
+  "taunt":           { type: "prevent-status", prevents: ["boost","status"], target: "foe", duration: 3, message: "fell for Taunt! It can’t use status moves!" },
+  "encore":          { type: "lock", lockedMove: true, target: "foe", duration: 3, message: "was trapped in Encore!" },
+  "disable":         { type: "disable", disables: true, target: "foe", duration: 2, message: "had a move disabled!" },
+  // --- Multi-Hit & Partial Trap Moves ---
+  "double-hit":      { type: "multi-hit", hits: 2, damageType: "physical", target: "foe", message: "was struck twice!" },
+  "fury-cutter":     { type: "multi-hit", hits: "2-5", damageType: "physical", target: "foe", message: "was shredded by Fury Cutter!" },
+  "wrap":            { type: "partial-trap", minTurns: 2, maxTurns: 5, damageType: "physical", target: "foe", message: "was trapped by Wrap!" },
+  "fire-spin":       { type: "partial-trap", minTurns: 2, maxTurns: 5, damageType: "special", target: "foe", message: "was trapped in Fire Spin!" },
+  // --- Protect & Priority Variants ---
+  "protect":         { type: "protect", successRate: 1, priority: 4, target: "self", message: "protected itself!" },
+  "detect":          { type: "protect", successRate: 1, priority: 4, target: "self", message: "detected the attack!" },
+  // --- Counter Moves ---
+  "counter":         { type: "counter", reflectType: "physical", target: "foe", message: "struck back with Counter!" },
+  "mirror-coat":     { type: "counter", reflectType: "special",  target: "foe", message: "struck back with Mirror Coat!" },
+  // --- Confusion Moves ---
+  "confuse-ray":     { type: "status",     status: "confused",      target: "foe", chance: 100, message: "became confused!" },
+  "swagger":         { type: "status",     status: "confused",      target: "foe", chance: 90,  message: "became confused! (Attack rose!)" },
+  "supersonic":      { type: "status",     status: "confused",      target: "foe", chance: 55,  message: "became confused!" },
+  // --- Delayed Sleep ---
+  "yawn":            { type: "status",     status: "asleep",        target: "foe", chance: 100, delayed: true, message: "became drowsy! Will fall asleep next turn." },
+  // --- Delayed Healing ---
+  "wish":            { type: "heal",       amount: 50, target: "self", delayed: true, message: "made a wish! HP will be restored next turn." },
+  // --- Roost (Flying type removal for 1 turn) ---
+  "roost":           { type: "heal",       amount: 50, target: "self", removeType: "flying", duration: 1, message: "restored its HP by half! (Flying type removed for 1 turn)" },
+  // --- Remaining Terrains ---
+  "grassy-terrain":  { type: "terrain",   terrain: "grassy", duration: 5, message: "The battlefield became grassy!" },
+  "misty-terrain":   { type: "terrain",   terrain: "misty", duration: 5, message: "A mist swirled around the battlefield!" },
+  "psychic-terrain": { type: "terrain",   terrain: "psychic", duration: 5, message: "A psychic aura enveloped the battlefield!" },
+  // --- Screens & Team-Wide Buffs ---
+  "light-screen":  { type: "team-field", field: "light-screen", duration: 5, target: "self", message: "light is reflected! (Light Screen)" },
+  "reflect":       { type: "team-field", field: "reflect", duration: 5, target: "self", message: "reflecting moves! (Reflect)" },
+  "aurora-veil":   { type: "team-field", field: "aurora-veil", duration: 5, target: "self", message: "a veil of aurora reduces damage! (Aurora Veil)" },
+  "safeguard":     { type: "team-field", field: "safeguard", duration: 5, target: "self", message: "protected the team from status! (Safeguard)" },
+  // --- Seed & Leech Effects ---
+  "leech-seed":    { type: "leech", percent: 1/8, target: "foe", duration: null, message: "was seeded! HP will be drained each turn." },
+  // --- Pivot & Disruption Moves ---
+  "u-turn":        { type: "pivot", damageType: "physical", target: "foe", message: "hurt the foe then switched out! (U-Turn)" },
+  "volt-switch":   { type: "pivot", damageType: "special",  target: "foe", message: "zapped the foe then switched out! (Volt Switch)" },
+  // --- Spread & Area-of-Effect Moves ---
+  "surf":          { type: "spread", damageType: "special", targets: "all-opponents", message: "hit all opponents with Surf!" },
+  "earthquake":    { type: "spread", damageType: "physical", targets: "all-opponents", message: "shook the ground under all foes!" },
+  // --- Niche Mechanics & Field Effects ---
+  "haze":          { type: "clear-boosts", target: "all", message: "erased all stat changes! (Haze)" },
+  "transform":     { type: "transform", target: "self", message: "transformed into the target!" },
 };
 
 // --- Ability Registry ---
@@ -579,7 +673,66 @@ const abilityRegistry = {
       return true;
     },
     description: "Only allows super-effective moves to hit."
-  }
+  },
+  // Multiscale: halve damage at full HP
+  "multiscale": {
+    onModifyDamage: (self, damage) => {
+      return self.currentHp === self.maxHp ? Math.floor(damage / 2) : damage;
+    },
+    description: "Halves damage taken when at full HP."
+  },
+  // Regenerator: heal 1/3 max HP on switch-out
+  "regenerator": {
+    onSwitchOut: (self, _, session, log) => {
+      const heal = Math.ceil(self.maxHp / 3);
+      self.currentHp = Math.min(self.maxHp, self.currentHp + heal);
+      log.push({ text: `${self.name} restored HP with Regenerator!` });
+    },
+    description: "Restores 1/3 max HP when switching out."
+  },
+  // Magic Guard: immune to indirect damage
+  "magic-guard": {
+    onDamage: (self, amount, source) => {
+      // block all indirect damage types
+      if (source !== 'direct') return 0;
+      return amount;
+    },
+    description: "Only takes direct damage from attacks."
+  },
+  // Moxie: boost Attack after KO
+  "moxie": {
+    onAfterMove: (self, target, move, session, log) => {
+      if (move.category !== 'Status' && target.currentHp === 0) {
+        self.boosts = self.boosts || {};
+        self.boosts.attack = (self.boosts.attack || 0) + 1;
+        log.push({ text: `${self.name}'s Moxie boosted its Attack!` });
+      }
+    },
+    description: "Boosts Attack after knocking out a target."
+  },
+  // Chlorophyll: double Speed in sun
+  "chlorophyll": {
+    onModifySpe: (self, speed, session) => {
+      return session.weather === 'sunny' ? speed * 2 : speed;
+    },
+    description: "Doubles Speed in sunshine."
+  },
+  // Pressure: doubles PP usage of moves targeting this Pokémon
+  "pressure": {
+    onDeductPP: (move, source) => {
+      // Deduct an extra PP whenever foe uses a move against you
+      move.pp = Math.max(0, move.pp - 1);
+    },
+    description: "Doubles PP usage of moves targeting this Pokémon."
+  },
+  // Mold Breaker: ignore target's ability immunities
+  "mold-breaker": {
+    onTryHit: (self, move, target, session, log) => {
+      // bypass target ability immunities
+      return true; // effectively ignore target.onTryHit
+    },
+    description: "Moves ignore other Pokémon’s abilities."
+  },
 };
 
 // --- Nature chart: maps nature to per-stat multipliers ---

@@ -24,6 +24,12 @@ module.exports = {
         return interaction.editReply('No card packs are currently available.');
       }
 
+      // If the user cannot afford any packs, show a friendly message
+      const affordablePacks = packs.filter(pack => pack.canAfford && pack.withinDailyLimit && pack.withinWeeklyLimit);
+      if (affordablePacks.length === 0) {
+        return interaction.editReply('You do not have enough points to buy any packs. Earn more points and try again!');
+      }
+
       // Create main embed
       const mainEmbed = new EmbedBuilder()
         .setTitle('🎴 Pokémon TCG Card Packs')

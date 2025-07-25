@@ -10,9 +10,9 @@ async function getUserPreferences(userId, guildId, backendUrl) {
 }
 
 // Helper to update user preferences
-async function setSelectedPokedexPokemon(userId, guildId, backendUrl, pokemonId) {
+async function setSelectedPokedexPokemon(userId, guildId, backendUrl, pokemonId, isShiny) {
   await axios.put(`${backendUrl}/users/${userId}/preferences`, {
-    selectedPokedexPokemonId: pokemonId,
+    selectedPokedexPokemon: { pokemonId, isShiny },
     guildId
   }, {
     headers: { 'x-guild-id': guildId }
@@ -53,10 +53,10 @@ module.exports = {
       let page = 0;
       const totalPages = Math.ceil(pokedex.length / pageSize);
       // Fetch user preferences to get selected Pokémon
-      let selectedPokedexPokemonId = null;
+      let selectedPokedexPokemon = null;
       try {
         const prefs = await getUserPreferences(interaction.user.id, interaction.guildId, backendUrl);
-        selectedPokedexPokemonId = prefs.selectedPokedexPokemonId;
+        selectedPokedexPokemon = prefs.selectedPokedexPokemon;
       } catch {}
       const getPageEmbed = async (pageIdx) => {
         const start = pageIdx * pageSize;
@@ -64,8 +64,8 @@ module.exports = {
         const pageMons = pokedex.slice(start, end);
         // Find the selected Pokémon in the user's pokedex
         let selectedMon = null;
-        if (selectedPokedexPokemonId) {
-          selectedMon = pokedex.find(mon => String(mon.pokemonId) === String(selectedPokedexPokemonId));
+        if (selectedPokedexPokemon && selectedPokedexPokemon.pokemonId) {
+          selectedMon = pokedex.find(mon => String(mon.pokemonId) === String(selectedPokedexPokemon.pokemonId) && !!mon.isShiny === !!selectedPokedexPokemon.isShiny);
         }
         // If not set or not found, use the top of the current page
         if (!selectedMon) selectedMon = pageMons[0];
@@ -156,9 +156,19 @@ module.exports = {
       const getSelectMenu = (pageIdx) => {
         const start = pageIdx * pageSize;
         const end = Math.min(start + pageSize, pokedex.length);
-        const options = pokedex.slice(start, end).map(mon => ({
+        // Only include unique (pokemonId, isShiny) pairs
+        const seen = new Set();
+        const uniqueMons = [];
+        for (const mon of pokedex.slice(start, end)) {
+          const key = `${mon.pokemonId}-${mon.isShiny ? 'shiny' : 'normal'}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueMons.push(mon);
+          }
+        }
+        const options = uniqueMons.map(mon => ({
           label: `#${mon.pokemonId.toString().padStart(3, '0')} ${mon.name.charAt(0).toUpperCase() + mon.name.slice(1)}${mon.isShiny ? ' ✨' : ''}`,
-          value: `${mon.pokemonId}-${mon.isShiny ? 'shiny' : 'normal'}-${mon.caughtAt}`
+          value: `${mon.pokemonId}-${mon.isShiny ? 'shiny' : 'normal'}`
         }));
         return new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
@@ -181,10 +191,11 @@ module.exports = {
           return i.reply({ content: 'This select menu is not for you!', ephemeral: true });
         }
         const selectedValue = i.values[0];
-        // Parse the value to get the pokemonId
-        const [pokemonId] = selectedValue.split('-');
-        await setSelectedPokedexPokemon(interaction.user.id, interaction.guildId, backendUrl, pokemonId);
-        await i.reply({ content: `Pokédex will now always display #${pokemonId} as the main Pokémon!`, ephemeral: true });
+        // Parse the value to get the pokemonId and isShiny
+        const [pokemonId, shinyStr] = selectedValue.split('-');
+        const isShiny = shinyStr === 'shiny';
+        await setSelectedPokedexPokemon(interaction.user.id, interaction.guildId, backendUrl, pokemonId, isShiny);
+        await i.reply({ content: `Pokédex will now always display #${pokemonId} (${isShiny ? 'Shiny' : 'Normal'}) as the main Pokémon!`, ephemeral: true });
       });
       buttonCollector.on('collect', async i => {
         if (i.user.id !== interaction.user.id) {

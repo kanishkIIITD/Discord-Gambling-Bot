@@ -118,10 +118,19 @@ module.exports = {
       // Build result embed
       const types = pokemonData.types.map(t => t.type.name.charAt(0).toUpperCase() + t.type.name.slice(1)).join(', ');
       const region = 'Kanto';
+      // Select artwork: shiny if shiny, else normal
+      let resultArtwork = artwork;
+      if (data.embedData?.isShiny) {
+        if (pokemonData.sprites.other?.['official-artwork']?.front_shiny) {
+          resultArtwork = pokemonData.sprites.other['official-artwork'].front_shiny;
+        } else if (pokemonData.sprites.front_shiny) {
+          resultArtwork = pokemonData.sprites.front_shiny;
+        }
+      }
       const embed = new EmbedBuilder()
         .setColor(data.success ? 0x2ecc71 : 0xe74c3c)
         .setTitle(data.embedData?.title || (data.success ? 'Pokémon Caught!' : 'Catch Failed'))
-        .setImage(artwork)
+        .setImage(resultArtwork)
         .addFields(
           { name: 'Type', value: types, inline: true },
           { name: 'Region', value: region, inline: true },

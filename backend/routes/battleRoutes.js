@@ -156,23 +156,78 @@ async function processBattleRewards(session) {
 
 // Helper to apply per-turn status effects
 function applyPerTurnStatusEffects(poke, log, session, isChallenger) {
-  if (!poke || poke.currentHp <= 0 || !poke.status) return { skip: false };
+  if (!poke || poke.currentHp <= 0) return { skip: false };
   let skip = false;
   let statusMsg = '';
-  
+
+  // --- Yawn: Delayed sleep ---
+  if (poke.drowsy) {
+    poke.drowsy -= 1;
+    if (poke.drowsy === 0 && !poke.status) {
+      poke.status = 'asleep';
+      poke.sleepCounter = 2;
+      statusMsg = `${poke.name} fell asleep due to Yawn!`;
+      delete poke.drowsy;
+    } else if (poke.drowsy > 0) {
+      statusMsg = `${poke.name} is getting drowsy...`;
+    }
+  }
+
+  // --- Wish: Delayed healing ---
+  if (poke.wishPending) {
+    poke.wishPending -= 1;
+    if (poke.wishPending === 0) {
+      const heal = Math.floor(poke.maxHp / 2);
+      poke.currentHp = Math.min(poke.maxHp, poke.currentHp + heal);
+      statusMsg = `${poke.name}'s wish came true! Restored ${heal} HP.`;
+      delete poke.wishPending;
+    }
+  }
+
+  // --- Roost: Temporary Flying type removal ---
+  if (poke.flyingRemoved) {
+    poke.flyingRemoved -= 1;
+    if (poke.flyingRemoved === 0 && poke.originalTypes) {
+      poke.types = poke.originalTypes;
+      delete poke.originalTypes;
+      delete poke.flyingRemoved;
+      statusMsg = `${poke.name}'s Flying type returned after Roost.`;
+    }
+  }
+
+  // --- Ability: onDamage (indirect damage prevention, e.g., Magic Guard) ---
+  const abilityObj = abilityRegistry[poke.ability?.toLowerCase?.()];
+  function applyIndirectDamage(amount, source) {
+    if (abilityObj && typeof abilityObj.onDamage === 'function') {
+      const result = abilityObj.onDamage(poke, amount, source);
+      if (typeof result === 'number') return result;
+      if (result === false) return 0;
+    }
+    return amount;
+  }
+
   if (poke.status === 'poisoned') {
-    const dmg = Math.max(1, Math.floor(poke.maxHp / 8));
-    poke.currentHp = Math.max(0, poke.currentHp - dmg);
-    statusMsg = `${poke.name} is hurt by poison! (${dmg} HP)`;
+    let dmg = Math.max(1, Math.floor(poke.maxHp / 8));
+    dmg = applyIndirectDamage(dmg, 'poison');
+    if (dmg > 0) {
+      poke.currentHp = Math.max(0, poke.currentHp - dmg);
+      statusMsg = `${poke.name} is hurt by poison! (${dmg} HP)`;
+    }
   } else if (poke.status === 'badly-poisoned') {
     poke.statusCounter = (poke.statusCounter || 1) + 1;
-    const dmg = Math.max(1, Math.floor((poke.statusCounter * poke.maxHp) / 16));
-    poke.currentHp = Math.max(0, poke.currentHp - dmg);
-    statusMsg = `${poke.name} is hurt by toxic poison! (${dmg} HP)`;
+    let dmg = Math.max(1, Math.floor((poke.statusCounter * poke.maxHp) / 16));
+    dmg = applyIndirectDamage(dmg, 'poison');
+    if (dmg > 0) {
+      poke.currentHp = Math.max(0, poke.currentHp - dmg);
+      statusMsg = `${poke.name} is hurt by toxic poison! (${dmg} HP)`;
+    }
   } else if (poke.status === 'burned') {
-    const dmg = Math.max(1, Math.floor(poke.maxHp / 16));
-    poke.currentHp = Math.max(0, poke.currentHp - dmg);
-    statusMsg = `${poke.name} is hurt by its burn! (${dmg} HP)`;
+    let dmg = Math.max(1, Math.floor(poke.maxHp / 16));
+    dmg = applyIndirectDamage(dmg, 'burn');
+    if (dmg > 0) {
+      poke.currentHp = Math.max(0, poke.currentHp - dmg);
+      statusMsg = `${poke.name} is hurt by its burn! (${dmg} HP)`;
+    }
   } else if (poke.status === 'paralyzed') {
     if (Math.random() < 0.25) {
       skip = true;
@@ -201,6 +256,49 @@ function applyPerTurnStatusEffects(poke, log, session, isChallenger) {
       delete poke.sleepCounter;
       statusMsg = `${poke.name} woke up!`;
     }
+  } else if (poke.status === 'confused') {
+    // --- Confusion logic ---
+    if (typeof poke.confusionCounter !== 'number') {
+      // 2-5 turns (random)
+      poke.confusionCounter = 2 + Math.floor(Math.random() * 4);
+    }
+    if (poke.confusionCounter > 0) {
+      poke.confusionCounter -= 1;
+      if (poke.confusionCounter === 0) {
+        poke.status = null;
+        delete poke.confusionCounter;
+        statusMsg = `${poke.name} snapped out of its confusion!`;
+      } else {
+        // 1/3 chance to hurt self
+        if (Math.random() < 1/3) {
+          // Self-damage: typeless, 40 base power, physical, ignore type
+          const level = poke.level || 50;
+          const A = poke.stats.attack;
+          const D = poke.stats.defense;
+          const base = Math.floor(((2 * level / 5 + 2) * 40 * A / D) / 50 + 2);
+          const damage = Math.max(1, Math.floor(base));
+          poke.currentHp = Math.max(0, poke.currentHp - damage);
+          statusMsg = `${poke.name} is confused! It hurt itself in its confusion! (${damage} HP)`;
+          skip = true;
+        } else {
+          statusMsg = `${poke.name} is confused!`;
+        }
+      }
+    } else {
+      // Fallback: cure confusion if counter is 0 or negative
+      poke.status = null;
+      delete poke.confusionCounter;
+      statusMsg = `${poke.name} snapped out of its confusion!`;
+    }
+  }
+
+  // --- Taunt: Prevent status/boost moves ---
+  if (poke.tauntTurns) {
+    poke.tauntTurns -= 1;
+    if (poke.tauntTurns === 0) {
+      delete poke.tauntTurns;
+      statusMsg = `${poke.name} is no longer taunted!`;
+    }
   }
   
   if (statusMsg) log.push({ side: 'system', text: statusMsg });
@@ -214,13 +312,71 @@ function applyPerTurnStatusEffects(poke, log, session, isChallenger) {
     }
   }
   
+  // --- Partial Trap: Residual damage and duration ---
+  if (poke.partialTrapTurns) {
+    poke.partialTrapTurns -= 1;
+    let trapDmg = Math.max(1, Math.floor(poke.maxHp / 8));
+    trapDmg = applyIndirectDamage(trapDmg, 'trap');
+    if (trapDmg > 0) {
+      poke.currentHp = Math.max(0, poke.currentHp - trapDmg);
+      statusMsg = `${poke.name} is trapped by ${poke.partialTrapMove || 'a move'}! (${trapDmg} HP)`;
+    }
+    if (poke.partialTrapTurns === 0) {
+      delete poke.partialTrapTurns;
+      delete poke.partialTrapMove;
+      statusMsg += ` ${poke.name} was freed from the trap!`;
+    }
+  }
+  
+  // --- Leech Seed: drain and heal ---
+  if (poke.leechSeedActive) {
+    let drain = Math.max(1, Math.floor(poke.maxHp / 8));
+    drain = applyIndirectDamage(drain, 'leech-seed');
+    if (drain > 0) {
+      poke.currentHp = Math.max(0, poke.currentHp - drain);
+    }
+    let seeder = null;
+    // Find the seeder on the opposing team
+    if (session && session.challengerPokemons && session.opponentPokemons) {
+      const myTeam = isChallenger ? session.opponentPokemons : session.challengerPokemons;
+      seeder = myTeam.find(p => p.name === poke.leechSeededBy && p.currentHp > 0);
+      if (seeder && drain > 0) {
+        seeder.currentHp = Math.min(seeder.maxHp, (seeder.currentHp || 0) + drain);
+        statusMsg = `${poke.name} was sapped by Leech Seed! (${drain} HP) ${seeder.name} regained health!`;
+        session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+      } else if (drain > 0) {
+        statusMsg = `${poke.name} was sapped by Leech Seed! (${drain} HP)`;
+      }
+    }
+    if (poke.currentHp <= 0) {
+      delete poke.leechSeedActive;
+      delete poke.leechSeededBy;
+    }
+  }
+  
   return { skip };
 }
 
 // Helper to apply per-turn weather/terrain effects
 function applyPerTurnWeatherEffects(session, log) {
   const weather = session.weather;
-  if (!weather) return;
+  const terrain = session.terrain;
+  // --- Field effects: decrement durations and remove expired ---
+  if (session.fieldEffectDurations) {
+    for (const field in session.fieldEffectDurations) {
+      session.fieldEffectDurations[field] -= 1;
+      if (session.fieldEffectDurations[field] <= 0) {
+        if (session.fieldEffects) {
+          session.fieldEffects = session.fieldEffects.filter(f => f !== field);
+        }
+        log.push({ side: 'system', text: `${field.replace('-', ' ')} wore off!` });
+        delete session.fieldEffectDurations[field];
+      }
+    }
+    session.markModified('fieldEffects');
+    session.markModified('fieldEffectDurations');
+  }
+  if (!weather && !terrain) return;
   // Apply to both sides' active Pokémon
   const activeChallenger = session.challengerPokemons[session.activeChallengerIndex || 0];
   const activeOpponent = session.opponentPokemons[session.activeOpponentIndex || 0];
@@ -241,6 +397,61 @@ function applyPerTurnWeatherEffects(session, log) {
     log.push({ side: 'system', text: 'It is raining! Water moves are stronger, Fire moves are weaker.' });
   } else if (weather === 'sunny') {
     log.push({ side: 'system', text: 'The sunlight is strong! Fire moves are stronger, Water moves are weaker.' });
+  }
+  // --- Grassy Terrain: Heal 1/16 max HP for grounded Pokémon ---
+  if (terrain === 'grassy') {
+    [activeChallenger, activeOpponent].forEach(poke => {
+      if (!poke || poke.currentHp <= 0) return;
+      // Consider Flying/Levitating Pokémon as not grounded (simple: skip if type includes flying)
+      if (poke.types.includes('flying')) return;
+      const heal = Math.max(1, Math.floor(poke.maxHp / 16));
+      poke.currentHp = Math.min(poke.maxHp, poke.currentHp + heal);
+      log.push({ side: 'system', text: `${poke.name} was healed by Grassy Terrain! (+${heal} HP)` });
+    });
+  }
+  // --- Misty Terrain: Status prevention is handled in status infliction logic ---
+  // --- Psychic Terrain: Priority move prevention is handled in move selection logic ---
+}
+
+// --- Integrate onModifyDamage (e.g., Multiscale) ---
+function applyOnModifyDamage(target, damage) {
+  const abilityObj = abilityRegistry[target.ability?.toLowerCase?.()];
+  if (abilityObj && typeof abilityObj.onModifyDamage === 'function') {
+    return abilityObj.onModifyDamage(target, damage);
+  }
+  return damage;
+}
+
+// --- Integrate onAfterMove (e.g., Moxie) ---
+function applyOnAfterMove(self, target, move, session, log) {
+  const abilityObj = abilityRegistry[self.ability?.toLowerCase?.()];
+  if (abilityObj && typeof abilityObj.onAfterMove === 'function') {
+    abilityObj.onAfterMove(self, target, move, session, log);
+  }
+}
+
+// --- Integrate onSwitchOut (e.g., Regenerator) ---
+function applyOnSwitchOut(poke, session, log) {
+  const abilityObj = abilityRegistry[poke.ability?.toLowerCase?.()];
+  if (abilityObj && typeof abilityObj.onSwitchOut === 'function') {
+    abilityObj.onSwitchOut(poke, null, session, log);
+  }
+}
+
+// --- Integrate onModifySpe (e.g., Chlorophyll) ---
+function applyOnModifySpe(poke, speed, session) {
+  const abilityObj = abilityRegistry[poke.ability?.toLowerCase?.()];
+  if (abilityObj && typeof abilityObj.onModifySpe === 'function') {
+    return abilityObj.onModifySpe(poke, speed, session);
+  }
+  return speed;
+}
+
+// --- Integrate onDeductPP (e.g., Pressure) ---
+function applyOnDeductPP(target, move) {
+  const abilityObj = abilityRegistry[target.ability?.toLowerCase?.()];
+  if (abilityObj && typeof abilityObj.onDeductPP === 'function') {
+    abilityObj.onDeductPP(move, target);
   }
 }
 
@@ -585,6 +796,37 @@ router.post('/:battleId/move', async (req, res) => {
     const theirPoke = isChallenger ? opponentPoke : challengerPoke;
     if (!myPoke || !theirPoke) return res.status(400).json({ error: 'Active Pokémon not found.' });
 
+    // --- Tailwind/Trick Room: Adjust move order based on field effects ---
+    // Only relevant if both players have submitted moves (for future simultaneous turn system),
+    // but for single-move-per-turn, we can use this to determine which Pokémon would act first if needed.
+    // This is a placeholder for future simultaneous turn support.
+    // For now, you can use this logic to display which Pokémon would act first if both used attacking moves.
+    function getEffectiveSpeed(poke, side) {
+      let speed = poke.stats.speed;
+      // Tailwind: double speed for affected side
+      if (session.fieldEffects && session.fieldEffects.includes('tailwind')) {
+        // For now, apply to both sides (future: track which side set Tailwind)
+        speed *= 2;
+      }
+      // --- Integrate onModifySpe (e.g., Chlorophyll) ---
+      speed = applyOnModifySpe(poke, speed, session);
+      // TODO: Add paralysis speed reduction, etc.
+      return speed;
+    }
+    // Trick Room: reverse speed order
+    const trickRoomActive = session.fieldEffects && session.fieldEffects.includes('trick-room');
+    const challengerSpeed = getEffectiveSpeed(challengerPoke, 'challenger');
+    const opponentSpeed = getEffectiveSpeed(opponentPoke, 'opponent');
+    let challengerActsFirst = false;
+    if (trickRoomActive) {
+      // Slower Pokémon moves first
+      challengerActsFirst = challengerSpeed < opponentSpeed;
+    } else {
+      // Faster Pokémon moves first
+      challengerActsFirst = challengerSpeed > opponentSpeed;
+    }
+    // This logic can be used for future simultaneous turn support or for displaying move order.
+
     // --- Apply per-turn status effects to active Pokémon (start of turn) ---
     let skipTurn = false;
     
@@ -596,6 +838,14 @@ router.post('/:battleId/move', async (req, res) => {
     applyPerTurnWeatherEffects(session, session.log);
     session.markModified('challengerPokemons');
     session.markModified('opponentPokemons');
+
+    // Find the move object (must be in myPoke.moves)
+    let moveObj = (myPoke.moves || []).find(m => m.name === moveName);
+    if (!moveObj) return res.status(400).json({ error: 'Move not found or not usable by this Pokémon.' });
+    // --- Always define effectType and effect for all code paths ---
+    const effectType = moveObj.effectType || (moveEffectRegistry[moveName]?.type);
+    const effect = moveEffectRegistry[moveName];
+    console.log('[DEBUG] moveName:', moveName, 'moveObj:', moveObj, 'effectType:', effectType, 'effect:', effect);
 
     // --- NEW: If myPoke fainted from status/weather, handle auto-switch and turn switch ---
     let summary = '';
@@ -656,9 +906,47 @@ router.post('/:battleId/move', async (req, res) => {
       summary = `${myPoke.name} is paralyzed and can't move!`;
       // Defensive block will run at the end
     } else {
-      // Find the move object (must be in myPoke.moves)
-      let moveObj = (myPoke.moves || []).find(m => m.name === moveName);
-      if (!moveObj) return res.status(400).json({ error: 'Move not found or not usable by this Pokémon.' });
+      // --- Enforce Taunt, Encore, Disable, Misty Terrain, Psychic Terrain restrictions ---
+      // 1. Taunt: block status/boost moves
+      if (myPoke.tauntTurns > 0) {
+        const tauntBlocked = (moveObj.category === 'status' && (!effect || ["boost","multi-boost","status","heal","cure-team","field","hazard","hazard-remove","prevent-status","lock","disable"].includes(effect.type)));
+        if (tauntBlocked) {
+          session.log.push({ side: 'user', userId, text: `${myPoke.name} is taunted and can't use ${moveName}!` });
+          session.turn = isChallenger ? 'opponent' : 'challenger';
+          summary = `${myPoke.name} is taunted and can't use ${moveName}!`;
+          return res.json({ session, summary });
+        }
+      }
+      // 2. Encore: only allow encoreMove
+      if (myPoke.encoreTurns > 0 && myPoke.encoreMove && moveName !== myPoke.encoreMove) {
+        session.log.push({ side: 'user', userId, text: `${myPoke.name} is locked into ${myPoke.encoreMove} due to Encore!` });
+        session.turn = isChallenger ? 'opponent' : 'challenger';
+        summary = `${myPoke.name} is locked into ${myPoke.encoreMove} due to Encore!`;
+        return res.json({ session, summary });
+      }
+      // 3. Disable: block disabled move
+      if (myPoke.disableTurns > 0 && myPoke.disableMove && moveName === myPoke.disableMove) {
+        session.log.push({ side: 'user', userId, text: `${myPoke.name}'s move ${moveName} is disabled!` });
+        session.turn = isChallenger ? 'opponent' : 'challenger';
+        summary = `${myPoke.name}'s move ${moveName} is disabled!`;
+        return res.json({ session, summary });
+      }
+      // 4. Misty Terrain: block new status conditions
+      if (session.terrain === 'misty' && effect && effect.type === 'status' && effect.target !== 'self') {
+        session.log.push({ side: 'user', userId, text: `Misty Terrain prevents status conditions!` });
+        session.turn = isChallenger ? 'opponent' : 'challenger';
+        summary = `Misty Terrain prevents status conditions!`;
+        return res.json({ session, summary });
+      }
+      // 5. Psychic Terrain: block priority moves
+      if (session.terrain === 'psychic' && moveObj.priority > 0) {
+        session.log.push({ side: 'user', userId, text: `Psychic Terrain prevents priority moves!` });
+        session.turn = isChallenger ? 'opponent' : 'challenger';
+        summary = `Psychic Terrain prevents priority moves!`;
+        return res.json({ session, summary });
+      }
+      // --- Set lastMoveUsed for Encore/Disable logic ---
+      myPoke.lastMoveUsed = moveName;
 
       // --- Special-case: Transform ---
       if (moveObj.name === 'transform') {
@@ -675,9 +963,38 @@ router.post('/:battleId/move', async (req, res) => {
         // Defensive block will run at the end
       } else {
         // --- Use effectType from moveObj if present, fallback to registry ---
-        const effectType = moveObj.effectType || (moveEffectRegistry[moveName]?.type);
-        const effect = moveEffectRegistry[moveName];
-        if (effectType && [
+        // --- Special handling for Yawn, Wish, Roost ---
+        console.log('[DEBUG] Before Yawn/Wish/Roost block:', { moveName, effectType, effect });
+        if (moveName === 'yawn' && effectType === 'status') {
+          const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
+          if (!targetPoke.status && !targetPoke.drowsy) {
+            targetPoke.drowsy = 2;
+            effectSucceeded = true;
+            effectMsg = `${myPoke.name} used Yawn! ${targetPoke.name} became drowsy! Will fall asleep next turn.`;
+          } else {
+            effectMsg = `${myPoke.name} used Yawn! But it failed.`;
+          }
+        } else if (moveName === 'wish' && effectType === 'heal') {
+          if (!myPoke.wishPending) {
+            myPoke.wishPending = 2;
+            effectSucceeded = true;
+            effectMsg = `${myPoke.name} made a wish! HP will be restored next turn.`;
+          } else {
+            effectMsg = `${myPoke.name} used Wish! But it failed.`;
+          }
+        } else if (moveName === 'roost' && effectType === 'heal') {
+          let healAmount = Math.floor(myPoke.maxHp / 2);
+          myPoke.currentHp = Math.min(myPoke.maxHp, (myPoke.currentHp || 0) + healAmount);
+          if (!myPoke.flyingRemoved && myPoke.types.includes('flying')) {
+            myPoke.originalTypes = [...myPoke.types];
+            myPoke.types = myPoke.types.filter(t => t !== 'flying');
+            myPoke.flyingRemoved = 1;
+            effectMsg = `${myPoke.name} used Roost! Restored ${healAmount} HP and lost Flying type for 1 turn!`;
+          } else {
+            effectMsg = `${myPoke.name} used Roost! Restored ${healAmount} HP.`;
+          }
+          effectSucceeded = true;
+        } else if (effectType && [
           "boost","multi-boost","status","weather","terrain","heal","drain","damage+recoil","hazard","sound","charge-attack","damage+status","user-faints"
         ].includes(effectType)) {
           let effectMsg = '';
@@ -719,28 +1036,35 @@ router.post('/:battleId/move', async (req, res) => {
             }
           } else if (effectType === 'status') {
             const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
-            // --- Ability: onStatus (target) ---
-            let allowStatus = true;
-            const targetAbilityObj = abilityRegistry[targetPoke.ability?.toLowerCase?.()];
-            if (targetAbilityObj && typeof targetAbilityObj.onStatus === 'function') {
-              const result = targetAbilityObj.onStatus(targetPoke, effect.status, myPoke, session, session.log);
-              if (result === false) {
-                allowStatus = false;
-                session.log.push({ side: 'user', userId, text: `${targetPoke.name}'s ability prevented the status!` });
-              }
-            }
-            if (!targetPoke.status && allowStatus) {
-              if (!effect.chance || Math.random() * 100 < effect.chance) {
-                targetPoke.status = effect.status;
-                effectSucceeded = true;
-                effectMsg = `${myPoke.name} used ${moveName}! ${targetPoke.name} ${effect.message}`;
-              } else {
-                effectMsg = `${myPoke.name} used ${moveName}! But it failed.`;
-              }
-            } else if (!allowStatus) {
-              effectMsg = `${myPoke.name} used ${moveName}! But ${targetPoke.name}'s ability prevented the status.`;
+            // --- Safeguard: block status if active on target's side ---
+            const targetSideEffects = effect.target === 'self' ? (isChallenger ? session.challengerSideEffects : session.opponentSideEffects) : (isChallenger ? session.opponentSideEffects : session.challengerSideEffects);
+            if (targetSideEffects && targetSideEffects.includes('safeguard')) {
+              effectMsg = `${targetPoke.name} is protected from status by Safeguard!`;
+              effectSucceeded = false;
             } else {
-              effectMsg = `${myPoke.name} used ${moveName}! But ${targetPoke.name} is already affected.`;
+              // --- Ability: onStatus (target) ---
+              let allowStatus = true;
+              const targetAbilityObj = abilityRegistry[targetPoke.ability?.toLowerCase?.()];
+              if (targetAbilityObj && typeof targetAbilityObj.onStatus === 'function') {
+                const result = targetAbilityObj.onStatus(targetPoke, effect.status, myPoke, session, session.log);
+                if (result === false) {
+                  allowStatus = false;
+                  session.log.push({ side: 'user', userId, text: `${targetPoke.name}'s ability prevented the status!` });
+                }
+              }
+              if (!targetPoke.status && allowStatus) {
+                if (!effect.chance || Math.random() * 100 < effect.chance) {
+                  targetPoke.status = effect.status;
+                  effectSucceeded = true;
+                  effectMsg = `${myPoke.name} used ${moveName}! ${targetPoke.name} ${effect.message}`;
+                } else {
+                  effectMsg = `${myPoke.name} used ${moveName}! But it failed.`;
+                }
+              } else if (!allowStatus) {
+                effectMsg = `${myPoke.name} used ${moveName}! But ${targetPoke.name}'s ability prevented the status.`;
+              } else {
+                effectMsg = `${myPoke.name} used ${moveName}! But ${targetPoke.name} is already affected.`;
+              }
             }
           } else if (effectType === 'weather') {
             if (session.weather !== effect.weather) {
@@ -788,11 +1112,38 @@ router.post('/:battleId/move', async (req, res) => {
               session.terrain
             );
             const damage = dmgResult.damage;
-            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - damage);
-            const heal = Math.floor(damage * (effect.percent / 100));
+            // --- Screen effects: Light Screen, Reflect, Aurora Veil ---
+            const theirSideEffects = isChallenger ? session.opponentSideEffects : session.challengerSideEffects;
+            let finalDamage = damage;
+            if (theirSideEffects && theirSideEffects.includes('light-screen') && moveObj.category === 'special') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('reflect') && moveObj.category === 'physical') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('aurora-veil')) {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            // --- Counter logic: reflect damage if target is countering ---
+            if (
+              theirPoke.counterActive &&
+              ((theirPoke.counterType === 'physical' && moveObj.category === 'physical') ||
+              (theirPoke.counterType === 'special' && moveObj.category === 'special'))
+            ) {
+              const reflected = finalDamage * 2;
+              myPoke.currentHp = Math.max(0, (myPoke.currentHp || myPoke.stats.hp) - reflected);
+              session.log.push({ side: 'user', userId, text: `${theirPoke.name} countered! Reflected ${reflected} damage to ${myPoke.name}.` });
+              delete theirPoke.counterActive;
+              delete theirPoke.counterType;
+              session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+              session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+            }
+            let modifiedDamage = applyOnModifyDamage(theirPoke, finalDamage);
+            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - modifiedDamage);
+            const heal = Math.floor(finalDamage * (effect.percent / 100));
             myPoke.currentHp = Math.min(myPoke.maxHp, (myPoke.currentHp || 0) + heal);
             effectSucceeded = true;
-            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage and restored ${heal} HP! ${effect.message}`;
+            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${finalDamage} damage and restored ${heal} HP! ${effect.message}`;
           } else if (effectType === 'damage+recoil') {
             // Deal damage, then deal recoil to user
             const attackerStats = myPoke.stats;
@@ -807,12 +1158,39 @@ router.post('/:battleId/move', async (req, res) => {
               session.terrain
             );
             const damage = dmgResult.damage;
-            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - damage);
-            let recoil = Math.floor(damage * (effect.recoil / 100));
+            // --- Screen effects: Light Screen, Reflect, Aurora Veil ---
+            const theirSideEffects = isChallenger ? session.opponentSideEffects : session.challengerSideEffects;
+            let finalDamage = damage;
+            if (theirSideEffects && theirSideEffects.includes('light-screen') && moveObj.category === 'special') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('reflect') && moveObj.category === 'physical') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('aurora-veil')) {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            // --- Counter logic: reflect damage if target is countering ---
+            if (
+              theirPoke.counterActive &&
+              ((theirPoke.counterType === 'physical' && moveObj.category === 'physical') ||
+              (theirPoke.counterType === 'special' && moveObj.category === 'special'))
+            ) {
+              const reflected = finalDamage * 2;
+              myPoke.currentHp = Math.max(0, (myPoke.currentHp || myPoke.stats.hp) - reflected);
+              session.log.push({ side: 'user', userId, text: `${theirPoke.name} countered! Reflected ${reflected} damage to ${myPoke.name}.` });
+              delete theirPoke.counterActive;
+              delete theirPoke.counterType;
+              session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+              session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+            }
+            let modifiedDamage = applyOnModifyDamage(theirPoke, finalDamage);
+            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - modifiedDamage);
+            let recoil = Math.floor(finalDamage * (effect.recoil / 100));
             recoil = Math.max(1, recoil);
             myPoke.currentHp = Math.max(0, (myPoke.currentHp || myPoke.stats.hp) - recoil);
             effectSucceeded = true;
-            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage, but was hurt by recoil (${recoil} HP)! ${effect.message}`;
+            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${finalDamage} damage, but was hurt by recoil (${recoil} HP)! ${effect.message}`;
           } else if (effectType === 'hazard') {
             // Set a field effect (e.g. spikes, toxic spikes, stealth rock)
             if (!session.fieldEffects) session.fieldEffects = [];
@@ -833,9 +1211,36 @@ router.post('/:battleId/move', async (req, res) => {
               session.terrain
             );
             const damage = dmgResult.damage;
-            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - damage);
+            // --- Screen effects: Light Screen, Reflect, Aurora Veil ---
+            const theirSideEffects = isChallenger ? session.opponentSideEffects : session.challengerSideEffects;
+            let finalDamage = damage;
+            if (theirSideEffects && theirSideEffects.includes('light-screen') && moveObj.category === 'special') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('reflect') && moveObj.category === 'physical') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('aurora-veil')) {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            // --- Counter logic: reflect damage if target is countering ---
+            if (
+              theirPoke.counterActive &&
+              ((theirPoke.counterType === 'physical' && moveObj.category === 'physical') ||
+              (theirPoke.counterType === 'special' && moveObj.category === 'special'))
+            ) {
+              const reflected = finalDamage * 2;
+              myPoke.currentHp = Math.max(0, (myPoke.currentHp || myPoke.stats.hp) - reflected);
+              session.log.push({ side: 'user', userId, text: `${theirPoke.name} countered! Reflected ${reflected} damage to ${myPoke.name}.` });
+              delete theirPoke.counterActive;
+              delete theirPoke.counterType;
+              session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+              session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+            }
+            let modifiedDamage = applyOnModifyDamage(theirPoke, finalDamage);
+            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - modifiedDamage);
             effectSucceeded = true;
-            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage! ${effect.message}`;
+            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${finalDamage} damage! ${effect.message}`;
           } else if (effectType === 'charge-attack') {
             // Multi-turn move: require a charge turn before attacking
             // Initialize chargeTurns if not present
@@ -863,9 +1268,36 @@ router.post('/:battleId/move', async (req, res) => {
                 session.terrain
               );
               const damage = dmgResult.damage;
-              theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - damage);
+              // --- Screen effects: Light Screen, Reflect, Aurora Veil ---
+              const theirSideEffects = isChallenger ? session.opponentSideEffects : session.challengerSideEffects;
+              let finalDamage = damage;
+              if (theirSideEffects && theirSideEffects.includes('light-screen') && moveObj.category === 'special') {
+                finalDamage = Math.floor(finalDamage / 2);
+              }
+              if (theirSideEffects && theirSideEffects.includes('reflect') && moveObj.category === 'physical') {
+                finalDamage = Math.floor(finalDamage / 2);
+              }
+              if (theirSideEffects && theirSideEffects.includes('aurora-veil')) {
+                finalDamage = Math.floor(finalDamage / 2);
+              }
+              // --- Counter logic: reflect damage if target is countering ---
+              if (
+                theirPoke.counterActive &&
+                ((theirPoke.counterType === 'physical' && moveObj.category === 'physical') ||
+                (theirPoke.counterType === 'special' && moveObj.category === 'special'))
+              ) {
+                const reflected = finalDamage * 2;
+                myPoke.currentHp = Math.max(0, (myPoke.currentHp || myPoke.stats.hp) - reflected);
+                session.log.push({ side: 'user', userId, text: `${theirPoke.name} countered! Reflected ${reflected} damage to ${myPoke.name}.` });
+                delete theirPoke.counterActive;
+                delete theirPoke.counterType;
+                session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+                session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+              }
+              let modifiedDamage = applyOnModifyDamage(theirPoke, finalDamage);
+              theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - modifiedDamage);
               effectSucceeded = true;
-              effectMsg = `${myPoke.name} unleashed ${moveName}! It dealt ${damage} damage!`;
+              effectMsg = `${myPoke.name} unleashed ${moveName}! It dealt ${finalDamage} damage!`;
             }
             session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
           } else if (effectType === 'damage+status') {
@@ -882,14 +1314,41 @@ router.post('/:battleId/move', async (req, res) => {
               session.terrain
             );
             const damage = dmgResult.damage;
-            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - damage);
+            // --- Screen effects: Light Screen, Reflect, Aurora Veil ---
+            const theirSideEffects = isChallenger ? session.opponentSideEffects : session.challengerSideEffects;
+            let finalDamage = damage;
+            if (theirSideEffects && theirSideEffects.includes('light-screen') && moveObj.category === 'special') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('reflect') && moveObj.category === 'physical') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('aurora-veil')) {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            // --- Counter logic: reflect damage if target is countering ---
+            if (
+              theirPoke.counterActive &&
+              ((theirPoke.counterType === 'physical' && moveObj.category === 'physical') ||
+              (theirPoke.counterType === 'special' && moveObj.category === 'special'))
+            ) {
+              const reflected = finalDamage * 2;
+              myPoke.currentHp = Math.max(0, (myPoke.currentHp || myPoke.stats.hp) - reflected);
+              session.log.push({ side: 'user', userId, text: `${theirPoke.name} countered! Reflected ${reflected} damage to ${myPoke.name}.` });
+              delete theirPoke.counterActive;
+              delete theirPoke.counterType;
+              session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+              session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+            }
+            let modifiedDamage = applyOnModifyDamage(theirPoke, finalDamage);
+            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - modifiedDamage);
             if (!theirPoke.status && (!effect.chance || Math.random() * 100 < effect.chance)) {
               theirPoke.status = effect.status;
               session.log.push({ side: 'user', userId, text: `${theirPoke.name} ${effect.message}` });
               session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
             }
             effectSucceeded = true;
-            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage!`;
+            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${finalDamage} damage!`;
           } else if (effectType === 'user-faints') {
             // Self-fainting moves: deal damage, then user faints
             const attackerStats = myPoke.stats;
@@ -904,17 +1363,223 @@ router.post('/:battleId/move', async (req, res) => {
               session.terrain
             );
             const damage = dmgResult.damage;
-            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - damage);
+            // --- Screen effects: Light Screen, Reflect, Aurora Veil ---
+            const theirSideEffects = isChallenger ? session.opponentSideEffects : session.challengerSideEffects;
+            let finalDamage = damage;
+            if (theirSideEffects && theirSideEffects.includes('light-screen') && moveObj.category === 'special') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('reflect') && moveObj.category === 'physical') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('aurora-veil')) {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            // --- Counter logic: reflect damage if target is countering ---
+            if (
+              theirPoke.counterActive &&
+              ((theirPoke.counterType === 'physical' && moveObj.category === 'physical') ||
+              (theirPoke.counterType === 'special' && moveObj.category === 'special'))
+            ) {
+              const reflected = finalDamage * 2;
+              myPoke.currentHp = Math.max(0, (myPoke.currentHp || myPoke.stats.hp) - reflected);
+              session.log.push({ side: 'user', userId, text: `${theirPoke.name} countered! Reflected ${reflected} damage to ${myPoke.name}.` });
+              delete theirPoke.counterActive;
+              delete theirPoke.counterType;
+              session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+              session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+            }
+            let modifiedDamage = applyOnModifyDamage(theirPoke, finalDamage);
+            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - modifiedDamage);
             myPoke.currentHp = 0;
             effectSucceeded = true;
-            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage, but fainted!`;
+            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${finalDamage} damage, but fainted!`;
+          }
+          // --- Special handling for hazard-remove (Rapid Spin, Defog) ---
+          if (effectType === 'hazard-remove') {
+            // Remove hazards from opponent's fieldEffects
+            if (!session.fieldEffects) session.fieldEffects = [];
+            const hazardsToRemove = effect.removes || [];
+            const before = session.fieldEffects.length;
+            session.fieldEffects = session.fieldEffects.filter(h => !hazardsToRemove.includes(h));
+            const after = session.fieldEffects.length;
+            let removed = before - after;
+            let msg = `${myPoke.name} used ${moveName}!`;
+            if (removed > 0) {
+              msg += ` Removed hazards: ${hazardsToRemove.join(', ')}.`;
+            } else {
+              msg += ` No hazards to remove.`;
+            }
+            // For Defog: clear opponent's stat boosts
+            if (effect.clearsBoosts) {
+              const oppPokemons = isChallenger ? session.opponentPokemons : session.challengerPokemons;
+              for (const poke of oppPokemons) {
+                if (poke.boosts) {
+                  for (const stat in poke.boosts) {
+                    poke.boosts[stat] = 0;
+                  }
+                }
+              }
+              msg += ` Cleared opponent's stat boosts!`;
+              session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+            }
+            session.log.push({ side: 'user', userId, text: msg });
+            session.markModified('fieldEffects');
+            effectSucceeded = true;
+            effectMsg = msg;
+          }
+          // --- Special handling for field effects (Tailwind, Trick Room) ---
+          if (effectType === 'field') {
+            if (!session.fieldEffects) session.fieldEffects = [];
+            if (!session.fieldEffectDurations) session.fieldEffectDurations = {};
+            const field = effect.field;
+            const duration = effect.duration || 4;
+            // Add or refresh the field effect
+            if (!session.fieldEffects.includes(field)) {
+              session.fieldEffects.push(field);
+            }
+            session.fieldEffectDurations[field] = duration;
+            session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${effect.message} (${duration} turns)` });
+            session.markModified('fieldEffects');
+            session.markModified('fieldEffectDurations');
+            effectSucceeded = true;
+            effectMsg = `${myPoke.name} used ${moveName}! ${effect.message}`;
+          }
+          // --- Special handling for cure-team (Heal Bell, Aromatherapy) ---
+          if (effectType === 'cure-team') {
+            const myTeam = isChallenger ? session.challengerPokemons : session.opponentPokemons;
+            let curedCount = 0;
+            for (const poke of myTeam) {
+              if (poke.status) {
+                poke.status = null;
+                curedCount++;
+              }
+              // Also cure confusion if present
+              if (poke.confusionCounter) {
+                delete poke.confusionCounter;
+                curedCount++;
+              }
+            }
+            session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+            const msg = `${myPoke.name} used ${moveName}! All status conditions were cured for the team! (${curedCount} cured)`;
+            session.log.push({ side: 'user', userId, text: msg });
+            effectSucceeded = true;
+            effectMsg = msg;
+          }
+          // --- Special handling for prevent-status (Taunt) ---
+          if (effectType === 'prevent-status') {
+            const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
+            targetPoke.tauntTurns = effect.duration || 3;
+            session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${targetPoke.name} is taunted for ${targetPoke.tauntTurns} turns!` });
+            session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+            effectSucceeded = true;
+            effectMsg = `${myPoke.name} used ${moveName}! ${targetPoke.name} is taunted!`;
+          }
+          // --- Special handling for lock (Encore) ---
+          if (effectType === 'lock') {
+            const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
+            // Lock the target into their last used move for duration
+            if (targetPoke.lastMoveUsed) {
+              targetPoke.encoreTurns = effect.duration || 3;
+              targetPoke.encoreMove = targetPoke.lastMoveUsed;
+              session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${targetPoke.name} is locked into ${targetPoke.encoreMove} for ${targetPoke.encoreTurns} turns!` });
+              session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+              effectSucceeded = true;
+              effectMsg = `${myPoke.name} used ${moveName}! ${targetPoke.name} is encored!`;
+            } else {
+              effectMsg = `${myPoke.name} used ${moveName}! But it failed (no move to encore).`;
+            }
+          }
+          // --- Special handling for disable (Disable) ---
+          if (effectType === 'disable') {
+            const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
+            // Disable the target's last used move for duration
+            if (targetPoke.lastMoveUsed) {
+              targetPoke.disableTurns = effect.duration || 2;
+              targetPoke.disableMove = targetPoke.lastMoveUsed;
+              session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${targetPoke.name}'s move ${targetPoke.disableMove} is disabled for ${targetPoke.disableTurns} turns!` });
+              session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+              effectSucceeded = true;
+              effectMsg = `${myPoke.name} used ${moveName}! ${targetPoke.name}'s move is disabled!`;
+            } else {
+              effectMsg = `${myPoke.name} used ${moveName}! But it failed (no move to disable).`;
+            }
+          }
+          // --- Special handling for multi-hit (Double Hit, Fury Cutter) ---
+          if (effectType === 'multi-hit') {
+            let hits = 2;
+            if (typeof effect.hits === 'string' && effect.hits.includes('-')) {
+              // e.g., '2-5'
+              const [min, max] = effect.hits.split('-').map(Number);
+              hits = Math.floor(Math.random() * (max - min + 1)) + min;
+            } else if (typeof effect.hits === 'number') {
+              hits = effect.hits;
+            }
+            let totalDamage = 0;
+            let hitLog = [];
+            for (let i = 0; i < hits; i++) {
+              const attackerStats = myPoke.stats;
+              const defenderStats = theirPoke.stats;
+              const typeEffectiveness = battleUtils.getTypeEffectiveness(moveObj.moveType, theirPoke.types);
+              const dmgResult = battleUtils.calculateDamage(
+                { level: myPoke.level, stats: attackerStats, types: myPoke.types },
+                { stats: defenderStats, types: theirPoke.types },
+                moveObj,
+                typeEffectiveness,
+                session.weather,
+                session.terrain
+              );
+              const damage = dmgResult.damage;
+              // --- Screen effects: Light Screen, Reflect, Aurora Veil ---
+              const theirSideEffects = isChallenger ? session.opponentSideEffects : session.challengerSideEffects;
+              let finalDamage = damage;
+              if (theirSideEffects && theirSideEffects.includes('light-screen') && moveObj.category === 'special') {
+                finalDamage = Math.floor(finalDamage / 2);
+              }
+              if (theirSideEffects && theirSideEffects.includes('reflect') && moveObj.category === 'physical') {
+                finalDamage = Math.floor(finalDamage / 2);
+              }
+              if (theirSideEffects && theirSideEffects.includes('aurora-veil')) {
+                finalDamage = Math.floor(finalDamage / 2);
+              }
+              // --- Counter logic: reflect damage if target is countering ---
+              if (
+                theirPoke.counterActive &&
+                ((theirPoke.counterType === 'physical' && moveObj.category === 'physical') ||
+                (theirPoke.counterType === 'special' && moveObj.category === 'special'))
+              ) {
+                const reflected = finalDamage * 2;
+                myPoke.currentHp = Math.max(0, (myPoke.currentHp || myPoke.stats.hp) - reflected);
+                session.log.push({ side: 'user', userId, text: `${theirPoke.name} countered! Reflected ${reflected} damage to ${myPoke.name}.` });
+                delete theirPoke.counterActive;
+                delete theirPoke.counterType;
+                session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+                session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+              }
+              let modifiedDamage = applyOnModifyDamage(theirPoke, finalDamage);
+              theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - modifiedDamage);
+              totalDamage += finalDamage;
+              hitLog.push(`Hit ${i+1}: ${finalDamage} damage`);
+              if (theirPoke.currentHp <= 0) break; // Stop if fainted
+            }
+            session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${hitLog.join(', ')} (Total: ${totalDamage})` });
+            session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+            effectSucceeded = true;
+            effectMsg = `${myPoke.name} used ${moveName}! Hit ${hits} times for a total of ${totalDamage} damage.`;
           }
           // Only decrement PP if effect succeeded
           if (effectSucceeded) {
             moveObj.currentPP = Math.max(0, (moveObj.currentPP || 0) - 1);
+            // --- Integrate onDeductPP (e.g., Pressure) ---
+            // If the move targets the opponent, apply to theirPoke
+            if (theirPoke && theirPoke !== myPoke) {
+              applyOnDeductPP(theirPoke, moveObj);
+            }
           }
           session.log.push({ side: 'user', userId, text: effectMsg });
           session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+          // --- Integrate onAfterMove (e.g., Moxie) ---
+          applyOnAfterMove(myPoke, theirPoke, moveObj, session, session.log);
           // --- Always switch turn after any move (effect or damaging) ---
           // Check if all Pokémon for either side have fainted (should only happen if effect causes faint)
           function allFainted(pokemons) { return pokemons.every(p => p.currentHp <= 0); }
@@ -988,6 +1653,19 @@ router.post('/:battleId/move', async (req, res) => {
             const attackerStats = getBattleStats(myPoke);
             const defenderStats = getBattleStats(theirPoke);
             const typeEffectiveness = battleUtils.getTypeEffectiveness(moveObj.moveType, theirPoke.types);
+
+            // --- Block damaging moves if target is protected ---
+            if (theirPoke.isProtected && moveObj.power > 0) {
+              session.log.push({ side: 'user', userId, text: `${theirPoke.name} protected itself! ${myPoke.name}'s attack failed.` });
+              delete theirPoke.isProtected;
+              delete myPoke.isProtected;
+              session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+              session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+              summary = `${theirPoke.name} protected itself!`;
+              session.turn = isChallenger ? 'opponent' : 'challenger';
+              return res.json({ session, summary });
+            }
+
             const dmgResult = battleUtils.calculateDamage(
               { level: myPoke.level, stats: attackerStats, types: myPoke.types },
               { stats: defenderStats, types: theirPoke.types },
@@ -997,12 +1675,39 @@ router.post('/:battleId/move', async (req, res) => {
               session.terrain
             );
             const damage = dmgResult.damage;
-            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - damage);
+            // --- Screen effects: Light Screen, Reflect, Aurora Veil ---
+            const theirSideEffects = isChallenger ? session.opponentSideEffects : session.challengerSideEffects;
+            let finalDamage = damage;
+            if (theirSideEffects && theirSideEffects.includes('light-screen') && moveObj.category === 'special') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('reflect') && moveObj.category === 'physical') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('aurora-veil')) {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            // --- Counter logic: reflect damage if target is countering ---
+            if (
+              theirPoke.counterActive &&
+              ((theirPoke.counterType === 'physical' && moveObj.category === 'physical') ||
+              (theirPoke.counterType === 'special' && moveObj.category === 'special'))
+            ) {
+              const reflected = finalDamage * 2;
+              myPoke.currentHp = Math.max(0, (myPoke.currentHp || myPoke.stats.hp) - reflected);
+              session.log.push({ side: 'user', userId, text: `${theirPoke.name} countered! Reflected ${reflected} damage to ${myPoke.name}.` });
+              delete theirPoke.counterActive;
+              delete theirPoke.counterType;
+              session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+              session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+            }
+            let modifiedDamage = applyOnModifyDamage(theirPoke, finalDamage);
+            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - modifiedDamage);
             let effectivenessText = '';
             if (typeEffectiveness === 0) effectivenessText = ' It had no effect!';
             else if (typeEffectiveness > 1) effectivenessText = ' It was super effective!';
             else if (typeEffectiveness < 1) effectivenessText = ' It was not very effective.';
-            session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! It dealt ${damage} damage to ${theirPoke.name}.${effectivenessText} (${theirPoke.currentHp} HP left)` });
+            session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! It dealt ${finalDamage} damage to ${theirPoke.name}.${effectivenessText} (${theirPoke.currentHp} HP left)` });
             // If move is damage+status, apply status after damage
             if (effect && effect.type === 'damage+status') {
               const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
@@ -1060,7 +1765,7 @@ router.post('/:battleId/move', async (req, res) => {
             }
             session.markModified('challengerPokemons');
             session.markModified('opponentPokemons');
-            summary = `${myPoke.name} used ${moveName}! It dealt ${damage} damage to ${theirPoke.name}.${effectivenessText} (${theirPoke.currentHp} HP left)`;
+            summary = `${myPoke.name} used ${moveName}! It dealt ${finalDamage} damage to ${theirPoke.name}.${effectivenessText} (${theirPoke.currentHp} HP left)`;
             if (fainted) {
               summary += `\n${faintedName} fainted!`;
               if (switched && newActiveIndex !== null) {
@@ -1097,8 +1802,73 @@ router.post('/:battleId/move', async (req, res) => {
       }
       return res.json({ session, summary: endSummary });
     }
+    // --- End of turn: clear isProtected for both active Pokémon ---
+    const activeChallenger = session.challengerPokemons[session.activeChallengerIndex || 0];
+    const activeOpponent = session.opponentPokemons[session.activeOpponentIndex || 0];
+    if (activeChallenger && activeChallenger.isProtected) delete activeChallenger.isProtected;
+    if (activeOpponent && activeOpponent.isProtected) delete activeOpponent.isProtected;
+    session.markModified('challengerPokemons');
+    session.markModified('opponentPokemons');
+    // --- End of turn: clear counterActive/counterType for both active Pokémon ---
+    if (activeChallenger && activeChallenger.counterActive) delete activeChallenger.counterActive;
+    if (activeChallenger && activeChallenger.counterType) delete activeChallenger.counterType;
+    if (activeOpponent && activeOpponent.counterActive) delete activeOpponent.counterActive;
+    if (activeOpponent && activeOpponent.counterType) delete activeOpponent.counterType;
+    // --- Add to session schema if not present ---
+    if (!session.challengerSideEffects) session.challengerSideEffects = [];
+    if (!session.opponentSideEffects) session.opponentSideEffects = [];
+    if (!session.challengerSideEffectDurations) session.challengerSideEffectDurations = {};
+    if (!session.opponentSideEffectDurations) session.opponentSideEffectDurations = {};
+    // --- At end of turn: decrement and remove expired side effects ---
+    ['challenger','opponent'].forEach(side => {
+      const sideEffects = session[side + 'SideEffects'];
+      const sideDurations = session[side + 'SideEffectDurations'];
+      if (sideEffects && sideDurations) {
+        for (const field of [...sideEffects]) {
+          sideDurations[field] -= 1;
+          if (sideDurations[field] <= 0) {
+            const idx = sideEffects.indexOf(field);
+            if (idx !== -1) sideEffects.splice(idx, 1);
+            delete sideDurations[field];
+            session.log.push({ side: 'system', text: `${field.replace('-', ' ')} wore off for ${side} side!` });
+          }
+        }
+        session.markModified(side + 'SideEffects');
+        session.markModified(side + 'SideEffectDurations');
+      }
+    });
+    // --- Special handling for spread moves (Surf, Earthquake) ---
+    if (effectType === 'spread') {
+      // For singles, treat as normal damaging move, but log that it's a spread move
+      session.log.push({ side: 'system', text: `${myPoke.name} used ${moveName}! (Spread move: would hit all opponents in doubles)` });
+      // Proceed to normal damage logic below
+    }
+    // --- Special handling for clear-boosts (Haze) ---
+    if (effectType === 'clear-boosts') {
+      // Clear all stat boosts for all Pokémon on both sides
+      for (const poke of session.challengerPokemons) {
+        if (poke.boosts) {
+          for (const stat in poke.boosts) {
+            poke.boosts[stat] = 0;
+          }
+        }
+      }
+      for (const poke of session.opponentPokemons) {
+        if (poke.boosts) {
+          for (const stat in poke.boosts) {
+            poke.boosts[stat] = 0;
+          }
+        }
+      }
+      session.markModified('challengerPokemons');
+      session.markModified('opponentPokemons');
+      session.log.push({ side: 'system', text: `All stat changes were erased by Haze!` });
+      effectSucceeded = true;
+      effectMsg = `${myPoke.name} used Haze! All stat changes were erased!`;
+    }
     return res.json({ session, summary });
   } catch (err) {
+    console.error('[BATTLE ERROR]', err, err && err.stack);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -1130,10 +1900,22 @@ router.post('/:battleId/switch', async (req, res) => {
     const session = await BattleSession.findById(battleId);
     if (!session) return res.status(404).json({ error: 'BattleSession not found' });
     if (session.status !== 'active') return res.status(400).json({ error: 'Battle is not active' });
+    let activePoke;
     if (userId === session.challengerId) {
+      activePoke = session.challengerPokemons[session.activeChallengerIndex || 0];
+    } else if (userId === session.opponentId) {
+      activePoke = session.opponentPokemons[session.activeOpponentIndex || 0];
+    }
+    // --- Advanced trapping: prevent switching if trapped, unless Ghost type ---
+    if (activePoke && activePoke.partialTrapTurns > 0 && !(activePoke.types && activePoke.types.includes('ghost'))) {
+      return res.status(400).json({ error: `${activePoke.name} is trapped and cannot switch out!` });
+    }
+    if (userId === session.challengerId) {
+      applyOnSwitchOut(session.challengerPokemons[session.activeChallengerIndex || 0], session, session.log);
       session.activeChallengerIndex = newIndex;
       session.turn = 'opponent';
     } else if (userId === session.opponentId) {
+      applyOnSwitchOut(session.opponentPokemons[session.activeOpponentIndex || 0], session, session.log);
       session.activeOpponentIndex = newIndex;
       session.turn = 'challenger';
     } else {
@@ -1151,6 +1933,12 @@ router.post('/:battleId/switch', async (req, res) => {
       theirPoke = session.challengerPokemons[session.activeChallengerIndex || 0];
     }
     applyOnSwitchAbilities(myNewPoke, theirPoke, session, session.log);
+    // In the switch route, if pivotSwitchPending is set for the user, clear the flag, perform the switch, and THEN set the turn to the opponent
+    if (session.pivotSwitchPending && session.pivotSwitchPending === userId) {
+      delete session.pivotSwitchPending;
+      session.turn = userId === session.challengerId ? 'opponent' : 'challenger';
+      session.log.push({ side: 'user', userId, text: `<@${userId}> switched out after using a pivot move!` });
+    }
     return res.json({ session });
   } catch (err) {
     return res.status(500).json({ error: err.message });

@@ -166,7 +166,7 @@ module.exports = {
               const shinyMark = evolved && evolved.isShiny ? ' ✨' : '';
               const embed = new EmbedBuilder()
                 .setTitle(`Evolution Successful!${shinyMark}`)
-                .setDescription(`Your Pokémon evolved to the next stage!${shinyMark}\nRing charges left: ${ringCharges}`)
+                .setDescription(`<@${interaction.user.id}> evolved their Pokémon!${shinyMark}\nYour Pokémon evolved to the next stage!${shinyMark}\nRing charges left: ${ringCharges}`)
                 .setColor(0x2ecc71);
               if (evolved && evolved.pokemonId) {
                 embed.addFields({ name: 'New Pokémon', value: `#${dexNum} ${evolved.name || ''}${shinyMark}` });
@@ -207,7 +207,7 @@ module.exports = {
         const shinyMark = evolved && evolved.isShiny ? ' ✨' : '';
         const embed = new EmbedBuilder()
           .setTitle(`Evolution Successful!${shinyMark}`)
-          .setDescription(`Your Pokémon evolved to the next stage!${shinyMark}\nRing charges left: ${ringCharges}`)
+          .setDescription(`<@${interaction.user.id}> evolved their Pokémon!${shinyMark}\nYour Pokémon evolved to the next stage!${shinyMark}\nRing charges left: ${ringCharges}`)
           .setColor(0x2ecc71);
         if (evolved && evolved.pokemonId) {
           embed.addFields({ name: 'New Pokémon', value: `#${dexNum} ${evolved.name || ''}${shinyMark}` });

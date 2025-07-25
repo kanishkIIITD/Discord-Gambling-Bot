@@ -38,6 +38,14 @@ const userPreferencesSchema = new mongoose.Schema({
     max: 100
   },
   // Selected Pokémon for Pokédex display
+  selectedPokedexPokemon: {
+    type: {
+      pokemonId: { type: String, required: false },
+      isShiny: { type: Boolean, required: false }
+    },
+    default: undefined
+  },
+  // Keep the old field for backward compatibility (can be removed after migration)
   selectedPokedexPokemonId: {
     type: String,
     default: null

@@ -44,6 +44,23 @@ const pokemonBattleSchema = new mongoose.Schema({
   sleepCounter: { type: Number, default: null }, // For sleep status (Rest, etc.)
   chargeTurns:  { type: Number, default: null }, // For charge moves (Solar Beam, etc.)
   statusCounter: { type: Number, default: null }, // For badly poisoned status
+  drowsy: { type: Number, default: null },         // For Yawn delayed sleep
+  wishPending: { type: Number, default: null },    // For Wish delayed healing
+  flyingRemoved: { type: Number, default: null },  // For Roost temporary Flying removal
+  originalTypes: { type: [String], default: null }, // For Roost, to restore types
+  tauntTurns: { type: Number, default: null },
+  encoreTurns: { type: Number, default: null },
+  encoreMove: { type: String, default: null },
+  disableTurns: { type: Number, default: null },
+  disableMove: { type: String, default: null },
+  partialTrapTurns: { type: Number, default: null },
+  partialTrapMove: { type: String, default: null },
+  isProtected: { type: Boolean, default: null },
+  counterActive: { type: Boolean, default: null },
+  counterType: { type: String, default: null },
+  lastMoveUsed: { type: String, default: null },
+  leechSeedActive: { type: Boolean, default: null },
+  leechSeededBy: { type: String, default: null },
 }, { _id: false });
 
 const battleSessionSchema = new mongoose.Schema({
@@ -68,6 +85,11 @@ const battleSessionSchema = new mongoose.Schema({
   terrain:     { type: String, enum: [null, 'electric', 'grassy', 'misty', 'psychic'], default: null },
   fieldEffects: [{ type: String, default: [] }], // e.g. 'reflect', 'light-screen', etc.
   friendly: { type: Boolean, default: true }, // true = normal, false = winner gets 2x rewards and loser loses all Pokémon
+  challengerSideEffects: { type: [String], default: [] },
+  opponentSideEffects: { type: [String], default: [] },
+  challengerSideEffectDurations: { type: Object, default: {} },
+  opponentSideEffectDurations: { type: Object, default: {} },
+  pivotSwitchPending: { type: String, default: null },
 }, {
   timestamps: true
 });
