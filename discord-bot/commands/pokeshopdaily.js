@@ -7,7 +7,8 @@ const pokeCache = require('../utils/pokeCache');
 const pokemonByRarity = {
   common: [],
   uncommon: [],
-  rare: []
+  rare: [],
+  legendary: []
 };
 
 // Populate the rarity groups
@@ -26,10 +27,29 @@ function getDailyPokemon(userId, guildId) {
   const guildSeed = parseInt(guildId.slice(-3), 16); // Use last 3 characters of guild ID
   const seed = dayOfYear + userSeed + guildSeed;
   
+  // Helper function to check if a Pokémon should be shiny (1% chance)
+  const isShiny = (baseSeed, rarity) => {
+    const shinySeed = baseSeed + rarity.charCodeAt(0); // Different seed for each rarity
+    const randomValue = (shinySeed * 9301 + 49297) % 233280;
+    return (randomValue % 100) < 1; // 1% chance
+  };
+  
   // Select one Pokémon from each rarity using the seed
-  const commonPokemon = pokemonByRarity.common[seed % pokemonByRarity.common.length];
-  const uncommonPokemon = pokemonByRarity.uncommon[seed % pokemonByRarity.uncommon.length];
-  const rarePokemon = pokemonByRarity.rare[seed % pokemonByRarity.rare.length];
+  const commonPokemon = { ...pokemonByRarity.common[seed % pokemonByRarity.common.length], isShiny: isShiny(seed, 'common') };
+  const uncommonPokemon = { ...pokemonByRarity.uncommon[seed % pokemonByRarity.uncommon.length], isShiny: isShiny(seed, 'uncommon') };
+  
+  // Add a small chance (5%) for the rare slot to be replaced by a legendary
+  const randomValue = (seed * 9301 + 49297) % 233280; // Simple PRNG using the seed
+  const isLegendary = (randomValue % 100) < 5; // 5% chance
+  
+  let rarePokemon;
+  if (isLegendary && pokemonByRarity.legendary.length > 0) {
+    // Select a legendary Pokémon
+    rarePokemon = { ...pokemonByRarity.legendary[seed % pokemonByRarity.legendary.length], isShiny: isShiny(seed, 'legendary') };
+  } else {
+    // Select a rare Pokémon (default behavior)
+    rarePokemon = { ...pokemonByRarity.rare[seed % pokemonByRarity.rare.length], isShiny: isShiny(seed, 'rare') };
+  }
   
   return {
     common: commonPokemon,
@@ -126,11 +146,14 @@ module.exports = {
 
     // Create individual embeds for each Pokémon with sprites
     const pokemonEmbeds = [];
-    for (const [rarity, pokemon] of Object.entries(dailyPokemon)) {
+    for (const [slot, pokemon] of Object.entries(dailyPokemon)) {
+      // Use the actual rarity of the Pokémon, not the slot key
+      const rarity = pokemon.rarity;
       const rarityEmoji = getRarityEmoji(rarity);
       const rarityColor = getRarityColor(rarity);
-      const price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : 500;
-      const alreadyPurchased = todayPurchases[rarity];
+      let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 5000 : 500;
+      if (pokemon.isShiny) price *= 2;
+      const alreadyPurchased = todayPurchases[slot];
       
       // Get Pokémon ID - try pokeCache first, then fallback to direct mapping
       let pokemonId = 1; // Default to Bulbasaur
@@ -183,7 +206,7 @@ module.exports = {
       }
       
       // Use PokemonDB Black 2/White 2 animated sprites for better quality
-      const spriteUrl = `https://img.pokemondb.net/sprites/black-white/anim/normal/${pokemon.name.toLowerCase()}.gif`;
+      const spriteUrl = `https://img.pokemondb.net/sprites/black-white/anim/${pokemon.isShiny ? 'shiny' : 'normal'}/${pokemon.name.toLowerCase()}.gif`;
       
       // Determine status message
       let statusMessage;
@@ -196,8 +219,8 @@ module.exports = {
       }
       
       const pokemonEmbed = new EmbedBuilder()
-        .setTitle(`${rarityEmoji} ${pokemon.name.charAt(0).toUpperCase() + pokemon.name.slice(1)}`)
-        .setDescription(`**Rarity:** ${rarity.charAt(0).toUpperCase() + rarity.slice(1)}\n💰 **Price:** ${price} Stardust\n${statusMessage}`)
+        .setTitle(`${rarityEmoji} ${pokemon.name.charAt(0).toUpperCase() + pokemon.name.slice(1)}${pokemon.isShiny ? ' ✨' : ''}`)
+        .setDescription(`**Rarity:** ${rarity.charAt(0).toUpperCase() + rarity.slice(1)}${pokemon.isShiny ? ' (Shiny)' : ''}\n💰 **Price:** ${price} Stardust\n${statusMessage}`)
         .setColor(rarityColor)
         .setThumbnail(spriteUrl);
       
@@ -209,15 +232,17 @@ module.exports = {
     let currentRow = new ActionRowBuilder();
     let buttonCount = 0;
 
-    Object.entries(dailyPokemon).forEach(([rarity, pokemon], index) => {
-      const price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : 500;
+    Object.entries(dailyPokemon).forEach(([slot, pokemon], index) => {
+      const rarity = pokemon.rarity;
+      let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 5000 : 500;
+      if (pokemon.isShiny) price *= 2;
       const canAfford = user.poke_stardust >= price;
-      const alreadyPurchased = todayPurchases[rarity];
+      const alreadyPurchased = todayPurchases[slot];
       const canPurchase = canAfford && !alreadyPurchased;
       
       const button = new ButtonBuilder()
-        .setCustomId(`daily_shop_buy_${rarity}`)
-        .setLabel(`Buy ${pokemon.name.charAt(0).toUpperCase() + pokemon.name.slice(1)} (${price})`)
+        .setCustomId(`daily_shop_buy_${slot}`)
+        .setLabel(`Buy ${pokemon.name.charAt(0).toUpperCase() + pokemon.name.slice(1)}${pokemon.isShiny ? ' ✨' : ''} (${price})`)
         .setStyle(canPurchase ? ButtonStyle.Primary : ButtonStyle.Secondary)
         .setDisabled(!canPurchase);
       
@@ -242,9 +267,11 @@ module.exports = {
     });
 
     collector.on('collect', async i => {
-      const rarity = i.customId.replace('daily_shop_buy_', '');
-      const pokemon = dailyPokemon[rarity];
-      const price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : 500;
+      const slot = i.customId.replace('daily_shop_buy_', '');
+      const pokemon = dailyPokemon[slot];
+      const rarity = pokemon.rarity;
+      let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 5000 : 500;
+      if (pokemon.isShiny) price *= 2;
       
       await i.deferUpdate();
       
@@ -253,12 +280,13 @@ module.exports = {
         const res = await axios.post(`${backendUrl}/users/${userId}/pokemon/purchase`, {
           pokemonName: pokemon.name,
           price: price,
-          rarity: rarity
+          rarity: rarity,
+          isShiny: pokemon.isShiny
         }, { headers: { 'x-guild-id': guildId } });
         
         // Show success message
         await interaction.followUp({ 
-          content: `✅ Successfully purchased ${pokemon.name.charAt(0).toUpperCase() + pokemon.name.slice(1)} for ${price} Stardust!`, 
+          content: `✅ Successfully purchased ${pokemon.name.charAt(0).toUpperCase() + pokemon.name.slice(1)}${pokemon.isShiny ? ' ✨' : ''} for ${price} Stardust!`, 
           ephemeral: true 
         });
         
@@ -286,8 +314,11 @@ module.exports = {
         
         // Update Pokémon embeds with new availability status
         pokemonEmbeds.forEach((pokemonEmbed, index) => {
-          const rarity = ['common', 'uncommon', 'rare'][index];
-          const price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : 500;
+          const slot = Object.keys(dailyPokemon)[index];
+          const pokemon = dailyPokemon[slot];
+          const rarity = pokemon.rarity;
+          let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 5000 : 500;
+          if (pokemon.isShiny) price *= 2;
           const canAfford = updatedUser.poke_stardust >= price;
           const alreadyPurchased = updatedTodayPurchases[rarity];
           
@@ -309,10 +340,13 @@ module.exports = {
         });
         rows.forEach(row => {
           row.components.forEach((btn, btnIndex) => {
-            const btnRarity = ['common', 'uncommon', 'rare'][btnIndex];
-            const btnPrice = btnRarity === 'common' ? 100 : btnRarity === 'uncommon' ? 250 : 500;
-            const canAfford = updatedUser.poke_stardust >= btnPrice;
-            const alreadyPurchased = updatedTodayPurchases[btnRarity];
+            const slot = Object.keys(dailyPokemon)[btnIndex];
+            const pokemon = dailyPokemon[slot];
+            const rarity = pokemon.rarity;
+            let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 5000 : 500;
+            if (pokemon.isShiny) price *= 2;
+            const canAfford = updatedUser.poke_stardust >= price;
+            const alreadyPurchased = updatedTodayPurchases[rarity];
             const canPurchase = canAfford && !alreadyPurchased;
             btn.setStyle(canPurchase ? ButtonStyle.Primary : ButtonStyle.Secondary);
             btn.setDisabled(!canPurchase);

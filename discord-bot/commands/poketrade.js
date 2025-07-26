@@ -42,14 +42,14 @@ module.exports = {
     const initiatorOptions = [
       { label: 'Nothing (gift only)', value: 'none' },
       ...initiatorMons.map(p => ({
-        label: `${p.name}${p.isShiny ? ' ✨' : ''} x${p.count}`,
+        label: `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''} x${p.count}`,
         value: p._id,
       }))
     ];
     const recipientOptions = [
       { label: 'Nothing (gift only)', value: 'none' },
       ...recipientMons.map(p => ({
-        label: `${p.name}${p.isShiny ? ' ✨' : ''} x${p.count}`,
+        label: `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''} x${p.count}`,
         value: p._id,
       }))
     ];

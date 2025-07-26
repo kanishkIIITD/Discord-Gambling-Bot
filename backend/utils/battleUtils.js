@@ -818,7 +818,7 @@ const defaultOpponentTypeDistribution = {
 };
 
 // Helper: pick a random move from the top N of a pool
-function pickRandomTopN(pool, n = 5) {
+function pickRandomTopN(pool, n = 3) {
   if (!pool.length) return null;
   const top = pool.slice(0, n);
   return top[Math.floor(Math.random() * top.length)];

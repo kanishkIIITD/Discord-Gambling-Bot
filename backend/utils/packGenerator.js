@@ -12,6 +12,25 @@ const rarityAliases = {
   energy: ['Energy', 'energy'],
 };
 
+// Proactively warm cache for all pack sets on cold start
+const popularSets = ['base1', 'base2', 'basep', 'base3', 'base4', 'base5', 'base6'];
+let warmed = false;
+async function warmSetCache() {
+  if (warmed) return;
+  console.log('[PackGenerator][WARM] Starting to warm cache for all pack sets...');
+  for (const setId of popularSets) {
+    try {
+      await tcgApi.getCardsBySet(setId, 1, 500);
+      console.log(`[PackGenerator][WARM] Warmed cache for set ${setId}`);
+    } catch (e) {
+      console.warn(`[PackGenerator][WARM] Failed to warm cache for set ${setId}:`, e.message);
+    }
+  }
+  console.log('[PackGenerator][WARM] Cache warming completed');
+  warmed = true;
+}
+warmSetCache();
+
 class PackGenerator {
   constructor() {
     // Cache for card pools by set and rarity
@@ -28,66 +47,75 @@ class PackGenerator {
    * Generate cards for a pack based on its configuration
    */
   async generatePackCards(packConfig) {
+    const overallStart = Date.now();
     const setId = (packConfig.allowedSets && packConfig.allowedSets[0]) || packConfig.setId;
     const template = packTemplates.find(t => t.setId === setId);
     if (!template) throw new Error(`No pack template found for setId: ${setId}`);
     console.log(`[PackGenerator] Generating pack: ${packConfig.name} (${setId}) using template`);
-    // Classic TCG slot order: 7 commons (including energy), 1 rare, 3 uncommons
     let commons = [];
     let rare = [];
     let uncommons = [];
     let promos = [];
-    // Draw cards for each slot
     for (const slot of template.slots) {
+      const slotStart = Date.now();
       for (const [rarity, count] of Object.entries(slot.composition)) {
+        const rarityStart = Date.now();
         const drawn = await this.drawCardsByRarity(rarity, count * slot.count, [setId]);
+        const rarityDuration = Date.now() - rarityStart;
+        console.log(`[PackGenerator][TIMING] drawCardsByRarity(rarity=${rarity}, count=${count * slot.count}) took ${rarityDuration}ms`);
         if (rarity === 'rare') rare.push(...drawn);
         else if (rarity === 'uncommon') uncommons.push(...drawn);
         else if (rarity === 'promo') promos.push(...drawn);
         else if (rarity === 'common') commons.push(...drawn);
-        else commons.push(...drawn); // fallback: treat unknown as common
+        else commons.push(...drawn);
       }
+      const slotDuration = Date.now() - slotStart;
+      console.log(`[PackGenerator][TIMING] Slot ${slot.name || JSON.stringify(slot.composition)} took ${slotDuration}ms`);
     }
-    // Shuffle only the commons block
+    const shuffleStart = Date.now();
     commons = this.shuffleCards(commons);
-    // Handle foil pull: if foilChance hits, replace one common with a holo rare
+    const shuffleDuration = Date.now() - shuffleStart;
+    console.log(`[PackGenerator][TIMING] Shuffling commons took ${shuffleDuration}ms`);
     if (template.foilChance && Math.random() < template.foilChance && rare.length > 0) {
-      // Find a holo rare from the pool
+      const foilStart = Date.now();
       const holoRares = await this.drawCardsByRarity('rare holo', 1, [setId]);
       if (holoRares.length > 0) {
-        // Replace a random common with the holo rare
         const idx = Math.floor(Math.random() * commons.length);
         commons[idx] = holoRares[0];
       }
+      const foilDuration = Date.now() - foilStart;
+      console.log(`[PackGenerator][TIMING] Foil pull logic took ${foilDuration}ms`);
     }
-    // Concatenate in the classic order: 7 commons, 1 rare, 3 uncommons (or promo for basep)
     let cards;
     if (promos.length > 0) {
       cards = [...promos];
     } else {
       cards = [...commons, ...rare, ...uncommons];
     }
-    // Debug log before returning
     console.log('[PackGenerator][DEBUG] Final cards:', cards.map(c => ({ name: c.name, rarity: c.rarity })));
     this.logCacheStats();
+    const overallDuration = Date.now() - overallStart;
+    console.log(`[PackGenerator][TIMING] generatePackCards total duration: ${overallDuration}ms`);
     return cards;
   }
 
   async drawCardsByRarity(logicalRarity, count, allowedSets) {
+    const start = Date.now();
     const cards = [];
     const apiRarities = rarityAliases[logicalRarity] || [logicalRarity];
     for (const setCode of allowedSets) {
+      const preloadStart = Date.now();
       const setCache = await this.preloadSet(setCode);
+      const preloadDuration = Date.now() - preloadStart;
+      console.log(`[PackGenerator][TIMING] preloadSet(${setCode}) took ${preloadDuration}ms`);
       if (setCache) {
         let pool = [];
         for (const apiRarity of apiRarities) {
-          // Special handling for energy
           if (logicalRarity === 'energy') {
             pool = pool.concat(setCache.energy || []);
           } else if (logicalRarity === 'promo') {
             pool = pool.concat(setCache.promo || []);
           } else {
-            // Pool from all rarity arrays
             pool = pool.concat(
               (setCache.common || []).filter(card => card.rarity === apiRarity),
               (setCache.uncommon || []).filter(card => card.rarity === apiRarity),
@@ -97,46 +125,57 @@ class PackGenerator {
             );
           }
         }
-        // Remove trainers for these sets
         pool = pool.filter(card => card.supertype !== 'Trainer');
-        // Debug log: pool size and rarity
         console.log(`[PackGenerator][DEBUG] setId=${setCode}, logicalRarity=${logicalRarity}, poolSize=${pool.length}, apiRarities=${JSON.stringify(apiRarities)}`);
-        // Fallback for energy if pool is empty
         if (logicalRarity === 'energy' && pool.length === 0) {
           const fallbackEnergy = await this.getFallbackCard('energy');
           cards.push(fallbackEnergy);
         }
+        const selectStart = Date.now();
         const selected = this.pickRandomFromPool(pool, count - cards.length);
-        for (const card of selected) {
-          const processedCard = await this.processCardData(card);
-          cards.push(processedCard);
+        const selectDuration = Date.now() - selectStart;
+        console.log(`[PackGenerator][TIMING] pickRandomFromPool for ${logicalRarity} took ${selectDuration}ms`);
+        // Parallelize processCardData for all selected cards
+        const processStart = Date.now();
+        const processedCards = await Promise.all(selected.map(card => this.processCardData(card)));
+        const processDuration = Date.now() - processStart;
+        processedCards.forEach((processedCard, idx) => {
+          console.log(`[PackGenerator][TIMING] processCardData for card ${selected[idx].name} took (parallelized)`);
+        });
+        cards.push(...processedCards);
+        if (cards.length >= count) {
+          const duration = Date.now() - start;
+          console.log(`[PackGenerator][TIMING] drawCardsByRarity(${logicalRarity}, ${count}) total duration: ${duration}ms`);
+          return cards.slice(0, count);
         }
-        if (cards.length >= count) return cards.slice(0, count);
       }
     }
-    // Fallback if not enough cards
     while (cards.length < count) {
       this.cacheStats.fallbackUses++;
       const fallbackCard = await this.getFallbackCard(logicalRarity);
       cards.push(fallbackCard);
     }
+    const duration = Date.now() - start;
+    console.log(`[PackGenerator][TIMING] drawCardsByRarity(${logicalRarity}, ${count}) total duration: ${duration}ms`);
     return cards.slice(0, count);
   }
 
   /**
-   * Preload and cache all cards for a set (lazy loading)
+   * Preload and cache all cards for a set (lazy loading, now uses Redis-backed getCardsBySet)
    */
   async preloadSet(setCode) {
-    if (this.cardCache[setCode]) {
+    const start = Date.now();
+    if (this.cardCache[setCode] !== undefined) {
       this.cacheStats.hits++;
+      const duration = Date.now() - start;
+      console.log(`[PackGenerator][TIMING] preloadSet(${setCode}) cache hit in ${duration}ms`);
       return this.cardCache[setCode];
     }
     this.cacheStats.misses++;
     try {
       this.cacheStats.apiCalls++;
       // Fetch all cards for the set (up to 500, adjust if needed)
-      const data = await tcgApi.getCardsBySet(setCode, 1, 500);
-      const allCards = data.data || [];
+      const allCards = await tcgApi.getCardsBySet(setCode, 1, 500); // now returns array
       // Split by rarity and supertype
       const byRarity = {
         common: [],
@@ -170,9 +209,15 @@ class PackGenerator {
       const uniqueRarities = Array.from(new Set(allCards.map(card => card.rarity))).filter(Boolean);
       console.log(`[PackGenerator][DEBUG] setId=${setCode}, uniqueRarities=${JSON.stringify(uniqueRarities)}`);
       this.cardCache[setCode] = byRarity;
+      const duration = Date.now() - start;
+      console.log(`[PackGenerator][TIMING] preloadSet(${setCode}) API/Redis load in ${duration}ms`);
       return byRarity;
     } catch (error) {
       console.error(`[PackGenerator] Error preloading set ${setCode}:`, error);
+      // Cache the failure to avoid repeated API calls (negative cache)
+      this.cardCache[setCode] = null;
+      const duration = Date.now() - start;
+      console.log(`[PackGenerator][TIMING] preloadSet(${setCode}) error in ${duration}ms`);
       return null;
     }
   }
@@ -423,6 +468,7 @@ class PackGenerator {
    * Process card data from TCG API (simplified)
    */
   async processCardData(apiCard) {
+    const start = Date.now();
     // Simplified data processing - trust the API
     const weaknesses = apiCard.weaknesses ?? [];
     const resistances = apiCard.resistances ?? [];
@@ -443,65 +489,90 @@ class PackGenerator {
       large: `https://images.pokemontcg.io/${apiCard.set?.id || 'base1'}/${apiCard.number || '1'}_hires.png`
     };
     
-    return {
-      cardId: apiCard.id || `api_${Date.now()}_${Math.random()}`,
-      name: apiCard.name,
-      set: {
-        id: apiCard.set?.id,
-        name: apiCard.set?.name,
-        series: apiCard.set?.series,
-        printedTotal: apiCard.set?.printedTotal,
-        total: apiCard.set?.total,
-        legalities: apiCard.set?.legalities,
-        ptcgoCode: apiCard.set?.ptcgoCode,
-        releaseDate: apiCard.set?.releaseDate,
-        updatedAt: apiCard.set?.updatedAt,
-        images: apiCard.set?.images
-      },
-      images: images,
-      tcgplayer: apiCard.tcgplayer,
-      cardmarket: apiCard.cardmarket,
-      rarity: rarity,
-      artist: apiCard.artist,
-      number: apiCard.number,
-      series: apiCard.series,
-      printedTotal: apiCard.printedTotal,
-      total: apiCard.total,
-      legalities: apiCard.legalities,
-      ptcgoCode: apiCard.ptcgoCode,
-      releaseDate: apiCard.releaseDate,
-      updatedAt: apiCard.updatedAt,
-      supertype: apiCard.supertype,
-      subtypes: apiCard.subtypes,
-      level: apiCard.level,
-      hp: apiCard.hp,
-      types: apiCard.types,
-      evolvesFrom: apiCard.evolvesFrom,
-      evolvesTo: apiCard.evolvesTo,
-      rules: apiCard.rules,
-      attacks: attacks.map(attack => ({
-        name: attack.name || 'Unknown Attack',
-        cost: Array.isArray(attack.cost) ? attack.cost : [],
-        convertedEnergyCost: attack.convertedEnergyCost || 0,
-        damage: attack.damage || '',
-        text: attack.text || ''
-      })),
-      weaknesses: weaknesses.map(weakness => ({
-        type: weakness.type || 'Unknown',
-        value: weakness.value || '×2'
-      })),
-      resistances: resistances.map(resistance => ({
-        type: resistance.type || 'Unknown',
-        value: resistance.value || '-20'
-      })),
-      retreatCost: apiCard.retreatCost,
-      convertedRetreatCost: apiCard.convertedRetreatCost,
-      isFoil,
-      isReverseHolo: false,
-      estimatedValue,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    const result = await (async () => {
+      // Simplified data processing - trust the API
+      const weaknesses = apiCard.weaknesses ?? [];
+      const resistances = apiCard.resistances ?? [];
+      const attacks = apiCard.attacks ?? [];
+      
+      // Handle rarity - energy cards don't have rarity, so default to Common
+      const rarity = apiCard.rarity || (apiCard.supertype === 'Energy' ? 'Common' : 'Common');
+      
+      // Determine foil status
+      const isFoil = this.determineFoilStatus(rarity);
+      
+      // Estimate card value
+      const estimatedValue = this.estimateCardValue(rarity, isFoil);
+      
+      // Ensure images exist, fallback to default if missing
+      const images = apiCard.images || {
+        small: `https://images.pokemontcg.io/${apiCard.set?.id || 'base1'}/${apiCard.number || '1'}.png`,
+        large: `https://images.pokemontcg.io/${apiCard.set?.id || 'base1'}/${apiCard.number || '1'}_hires.png`
+      };
+      
+      return {
+        cardId: apiCard.id || `api_${Date.now()}_${Math.random()}`,
+        name: apiCard.name,
+        set: {
+          id: apiCard.set?.id,
+          name: apiCard.set?.name,
+          series: apiCard.set?.series,
+          printedTotal: apiCard.set?.printedTotal,
+          total: apiCard.set?.total,
+          legalities: apiCard.set?.legalities,
+          ptcgoCode: apiCard.set?.ptcgoCode,
+          releaseDate: apiCard.set?.releaseDate,
+          updatedAt: apiCard.set?.updatedAt,
+          images: apiCard.set?.images
+        },
+        images: images,
+        tcgplayer: apiCard.tcgplayer,
+        cardmarket: apiCard.cardmarket,
+        rarity: rarity,
+        artist: apiCard.artist,
+        number: apiCard.number,
+        series: apiCard.series,
+        printedTotal: apiCard.printedTotal,
+        total: apiCard.total,
+        legalities: apiCard.legalities,
+        ptcgoCode: apiCard.ptcgoCode,
+        releaseDate: apiCard.releaseDate,
+        updatedAt: apiCard.updatedAt,
+        supertype: apiCard.supertype,
+        subtypes: apiCard.subtypes,
+        level: apiCard.level,
+        hp: apiCard.hp,
+        types: apiCard.types,
+        evolvesFrom: apiCard.evolvesFrom,
+        evolvesTo: apiCard.evolvesTo,
+        rules: apiCard.rules,
+        attacks: attacks.map(attack => ({
+          name: attack.name || 'Unknown Attack',
+          cost: Array.isArray(attack.cost) ? attack.cost : [],
+          convertedEnergyCost: attack.convertedEnergyCost || 0,
+          damage: attack.damage || '',
+          text: attack.text || ''
+        })),
+        weaknesses: weaknesses.map(weakness => ({
+          type: weakness.type || 'Unknown',
+          value: weakness.value || '×2'
+        })),
+        resistances: resistances.map(resistance => ({
+          type: resistance.type || 'Unknown',
+          value: resistance.value || '-20'
+        })),
+        retreatCost: apiCard.retreatCost,
+        convertedRetreatCost: apiCard.convertedRetreatCost,
+        isFoil,
+        isReverseHolo: false,
+        estimatedValue,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+    })();
+    const duration = Date.now() - start;
+    console.log(`[PackGenerator][TIMING] processCardData(${apiCard.name}) total duration: ${duration}ms`);
+    return result;
   }
 
   /**
@@ -783,12 +854,10 @@ class PackGenerator {
   async addCardsToCollection(cards, userId, discordId, guildId, packId) {
     try {
       console.log(`[PackGenerator] Adding ${cards.length} cards to collection for user ${discordId}`);
-      
       const savedCards = [];
-      
+      const newCardDocs = [];
       for (const cardData of cards) {
         try {
-          // Ensure required fields are present
           const cardDocument = {
             user: userId,
             discordId,
@@ -816,7 +885,6 @@ class PackGenerator {
             packId,
             estimatedValue: cardData.estimatedValue || 10
           };
-          
           // Check if card already exists (more robust query)
           const existingCard = await Card.findOne({
             discordId,
@@ -826,69 +894,30 @@ class PackGenerator {
             isFoil: cardDocument.isFoil,
             isReverseHolo: cardDocument.isReverseHolo
           });
-          
           if (existingCard) {
-            // Increment count of existing card
             existingCard.count += 1;
             await existingCard.save();
             savedCards.push(existingCard);
             console.log(`[PackGenerator] Incremented count for existing card: ${cardDocument.name}`);
           } else {
-            // Try to create new card, but handle duplicate key errors
-            try {
-              const card = new Card(cardDocument);
-              await card.save();
-              savedCards.push(card);
-              console.log(`[PackGenerator] Created new card: ${cardDocument.name}`);
-            } catch (insertError) {
-              // If it's a duplicate key error, try to find and increment the existing card
-              if (insertError.code === 11000) {
-                console.log(`[PackGenerator] Duplicate key error for ${cardDocument.name}, trying to find existing card`);
-                
-                // Try a broader search to find the existing card
-                const existingCard = await Card.findOne({
-                  discordId,
-                  guildId,
-                  cardId: cardDocument.cardId
-                });
-                
-                if (existingCard) {
-                  // Increment count of existing card
-                  existingCard.count += 1;
-                  await existingCard.save();
-                  savedCards.push(existingCard);
-                  console.log(`[PackGenerator] Found and incremented existing card: ${cardDocument.name}`);
-                } else {
-                  // If we still can't find it, create a fallback
-                  console.log(`[PackGenerator] Could not find existing card for ${cardDocument.name}, creating fallback`);
-                  const fallbackCard = await this.createFallbackCard(userId, discordId, guildId, packId, cardDocument.name);
-                  savedCards.push(fallbackCard);
-                }
-              } else {
-                // Re-throw non-duplicate key errors
-                throw insertError;
-              }
-            }
+            newCardDocs.push(cardDocument);
+            console.log(`[PackGenerator] Prepared new card for batch insert: ${cardDocument.name}`);
           }
-          
-        } catch (error) {
-          console.error('[PackGenerator] Error processing card:', error);
-          // Create a fallback card if there's an error
-          try {
-            const fallbackCard = await this.createFallbackCard(userId, discordId, guildId, packId, cardData.name);
-            savedCards.push(fallbackCard);
-          } catch (fallbackError) {
-            console.error('[PackGenerator] Error creating fallback card:', fallbackError);
-          }
+        } catch (err) {
+          console.error(`[PackGenerator] Error processing card: ${cardData.name}`, err);
         }
       }
-      
-      console.log(`[PackGenerator] Successfully processed ${savedCards.length} cards`);
+      // Batch insert new cards
+      if (newCardDocs.length > 0) {
+        const inserted = await Card.insertMany(newCardDocs);
+        savedCards.push(...inserted);
+        newCardDocs.forEach(doc => console.log(`[PackGenerator] Created new card: ${doc.name}`));
+      }
+      console.log(`[PackGenerator] Successfully processed ${cards.length} cards`);
       return savedCards;
-      
-    } catch (error) {
-      console.error('[PackGenerator] Error adding cards to collection:', error);
-      throw error;
+    } catch (err) {
+      console.error('[PackGenerator] Error adding cards to collection:', err);
+      return [];
     }
   }
 
@@ -970,4 +999,4 @@ class PackGenerator {
   }
 }
 
-module.exports = PackGenerator; 
+module.exports = PackGenerator;

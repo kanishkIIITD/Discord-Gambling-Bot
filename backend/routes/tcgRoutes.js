@@ -294,47 +294,47 @@ router.post('/users/:discordId/packs/open', requireGuildId, async (req, res) => 
     const guildId = req.headers['x-guild-id'];
     const { packOpeningId } = req.body;
 
-    // Find user
+    console.log('[TCG Route] Looking for user', discordId, 'in guild', guildId);
     const user = await User.findOne({ discordId, guildId });
+    console.log('[TCG Route] User lookup finished');
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    // Find the pack opening
+    console.log('[TCG Route] Looking for packOpening', packOpeningId);
     const packOpening = await PackOpening.findOne({
       _id: packOpeningId,
       discordId,
       guildId
     });
-
+    console.log('[TCG Route] PackOpening lookup finished');
     if (!packOpening) {
       return res.status(404).json({ message: 'Pack opening not found.' });
     }
 
-    // Check if pack is already opened
     if (packOpening.cardsObtained.length > 0) {
       return res.status(400).json({ message: 'This pack has already been opened.' });
     }
 
-    // Find pack configuration
+    console.log('[TCG Route] Looking for CardPack', packOpening.packId);
     const pack = await CardPack.findOne({ packId: packOpening.packId });
+    console.log('[TCG Route] CardPack lookup finished');
     if (!pack) {
       return res.status(404).json({ message: 'Pack configuration not found.' });
     }
 
     const startTime = Date.now();
 
-    // Generate cards for the pack
+    console.log('[TCG Route] Calling generatePackCards');
     const generatedCards = await packGenerator.generatePackCards(pack);
-    
-    // Debug: Log the first few cards to see their structure
+    console.log('[TCG Route] generatePackCards finished');
     console.log('[TCG Route] Generated cards sample:', generatedCards.slice(0, 11).map(card => ({
       cardId: card.cardId,
       name: card.name,
       rarity: card.rarity
     })));
-    
-    // Add cards to user's collection
+
+    console.log('[TCG Route] Calling addCardsToCollection');
     const addedCards = await packGenerator.addCardsToCollection(
       generatedCards, 
       user._id, 
@@ -342,8 +342,8 @@ router.post('/users/:discordId/packs/open', requireGuildId, async (req, res) => 
       guildId, 
       pack._id
     );
+    console.log('[TCG Route] addCardsToCollection finished');
 
-    // Update pack opening with obtained cards
     packOpening.cardsObtained = generatedCards.map((card, index) => ({
       cardId: card.cardId || `generated_${Date.now()}_${index}`,
       name: card.name || 'Unknown Card',
@@ -355,14 +355,15 @@ router.post('/users/:discordId/packs/open', requireGuildId, async (req, res) => 
       cardRef: addedCards[index]?._id
     }));
 
-    // Calculate opening statistics
     packOpening.calculateStats();
     packOpening.processingTime = Date.now() - startTime;
+    console.log('[TCG Route] Saving packOpening');
     await packOpening.save();
+    console.log('[TCG Route] packOpening saved');
 
-    // Create transaction for cards obtained
     const totalValue = packOpening.totalValue;
     if (totalValue > 0) {
+      console.log('[TCG Route] Creating transaction');
       const transaction = new Transaction({
         user: user._id,
         guildId,
@@ -377,9 +378,9 @@ router.post('/users/:discordId/packs/open', requireGuildId, async (req, res) => 
         }
       });
       await transaction.save();
+      console.log('[TCG Route] Transaction saved');
     }
 
-    // Return full card data including images for the Discord bot
     const fullCardData = generatedCards.map((card, index) => ({
       ...card,
       cardRef: addedCards[index]?._id
@@ -391,16 +392,15 @@ router.post('/users/:discordId/packs/open', requireGuildId, async (req, res) => 
         name: pack.name,
         cardCount: pack.cardCount
       },
-      cards: fullCardData, // Use full card data instead of packOpening.cardsObtained
+      cards: fullCardData,
       totalValue: packOpening.totalValue,
       specialCards: packOpening.specialCards,
       rarityBreakdown: packOpening.rarityBreakdown,
       processingTime: packOpening.processingTime
     });
-
   } catch (error) {
-    console.error('[TCG Pack Opening] Error:', error);
-    res.status(500).json({ message: 'Failed to open pack.' });
+    console.error('[TCG Route] Unhandled error in pack opening:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 });
 

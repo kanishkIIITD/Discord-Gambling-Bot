@@ -67,6 +67,9 @@ const pokebattleSelections = new Map();
 // --- Blackjack: Track latest message per user per guild ---
 const activeBlackjackMessages = new Map(); // key: `${guildId}_${userId}` => { channelId, messageId }
 
+// --- Giveaway: Track active giveaways ---
+global.activeGiveaways = new Map(); // key: messageId => giveaway data
+
 (async () => {
   try {
     console.log('[PokéCache] Building Kanto Pokémon cache...');
@@ -900,7 +903,7 @@ client.on('interactionCreate', async interaction => {
 						label: (() => {
 							const lowerName = p.name.toLowerCase();
 							const xp = customSpawnRates[lowerName]?.xpYield;
-							return `${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
+							return `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
 						})(),
 						value: p._id,
 					}));
@@ -908,7 +911,7 @@ client.on('interactionCreate', async interaction => {
 						label: (() => {
 							const lowerName = p.name.toLowerCase();
 							const xp = customSpawnRates[lowerName]?.xpYield;
-							return `${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
+							return `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
 						})(),
 						value: p._id,
 					}));
@@ -1417,7 +1420,7 @@ client.on('interactionCreate', async interaction => {
 					label: (() => {
 						const lowerName = p.name.toLowerCase();
 						const xp = customSpawnRates[lowerName]?.xpYield;
-						return `${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
+						return `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
 					})(),
 					value: p._id,
 				}));
@@ -3638,7 +3641,8 @@ client.on('interactionCreate', async interaction => {
 							'`/transactions` - View your transaction history'
 						},
 						{ name: '🎁 Gifts', value:
-							'`/gift` - Gift points to another user'
+							'`/gift` - Gift points to another user\n' +
+							'`/giveaway` - Start a giveaway for points (5-minute duration)'
 						}
 					],
 					timestamp: new Date()
@@ -4250,6 +4254,9 @@ client.on('interactionCreate', async interaction => {
 				.setTimestamp()
 			);
 		}
+	} else if (commandName === 'giveaway') {
+		const giveawayCommand = require('./commands/giveaway');
+		await giveawayCommand.execute(interaction);
 	} else if (commandName === 'collection-list') {
 		await collectionListCommand.execute(interaction);
 	} else if (commandName === 'timeout') {

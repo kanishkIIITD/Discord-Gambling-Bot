@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { redis, REDIS_KEY, CACHE_TTL_SEC } = require('./redisCache');
 
 // Pokémon TCG API configuration
 const TCG_API_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -180,17 +181,39 @@ class TCGAPI {
   }
 
   /**
-   * Get cards from a specific set
+   * Get cards from a specific set (now Redis-cached)
    */
   async getCardsBySet(setId, page = 1, pageSize = 20) {
-    const params = {
-      q: `set.id:${setId}`,
-      page,
-      pageSize
-    };
-
-    const data = await this.makeRequest('/cards', params);
-    return data;
+    // Only cache full set fetches (page=1, pageSize>=100)
+    if (page === 1 && pageSize >= 100) {
+      const key = REDIS_KEY(setId);
+      let cached = await redis.get(key);
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch (e) {
+          // Fallback to API if cache is corrupted
+        }
+      }
+      const params = {
+        q: `set.id:${setId}`,
+        page,
+        pageSize
+      };
+      const data = await this.makeRequest('/cards', params);
+      const cards = data.data || [];
+      await redis.set(key, JSON.stringify(cards), 'EX', CACHE_TTL_SEC);
+      return cards;
+    } else {
+      // Fallback to old behavior for partial fetches
+      const params = {
+        q: `set.id:${setId}`,
+        page,
+        pageSize
+      };
+      const data = await this.makeRequest('/cards', params);
+      return data.data || [];
+    }
   }
 
   /**

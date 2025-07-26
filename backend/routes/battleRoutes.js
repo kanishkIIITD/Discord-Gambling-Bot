@@ -160,19 +160,6 @@ function applyPerTurnStatusEffects(poke, log, session, isChallenger) {
   let skip = false;
   let statusMsg = '';
 
-  // --- Yawn: Delayed sleep ---
-  if (poke.drowsy) {
-    poke.drowsy -= 1;
-    if (poke.drowsy === 0 && !poke.status) {
-      poke.status = 'asleep';
-      poke.sleepCounter = 2;
-      statusMsg = `${poke.name} fell asleep due to Yawn!`;
-      delete poke.drowsy;
-    } else if (poke.drowsy > 0) {
-      statusMsg = `${poke.name} is getting drowsy...`;
-    }
-  }
-
   // --- Wish: Delayed healing ---
   if (poke.wishPending) {
     poke.wishPending -= 1;
@@ -257,39 +244,8 @@ function applyPerTurnStatusEffects(poke, log, session, isChallenger) {
       statusMsg = `${poke.name} woke up!`;
     }
   } else if (poke.status === 'confused') {
-    // --- Confusion logic ---
-    if (typeof poke.confusionCounter !== 'number') {
-      // 2-5 turns (random)
-      poke.confusionCounter = 2 + Math.floor(Math.random() * 4);
-    }
-    if (poke.confusionCounter > 0) {
-      poke.confusionCounter -= 1;
-      if (poke.confusionCounter === 0) {
-        poke.status = null;
-        delete poke.confusionCounter;
-        statusMsg = `${poke.name} snapped out of its confusion!`;
-      } else {
-        // 1/3 chance to hurt self
-        if (Math.random() < 1/3) {
-          // Self-damage: typeless, 40 base power, physical, ignore type
-          const level = poke.level || 50;
-          const A = poke.stats.attack;
-          const D = poke.stats.defense;
-          const base = Math.floor(((2 * level / 5 + 2) * 40 * A / D) / 50 + 2);
-          const damage = Math.max(1, Math.floor(base));
-          poke.currentHp = Math.max(0, poke.currentHp - damage);
-          statusMsg = `${poke.name} is confused! It hurt itself in its confusion! (${damage} HP)`;
-          skip = true;
-        } else {
-          statusMsg = `${poke.name} is confused!`;
-        }
-      }
-    } else {
-      // Fallback: cure confusion if counter is 0 or negative
-      poke.status = null;
-      delete poke.confusionCounter;
-      statusMsg = `${poke.name} snapped out of its confusion!`;
-    }
+    // --- Confusion logic (now using volatileStatuses) ---
+    // Confusion logic is now handled in the end-of-turn volatileStatuses handler
   }
 
   // --- Taunt: Prevent status/boost moves ---
@@ -313,20 +269,7 @@ function applyPerTurnStatusEffects(poke, log, session, isChallenger) {
   }
   
   // --- Partial Trap: Residual damage and duration ---
-  if (poke.partialTrapTurns) {
-    poke.partialTrapTurns -= 1;
-    let trapDmg = Math.max(1, Math.floor(poke.maxHp / 8));
-    trapDmg = applyIndirectDamage(trapDmg, 'trap');
-    if (trapDmg > 0) {
-      poke.currentHp = Math.max(0, poke.currentHp - trapDmg);
-      statusMsg = `${poke.name} is trapped by ${poke.partialTrapMove || 'a move'}! (${trapDmg} HP)`;
-    }
-    if (poke.partialTrapTurns === 0) {
-      delete poke.partialTrapTurns;
-      delete poke.partialTrapMove;
-      statusMsg += ` ${poke.name} was freed from the trap!`;
-    }
-  }
+  // Partial trap logic is now handled in the end-of-turn volatileStatuses handler
   
   // --- Leech Seed: drain and heal ---
   if (poke.leechSeedActive) {
@@ -718,6 +661,7 @@ router.post('/:battleId/select', async (req, res) => {
         ability: p.ability || '',
         status: p.status || null,
         boosts: p.boosts || {},
+        volatileStatuses: {},
       };
     }));
     if (isChallenger) {
@@ -908,26 +852,29 @@ router.post('/:battleId/move', async (req, res) => {
     } else {
       // --- Enforce Taunt, Encore, Disable, Misty Terrain, Psychic Terrain restrictions ---
       // 1. Taunt: block status/boost moves
-      if (myPoke.tauntTurns > 0) {
+      if (myPoke.volatileStatuses && myPoke.volatileStatuses.taunt > 0) {
         const tauntBlocked = (moveObj.category === 'status' && (!effect || ["boost","multi-boost","status","heal","cure-team","field","hazard","hazard-remove","prevent-status","lock","disable"].includes(effect.type)));
         if (tauntBlocked) {
           session.log.push({ side: 'user', userId, text: `${myPoke.name} is taunted and can't use ${moveName}!` });
           session.turn = isChallenger ? 'opponent' : 'challenger';
+          await session.save();
           summary = `${myPoke.name} is taunted and can't use ${moveName}!`;
           return res.json({ session, summary });
         }
       }
       // 2. Encore: only allow encoreMove
-      if (myPoke.encoreTurns > 0 && myPoke.encoreMove && moveName !== myPoke.encoreMove) {
-        session.log.push({ side: 'user', userId, text: `${myPoke.name} is locked into ${myPoke.encoreMove} due to Encore!` });
+      if (myPoke.volatileStatuses && myPoke.volatileStatuses.encore && myPoke.volatileStatuses.encore.turns > 0 && moveName !== myPoke.volatileStatuses.encore.move) {
+        session.log.push({ side: 'user', userId, text: `${myPoke.name} is locked into ${myPoke.volatileStatuses.encore.move} due to Encore!` });
         session.turn = isChallenger ? 'opponent' : 'challenger';
-        summary = `${myPoke.name} is locked into ${myPoke.encoreMove} due to Encore!`;
+        await session.save();
+        summary = `${myPoke.name} is locked into ${myPoke.volatileStatuses.encore.move} due to Encore!`;
         return res.json({ session, summary });
       }
       // 3. Disable: block disabled move
-      if (myPoke.disableTurns > 0 && myPoke.disableMove && moveName === myPoke.disableMove) {
+      if (myPoke.volatileStatuses && myPoke.volatileStatuses.disable && myPoke.volatileStatuses.disable.turns > 0 && moveName === myPoke.volatileStatuses.disable.move) {
         session.log.push({ side: 'user', userId, text: `${myPoke.name}'s move ${moveName} is disabled!` });
         session.turn = isChallenger ? 'opponent' : 'challenger';
+        await session.save();
         summary = `${myPoke.name}'s move ${moveName} is disabled!`;
         return res.json({ session, summary });
       }
@@ -935,6 +882,7 @@ router.post('/:battleId/move', async (req, res) => {
       if (session.terrain === 'misty' && effect && effect.type === 'status' && effect.target !== 'self') {
         session.log.push({ side: 'user', userId, text: `Misty Terrain prevents status conditions!` });
         session.turn = isChallenger ? 'opponent' : 'challenger';
+        await session.save();
         summary = `Misty Terrain prevents status conditions!`;
         return res.json({ session, summary });
       }
@@ -942,6 +890,7 @@ router.post('/:battleId/move', async (req, res) => {
       if (session.terrain === 'psychic' && moveObj.priority > 0) {
         session.log.push({ side: 'user', userId, text: `Psychic Terrain prevents priority moves!` });
         session.turn = isChallenger ? 'opponent' : 'challenger';
+        await session.save();
         summary = `Psychic Terrain prevents priority moves!`;
         return res.json({ session, summary });
       }
@@ -967,8 +916,9 @@ router.post('/:battleId/move', async (req, res) => {
         console.log('[DEBUG] Before Yawn/Wish/Roost block:', { moveName, effectType, effect });
         if (moveName === 'yawn' && effectType === 'status') {
           const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
-          if (!targetPoke.status && !targetPoke.drowsy) {
-            targetPoke.drowsy = 2;
+          targetPoke.volatileStatuses = targetPoke.volatileStatuses || {};
+          if (!targetPoke.status && !targetPoke.volatileStatuses.yawn) {
+            targetPoke.volatileStatuses.yawn = 2;
             effectSucceeded = true;
             effectMsg = `${myPoke.name} used Yawn! ${targetPoke.name} became drowsy! Will fall asleep next turn.`;
           } else {
@@ -1069,6 +1019,7 @@ router.post('/:battleId/move', async (req, res) => {
           } else if (effectType === 'weather') {
             if (session.weather !== effect.weather) {
               session.weather = effect.weather;
+              session.weatherDuration = 5;
               effectSucceeded = true;
               effectMsg = `${myPoke.name} used ${moveName}! ${effect.message}`;
             } else {
@@ -1077,6 +1028,7 @@ router.post('/:battleId/move', async (req, res) => {
           } else if (effectType === 'terrain') {
             if (session.terrain !== effect.terrain) {
               session.terrain = effect.terrain;
+              session.terrainDuration = 5;
               effectSucceeded = true;
               effectMsg = `${myPoke.name} used ${moveName}! ${effect.message}`;
             } else {
@@ -1091,8 +1043,10 @@ router.post('/:battleId/move', async (req, res) => {
               healAmount = Math.floor(myPoke.maxHp * (effect.amount / 100));
             }
             myPoke.currentHp = Math.min(myPoke.maxHp, (myPoke.currentHp || 0) + healAmount);
-            myPoke.status = 'asleep'; // For Rest
-            myPoke.sleepCounter = 2; // Sleep for 2 turns (Rest)
+            if (moveName === 'rest') {
+              myPoke.status = 'asleep'; // Only Rest causes sleep
+              myPoke.sleepCounter = 2; // Sleep for 2 turns (Rest)
+            }
             effectSucceeded = true;
             effectMsg = `${myPoke.name} used ${moveName}! ${effect.message}`;
             session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
@@ -1469,8 +1423,9 @@ router.post('/:battleId/move', async (req, res) => {
           // --- Special handling for prevent-status (Taunt) ---
           if (effectType === 'prevent-status') {
             const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
-            targetPoke.tauntTurns = effect.duration || 3;
-            session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${targetPoke.name} is taunted for ${targetPoke.tauntTurns} turns!` });
+            targetPoke.volatileStatuses = targetPoke.volatileStatuses || {};
+            targetPoke.volatileStatuses.taunt = effect.duration || 3;
+            session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${targetPoke.name} is taunted for ${targetPoke.volatileStatuses.taunt} turns!` });
             session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
             effectSucceeded = true;
             effectMsg = `${myPoke.name} used ${moveName}! ${targetPoke.name} is taunted!`;
@@ -1478,11 +1433,10 @@ router.post('/:battleId/move', async (req, res) => {
           // --- Special handling for lock (Encore) ---
           if (effectType === 'lock') {
             const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
-            // Lock the target into their last used move for duration
             if (targetPoke.lastMoveUsed) {
-              targetPoke.encoreTurns = effect.duration || 3;
-              targetPoke.encoreMove = targetPoke.lastMoveUsed;
-              session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${targetPoke.name} is locked into ${targetPoke.encoreMove} for ${targetPoke.encoreTurns} turns!` });
+              targetPoke.volatileStatuses = targetPoke.volatileStatuses || {};
+              targetPoke.volatileStatuses.encore = { turns: effect.duration || 3, move: targetPoke.lastMoveUsed };
+              session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${targetPoke.name} is locked into ${targetPoke.lastMoveUsed} for ${effect.duration || 3} turns!` });
               session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
               effectSucceeded = true;
               effectMsg = `${myPoke.name} used ${moveName}! ${targetPoke.name} is encored!`;
@@ -1493,11 +1447,10 @@ router.post('/:battleId/move', async (req, res) => {
           // --- Special handling for disable (Disable) ---
           if (effectType === 'disable') {
             const targetPoke = effect.target === 'self' ? myPoke : theirPoke;
-            // Disable the target's last used move for duration
             if (targetPoke.lastMoveUsed) {
-              targetPoke.disableTurns = effect.duration || 2;
-              targetPoke.disableMove = targetPoke.lastMoveUsed;
-              session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${targetPoke.name}'s move ${targetPoke.disableMove} is disabled for ${targetPoke.disableTurns} turns!` });
+              targetPoke.volatileStatuses = targetPoke.volatileStatuses || {};
+              targetPoke.volatileStatuses.disable = { turns: effect.duration || 2, move: targetPoke.lastMoveUsed };
+              session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${targetPoke.name}'s move ${targetPoke.lastMoveUsed} is disabled for ${effect.duration || 2} turns!` });
               session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
               effectSucceeded = true;
               effectMsg = `${myPoke.name} used ${moveName}! ${targetPoke.name}'s move is disabled!`;
@@ -1866,6 +1819,119 @@ router.post('/:battleId/move', async (req, res) => {
       effectSucceeded = true;
       effectMsg = `${myPoke.name} used Haze! All stat changes were erased!`;
     }
+    // --- Weather/terrain duration decrement ---
+    if (session.weather) {
+      session.weatherDuration = (session.weatherDuration || 0) - 1;
+      if (session.weatherDuration <= 0) {
+        session.weather = null;
+        session.weatherDuration = 0;
+        session.log.push({ side: 'system', text: 'The weather returned to normal!' });
+      }
+    }
+    if (session.terrain) {
+      session.terrainDuration = (session.terrainDuration || 0) - 1;
+      if (session.terrainDuration <= 0) {
+        session.terrain = null;
+        session.terrainDuration = 0;
+        session.log.push({ side: 'system', text: 'The terrain returned to normal!' });
+      }
+    }
+    // --- Field effect duration decrement ---
+    if (session.fieldEffectDurations) {
+      for (const field in session.fieldEffectDurations) {
+        session.fieldEffectDurations[field]--;
+        if (session.fieldEffectDurations[field] <= 0) {
+          if (session.fieldEffects) {
+            session.fieldEffects = session.fieldEffects.filter(f => f !== field);
+          }
+          session.log.push({ side: 'system', text: `${field.replace('-', ' ')} wore off!` });
+          delete session.fieldEffectDurations[field];
+        }
+      }
+      session.markModified('fieldEffects');
+      session.markModified('fieldEffectDurations');
+    }
+    // --- End of turn: decrement and expire volatile statuses for all Pokémon ---
+    function handleVolatileStatuses(team, side) {
+      for (const poke of team) {
+        if (!poke.volatileStatuses) continue;
+        // Taunt
+        if (poke.volatileStatuses.taunt > 0) {
+          poke.volatileStatuses.taunt--;
+          if (poke.volatileStatuses.taunt === 0) {
+            delete poke.volatileStatuses.taunt;
+            session.log.push({ side: 'system', text: `${poke.name} is no longer taunted!` });
+          }
+        }
+        // Encore
+        if (poke.volatileStatuses.encore && poke.volatileStatuses.encore.turns > 0) {
+          poke.volatileStatuses.encore.turns--;
+          if (poke.volatileStatuses.encore.turns === 0) {
+            delete poke.volatileStatuses.encore;
+            session.log.push({ side: 'system', text: `${poke.name} is no longer affected by Encore!` });
+          }
+        }
+        // Disable
+        if (poke.volatileStatuses.disable && poke.volatileStatuses.disable.turns > 0) {
+          poke.volatileStatuses.disable.turns--;
+          if (poke.volatileStatuses.disable.turns === 0) {
+            delete poke.volatileStatuses.disable;
+            session.log.push({ side: 'system', text: `${poke.name} is no longer affected by Disable!` });
+          }
+        }
+        // Confusion
+        if (poke.volatileStatuses.confusion && poke.volatileStatuses.confusion.turns > 0) {
+          poke.volatileStatuses.confusion.turns--;
+          if (poke.volatileStatuses.confusion.turns === 0) {
+            delete poke.volatileStatuses.confusion;
+            session.log.push({ side: 'system', text: `${poke.name} snapped out of its confusion!` });
+          } else {
+            // 1/3 chance to hurt self
+            if (Math.random() < 1/3) {
+              const level = poke.level || 50;
+              const A = poke.stats.attack;
+              const D = poke.stats.defense;
+              const base = Math.floor(((2 * level / 5 + 2) * 40 * A / D) / 50 + 2);
+              const damage = Math.max(1, Math.floor(base));
+              poke.currentHp = Math.max(0, poke.currentHp - damage);
+              statusMsg = `${poke.name} is confused! It hurt itself in its confusion! (${damage} HP)`;
+              skip = true;
+            } else {
+              statusMsg = `${poke.name} is confused!`;
+            }
+          }
+        }
+        // Partial Trap
+        if (poke.volatileStatuses.partialTrap && poke.volatileStatuses.partialTrap.turns > 0) {
+          poke.volatileStatuses.partialTrap.turns--;
+          let trapDmg = Math.max(1, Math.floor(poke.maxHp / 8));
+          trapDmg = poke.applyIndirectDamage ? poke.applyIndirectDamage(trapDmg, 'trap') : trapDmg;
+          if (trapDmg > 0) {
+            poke.currentHp = Math.max(0, poke.currentHp - trapDmg);
+            session.log.push({ side: 'system', text: `${poke.name} is trapped by ${poke.volatileStatuses.partialTrap.move || 'a move'}! (${trapDmg} HP)` });
+          }
+          if (poke.volatileStatuses.partialTrap.turns === 0) {
+            delete poke.volatileStatuses.partialTrap;
+            session.log.push({ side: 'system', text: `${poke.name} was freed from the trap!` });
+          }
+        }
+        // Yawn
+        if (poke.volatileStatuses.yawn > 0) {
+          poke.volatileStatuses.yawn--;
+          if (poke.volatileStatuses.yawn === 0 && !poke.status) {
+            poke.status = 'asleep';
+            poke.sleepCounter = 2;
+            session.log.push({ side: 'system', text: `${poke.name} fell asleep due to Yawn!` });
+            delete poke.volatileStatuses.yawn;
+          } else if (poke.volatileStatuses.yawn > 0) {
+            session.log.push({ side: 'system', text: `${poke.name} is getting drowsy...` });
+          }
+        }
+        // Add more volatile statuses here as needed (confusion, partial trap, etc.)
+      }
+    }
+    handleVolatileStatuses(session.challengerPokemons, 'challenger');
+    handleVolatileStatuses(session.opponentPokemons, 'opponent');
     return res.json({ session, summary });
   } catch (err) {
     console.error('[BATTLE ERROR]', err, err && err.stack);

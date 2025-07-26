@@ -230,6 +230,27 @@ const commands = [
 		],
 	},
 	{
+		name: 'giveaway',
+		description: 'Start a giveaway for points!',
+		options: [
+			{
+				name: 'amount',
+				description: 'Amount of points to give away',
+				type: ApplicationCommandOptionType.Integer,
+				required: true,
+				min_value: 1,
+				max_value: 1000000000,
+			},
+			{
+				name: 'description',
+				description: 'Optional description for the giveaway',
+				type: ApplicationCommandOptionType.String,
+				required: false,
+				max_length: 200,
+			},
+		],
+	},
+	{
 		name: 'profile',
 		description: 'View your detailed profile, including balance, betting, and gambling stats.',
 		options: [

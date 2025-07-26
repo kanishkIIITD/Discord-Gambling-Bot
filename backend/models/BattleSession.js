@@ -81,9 +81,12 @@ const battleSessionSchema = new mongoose.Schema({
   activeChallengerIndex: { type: Number, default: 0 },
   activeOpponentIndex:   { type: Number, default: 0 },
   // --- Competitive global battle state ---
-  weather:     { type: String, enum: [null, 'rain', 'sunny', 'hail', 'sandstorm'], default: null },
-  terrain:     { type: String, enum: [null, 'electric', 'grassy', 'misty', 'psychic'], default: null },
+  weather: { type: String, default: null },
+  weatherDuration: { type: Number, default: 0 },
+  terrain: { type: String, default: null },
+  terrainDuration: { type: Number, default: 0 },
   fieldEffects: [{ type: String, default: [] }], // e.g. 'reflect', 'light-screen', etc.
+  fieldEffectDurations: { type: Object, default: {} }, // { effectName: turnsLeft }
   friendly: { type: Boolean, default: true }, // true = normal, false = winner gets 2x rewards and loser loses all Pokémon
   challengerSideEffects: { type: [String], default: [] },
   opponentSideEffects: { type: [String], default: [] },
