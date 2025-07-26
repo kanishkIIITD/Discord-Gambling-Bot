@@ -64,6 +64,11 @@ const client = new Client({ intents: [
 // --- Pokebattle: Track selections per battle ---
 const pokebattleSelections = new Map();
 
+// --- Pokebattle: Track current messages for search updates ---
+const pokebattleCurrentMessages = new Map(); // key: `${battleId}_${userId}_${pickNum}` => { message, searchTerm, page, options }
+
+
+
 // --- Blackjack: Track latest message per user per guild ---
 const activeBlackjackMessages = new Map(); // key: `${guildId}_${userId}` => { channelId, messageId }
 
@@ -269,6 +274,69 @@ function parseAmount(input) {
 
 // Add an interaction listener
 client.on('interactionCreate', async interaction => {
+	// Global modal handler for battle search
+	if (interaction.type === 5 && interaction.customId?.startsWith('pokebattle_search_modal_')) {
+		try {
+			console.log('[pokebattle] Global modal handler received:', {
+				customId: interaction.customId,
+				type: interaction.type,
+				userId: interaction.user?.id
+			});
+			
+			const searchTerm = interaction.fields.getTextInputValue('search_term');
+			const modalParts = interaction.customId.split('_');
+			const type = modalParts[3];
+			const battleId = modalParts[4];
+			const modalUserId = modalParts[5];
+			const pickNum = modalParts[7] ? parseInt(modalParts[7]) : null;
+			
+			console.log('[pokebattle] Global modal search details:', { searchTerm, type, battleId, modalUserId, pickNum });
+			
+			// Get the stored message reference and state
+			const messageKey = `${battleId}_${modalUserId}_${pickNum}`;
+			const state = pokebattleCurrentMessages.get(messageKey);
+			
+			if (state) {
+				// Update the stored search term and page
+				state.searchTerm = searchTerm;
+				state.page = 0;
+				
+				// Rebuild the components with the new search term
+				const [row, btnRow, filteredCount, totalPages] = buildBattleSelectRow(state.options, state.page, searchTerm, state.type, state.battleId, state.userId, state.pickNum, state.count);
+				
+				// Update the message
+				await state.message.edit({ 
+					content: state.message.content,
+					components: [row, btnRow]
+				});
+				
+				// Update the stored state
+				pokebattleCurrentMessages.set(messageKey, state);
+				
+				await interaction.reply({ 
+					content: `Search applied: "${searchTerm}"`, 
+					ephemeral: true 
+				});
+			} else {
+				await interaction.reply({ 
+					content: 'Search applied but could not update the message. Please try again.',
+					ephemeral: true 
+				});
+			}
+		} catch (error) {
+			console.error('[pokebattle] Global modal handler error:', error);
+			try {
+				await interaction.reply({ 
+					content: 'An error occurred while processing your search. Please try again.',
+					ephemeral: true 
+				});
+			} catch (replyError) {
+				console.error('[pokebattle] Failed to send error reply:', replyError);
+			}
+		}
+		return;
+	}
+	
 	try {
 	if (interaction.isAutocomplete()) {
 		const focusedOption = interaction.options.getFocused(true);
@@ -906,6 +974,12 @@ client.on('interactionCreate', async interaction => {
 							return `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
 						})(),
 						value: p._id,
+						pokemonType: p.type || p.types?.[0] || null,
+						isShiny: p.isShiny || false,
+						isLegendary: p.rarity === 'legendary',
+						isMythical: p.rarity === 'mythical',
+						pokemonId: p.pokemonId,
+						name: p.name
 					}));
 					const opponentOptions = opponentRes.data.pokemons.map(p => ({
 						label: (() => {
@@ -914,45 +988,69 @@ client.on('interactionCreate', async interaction => {
 							return `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
 						})(),
 						value: p._id,
+						pokemonType: p.type || p.types?.[0] || null,
+						isShiny: p.isShiny || false,
+						isLegendary: p.rarity === 'legendary',
+						isMythical: p.rarity === 'mythical',
+						pokemonId: p.pokemonId,
+						name: p.name
 					}));
 					const count = session.count || 1;
 					// --- Refactored: Sequential single-pick selection for count > 1 ---
 					async function startSequentialSelection(type, options, userId, count, battleId, session, interaction, opponentOptions) {
 						let picked = [];
 						let page = 0;
+						let searchTerm = '';
 						let availableOptions = [...options];
 						let message;
 						for (let pickNum = 1; pickNum <= count; pickNum++) {
 							// Remove already picked from available
 							availableOptions = options.filter(opt => !picked.includes(opt.value));
-							// Build select menu for this pick
-							function buildSingleSelectRow(page) {
-								const totalPages = Math.ceil(availableOptions.length / 25);
+							// Build select menu for this pick with search support
+							function buildSingleSelectRow(page, searchTerm = '') {
+								const filteredOptions = filterPokemonOptions(availableOptions, searchTerm);
+								const totalPages = Math.ceil(filteredOptions.length / 25);
 								const safePage = Math.max(0, Math.min(page, totalPages - 1));
-								const paged = availableOptions.slice(safePage * 25, (safePage + 1) * 25);
+								const paged = filteredOptions.slice(safePage * 25, (safePage + 1) * 25);
+								
 								const select = new StringSelectMenuBuilder()
 									.setCustomId(`pokebattle_seqselect_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
-									.setPlaceholder(`${type === 'challenger' ? 'Challenger' : 'Opponent'}: Pick Pokémon ${pickNum} of ${count}`)
+									.setPlaceholder(searchTerm ? 
+										`Searching: "${searchTerm}" (${filteredOptions.length} results) - Pick ${pickNum} of ${count}` : 
+										`${type === 'challenger' ? 'Challenger' : 'Opponent'}: Pick Pokémon ${pickNum} of ${count}`)
 									.setMinValues(1)
 									.setMaxValues(1)
 									.addOptions(paged);
+								
 								const row = new ActionRowBuilder().addComponents(select);
+								
+								// Pagination and search buttons
 								const btnRow = new ActionRowBuilder();
 								btnRow.addComponents(
 									new ButtonBuilder()
-										.setCustomId(`pokebattle_seqprev_${type}_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
+										.setCustomId(`pokebattle_seqprev_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
 										.setLabel('Prev')
 										.setStyle(ButtonStyle.Primary)
 										.setDisabled(safePage === 0),
 									new ButtonBuilder()
-										.setCustomId(`pokebattle_seqnext_${type}_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
+										.setCustomId(`pokebattle_seqnext_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
 										.setLabel('Next')
 										.setStyle(ButtonStyle.Primary)
-										.setDisabled(safePage >= totalPages - 1)
+										.setDisabled(safePage >= totalPages - 1),
+									new ButtonBuilder()
+										.setCustomId(`pokebattle_search_${type}_${battleId}_${userId}_pick_${pickNum}`)
+										.setLabel('🔍 Search')
+										.setStyle(ButtonStyle.Secondary),
+									new ButtonBuilder()
+										.setCustomId(`pokebattle_clear_search_${type}_${battleId}_${userId}_pick_${pickNum}`)
+										.setLabel('❌ Clear')
+										.setStyle(ButtonStyle.Danger)
+										.setDisabled(!searchTerm)
 								);
-								return [row, btnRow];
+								
+								return [row, btnRow, filteredOptions.length, totalPages];
 							}
-							let [row, btnRow] = buildSingleSelectRow(page);
+							let [row, btnRow, filteredCount, totalPages] = buildSingleSelectRow(page, searchTerm);
 							const content = `<@${userId}>, pick Pokémon ${pickNum} of ${count} for your team!\nAlready picked: ${picked.map(val => options.find(o => o.value === val)?.label).filter(Boolean).join(', ') || 'None'}`;
 							if (pickNum === 1) {
 								message = await interaction.followUp({
@@ -964,24 +1062,64 @@ client.on('interactionCreate', async interaction => {
 							} else {
 								await message.edit({ content, components: [row, btnRow] });
 							}
-							// Collector for this pick
-							const filter = i => i.user.id === userId && (i.customId.startsWith('pokebattle_seqselect_') || i.customId.startsWith('pokebattle_seqprev_') || i.customId.startsWith('pokebattle_seqnext_'));
+							
+							// Store message reference and search state for global modal handler
+							pokebattleCurrentMessages.set(`${battleId}_${userId}_${pickNum}`, {
+								message,
+								searchTerm,
+								page,
+								options,
+								type,
+								battleId,
+								userId,
+								pickNum,
+								count
+							});
+							
+
+							// Collector for this pick with search support
+							const filter = i => i.user.id === userId && (
+								i.customId.startsWith('pokebattle_seqselect_') || 
+								i.customId.startsWith('pokebattle_seqprev_') || 
+								i.customId.startsWith('pokebattle_seqnext_') ||
+								i.customId.startsWith('pokebattle_search_') ||
+								i.customId.startsWith('pokebattle_clear_search_')
+							);
 							const collector = message.createMessageComponentCollector({ filter, time: 120000 });
 							let resolved = false;
 							await new Promise(resolve => {
 								collector.on('collect', async i => {
+									// Handle search modal
+									if (i.customId.startsWith('pokebattle_search_')) {
+										const modal = buildSearchModal(type, battleId, userId, pickNum);
+										await i.showModal(modal);
+										return;
+									}
+									
+									// Handle clear search
+									if (i.customId.startsWith('pokebattle_clear_search_')) {
+										searchTerm = '';
+										page = 0;
+										[row, btnRow, filteredCount, totalPages] = buildSingleSelectRow(page, searchTerm);
+										await i.update({ components: [row, btnRow] });
+										return;
+									}
+									
+									// Handle pagination with search
 									if (i.customId.startsWith('pokebattle_seqnext_')) {
 										page++;
-										[row, btnRow] = buildSingleSelectRow(page);
+										[row, btnRow, filteredCount, totalPages] = buildSingleSelectRow(page, searchTerm);
 										await i.update({ components: [row, btnRow] });
 										return;
 									}
 									if (i.customId.startsWith('pokebattle_seqprev_')) {
 										page = Math.max(0, page - 1);
-										[row, btnRow] = buildSingleSelectRow(page);
+										[row, btnRow, filteredCount, totalPages] = buildSingleSelectRow(page, searchTerm);
 										await i.update({ components: [row, btnRow] });
 										return;
 									}
+									
+									// Handle selection
 									if (i.customId.startsWith('pokebattle_seqselect_')) {
 										picked.push(i.values[0]);
 										await i.deferUpdate();
@@ -1067,6 +1205,11 @@ client.on('interactionCreate', async interaction => {
 							});
 						}
 					}
+					
+
+					
+
+					
 					// ... in the pokebattle accept/decline handler, replace the old multi-select logic with:
 					if (accept && status === 'active') {
 						// ... fetch challengerOptions, opponentOptions, count ...
@@ -1206,7 +1349,7 @@ client.on('interactionCreate', async interaction => {
 						const pokemons = isChallenger ? session.challengerPokemons : session.opponentPokemons;
 						const activeIndex = isChallenger ? (session.activeChallengerIndex || 0) : (session.activeOpponentIndex || 0);
 						const switchable = pokemons.map((p, i) => ({
-							label: `${p.name} (${p.currentHp} HP)${i === activeIndex ? ' (Active)' : ''}`,
+							label: `#${String(p.pokemonId || 0).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''} (${p.currentHp} HP)${i === activeIndex ? ' (Active)' : ''}`,
 							value: i.toString(),
 							default: i === activeIndex,
 							disabled: p.currentHp <= 0 || i === activeIndex
@@ -1215,12 +1358,14 @@ client.on('interactionCreate', async interaction => {
 							await interaction.reply({ content: 'No other Pokémon available to switch to.', ephemeral: true });
 							return;
 						}
+						
 						const selectMenu = new StringSelectMenuBuilder()
 							.setCustomId(`pokebattle_switch_select_${battleId}_${userId}`)
 							.setPlaceholder('Select a Pokémon to switch to')
 							.addOptions(switchable)
 							.setMinValues(1)
 							.setMaxValues(1);
+						
 						// Show the select menu on the main message (replace buttons)
 						await interaction.update({
 							content: 'Choose a Pokémon to switch to:',
@@ -4525,5 +4670,91 @@ function getShowdownGif(name, isShiny) {
   return isShiny
     ? `https://play.pokemonshowdown.com/sprites/ani-shiny/${showdownName}.gif`
     : `https://play.pokemonshowdown.com/sprites/ani/${showdownName}.gif`;
+}
+
+// Helper to filter Pokémon options based on search term
+function filterPokemonOptions(options, searchTerm) {
+	if (!searchTerm || searchTerm.trim() === '') return options;
+	
+	const term = searchTerm.toLowerCase().trim();
+	return options.filter(option => {
+		const label = option.label.toLowerCase();
+		const value = option.value.toLowerCase();
+		
+		// Search by name, ID, or type
+		return label.includes(term) || 
+			   value.includes(term) ||
+			   (option.pokemonType && option.pokemonType.toLowerCase().includes(term)) ||
+			   (term === 'shiny' && label.includes('✨')) ||
+			   (term === 'legendary' && option.isLegendary) ||
+			   (term === 'mythical' && option.isMythical);
+	});
+}
+
+// Helper to build search modal
+function buildSearchModal(type, battleId, userId, pickNum = null) {
+	const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+	
+	const modal = new ModalBuilder()
+		.setCustomId(`pokebattle_search_modal_${type}_${battleId}_${userId}${pickNum ? `_pick_${pickNum}` : ''}`)
+		.setTitle(`Search ${type === 'challenger' ? 'Challenger' : 'Opponent'} Pokémon`);
+	
+	const searchInput = new TextInputBuilder()
+		.setCustomId('search_term')
+		.setLabel('Search Pokémon')
+		.setStyle(TextInputStyle.Short)
+		.setPlaceholder('e.g., "pikachu", "025", "electric", "shiny"')
+		.setRequired(false)
+		.setMaxLength(50);
+	
+	const row = new ActionRowBuilder().addComponents(searchInput);
+	modal.addComponents(row);
+	
+	return modal;
+}
+
+// Global version of buildSingleSelectRow for battle search modal handler
+function buildBattleSelectRow(availableOptions, page, searchTerm, type, battleId, userId, pickNum, count) {
+	const filteredOptions = filterPokemonOptions(availableOptions, searchTerm);
+	const totalPages = Math.ceil(filteredOptions.length / 25);
+	const safePage = Math.max(0, Math.min(page, totalPages - 1));
+	const paged = filteredOptions.slice(safePage * 25, (safePage + 1) * 25);
+	
+	const select = new StringSelectMenuBuilder()
+		.setCustomId(`pokebattle_seqselect_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
+		.setPlaceholder(searchTerm ? 
+			`Searching: "${searchTerm}" (${filteredOptions.length} results) - Pick ${pickNum} of ${count}` : 
+			`${type === 'challenger' ? 'Challenger' : 'Opponent'}: Pick Pokémon ${pickNum} of ${count}`)
+		.setMinValues(1)
+		.setMaxValues(1)
+		.addOptions(paged);
+	
+	const row = new ActionRowBuilder().addComponents(select);
+	
+	// Pagination and search buttons
+	const btnRow = new ActionRowBuilder();
+	btnRow.addComponents(
+		new ButtonBuilder()
+			.setCustomId(`pokebattle_seqprev_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
+			.setLabel('Prev')
+			.setStyle(ButtonStyle.Primary)
+			.setDisabled(safePage === 0),
+		new ButtonBuilder()
+			.setCustomId(`pokebattle_seqnext_${battleId}_${userId}_page_${safePage}_pick_${pickNum}`)
+			.setLabel('Next')
+			.setStyle(ButtonStyle.Primary)
+			.setDisabled(safePage >= totalPages - 1),
+		new ButtonBuilder()
+			.setCustomId(`pokebattle_search_${type}_${battleId}_${userId}_pick_${pickNum}`)
+			.setLabel('🔍 Search')
+			.setStyle(ButtonStyle.Secondary),
+		new ButtonBuilder()
+			.setCustomId(`pokebattle_clear_search_${type}_${battleId}_${userId}_pick_${pickNum}`)
+			.setLabel('❌ Clear')
+			.setStyle(ButtonStyle.Danger)
+			.setDisabled(!searchTerm)
+	);
+	
+	return [row, btnRow, filteredOptions.length, totalPages];
 }
 

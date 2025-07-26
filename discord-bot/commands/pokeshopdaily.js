@@ -151,7 +151,7 @@ module.exports = {
       const rarity = pokemon.rarity;
       const rarityEmoji = getRarityEmoji(rarity);
       const rarityColor = getRarityColor(rarity);
-      let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 5000 : 500;
+      let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 1500 : 500;
       if (pokemon.isShiny) price *= 2;
       const alreadyPurchased = todayPurchases[slot];
       
@@ -234,7 +234,7 @@ module.exports = {
 
     Object.entries(dailyPokemon).forEach(([slot, pokemon], index) => {
       const rarity = pokemon.rarity;
-      let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 5000 : 500;
+      let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 1500 : 500;
       if (pokemon.isShiny) price *= 2;
       const canAfford = user.poke_stardust >= price;
       const alreadyPurchased = todayPurchases[slot];
@@ -270,7 +270,7 @@ module.exports = {
       const slot = i.customId.replace('daily_shop_buy_', '');
       const pokemon = dailyPokemon[slot];
       const rarity = pokemon.rarity;
-      let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 5000 : 500;
+      let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 1500 : 500;
       if (pokemon.isShiny) price *= 2;
       
       await i.deferUpdate();
@@ -317,7 +317,7 @@ module.exports = {
           const slot = Object.keys(dailyPokemon)[index];
           const pokemon = dailyPokemon[slot];
           const rarity = pokemon.rarity;
-          let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 5000 : 500;
+          let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 1500 : 500;
           if (pokemon.isShiny) price *= 2;
           const canAfford = updatedUser.poke_stardust >= price;
           const alreadyPurchased = updatedTodayPurchases[rarity];
@@ -343,7 +343,7 @@ module.exports = {
             const slot = Object.keys(dailyPokemon)[btnIndex];
             const pokemon = dailyPokemon[slot];
             const rarity = pokemon.rarity;
-            let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 5000 : 500;
+            let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 1500 : 500;
             if (pokemon.isShiny) price *= 2;
             const canAfford = updatedUser.poke_stardust >= price;
             const alreadyPurchased = updatedTodayPurchases[rarity];

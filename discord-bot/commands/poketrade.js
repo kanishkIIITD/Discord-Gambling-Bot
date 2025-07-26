@@ -8,6 +8,45 @@ function paginateOptions(options, page = 0, pageSize = 25) {
   return { paged, totalPages };
 }
 
+// Helper to filter Pokémon options based on search term
+function filterPokemonOptions(options, searchTerm) {
+  if (!searchTerm || searchTerm.trim() === '') return options;
+  
+  const term = searchTerm.toLowerCase().trim();
+  return options.filter(option => {
+    const label = option.label.toLowerCase();
+    const value = option.value.toLowerCase();
+    
+    // Search by name, ID, or type
+    return label.includes(term) || 
+           value.includes(term) ||
+           (option.pokemonType && option.pokemonType.toLowerCase().includes(term)) ||
+           (term === 'shiny' && label.includes('✨')) ||
+           (term === 'legendary' && option.isLegendary) ||
+           (term === 'mythical' && option.isMythical);
+  });
+}
+
+// Helper to build search modal
+function buildSearchModal(type) {
+  const modal = new ModalBuilder()
+    .setCustomId(`poketrade_search_modal_${type}`)
+    .setTitle(`Search ${type === 'initiator' ? 'Your' : 'Recipient\'s'} Pokémon`);
+  
+  const searchInput = new TextInputBuilder()
+    .setCustomId('search_term')
+    .setLabel('Search Pokémon')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('e.g., "pikachu", "025", "electric", "shiny"')
+    .setRequired(false)
+    .setMaxLength(50);
+  
+  const row = new ActionRowBuilder().addComponents(searchInput);
+  modal.addComponents(row);
+  
+  return modal;
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('poketrade')
@@ -35,54 +74,84 @@ module.exports = {
       return interaction.editReply('Both users must have at least one Pokémon to trade.');
     }
 
-    // State for pagination
+    // State for pagination and search
     let initiatorPage = 0;
     let recipientPage = 0;
-    // Add 'Nothing' option to both
+    let initiatorSearchTerm = '';
+    let recipientSearchTerm = '';
+    // Add 'Nothing' option to both with enhanced metadata for search
     const initiatorOptions = [
-      { label: 'Nothing (gift only)', value: 'none' },
+      { label: 'Nothing (gift only)', value: 'none', pokemonType: null, isShiny: false, isLegendary: false, isMythical: false },
       ...initiatorMons.map(p => ({
         label: `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''} x${p.count}`,
         value: p._id,
+        pokemonType: p.type || p.types?.[0] || null,
+        isShiny: p.isShiny || false,
+        isLegendary: p.rarity === 'legendary',
+        isMythical: p.rarity === 'mythical',
+        pokemonId: p.pokemonId,
+        name: p.name
       }))
     ];
     const recipientOptions = [
-      { label: 'Nothing (gift only)', value: 'none' },
+      { label: 'Nothing (gift only)', value: 'none', pokemonType: null, isShiny: false, isLegendary: false, isMythical: false },
       ...recipientMons.map(p => ({
         label: `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''} x${p.count}`,
         value: p._id,
+        pokemonType: p.type || p.types?.[0] || null,
+        isShiny: p.isShiny || false,
+        isLegendary: p.rarity === 'legendary',
+        isMythical: p.rarity === 'mythical',
+        pokemonId: p.pokemonId,
+        name: p.name
       }))
     ];
 
-    // Helper to build select row with pagination
-    function buildSelectRow(type, options, page) {
-      const { paged, totalPages } = paginateOptions(options, page);
+    // Helper to build select row with pagination and search
+    function buildSelectRow(type, options, page, searchTerm = '') {
+      const filteredOptions = filterPokemonOptions(options, searchTerm);
+      const { paged, totalPages } = paginateOptions(filteredOptions, page);
+      
       const select = new StringSelectMenuBuilder()
-        .setCustomId(`poketrade_select_${type}_page_${page}`)
-        .setPlaceholder(type === 'initiator' ? 'Select your Pokémon to offer' : `Select a Pokémon from ${recipient.username}`)
+        .setCustomId(`poketrade_select_${type}_page_${page}_search_${encodeURIComponent(searchTerm)}`)
+        .setPlaceholder(searchTerm ? 
+          `Searching: "${searchTerm}" (${filteredOptions.length} results)` : 
+          type === 'initiator' ? 'Select your Pokémon to offer' : `Select a Pokémon from ${recipient.username}`)
         .addOptions(paged)
         .setMinValues(1).setMaxValues(1);
+      
       const row = new ActionRowBuilder().addComponents(select);
-      // Pagination buttons
+      
+      // Pagination and search buttons
       const btnRow = new ActionRowBuilder();
       btnRow.addComponents(
         new ButtonBuilder()
-          .setCustomId(`poketrade_prev_${type}_page_${page}`)
+          .setCustomId(`poketrade_prev_${type}_page_${page}_search_${encodeURIComponent(searchTerm)}`)
           .setLabel('Prev')
           .setStyle(ButtonStyle.Primary)
           .setDisabled(page === 0),
         new ButtonBuilder()
-          .setCustomId(`poketrade_next_${type}_page_${page}`)
+          .setCustomId(`poketrade_next_${type}_page_${page}_search_${encodeURIComponent(searchTerm)}`)
           .setLabel('Next')
           .setStyle(ButtonStyle.Primary)
-          .setDisabled(page >= totalPages - 1)
+          .setDisabled(page >= totalPages - 1),
+        new ButtonBuilder()
+          .setCustomId(`poketrade_search_${type}`)
+          .setLabel('🔍 Search')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(`poketrade_clear_search_${type}`)
+          .setLabel('❌ Clear')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!searchTerm)
       );
-      return [row, btnRow];
+      
+      return [row, btnRow, filteredOptions.length, totalPages];
     }
 
-    // Initial select menus
-    let [row1, btnRow1] = buildSelectRow('initiator', initiatorOptions, initiatorPage);
-    let [row2, btnRow2] = buildSelectRow('recipient', recipientOptions, recipientPage);
+    // Initial select menus with search support
+    let [row1, btnRow1, initiatorFilteredCount, initiatorTotalPages] = buildSelectRow('initiator', initiatorOptions, initiatorPage, initiatorSearchTerm);
+    let [row2, btnRow2, recipientFilteredCount, recipientTotalPages] = buildSelectRow('recipient', recipientOptions, recipientPage, recipientSearchTerm);
     await interaction.editReply({
       content: `Select one of your Pokémon and one from ${recipient}. You will be able to choose the quantity for each after selection.`,
       components: [row1, btnRow1, row2, btnRow2],
@@ -100,33 +169,131 @@ module.exports = {
       time: 120000
     });
 
+    // Modal submission handler for search
+    const { client } = interaction;
+    const searchModalFilter = modalInt => {
+      // Validate that modalInt exists and has required properties
+      if (!modalInt || !modalInt.user || !modalInt.customId) {
+        return false;
+      }
+      // Check if it's a modal submission (type 3) or any interaction with our custom ID
+      return modalInt.user.id === initiatorId && modalInt.customId.startsWith('poketrade_search_modal_');
+    };
+    
+    const searchModalHandler = async modalInt => {
+      try {        
+        if (searchModalFilter(modalInt)) {
+          const searchTerm = modalInt.fields.getTextInputValue('search_term');
+          const type = modalInt.customId.replace('poketrade_search_modal_', '');
+          
+          // Update search term and reset page
+          if (type === 'initiator') {
+            initiatorSearchTerm = searchTerm;
+            initiatorPage = 0;
+            [row1, btnRow1, initiatorFilteredCount, initiatorTotalPages] = buildSelectRow('initiator', initiatorOptions, initiatorPage, initiatorSearchTerm);
+          } else {
+            recipientSearchTerm = searchTerm;
+            recipientPage = 0;
+            [row2, btnRow2, recipientFilteredCount, recipientTotalPages] = buildSelectRow('recipient', recipientOptions, recipientPage, recipientSearchTerm);
+          }
+          
+          // Use reply instead of update to avoid message reference issues
+          await modalInt.reply({ 
+            content: `Search applied: "${searchTerm}"`, 
+            ephemeral: true 
+          });
+          
+          // Update the original message components
+          try {
+            await interaction.editReply({ 
+              components: [row1, btnRow1, row2, btnRow2] 
+            });
+          } catch (updateError) {
+            console.error('[poketrade] Failed to update original message:', updateError);
+            // If update fails, send a new message
+            await interaction.followUp({ 
+              content: 'Search applied but could not update the original message. Please try the search again.',
+              ephemeral: true 
+            });
+          }
+        }
+      } catch (error) {
+        console.error('[poketrade] Search modal handler error:', error);
+        // Send error message to user
+        try {
+          await modalInt.reply({ 
+            content: 'An error occurred while processing your search. Please try again.',
+            ephemeral: true 
+          });
+        } catch (replyError) {
+          console.error('[poketrade] Failed to send error reply:', replyError);
+        }
+      }
+    };
+    
+    client.on('interactionCreate', searchModalHandler);
+
     collector.on('collect', async i => {
-      // Handle pagination for initiator
+      // Handle search modal for initiator
+      if (i.customId === 'poketrade_search_initiator') {
+        const modal = buildSearchModal('initiator');
+        await i.showModal(modal);
+        return;
+      }
+      
+      // Handle search modal for recipient
+      if (i.customId === 'poketrade_search_recipient') {
+        const modal = buildSearchModal('recipient');
+        await i.showModal(modal);
+        return;
+      }
+      
+      // Handle clear search for initiator
+      if (i.customId === 'poketrade_clear_search_initiator') {
+        initiatorSearchTerm = '';
+        initiatorPage = 0;
+        [row1, btnRow1, initiatorFilteredCount, initiatorTotalPages] = buildSelectRow('initiator', initiatorOptions, initiatorPage, initiatorSearchTerm);
+        await i.update({ components: [row1, btnRow1, row2, btnRow2] });
+        return;
+      }
+      
+      // Handle clear search for recipient
+      if (i.customId === 'poketrade_clear_search_recipient') {
+        recipientSearchTerm = '';
+        recipientPage = 0;
+        [row2, btnRow2, recipientFilteredCount, recipientTotalPages] = buildSelectRow('recipient', recipientOptions, recipientPage, recipientSearchTerm);
+        await i.update({ components: [row1, btnRow1, row2, btnRow2] });
+        return;
+      }
+      
+      // Handle pagination for initiator (with search)
       if (i.customId.startsWith('poketrade_next_initiator')) {
         initiatorPage++;
-        [row1, btnRow1] = buildSelectRow('initiator', initiatorOptions, initiatorPage);
+        [row1, btnRow1, initiatorFilteredCount, initiatorTotalPages] = buildSelectRow('initiator', initiatorOptions, initiatorPage, initiatorSearchTerm);
         await i.update({ components: [row1, btnRow1, row2, btnRow2] });
         return;
       }
       if (i.customId.startsWith('poketrade_prev_initiator')) {
         initiatorPage--;
-        [row1, btnRow1] = buildSelectRow('initiator', initiatorOptions, initiatorPage);
+        [row1, btnRow1, initiatorFilteredCount, initiatorTotalPages] = buildSelectRow('initiator', initiatorOptions, initiatorPage, initiatorSearchTerm);
         await i.update({ components: [row1, btnRow1, row2, btnRow2] });
         return;
       }
-      // Handle pagination for recipient
+      
+      // Handle pagination for recipient (with search)
       if (i.customId.startsWith('poketrade_next_recipient')) {
         recipientPage++;
-        [row2, btnRow2] = buildSelectRow('recipient', recipientOptions, recipientPage);
+        [row2, btnRow2, recipientFilteredCount, recipientTotalPages] = buildSelectRow('recipient', recipientOptions, recipientPage, recipientSearchTerm);
         await i.update({ components: [row1, btnRow1, row2, btnRow2] });
         return;
       }
       if (i.customId.startsWith('poketrade_prev_recipient')) {
         recipientPage--;
-        [row2, btnRow2] = buildSelectRow('recipient', recipientOptions, recipientPage);
+        [row2, btnRow2, recipientFilteredCount, recipientTotalPages] = buildSelectRow('recipient', recipientOptions, recipientPage, recipientSearchTerm);
         await i.update({ components: [row1, btnRow1, row2, btnRow2] });
         return;
       }
+      
       // Handle selection
       if (i.customId.startsWith('poketrade_select_initiator')) {
         initiatorPokemonId = i.values[0];
@@ -296,6 +463,9 @@ module.exports = {
       }
     });
     collector.on('end', async () => {
+      // Clean up search modal handler
+      client.off('interactionCreate', searchModalHandler);
+      
       if (!initiatorPokemonId || !recipientPokemonId) {
         await interaction.followUp({ content: 'Trade timed out or not all selections made.', ephemeral: true });
       }

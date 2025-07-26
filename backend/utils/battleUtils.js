@@ -69,6 +69,35 @@ function stageMultiplier(stage) {
 
 const axios = require('axios');
 const { VERSION_GROUPS } = require('./versionGroupConfig');
+const { redis, CACHE_TTL_SEC } = require('./redisCache');
+
+// Redis cache keys for moves
+const MOVE_CACHE_PREFIX = 'move:';
+const MOVE_CACHE_TTL = 60 * 60; // 1 hour TTL for move cache
+
+// Helper functions for Redis move caching
+async function getCachedMove(moveName) {
+  try {
+    const cached = await redis.get(`${MOVE_CACHE_PREFIX}${moveName}`);
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    console.error('[MoveCache] Error getting cached move:', error.message);
+    return null;
+  }
+}
+
+async function setCachedMove(moveName, moveData) {
+  try {
+    // Add timestamp if not present
+    if (!moveData.fetchedAt) {
+      moveData.fetchedAt = Date.now();
+    }
+    
+    await redis.setex(`${MOVE_CACHE_PREFIX}${moveName}`, MOVE_CACHE_TTL, JSON.stringify(moveData));
+  } catch (error) {
+    console.error('[MoveCache] Error setting cached move:', error.message);
+  }
+}
 
 /**
  * Determine a Pokémon's combat style based on IV, EV, and nature.
@@ -128,6 +157,8 @@ async function getLegalMoveset(
   let damagingMoves = [];
   let effectMoves = [];
   const uniqueByName = arr => Object.values(arr.reduce((acc, m) => { if (m && !acc[m.name]) acc[m.name] = m; return acc; }, {}));
+  
+  // Gather all moves across all version groups
   for (const vg of VERSION_GROUPS) {
     usedVersionGroups.push(vg.key);
     const filteredMoves = data.moves
@@ -147,33 +178,68 @@ async function getLegalMoveset(
       })
       .filter(Boolean);
     allMoves = [...allMoves, ...filteredMoves];
-    const moveDetails = await Promise.all(filteredMoves.map(async (move) => {
-      try {
-        const moveRes = await axios.get(move.url);
-        const moveData = moveRes.data;
-        const basePP = moveData.pp || 5;
-        const effectivePP = Math.ceil(basePP * (battleSize / 5));
-        return {
-          name: move.name,
-          power: moveData.power || 0,
-          moveType: moveData.type.name,
-          category: moveData.damage_class.name,
-          accuracy: moveData.accuracy || 100,
-          effectivePP,
-          currentPP: effectivePP,
-          learnedAt: move.learnedAt,
-          effectType: moveEffectRegistry[move.name.toLowerCase()]?.type || null,
-          effectEntries: moveData.effect_entries || [],
-          meta: moveData.meta || {},
-        };
-      } catch (err) {
-        return null;
-      }
-    }));
-    damagingMoves = uniqueByName([...damagingMoves, ...moveDetails.filter(m => m && m.power > 0)]);
-    effectMoves = uniqueByName([...effectMoves, ...moveDetails.filter(m => m && m.power === 0 && m.effectType)]);
-    if (damagingMoves.length >= 3) break;
   }
+  
+  // Get move details for all gathered moves with Redis caching
+  const moveDetails = await Promise.all(allMoves.map(async (move) => {
+    try {
+      // Check Redis cache first
+      const cachedMove = await getCachedMove(move.name);
+      if (cachedMove) {
+        return {
+          ...cachedMove,
+          learnedAt: move.learnedAt,
+          effectivePP: Math.ceil(cachedMove.basePP * (battleSize / 5)),
+          currentPP: Math.ceil(cachedMove.basePP * (battleSize / 5)),
+        };
+      }
+      
+      // Fetch from API if not cached
+      const moveRes = await axios.get(move.url);
+      const moveData = moveRes.data;
+      const basePP = moveData.pp || 5;
+      const effectivePP = Math.ceil(basePP * (battleSize / 5));
+      
+      const moveDetails = {
+        name: move.name,
+        power: moveData.power || 0,
+        moveType: moveData.type.name,
+        category: moveData.damage_class.name,
+        accuracy: moveData.accuracy || 100,
+        effectivePP,
+        currentPP: effectivePP,
+        learnedAt: move.learnedAt,
+        effectType: moveEffectRegistry[move.name.toLowerCase()]?.type || null,
+        effectEntries: moveData.effect_entries || [],
+        meta: moveData.meta || {},
+        basePP, // Store for cache
+      };
+      
+      // Cache the move data in Redis (without battle-specific fields)
+      const cacheData = {
+        name: move.name,
+        power: moveData.power || 0,
+        moveType: moveData.type.name,
+        category: moveData.damage_class.name,
+        accuracy: moveData.accuracy || 100,
+        effectType: moveEffectRegistry[move.name.toLowerCase()]?.type || null,
+        effectEntries: moveData.effect_entries || [],
+        meta: moveData.meta || {},
+        basePP,
+      };
+      
+      // Cache asynchronously (don't wait for it)
+      setCachedMove(move.name, cacheData);
+      
+      return moveDetails;
+    } catch (err) {
+      return null;
+    }
+  }));
+  
+  // De-dupe and categorize moves
+  damagingMoves = uniqueByName(moveDetails.filter(m => m && m.power > 0));
+  effectMoves = uniqueByName(moveDetails.filter(m => m && m.power === 0 && m.effectType));
   // --- Categorize move pools ---
   // Use existing pokemonTypes if already declared above
   // If not, declare it here
@@ -288,59 +354,115 @@ async function getLegalMoveset(
 
   // Selection order: primaryStab, secondaryStab, coverage, priority, recovery, field, setup (if style), utility, filler
   const selectedMoves = [];
-  // 1. Primary STAB
+  
+  // Helper function to pick from top 3 moves in a pool
+  const pickFromTop3 = (pool) => {
+    if (!pool || pool.length === 0) return null;
+    const top3 = pool.slice(0, 3);
+    return top3[Math.floor(Math.random() * top3.length)];
+  };
+  
+  // Helper function to add move if not already selected
+  const addMoveIfNotSelected = (move) => {
+    if (move && !selectedMoves.some(m => m.name === move.name)) {
+      selectedMoves.push(move);
+      return true;
+    }
+    return false;
+  };
+  
+  // 1. Primary STAB (sorted by expected damage)
   if (primaryStab.length) {
-    const move = pickRandomTopN(primaryStab, 5);
-    if (move) selectedMoves.push(move);
+    const move = pickFromTop3(primaryStab);
+    addMoveIfNotSelected(move);
   }
-  // 2. Secondary STAB
+  
+  // 2. Secondary STAB (sorted by expected damage)
   if (secondaryStab.length) {
-    const move = pickRandomTopN(secondaryStab, 5);
-    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+    const move = pickFromTop3(secondaryStab);
+    addMoveIfNotSelected(move);
   }
-  // 3. Coverage
+  
+  // 3. Coverage (sorted by marginal coverage gain)
   if (coverageCandidates && coverageCandidates.length) {
-    const move = pickRandomTopN(coverageCandidates, 5);
-    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+    const move = pickFromTop3(coverageCandidates);
+    addMoveIfNotSelected(move);
   }
-  // 4. Priority
+  
+  // 4. Priority moves (sorted by priority, then power)
   if (priorityPool.length) {
-    const move = pickRandomTopN(priorityPool, 5);
-    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+    const sortedPriority = priorityPool.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    const move = pickFromTop3(sortedPriority);
+    addMoveIfNotSelected(move);
   }
-  // 5. Recovery
+  
+  // 5. Recovery moves (sorted by heal amount, then PP)
   if (recoveryPool.length) {
-    const move = pickRandomTopN(recoveryPool, 5);
-    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+    const sortedRecovery = recoveryPool.sort((a, b) => {
+      const aHeal = a.meta?.heal || 0;
+      const bHeal = b.meta?.heal || 0;
+      if (aHeal !== bHeal) return bHeal - aHeal;
+      return (b.effectivePP || 0) - (a.effectivePP || 0);
+    });
+    const move = pickFromTop3(sortedRecovery);
+    addMoveIfNotSelected(move);
   }
-  // 6. Field control
+  
+  // 6. Field control moves (sorted by effect type priority)
   if (fieldPool.length) {
-    const move = pickRandomTopN(fieldPool, 5);
-    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+    const sortedField = fieldPool.sort((a, b) => {
+      const priority = { 'hazard': 3, 'weather': 2, 'terrain': 1 };
+      const aPriority = priority[a.effectType] || 0;
+      const bPriority = priority[b.effectType] || 0;
+      return bPriority - aPriority;
+    });
+    const move = pickFromTop3(sortedField);
+    addMoveIfNotSelected(move);
   }
-  // 7. Setup/booster if style matches
+  
+  // 7. Setup/booster moves if style matches (sorted by boost amount)
   if ((combatStyle === 'physical' || combatStyle === 'special') && setupPool.length) {
-    const move = pickRandomTopN(setupPool, 5);
-    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+    const sortedSetup = setupPool.sort((a, b) => {
+      const aBoost = a.effectType === 'multi-boost' ? 2 : 1;
+      const bBoost = b.effectType === 'multi-boost' ? 2 : 1;
+      return bBoost - aBoost;
+    });
+    const move = pickFromTop3(sortedSetup);
+    addMoveIfNotSelected(move);
   }
-  // 8. Utility/status
+  
+  // 8. Utility/status moves (sorted by accuracy, then effect chance)
   if (utilityPool.length) {
-    const move = pickRandomTopN(utilityPool, 5);
-    if (move && !selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+    const sortedUtility = utilityPool.sort((a, b) => {
+      if (a.accuracy !== b.accuracy) return b.accuracy - a.accuracy;
+      const aChance = a.meta?.ailment_chance || 0;
+      const bChance = b.meta?.ailment_chance || 0;
+      return bChance - aChance;
+    });
+    const move = pickFromTop3(sortedUtility);
+    addMoveIfNotSelected(move);
   }
-  // 9. Filler/backfill: prefer high-PP, avoid redundancy and low-PP stacking
-  const fillerSorted = [...fillerPool].sort((a, b) => (b.effectivePP || 0) - (a.effectivePP || 0));
-  if (fillerSorted.length) {
-    const move = pickRandomTopN(fillerSorted, 5);
-    if (move && !selectedMoves.some(m => m.name === move.name) && (move.effectivePP || 0) > 2) selectedMoves.push(move);
+  
+  // 9. Filler moves (sorted by PP, then power)
+  if (fillerPool.length) {
+    const sortedFiller = fillerPool.sort((a, b) => {
+      if ((a.effectivePP || 0) !== (b.effectivePP || 0)) return (b.effectivePP || 0) - (a.effectivePP || 0);
+      return (b.power || 0) - (a.power || 0);
+    });
+    const move = pickFromTop3(sortedFiller);
+    addMoveIfNotSelected(move);
   }
-  // If still less than 6, allow any remaining moves
+  
+  // If still less than 6, fill with any remaining moves
   if (selectedMoves.length < 6) {
-    for (const move of allBattleMoves) {
+    const remainingMoves = allBattleMoves.filter(m => !selectedMoves.some(selected => selected.name === m.name));
+    const sortedRemaining = remainingMoves.sort((a, b) => (b.power || 0) - (a.power || 0));
+    for (const move of sortedRemaining) {
       if (selectedMoves.length >= 6) break;
-      if (!selectedMoves.some(m => m.name === move.name)) selectedMoves.push(move);
+      selectedMoves.push(move);
     }
   }
+  
   return selectedMoves.slice(0, 6);
 }
 
@@ -836,4 +958,6 @@ module.exports = {
   calcFinalAccuracy,
   getCombatStyle,
   natureChart,
+  getCachedMove,
+  setCachedMove,
 }; 

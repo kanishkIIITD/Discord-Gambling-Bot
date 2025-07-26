@@ -27,6 +27,7 @@ const battleRoutes = require('./routes/battleRoutes');
 const tradeRoutes = require('./routes/tradeRoutes');
 const questRoutes = require('./routes/questRoutes');
 const tcgRoutes = require('./routes/tcgRoutes');
+const { warmMoveCache } = require('./utils/cacheWarmer');
 
 const app = express();
 const server = http.createServer(app);
@@ -68,6 +69,7 @@ app.use(passport.session());
 mongoose.connect(process.env.MONGODB_URI)
   .then(async () => {
     console.log(`Connected to MongoDB ${process.env.MONGODB_URI}`);
+    
     // --- Schedule bet closure timers for all open bets with a future closingTime ---
     try {
       const now = new Date();
@@ -80,6 +82,15 @@ mongoose.connect(process.env.MONGODB_URI)
       console.log(`[BetTimers] Scheduled closure timers for ${scheduled} open bets with future closingTime.`);
     } catch (err) {
       console.error('[BetTimers] Error scheduling bet timers on startup:', err);
+    }
+    
+    // --- Warm move cache on startup ---
+    try {
+      console.log('[Startup] Starting move cache warming...');
+      await warmMoveCache();
+      console.log('[Startup] Move cache warming completed');
+    } catch (err) {
+      console.error('[Startup] Error warming move cache:', err);
     }
   })
   .catch(err => {
@@ -99,6 +110,34 @@ app.use('/api/battles', battleRoutes);
 app.use('/api/trades', tradeRoutes);
 app.use('/api/quests', questRoutes);
 app.use('/api/tcg', tcgRoutes);
+
+// Cache warming endpoint (for maintenance)
+app.post('/api/admin/warm-cache', async (req, res) => {
+  try {
+    console.log('[Admin] Manual cache warming triggered');
+    const result = await warmMoveCache();
+    res.json({ 
+      message: 'Cache warming completed successfully',
+      result 
+    });
+  } catch (error) {
+    console.error('[Admin] Error during manual cache warming:', error);
+    res.status(500).json({ error: 'Cache warming failed' });
+  }
+});
+
+// Cache statistics endpoint
+app.get('/api/admin/cache-stats', async (req, res) => {
+  try {
+    const { getCacheStats } = require('./utils/cacheWarmer');
+    const stats = await getCacheStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('[Admin] Error getting cache stats:', error);
+    res.status(500).json({ error: 'Failed to get cache stats' });
+  }
+});
+
 app.get('/', (req, res) => {
   res.send('Hello from the backend!');
 });
