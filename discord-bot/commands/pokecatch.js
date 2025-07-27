@@ -143,6 +143,11 @@ module.exports = {
       if (data.xpAward) embed.addFields({ name: 'XP Gained', value: `${data.xpAward}`, inline: true });
       if (data.dustAward) embed.addFields({ name: 'Dust Gained', value: `${data.dustAward}`, inline: true });
       if (data.xpBoosterUsed) embed.addFields({ name: 'XP Booster', value: '2x XP!', inline: true });
+      
+      // Check for double weekend event
+      if (data.doubleWeekendActive) {
+        embed.addFields({ name: '🎉 Double Weekend', value: `${data.doubleWeekendMultiplier}x Rewards!`, inline: true });
+      }
       if (data.isDuplicate) embed.addFields({ name: 'Duplicate', value: 'Yes', inline: true });
       if (data.newLevel) embed.addFields({ name: 'Level Up!', value: `Level ${data.newLevel}`, inline: true });
       if (data.newlyUnlocked && data.newlyUnlocked.length > 0) embed.addFields({ name: 'Unlocked', value: data.newlyUnlocked.join(', '), inline: false });

@@ -251,4 +251,53 @@ router.get('/discord-commands', async (req, res) => {
   }
 });
 
+/**
+ * Get TCG API status and health
+ */
+router.get('/tcg-api-status', async (req, res) => {
+  try {
+    const tcgApi = require('../utils/tcgApi');
+    const stats = tcgApi.getCacheStats();
+    
+    res.json({
+      status: 'success',
+      data: {
+        cacheStats: stats,
+        circuitBreakerState: stats.circuitBreaker.state,
+        failureCount: stats.circuitBreaker.failureCount,
+        isHealthy: stats.circuitBreaker.state === 'CLOSED',
+        lastFailure: stats.circuitBreaker.lastFailureTime ? new Date(stats.circuitBreaker.lastFailureTime).toISOString() : null,
+        nextAttempt: stats.circuitBreaker.nextAttemptTime ? new Date(stats.circuitBreaker.nextAttemptTime).toISOString() : null
+      }
+    });
+  } catch (error) {
+    console.error('[MiscRoutes] Error getting TCG API status:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get TCG API status'
+    });
+  }
+});
+
+/**
+ * Reset TCG API circuit breaker (admin only)
+ */
+router.post('/tcg-api-reset', async (req, res) => {
+  try {
+    const tcgApi = require('../utils/tcgApi');
+    tcgApi.resetCircuitBreaker();
+    
+    res.json({
+      status: 'success',
+      message: 'TCG API circuit breaker reset successfully'
+    });
+  } catch (error) {
+    console.error('[MiscRoutes] Error resetting TCG API circuit breaker:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to reset TCG API circuit breaker'
+    });
+  }
+});
+
 module.exports = router; 

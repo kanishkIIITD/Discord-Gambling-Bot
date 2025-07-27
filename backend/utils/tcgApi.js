@@ -16,18 +16,138 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 const cardCache = new Map();
 const setCache = new Map();
 
+// Retry configuration for 504 errors
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 10000, // 10 seconds
+  timeout: 30000, // 30 seconds
+};
+
+// Circuit breaker configuration
+const CIRCUIT_BREAKER = {
+  failureThreshold: 5, // Number of failures before opening circuit
+  recoveryTimeout: 60000, // 1 minute before attempting to close circuit
+  monitorInterval: 10000, // Check circuit state every 10 seconds
+};
+
 class TCGAPI {
   constructor() {
     this.requestCount = 0;
     this.lastRequestTime = 0;
     this.hourlyRequests = 0;
     this.lastHourReset = Date.now();
+    
+    // Circuit breaker state
+    this.circuitState = 'CLOSED'; // CLOSED, OPEN, HALF_OPEN
+    this.failureCount = 0;
+    this.lastFailureTime = 0;
+    this.nextAttemptTime = 0;
+    
+    // Start circuit breaker monitor
+    this.startCircuitBreakerMonitor();
   }
 
   /**
-   * Make a rate-limited request to the TCG API
+   * Circuit breaker monitor
+   */
+  startCircuitBreakerMonitor() {
+    setInterval(() => {
+      this.checkCircuitBreaker();
+    }, CIRCUIT_BREAKER.monitorInterval);
+  }
+
+  /**
+   * Check and update circuit breaker state
+   */
+  checkCircuitBreaker() {
+    const now = Date.now();
+    
+    if (this.circuitState === 'OPEN' && now >= this.nextAttemptTime) {
+      console.log('[TCG API] Circuit breaker attempting to close (HALF_OPEN)');
+      this.circuitState = 'HALF_OPEN';
+    }
+  }
+
+  /**
+   * Record a successful request
+   */
+  recordSuccess() {
+    if (this.circuitState === 'HALF_OPEN') {
+      console.log('[TCG API] Circuit breaker closing - API is working again');
+      this.circuitState = 'CLOSED';
+    }
+    this.failureCount = 0;
+  }
+
+  /**
+   * Record a failed request
+   */
+  recordFailure() {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+    
+    if (this.failureCount >= CIRCUIT_BREAKER.failureThreshold && this.circuitState === 'CLOSED') {
+      console.log(`[TCG API] Circuit breaker opening - ${this.failureCount} consecutive failures`);
+      this.circuitState = 'OPEN';
+      this.nextAttemptTime = Date.now() + CIRCUIT_BREAKER.recoveryTimeout;
+    }
+  }
+
+  /**
+   * Check if circuit breaker allows requests
+   */
+  isCircuitBreakerOpen() {
+    if (this.circuitState === 'OPEN') {
+      const timeUntilRetry = this.nextAttemptTime - Date.now();
+      if (timeUntilRetry > 0) {
+        console.log(`[TCG API] Circuit breaker is OPEN, retry in ${Math.ceil(timeUntilRetry / 1000)}s`);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Retry function with exponential backoff for 504 errors
+   */
+  async retryWithBackoff(fn, retries = RETRY_CONFIG.maxRetries) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        const isLastAttempt = attempt === retries;
+        const isRetryable = error.response?.status === 504 || 
+                           error.response?.status >= 500 ||
+                           error.code === 'ECONNRESET' || 
+                           error.code === 'ETIMEDOUT' ||
+                           error.code === 'ENOTFOUND' ||
+                           error.code === 'ECONNABORTED';
+
+        if (isLastAttempt || !isRetryable) {
+          throw error;
+        }
+
+        const delay = Math.min(
+          RETRY_CONFIG.baseDelay * Math.pow(2, attempt),
+          RETRY_CONFIG.maxDelay
+        );
+        
+        console.log(`[TCG API] Retrying request in ${delay}ms (attempt ${attempt + 1}/${retries + 1}) due to ${error.response?.status || error.code}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  /**
+   * Make a rate-limited request to the TCG API with retry logic
    */
   async makeRequest(endpoint, params = {}) {
+    // Check circuit breaker first
+    if (this.isCircuitBreakerOpen()) {
+      throw new Error('TCG API is temporarily unavailable due to repeated failures. Please try again later.');
+    }
+
     // Check rate limits
     await this.checkRateLimit();
 
@@ -37,7 +157,8 @@ class TCGAPI {
       headers: {
         'Accept': 'application/json',
         'User-Agent': 'Pokemon-Gambling-Bot/1.0'
-      }
+      },
+      timeout: RETRY_CONFIG.timeout
     };
 
     // Add API key if available
@@ -45,23 +166,33 @@ class TCGAPI {
       config.headers['X-Api-Key'] = TCG_API_KEY;
     }
 
-    try {
-      const response = await axios.get(url, config);
-      this.updateRequestCount();
-      return response.data;
-    } catch (error) {
-      console.error(`[TCG API] Error making request to ${endpoint}:`, error.message);
-      
-      if (error.response?.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again later.');
-      } else if (error.response?.status === 404) {
-        throw new Error('Card not found.');
-      } else if (error.response?.status >= 500) {
-        throw new Error('TCG API server error. Please try again later.');
-      } else {
-        throw new Error(`API request failed: ${error.message}`);
+    return await this.retryWithBackoff(async () => {
+      try {
+        const response = await axios.get(url, config);
+        this.updateRequestCount();
+        this.recordSuccess();
+        return response.data;
+      } catch (error) {
+        console.error(`[TCG API] Error making request to ${endpoint}:`, error.message);
+        
+        // Record failure for circuit breaker
+        this.recordFailure();
+        
+        if (error.response?.status === 429) {
+          throw new Error('Rate limit exceeded. Please try again later.');
+        } else if (error.response?.status === 404) {
+          throw new Error('Card not found.');
+        } else if (error.response?.status === 504) {
+          throw new Error(`Gateway timeout (504) for ${endpoint}. Retrying...`);
+        } else if (error.response?.status >= 500) {
+          throw new Error(`TCG API server error (${error.response.status}) for ${endpoint}. Retrying...`);
+        } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+          throw new Error(`Request timeout for ${endpoint}. Retrying...`);
+        } else {
+          throw new Error(`API request failed: ${error.message}`);
+        }
       }
-    }
+    });
   }
 
   /**
@@ -357,6 +488,17 @@ class TCGAPI {
   }
 
   /**
+   * Reset circuit breaker (for testing/debugging)
+   */
+  resetCircuitBreaker() {
+    this.circuitState = 'CLOSED';
+    this.failureCount = 0;
+    this.lastFailureTime = 0;
+    this.nextAttemptTime = 0;
+    console.log('[TCG API] Circuit breaker manually reset');
+  }
+
+  /**
    * Get cache statistics
    */
   getCacheStats() {
@@ -364,7 +506,13 @@ class TCGAPI {
       cardCacheSize: cardCache.size,
       setCacheSize: setCache.size,
       requestCount: this.requestCount,
-      hourlyRequests: this.hourlyRequests
+      hourlyRequests: this.hourlyRequests,
+      circuitBreaker: {
+        state: this.circuitState,
+        failureCount: this.failureCount,
+        lastFailureTime: this.lastFailureTime,
+        nextAttemptTime: this.nextAttemptTime
+      }
     };
   }
 }

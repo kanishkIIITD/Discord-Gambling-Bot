@@ -149,6 +149,8 @@ async function getLegalMoveset(
   ownerId = '',
   pokemonUniqueId = ''
 ) {
+  console.log(`[getLegalMoveset] Starting move selection for ${pokemonName} (level ${level})`);
+  
   const res = await axios.get(`https://pokeapi.co/api/v2/pokemon/${pokemonName.toLowerCase()}`);
   const data = res.data;
   const allowedMethods = ['level-up', 'machine', 'tutor', 'egg'];
@@ -233,13 +235,19 @@ async function getLegalMoveset(
       
       return moveDetails;
     } catch (err) {
+      console.warn(`[getLegalMoveset] Failed to fetch move ${move.name} for ${pokemonName}:`, err.message);
       return null;
     }
   }));
   
+  console.log(`[getLegalMoveset] ${pokemonName}: Processed ${moveDetails.length} moves, ${moveDetails.filter(m => m !== null).length} successful`);
+  
   // De-dupe and categorize moves
   damagingMoves = uniqueByName(moveDetails.filter(m => m && m.power > 0));
   effectMoves = uniqueByName(moveDetails.filter(m => m && m.power === 0 && m.effectType));
+  
+  console.log(`[getLegalMoveset] ${pokemonName}: Found ${damagingMoves.length} damaging moves, ${effectMoves.length} effect moves`);
+  
   // --- Categorize move pools ---
   // Use existing pokemonTypes if already declared above
   // If not, declare it here
@@ -250,6 +258,9 @@ async function getLegalMoveset(
   let stabPool = damagingMoves.filter(m => pokemonTypes.includes(m.moveType));
   let altPool = damagingMoves.filter(m => !pokemonTypes.includes(m.moveType) && m.moveType !== 'normal' && m.moveType !== 'none' && m.moveType !== 'typeless');
   let effectPool = effectMoves;
+  
+  console.log(`[getLegalMoveset] ${pokemonName}: Pool sizes - normal: ${normalPool.length}, stab: ${stabPool.length}, alt: ${altPool.length}, effect: ${effectPool.length}`);
+  
   // --- Expose categorized arrays for future logic ---
   // normalPool, stabPool, altPool, effectPool
 
@@ -264,6 +275,8 @@ async function getLegalMoveset(
     stabPool = filterByAbility(stabPool);
     altPool = filterByAbility(altPool);
     // effectPool is not filtered here
+    
+    console.log(`[getLegalMoveset] ${pokemonName}: After ability filtering - normal: ${normalPool.length}, stab: ${stabPool.length}, alt: ${altPool.length}, effect: ${effectPool.length}`);
   }
 
   // --- Compute effective stats and expected damage for each move ---
@@ -461,6 +474,48 @@ async function getLegalMoveset(
       if (selectedMoves.length >= 6) break;
       selectedMoves.push(move);
     }
+  }
+  
+  // --- FALLBACK: If no moves were selected, add basic moves ---
+  if (selectedMoves.length === 0) {
+    console.warn(`[getLegalMoveset] No moves selected for ${pokemonName}, adding fallback moves`);
+    
+    // Add basic damaging moves if available
+    if (damagingMoves.length > 0) {
+      selectedMoves.push(...damagingMoves.slice(0, 4));
+    }
+    
+    // Add effect moves if available
+    if (effectMoves.length > 0 && selectedMoves.length < 4) {
+      selectedMoves.push(...effectMoves.slice(0, 4 - selectedMoves.length));
+    }
+    
+    // If still no moves, add any available moves
+    if (selectedMoves.length === 0 && allBattleMoves.length > 0) {
+      selectedMoves.push(...allBattleMoves.slice(0, 4));
+    }
+    
+    // If still no moves, create a basic tackle move as last resort
+    if (selectedMoves.length === 0) {
+      console.error(`[getLegalMoveset] No moves available for ${pokemonName}, creating basic tackle`);
+      selectedMoves.push({
+        name: 'tackle',
+        power: 40,
+        moveType: 'normal',
+        category: 'physical',
+        accuracy: 100,
+        effectivePP: 35,
+        currentPP: 35,
+        effectEntries: [],
+        meta: {},
+        effectType: null
+      });
+    }
+  }
+  
+  console.log(`[getLegalMoveset] ${pokemonName}: Final selection: ${selectedMoves.length} moves`);
+  if (selectedMoves.length > 0) {
+    console.log(`[getLegalMoveset] ${pokemonName}: Selected moves: ${selectedMoves.map(m => m.name).join(', ')}`);
   }
   
   return selectedMoves.slice(0, 6);
@@ -704,7 +759,7 @@ const moveEffectRegistry = {
   "mirror-coat":     { type: "counter", reflectType: "special",  target: "foe", message: "struck back with Mirror Coat!" },
   // --- Confusion Moves ---
   "confuse-ray":     { type: "status",     status: "confused",      target: "foe", chance: 100, message: "became confused!" },
-  "swagger":         { type: "status",     status: "confused",      target: "foe", chance: 90,  message: "became confused! (Attack rose!)" },
+  "swagger":         { type: "status",     status: "confused",      target: "foe", chance: 90,  boost: { stat: "attack", delta: 2 }, message: "became confused! (Attack rose!)" },
   "supersonic":      { type: "status",     status: "confused",      target: "foe", chance: 55,  message: "became confused!" },
   // --- Delayed Sleep ---
   "yawn":            { type: "status",     status: "asleep",        target: "foe", chance: 100, delayed: true, message: "became drowsy! Will fall asleep next turn." },

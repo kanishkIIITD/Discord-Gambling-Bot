@@ -15,18 +15,41 @@ const rarityAliases = {
 // Proactively warm cache for all pack sets on cold start
 const popularSets = ['base1', 'base2', 'basep', 'base3', 'base4', 'base5', 'base6'];
 let warmed = false;
+
 async function warmSetCache() {
   if (warmed) return;
   console.log('[PackGenerator][WARM] Starting to warm cache for all pack sets...');
+  
+  const warmResults = {
+    successful: [],
+    failed: [],
+    total: popularSets.length
+  };
+
   for (const setId of popularSets) {
     try {
+      console.log(`[PackGenerator][WARM] Warming cache for set ${setId}...`);
       await tcgApi.getCardsBySet(setId, 1, 500);
       console.log(`[PackGenerator][WARM] Warmed cache for set ${setId}`);
+      warmResults.successful.push(setId);
     } catch (e) {
       console.warn(`[PackGenerator][WARM] Failed to warm cache for set ${setId}:`, e.message);
+      warmResults.failed.push({ setId, error: e.message });
+      
+      // If it's a 504 error, log it specifically
+      if (e.message.includes('504') || e.message.includes('Gateway timeout')) {
+        console.warn(`[PackGenerator][WARM] Gateway timeout for set ${setId} - this is a temporary server issue`);
+      }
     }
   }
+  
   console.log('[PackGenerator][WARM] Cache warming completed');
+  console.log(`[PackGenerator][WARM] Results: ${warmResults.successful.length}/${warmResults.total} sets warmed successfully`);
+  
+  if (warmResults.failed.length > 0) {
+    console.log('[PackGenerator][WARM] Failed sets:', warmResults.failed.map(f => f.setId).join(', '));
+  }
+  
   warmed = true;
 }
 warmSetCache();

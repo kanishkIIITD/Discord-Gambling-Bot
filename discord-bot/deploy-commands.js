@@ -17,6 +17,9 @@ const pokestatsCommand = require('./commands/pokestats');
 const pokecollectionCommand = require('./commands/pokecollection');
 const pokeopenCommand = require('./commands/pokeopen');
 const pokepacksCommand = require('./commands/pokepacks');
+const doubleweekendCommand = require('./commands/doubleweekend');
+const weekendCommand = require('./commands/weekend');
+const pokebattlestatsCommand = require('./commands/pokebattlestats');
 const commands = [
 	{
 		name: 'balance',
@@ -1028,6 +1031,9 @@ commands.push(pokestatsCommand.data.toJSON());
 commands.push(pokecollectionCommand.data.toJSON());
 commands.push(pokeopenCommand.data.toJSON());
 commands.push(pokepacksCommand.data.toJSON());
+commands.push(doubleweekendCommand.data.toJSON());
+commands.push(weekendCommand.data.toJSON());
+commands.push(pokebattlestatsCommand.data.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
 

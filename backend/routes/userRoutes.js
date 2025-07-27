@@ -22,6 +22,7 @@ const {
 } = require('../utils/gamblingUtils');
 const Pokemon = require('../models/Pokemon');
 const DailyShopPurchase = require('../models/DailyShopPurchase');
+const GlobalEvent = require('../models/GlobalEvent');
 const pokeApi = require('../utils/pokeApi');
 
 const DAILY_GOALS = { catch: 10, battle: 3, evolve: 2 };
@@ -217,6 +218,14 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
       // Award XP and Stardust
       let xpAward = xpYield * xpMultiplier;
       let dustAward = dustYield;
+      
+      // Check for double weekend event
+      const doubleWeekendEvent = await GlobalEvent.getActiveDoubleWeekend();
+      if (doubleWeekendEvent) {
+        xpAward *= doubleWeekendEvent.multiplier;
+        dustAward *= doubleWeekendEvent.multiplier;
+      }
+      
       user.poke_xp = (user.poke_xp || 0) + xpAward;
       user.poke_stardust = (user.poke_stardust || 0) + dustAward;
       user.poke_quest_daily_catch = (user.poke_quest_daily_catch || 0) + 1;
@@ -237,7 +246,7 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
       embedData.title = isDuplicate
         ? `You caught another ${isShiny ? '✨ SHINY ' : ''}${name.charAt(0).toUpperCase() + name.slice(1)}!`
         : `🎉 This is your first ${isShiny ? '✨ SHINY ' : ''}${name.charAt(0).toUpperCase() + name.slice(1)}! Added to your Pokédex!`;
-      embedData.description = flavorText || (isShiny ? `✨ Incredible! <@${discordId}> caught a shiny Pokémon! ✨` : `Congratulations <@${discordId}>! The wild Pokémon is now yours.`);
+      embedData.description = flavorText || (isShiny ? `✨ Incredible! <@${discordId}> caught a shiny Pokémon! ✨` : `Congratulations <@${discordId}>! The wild Pokémon is now yours.`);      
       return res.json({
         success: true,
         message: embedData.title,
@@ -248,7 +257,9 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
         isDuplicate,
         newLevel: newLevel > prevLevel ? newLevel : null,
         newlyUnlocked,
-        xpBoosterUsed
+        xpBoosterUsed,
+        doubleWeekendActive: !!doubleWeekendEvent,
+        doubleWeekendMultiplier: doubleWeekendEvent?.multiplier || 1
       });
     } else {
       // Failure: Pokémon broke free
@@ -6100,6 +6111,185 @@ router.get('/:discordId', requireGuildId, async (req, res) => {
     res.json({ user });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch user.' });
+  }
+});
+
+// GET /:discordId/battle-stats - Get Pokémon battle statistics for a user
+router.get('/:discordId/battle-stats', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    
+    // Import BattleSession model
+    const BattleSession = require('../models/BattleSession');
+    
+    // Get all battles where the user participated
+    const userBattles = await BattleSession.find({
+      guildId,
+      $or: [
+        { challengerId: discordId },
+        { opponentId: discordId }
+      ],
+      status: 'finished'
+    }).sort({ createdAt: -1 });
+    
+    if (userBattles.length === 0) {
+      return res.status(404).json({ message: 'No battle data found for this user.' });
+    }
+    
+    // Calculate statistics
+    let wins = 0;
+    let losses = 0;
+    let totalXpEarned = 0;
+    let totalStardustEarned = 0;
+    let friendlyBattles = 0;
+    let competitiveBattles = 0;
+    let friendlyWins = 0;
+    let competitiveWins = 0;
+    let currentStreak = 0;
+    let bestStreak = 0;
+    let tempStreak = 0;
+    
+    // Track Pokémon usage
+    const pokemonUsage = {};
+    
+    // Process each battle
+    for (const battle of userBattles) {
+      const isWinner = battle.winnerId === discordId;
+      const isFriendly = battle.friendly === true;
+      
+      if (isWinner) {
+        wins++;
+        tempStreak++;
+        if (tempStreak > bestStreak) bestStreak = tempStreak;
+        
+        if (isFriendly) {
+          friendlyWins++;
+        } else {
+          competitiveWins++;
+        }
+      } else {
+        losses++;
+        tempStreak = 0;
+      }
+      
+      if (isFriendly) {
+        friendlyBattles++;
+      } else {
+        competitiveBattles++;
+      }
+      
+      // Calculate rewards (simplified - in real implementation you'd track actual rewards)
+      const loserPokemons = battle.winnerId === battle.challengerId ? battle.opponentPokemons : battle.challengerPokemons;
+      let battleXp = 0;
+      let battleStardust = 0;
+      
+      for (const poke of loserPokemons) {
+        // Estimate XP and stardust based on Pokémon level/rarity
+        const baseXp = Math.floor(Math.random() * 50) + 25; // 25-75 XP per Pokémon
+        const baseStardust = Math.floor(Math.random() * 30) + 15; // 15-45 stardust per Pokémon
+        
+        battleXp += baseXp;
+        battleStardust += baseStardust;
+      }
+      
+      // Double rewards for competitive battles
+      if (!isFriendly) {
+        battleXp *= 2;
+        battleStardust *= 2;
+      }
+      
+      if (isWinner) {
+        totalXpEarned += battleXp;
+        totalStardustEarned += battleStardust;
+      }
+      
+      // Track Pokémon usage
+      const userPokemons = battle.challengerId === discordId ? battle.challengerPokemons : battle.opponentPokemons;
+      for (const pokemon of userPokemons) {
+        const key = `${pokemon.name}-${pokemon.isShiny}`;
+        if (!pokemonUsage[key]) {
+          pokemonUsage[key] = {
+            name: pokemon.name,
+            isShiny: pokemon.isShiny,
+            usageCount: 0
+          };
+        }
+        pokemonUsage[key].usageCount++;
+      }
+    }
+    
+    // Calculate current streak (most recent battles)
+    currentStreak = 0;
+    for (const battle of userBattles) {
+      if (battle.winnerId === discordId) {
+        currentStreak++;
+      } else {
+        break;
+      }
+    }
+    
+    // Calculate win rates
+    const totalBattles = wins + losses;
+    const winRate = totalBattles > 0 ? Math.round((wins / totalBattles) * 100) : 0;
+    const friendlyWinRate = friendlyBattles > 0 ? Math.round((friendlyWins / friendlyBattles) * 100) : 0;
+    const competitiveWinRate = competitiveBattles > 0 ? Math.round((competitiveWins / competitiveBattles) * 100) : 0;
+    
+    // Calculate averages
+    const averageXpPerBattle = wins > 0 ? Math.round(totalXpEarned / wins) : 0;
+    const averageStardustPerBattle = wins > 0 ? Math.round(totalStardustEarned / wins) : 0;
+    
+    // Get recent battles (last 5) with opponent usernames
+    const recentBattles = await Promise.all(userBattles.slice(0, 5).map(async battle => {
+      const isWinner = battle.winnerId === discordId;
+      const opponentId = battle.challengerId === discordId ? battle.opponentId : battle.challengerId;
+      
+      // Fetch opponent username from User model
+      let opponentUsername = 'Unknown';
+      try {
+        const opponentUser = await User.findOne({ discordId: opponentId, guildId });
+        if (opponentUser) {
+          opponentUsername = opponentUser.username;
+        }
+      } catch (error) {
+        console.error('Error fetching opponent username:', error);
+      }
+      
+      return {
+        won: isWinner,
+        opponentId,
+        opponentUsername,
+        createdAt: battle.createdAt
+      };
+    }));
+    
+    // Get favorite Pokémon (top 3 by usage)
+    const favoritePokemon = Object.values(pokemonUsage)
+      .sort((a, b) => b.usageCount - a.usageCount)
+      .slice(0, 3);
+    
+    res.json({
+      totalBattles,
+      wins,
+      losses,
+      winRate,
+      currentStreak,
+      bestStreak,
+      totalXpEarned,
+      totalStardustEarned,
+      averageXpPerBattle,
+      averageStardustPerBattle,
+      friendlyBattles,
+      competitiveBattles,
+      friendlyWinRate,
+      competitiveWinRate,
+      recentBattles,
+      favoritePokemon
+    });
+    
+  } catch (error) {
+    console.error('Error fetching battle statistics:', error);
+    res.status(500).json({ message: 'Failed to fetch battle statistics.' });
   }
 });
 

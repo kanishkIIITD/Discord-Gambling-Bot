@@ -27,7 +27,9 @@ const battleRoutes = require('./routes/battleRoutes');
 const tradeRoutes = require('./routes/tradeRoutes');
 const questRoutes = require('./routes/questRoutes');
 const tcgRoutes = require('./routes/tcgRoutes');
+const eventRoutes = require('./routes/eventRoutes');
 const { warmMoveCache } = require('./utils/cacheWarmer');
+const weekendScheduler = require('./utils/weekendScheduler');
 
 const app = express();
 const server = http.createServer(app);
@@ -92,6 +94,15 @@ mongoose.connect(process.env.MONGODB_URI)
     } catch (err) {
       console.error('[Startup] Error warming move cache:', err);
     }
+    
+    // --- Initialize weekend scheduler ---
+    try {
+      console.log('[Startup] Initializing weekend scheduler...');
+      await weekendScheduler.initialize();
+      console.log('[Startup] Weekend scheduler initialized');
+    } catch (err) {
+      console.error('[Startup] Error initializing weekend scheduler:', err);
+    }
   })
   .catch(err => {
     console.error('MongoDB connection error:', err);
@@ -110,6 +121,7 @@ app.use('/api/battles', battleRoutes);
 app.use('/api/trades', tradeRoutes);
 app.use('/api/quests', questRoutes);
 app.use('/api/tcg', tcgRoutes);
+app.use('/api/events', eventRoutes);
 
 // Cache warming endpoint (for maintenance)
 app.post('/api/admin/warm-cache', async (req, res) => {

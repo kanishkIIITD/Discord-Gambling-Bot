@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const BattleSession = require('../models/BattleSession');
 const Pokemon = require('../models/Pokemon');
+const GlobalEvent = require('../models/GlobalEvent');
 const pokeApi = require('../utils/pokeApi');
 const battleUtils = require('../utils/battleUtils');
 const { moveEffectRegistry, stageMultiplier, abilityRegistry } = require('../utils/battleUtils');
@@ -73,6 +74,13 @@ async function processBattleRewards(session) {
         xpBoosterUsed = true;
       }
       
+      // Check for double weekend event
+      const doubleWeekendEvent = await GlobalEvent.getActiveDoubleWeekend();
+      if (doubleWeekendEvent) {
+        totalXp *= doubleWeekendEvent.multiplier;
+        totalDust *= doubleWeekendEvent.multiplier;
+      }
+      
       winnerUser.poke_xp = (winnerUser.poke_xp || 0) + totalXp;
       winnerUser.poke_stardust = (winnerUser.poke_stardust || 0) + totalDust;
       winnerUser.poke_quest_daily_battle = (winnerUser.poke_quest_daily_battle || 0) + 1;
@@ -140,6 +148,7 @@ async function processBattleRewards(session) {
       // Add reward info to session log
       let rewardMsg = `Battle rewards: +${totalXp} XP, +${totalDust} Stardust`;
       if (xpBoosterUsed) rewardMsg += ` (2x XP from booster)`;
+      if (doubleWeekendEvent) rewardMsg += ` (${doubleWeekendEvent.multiplier}x from double weekend)`;
       if (newLevel > prevLevel) {
         rewardMsg += ` | Level up! Reached level ${newLevel}`;
         if (newlyUnlocked.length > 0) {
@@ -304,6 +313,25 @@ function applyPerTurnStatusEffects(poke, log, session, isChallenger) {
 function applyPerTurnWeatherEffects(session, log) {
   const weather = session.weather;
   const terrain = session.terrain;
+  
+  // --- Weather/terrain duration decrement (at start of turn) ---
+  if (session.weather) {
+    session.weatherDuration = (session.weatherDuration || 0) - 1;
+    if (session.weatherDuration <= 0) {
+      session.weather = null;
+      session.weatherDuration = 0;
+      log.push({ side: 'system', text: 'The weather returned to normal!' });
+    }
+  }
+  if (session.terrain) {
+    session.terrainDuration = (session.terrainDuration || 0) - 1;
+    if (session.terrainDuration <= 0) {
+      session.terrain = null;
+      session.terrainDuration = 0;
+      log.push({ side: 'system', text: 'The terrain returned to normal!' });
+    }
+  }
+  
   // --- Field effects: decrement durations and remove expired ---
   if (session.fieldEffectDurations) {
     for (const field in session.fieldEffectDurations) {
@@ -603,8 +631,11 @@ router.post('/:battleId/select', async (req, res) => {
     const battleSize = selectedPokemonIds.length || 5;
 
     // Fetch and build Pokémon data for each selected Pokémon
-    const userPokemons = await getUserPokemons(userId, selectedPokemonIds); // assume this returns [{pokemonId, name, isShiny, ...}]
+    const userPokemons = await getUserPokemons(userId, selectedPokemonIds);
+    console.log(`[BattleRoutes] Building ${userPokemons.length} Pokemon for user ${userId}`);
+    
     const builtPokemons = await Promise.all(userPokemons.map(async (p) => {
+      console.log(`[BattleRoutes] Processing Pokemon: ${p.name} (ID: ${p.pokemonId})`);
       const pokeData = await pokeApi.getPokemonDataById(p.pokemonId);
       // --- Use IVs, EVs, nature, ability from p if present ---
       const stats = (() => {
@@ -620,31 +651,71 @@ router.post('/:battleId/select', async (req, res) => {
       })();
       const types = pokeData.types.map(t => t.type.name);
       // --- Pass battleSize to getLegalMoveset ---
-      const moves = await battleUtils.getLegalMoveset(
-        pokeData.name,
-        50, // level
-        battleSize,
-        p.ability || '',
-        p.nature || 'hardy',
-        [
-          p.ivs?.hp ?? 31,
-          p.ivs?.attack ?? 31,
-          p.ivs?.defense ?? 31,
-          p.ivs?.spAttack ?? 31,
-          p.ivs?.spDefense ?? 31,
-          p.ivs?.speed ?? 31
-        ],
-        [
-          p.evs?.hp ?? 0,
-          p.evs?.attack ?? 0,
-          p.evs?.defense ?? 0,
-          p.evs?.spAttack ?? 0,
-          p.evs?.spDefense ?? 0,
-          p.evs?.speed ?? 0
-        ],
-        userId,
-        p._id?.toString() || ''
-      );
+      let moves = [];
+      try {
+        moves = await battleUtils.getLegalMoveset(
+          pokeData.name,
+          50, // level
+          battleSize,
+          p.ability || '',
+          p.nature || 'hardy',
+          [
+            p.ivs?.hp ?? 31,
+            p.ivs?.attack ?? 31,
+            p.ivs?.defense ?? 31,
+            p.ivs?.spAttack ?? 31,
+            p.ivs?.spDefense ?? 31,
+            p.ivs?.speed ?? 31
+          ],
+          [
+            p.evs?.hp ?? 0,
+            p.evs?.attack ?? 0,
+            p.evs?.defense ?? 0,
+            p.evs?.spAttack ?? 0,
+            p.evs?.spDefense ?? 0,
+            p.evs?.speed ?? 0
+          ],
+          userId,
+          p._id?.toString() || ''
+        );
+      } catch (error) {
+        console.error(`[BattleRoutes] Failed to get moves for ${pokeData.name}:`, error.message);
+        // Fallback: create basic moves
+        moves = [
+          {
+            name: 'tackle',
+            power: 40,
+            moveType: 'normal',
+            category: 'physical',
+            accuracy: 100,
+            effectivePP: 35,
+            currentPP: 35,
+            effectEntries: [],
+            meta: {},
+            effectType: null
+          }
+        ];
+      }
+      
+      // Ensure Pokemon has at least one move
+      if (!moves || moves.length === 0) {
+        console.warn(`[BattleRoutes] No moves returned for ${pokeData.name}, adding fallback`);
+        moves = [
+          {
+            name: 'tackle',
+            power: 40,
+            moveType: 'normal',
+            category: 'physical',
+            accuracy: 100,
+            effectivePP: 35,
+            currentPP: 35,
+            effectEntries: [],
+            meta: {},
+            effectType: null
+          }
+        ];
+      }
+      
       return {
         pokemonId: p.pokemonId,
         name: p.name,
@@ -664,6 +735,9 @@ router.post('/:battleId/select', async (req, res) => {
         volatileStatuses: {},
       };
     }));
+    
+    console.log(`[BattleRoutes] Built Pokemon with moves:`, builtPokemons.map(p => ({ name: p.name, moveCount: p.moves?.length || 0 })));
+    
     if (isChallenger) {
       session.challengerPokemons = builtPokemons;
     } else {
@@ -932,6 +1006,38 @@ router.post('/:battleId/move', async (req, res) => {
           } else {
             effectMsg = `${myPoke.name} used Wish! But it failed.`;
           }
+          // Return early to prevent fall-through to general heal processing
+          moveObj.currentPP = Math.max(0, (moveObj.currentPP || 0) - 1);
+          session.log.push({ side: 'user', userId, text: effectMsg });
+          session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+          applyOnAfterMove(myPoke, theirPoke, moveObj, session, session.log);
+          // Switch turn after effect
+          function allFainted(pokemons) { return pokemons.every(p => p.currentHp <= 0); }
+          if (allFainted(session.challengerPokemons)) {
+            session.status = 'finished';
+            session.winnerId = session.opponentId;
+          } else if (allFainted(session.opponentPokemons)) {
+            session.status = 'finished';
+            session.winnerId = session.challengerId;
+          } else {
+            session.turn = isChallenger ? 'opponent' : 'challenger';
+          }
+          summary = effectMsg;
+          if (session.status === 'finished') {
+            await processBattleRewards(session);
+            await session.save();
+            let endSummary = '';
+            if (session.winnerId) {
+              const winnerMention = `<@${session.winnerId}>`;
+              endSummary = `Battle ended! Winner: ${winnerMention}`;
+            } else {
+              endSummary = `Battle ended! It's a draw!`;
+            }
+            summary += `\n${endSummary}`;
+            return res.json({ session, summary });
+          }
+          await session.save();
+          return res.json({ session, summary });
         } else if (moveName === 'roost' && effectType === 'heal') {
           let healAmount = Math.floor(myPoke.maxHp / 2);
           myPoke.currentHp = Math.min(myPoke.maxHp, (myPoke.currentHp || 0) + healAmount);
@@ -944,6 +1050,38 @@ router.post('/:battleId/move', async (req, res) => {
             effectMsg = `${myPoke.name} used Roost! Restored ${healAmount} HP.`;
           }
           effectSucceeded = true;
+          // Return early to prevent fall-through to general heal processing
+          moveObj.currentPP = Math.max(0, (moveObj.currentPP || 0) - 1);
+          session.log.push({ side: 'user', userId, text: effectMsg });
+          session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+          applyOnAfterMove(myPoke, theirPoke, moveObj, session, session.log);
+          // Switch turn after effect
+          function allFainted(pokemons) { return pokemons.every(p => p.currentHp <= 0); }
+          if (allFainted(session.challengerPokemons)) {
+            session.status = 'finished';
+            session.winnerId = session.opponentId;
+          } else if (allFainted(session.opponentPokemons)) {
+            session.status = 'finished';
+            session.winnerId = session.challengerId;
+          } else {
+            session.turn = isChallenger ? 'opponent' : 'challenger';
+          }
+          summary = effectMsg;
+          if (session.status === 'finished') {
+            await processBattleRewards(session);
+            await session.save();
+            let endSummary = '';
+            if (session.winnerId) {
+              const winnerMention = `<@${session.winnerId}>`;
+              endSummary = `Battle ended! Winner: ${winnerMention}`;
+            } else {
+              endSummary = `Battle ended! It's a draw!`;
+            }
+            summary += `\n${endSummary}`;
+            return res.json({ session, summary });
+          }
+          await session.save();
+          return res.json({ session, summary });
         } else if (effectType && [
           "boost","multi-boost","status","weather","terrain","heal","drain","damage+recoil","hazard","sound","charge-attack","damage+status","user-faints"
         ].includes(effectType)) {
@@ -1007,6 +1145,19 @@ router.post('/:battleId/move', async (req, res) => {
                   targetPoke.status = effect.status;
                   effectSucceeded = true;
                   effectMsg = `${myPoke.name} used ${moveName}! ${targetPoke.name} ${effect.message}`;
+                  
+                  // --- Handle additional boost effect if present ---
+                  if (effect.boost) {
+                    const stat = effect.boost.stat;
+                    targetPoke.boosts = targetPoke.boosts || {};
+                    const before = targetPoke.boosts[stat] || 0;
+                    const after = Math.max(-6, Math.min(6, before + effect.boost.delta));
+                    if (after !== before) {
+                      targetPoke.boosts[stat] = after;
+                      // Update message to include boost effect
+                      effectMsg = `${myPoke.name} used ${moveName}! ${targetPoke.name} ${effect.message}`;
+                    }
+                  }
                 } else {
                   effectMsg = `${myPoke.name} used ${moveName}! But it failed.`;
                 }
@@ -1515,10 +1666,145 @@ router.post('/:battleId/move', async (req, res) => {
               hitLog.push(`Hit ${i+1}: ${finalDamage} damage`);
               if (theirPoke.currentHp <= 0) break; // Stop if fainted
             }
-            session.log.push({ side: 'user', userId, text: `${myPoke.name} used ${moveName}! ${hitLog.join(', ')} (Total: ${totalDamage})` });
             session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
             effectSucceeded = true;
             effectMsg = `${myPoke.name} used ${moveName}! Hit ${hits} times for a total of ${totalDamage} damage.`;
+          }
+          // --- Pivot moves (U-turn, Volt Switch) ---
+          if (effectType === 'pivot') {
+            // Deal damage first, then set up pivot switch
+            const attackerStats = myPoke.stats;
+            const defenderStats = theirPoke.stats;
+            const typeEffectiveness = battleUtils.getTypeEffectiveness(moveObj.moveType, theirPoke.types);
+            const dmgResult = battleUtils.calculateDamage(
+              { level: myPoke.level, stats: attackerStats, types: myPoke.types },
+              { stats: defenderStats, types: theirPoke.types },
+              moveObj,
+              typeEffectiveness,
+              session.weather,
+              session.terrain
+            );
+            const damage = dmgResult.damage;
+            // Apply screen effects
+            const theirSideEffects = isChallenger ? session.opponentSideEffects : session.challengerSideEffects;
+            let finalDamage = damage;
+            if (theirSideEffects && theirSideEffects.includes('light-screen') && moveObj.category === 'special') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('reflect') && moveObj.category === 'physical') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('aurora-veil')) {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            let modifiedDamage = applyOnModifyDamage(theirPoke, finalDamage);
+            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - modifiedDamage);
+            
+            // Set up pivot switch
+            session.pivotSwitchPending = userId;
+            session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+            effectSucceeded = true;
+            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${finalDamage} damage and is ready to switch!`;
+          }
+          // --- Protect moves (Protect, Detect) ---
+          if (effectType === 'protect') {
+            myPoke.isProtected = true;
+            session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+            effectSucceeded = true;
+            effectMsg = `${myPoke.name} used ${moveName}!`;
+          }
+          // --- Counter moves (Counter, Mirror Coat) ---
+          if (effectType === 'counter') {
+            myPoke.counterActive = true;
+            myPoke.counterType = effect.reflectType; // 'physical' or 'special'
+            session.markModified(isChallenger ? 'challengerPokemons' : 'opponentPokemons');
+            effectSucceeded = true;
+            effectMsg = `${myPoke.name} used ${moveName}!`;
+          }
+          // --- Partial trap moves (Wrap, Fire Spin) ---
+          if (effectType === 'partial-trap') {
+            theirPoke.volatileStatuses = theirPoke.volatileStatuses || {};
+            theirPoke.volatileStatuses.partialTrap = {
+              turns: Math.floor(Math.random() * (effect.maxTurns - effect.minTurns + 1)) + effect.minTurns,
+              move: moveName
+            };
+            // Deal initial damage
+            const attackerStats = myPoke.stats;
+            const defenderStats = theirPoke.stats;
+            const typeEffectiveness = battleUtils.getTypeEffectiveness(moveObj.moveType, theirPoke.types);
+            const dmgResult = battleUtils.calculateDamage(
+              { level: myPoke.level, stats: attackerStats, types: myPoke.types },
+              { stats: defenderStats, types: theirPoke.types },
+              moveObj,
+              typeEffectiveness,
+              session.weather,
+              session.terrain
+            );
+            const damage = dmgResult.damage;
+            let modifiedDamage = applyOnModifyDamage(theirPoke, damage);
+            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - modifiedDamage);
+            
+            session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+            effectSucceeded = true;
+            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${damage} damage and trapped ${theirPoke.name}!`;
+          }
+          // --- Leech Seed ---
+          if (effectType === 'leech') {
+            theirPoke.leechSeedActive = true;
+            theirPoke.leechSeededBy = myPoke.name;
+            session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+            effectSucceeded = true;
+            effectMsg = `${myPoke.name} used ${moveName}! ${theirPoke.name} was seeded!`;
+          }
+          // --- Spread moves (Surf, Earthquake) ---
+          if (effectType === 'spread') {
+            // For singles, treat as normal damaging move but log as spread
+            const attackerStats = myPoke.stats;
+            const defenderStats = theirPoke.stats;
+            const typeEffectiveness = battleUtils.getTypeEffectiveness(moveObj.moveType, theirPoke.types);
+            const dmgResult = battleUtils.calculateDamage(
+              { level: myPoke.level, stats: attackerStats, types: myPoke.types },
+              { stats: defenderStats, types: theirPoke.types },
+              moveObj,
+              typeEffectiveness,
+              session.weather,
+              session.terrain
+            );
+            const damage = dmgResult.damage;
+            // Apply screen effects
+            const theirSideEffects = isChallenger ? session.opponentSideEffects : session.challengerSideEffects;
+            let finalDamage = damage;
+            if (theirSideEffects && theirSideEffects.includes('light-screen') && moveObj.category === 'special') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('reflect') && moveObj.category === 'physical') {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            if (theirSideEffects && theirSideEffects.includes('aurora-veil')) {
+              finalDamage = Math.floor(finalDamage / 2);
+            }
+            let modifiedDamage = applyOnModifyDamage(theirPoke, finalDamage);
+            theirPoke.currentHp = Math.max(0, (theirPoke.currentHp || theirPoke.stats.hp) - modifiedDamage);
+            
+            session.markModified(isChallenger ? 'opponentPokemons' : 'challengerPokemons');
+            effectSucceeded = true;
+            effectMsg = `${myPoke.name} used ${moveName}! It dealt ${finalDamage} damage to ${theirPoke.name}! (Spread move: would hit all opponents in doubles)`;
+          }
+          // --- Team field effects (Light Screen, Reflect, Aurora Veil, Safeguard) ---
+          if (effectType === 'team-field') {
+            const mySideEffects = isChallenger ? session.challengerSideEffects : session.opponentSideEffects;
+            const mySideDurations = isChallenger ? session.challengerSideEffectDurations : session.opponentSideEffectDurations;
+            
+            if (!mySideEffects.includes(effect.field)) {
+              mySideEffects.push(effect.field);
+              mySideDurations[effect.field] = effect.duration || 5;
+              session.markModified(isChallenger ? 'challengerSideEffects' : 'opponentSideEffects');
+              session.markModified(isChallenger ? 'challengerSideEffectDurations' : 'opponentSideEffectDurations');
+              effectSucceeded = true;
+              effectMsg = `${myPoke.name} used ${moveName}! ${effect.message}`;
+            } else {
+              effectMsg = `${myPoke.name} used ${moveName}! But ${effect.field} is already active.`;
+            }
           }
           // Only decrement PP if effect succeeded
           if (effectSucceeded) {
@@ -1790,12 +2076,6 @@ router.post('/:battleId/move', async (req, res) => {
         session.markModified(side + 'SideEffectDurations');
       }
     });
-    // --- Special handling for spread moves (Surf, Earthquake) ---
-    if (effectType === 'spread') {
-      // For singles, treat as normal damaging move, but log that it's a spread move
-      session.log.push({ side: 'system', text: `${myPoke.name} used ${moveName}! (Spread move: would hit all opponents in doubles)` });
-      // Proceed to normal damage logic below
-    }
     // --- Special handling for clear-boosts (Haze) ---
     if (effectType === 'clear-boosts') {
       // Clear all stat boosts for all Pokémon on both sides
@@ -1818,38 +2098,6 @@ router.post('/:battleId/move', async (req, res) => {
       session.log.push({ side: 'system', text: `All stat changes were erased by Haze!` });
       effectSucceeded = true;
       effectMsg = `${myPoke.name} used Haze! All stat changes were erased!`;
-    }
-    // --- Weather/terrain duration decrement ---
-    if (session.weather) {
-      session.weatherDuration = (session.weatherDuration || 0) - 1;
-      if (session.weatherDuration <= 0) {
-        session.weather = null;
-        session.weatherDuration = 0;
-        session.log.push({ side: 'system', text: 'The weather returned to normal!' });
-      }
-    }
-    if (session.terrain) {
-      session.terrainDuration = (session.terrainDuration || 0) - 1;
-      if (session.terrainDuration <= 0) {
-        session.terrain = null;
-        session.terrainDuration = 0;
-        session.log.push({ side: 'system', text: 'The terrain returned to normal!' });
-      }
-    }
-    // --- Field effect duration decrement ---
-    if (session.fieldEffectDurations) {
-      for (const field in session.fieldEffectDurations) {
-        session.fieldEffectDurations[field]--;
-        if (session.fieldEffectDurations[field] <= 0) {
-          if (session.fieldEffects) {
-            session.fieldEffects = session.fieldEffects.filter(f => f !== field);
-          }
-          session.log.push({ side: 'system', text: `${field.replace('-', ' ')} wore off!` });
-          delete session.fieldEffectDurations[field];
-        }
-      }
-      session.markModified('fieldEffects');
-      session.markModified('fieldEffectDurations');
     }
     // --- End of turn: decrement and expire volatile statuses for all Pokémon ---
     function handleVolatileStatuses(team, side) {
