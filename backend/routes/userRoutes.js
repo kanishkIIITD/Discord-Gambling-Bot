@@ -153,7 +153,7 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
       description: '',
       dexNum,
       ballUsed: ballLabel,
-      catchChance: Math.round(finalChance * 100) + '%',
+      catchChance: (finalChance * 100).toFixed(2) + '%',
       isShiny: !!isShiny,
       flavorText,
       xpBoosterUsed,

@@ -69,7 +69,7 @@ module.exports = {
         .setPlaceholder('Select a Pokémon to evolve')
         .addOptions(options)
     );
-    const msg = await interaction.editReply({ content: 'Select a Pokémon to evolve using your Evolver\'s Ring:', components: [selectRow], ephemeral: true });
+    const msg = await interaction.editReply({ content: `Select a Pokémon to evolve using your Evolver's Ring (${ringCharges} charges left):`, components: [selectRow], ephemeral: true });
     // Collector for select menu
     const collector = msg.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60000 });
     collector.on('collect', async i => {

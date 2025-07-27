@@ -61,6 +61,7 @@ const pokemonBattleSchema = new mongoose.Schema({
   lastMoveUsed: { type: String, default: null },
   leechSeedActive: { type: Boolean, default: null },
   leechSeededBy: { type: String, default: null },
+  volatileStatuses: { type: Object, default: {} }, // For Yawn, Taunt, Encore, Disable, Confusion, Partial Trap, etc.
 }, { _id: false });
 
 const battleSessionSchema = new mongoose.Schema({
