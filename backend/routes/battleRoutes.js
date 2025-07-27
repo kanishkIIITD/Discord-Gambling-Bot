@@ -2259,4 +2259,69 @@ router.post('/:battleId/switch', async (req, res) => {
   }
 });
 
+// GET /battles/active/:userId - Get user's active battle
+router.get('/active/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const guildId = req.headers['x-guild-id'];
+  
+  try {
+    const activeBattle = await BattleSession.findOne({
+      $or: [
+        { challengerId: userId },
+        { opponentId: userId }
+      ],
+      guildId: guildId,
+      status: 'active'
+    });
+    
+    return res.json(activeBattle);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /battles/:battleId/cancel - Cancel an active battle
+router.post('/:battleId/cancel', async (req, res) => {
+  const { userId, reason = 'User cancelled' } = req.body;
+  const { battleId } = req.params;
+  const guildId = req.headers['x-guild-id'];
+  
+  try {
+    const session = await BattleSession.findById(battleId);
+    if (!session) {
+      return res.status(404).json({ error: 'Battle not found' });
+    }
+    
+    if (session.guildId !== guildId) {
+      return res.status(403).json({ error: 'Battle not in this guild' });
+    }
+    
+    if (session.status !== 'active') {
+      return res.status(400).json({ error: 'Battle is not active' });
+    }
+    
+    // Only allow cancellation by participants
+    if (session.challengerId !== userId && session.opponentId !== userId) {
+      return res.status(403).json({ error: 'You are not a participant in this battle' });
+    }
+    
+    // Cancel the battle
+    session.status = 'cancelled';
+    session.log.push({ 
+      side: 'user', 
+      userId, 
+      text: `<@${userId}> cancelled the battle: ${reason}` 
+    });
+    
+    await session.save();
+    
+    return res.json({ 
+      message: 'Battle cancelled successfully',
+      session 
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router; 

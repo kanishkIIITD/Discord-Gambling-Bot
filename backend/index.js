@@ -30,6 +30,7 @@ const tcgRoutes = require('./routes/tcgRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const { warmMoveCache } = require('./utils/cacheWarmer');
 const weekendScheduler = require('./utils/weekendScheduler');
+const { cleanupStuckBattles } = require('./scripts/cleanupStuckBattles');
 
 const app = express();
 const server = http.createServer(app);
@@ -102,6 +103,18 @@ mongoose.connect(process.env.MONGODB_URI)
       console.log('[Startup] Weekend scheduler initialized');
     } catch (err) {
       console.error('[Startup] Error initializing weekend scheduler:', err);
+    }
+    
+    // --- Initialize battle cleanup service ---
+    try {
+      console.log('[Startup] Initializing battle cleanup service...');
+      // Run initial cleanup
+      await cleanupStuckBattles();
+      // Set up periodic cleanup (every 5 minutes)
+      setInterval(cleanupStuckBattles, 5 * 60 * 1000);
+      console.log('[Startup] Battle cleanup service initialized');
+    } catch (err) {
+      console.error('[Startup] Error initializing battle cleanup service:', err);
     }
   })
   .catch(err => {

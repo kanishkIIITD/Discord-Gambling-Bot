@@ -44,6 +44,7 @@ const pokepacksCommand = require('./commands/pokepacks');
 const doubleweekendCommand = require('./commands/doubleweekend');
 const weekendCommand = require('./commands/weekend');
 const pokebattlestatsCommand = require('./commands/pokebattlestats');
+const cancelbattleCommand = require('./commands/cancelbattle');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 const pokeCache = require('./utils/pokeCache');
@@ -1168,8 +1169,8 @@ client.on('interactionCreate', async interaction => {
 							const otherPoke = session2.turn === 'challenger' ? opponentPoke : challengerPoke;
 							const turnTeam = session2.turn === 'challenger' ? session2.challengerPokemons : session2.opponentPokemons;
 							const otherTeam = session2.turn === 'challenger' ? session2.opponentPokemons : session2.challengerPokemons;
-							let turnImg = getShowdownGif(turnPoke.name, turnPoke.isShiny);
-							let otherImg = getShowdownGif(otherPoke.name, otherPoke.isShiny);
+							let turnImg = await getShowdownGif(turnPoke.name, turnPoke.isShiny, true);
+							let otherImg = await getShowdownGif(otherPoke.name, otherPoke.isShiny, false);
 							const battleEmbed = new EmbedBuilder()
 								.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 								.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
@@ -1261,8 +1262,8 @@ client.on('interactionCreate', async interaction => {
 				const otherPoke = session.turn === 'challenger' ? opponentPoke : challengerPoke;
 				const turnTeam = session.turn === 'challenger' ? session.challengerPokemons : session.opponentPokemons;
 				const otherTeam = session.turn === 'challenger' ? session.opponentPokemons : session.challengerPokemons;
-				let turnImg = getShowdownGif(turnPoke.name, turnPoke.isShiny);
-				let otherImg = getShowdownGif(otherPoke.name, otherPoke.isShiny);
+				let turnImg = await getShowdownGif(turnPoke.name, turnPoke.isShiny, true);
+				let otherImg = await getShowdownGif(otherPoke.name, otherPoke.isShiny, false);
 				const logText = (session.log && session.log.length) ? session.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 				const battleEmbed = new EmbedBuilder()
 					.setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
@@ -1467,8 +1468,8 @@ client.on('interactionCreate', async interaction => {
 				: updatedSession.challengerPokemons[updatedSession.activeChallengerIndex || 0];
 			const turnTeam = updatedSession.turn === 'challenger' ? updatedSession.challengerPokemons : updatedSession.opponentPokemons;
 			const otherTeam = updatedSession.turn === 'challenger' ? updatedSession.opponentPokemons : updatedSession.challengerPokemons;
-			let turnImg = getShowdownGif(turnPoke.name, turnPoke.isShiny);
-			let otherImg = getShowdownGif(otherPoke.name, otherPoke.isShiny);
+			let turnImg = await getShowdownGif(turnPoke.name, turnPoke.isShiny, true);
+			let otherImg = await getShowdownGif(otherPoke.name, otherPoke.isShiny, false);
 			const battleEmbed = new EmbedBuilder()
 				.setTitle(`${updatedSession.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				.setImage(turnImg)
@@ -1614,8 +1615,8 @@ client.on('interactionCreate', async interaction => {
 			const otherPoke = session2.turn === 'challenger' ? opponentPoke : challengerPoke;
 			const turnTeam = session2.turn === 'challenger' ? session2.challengerPokemons : session2.opponentPokemons;
 			const otherTeam = session2.turn === 'challenger' ? session2.opponentPokemons : session2.challengerPokemons;
-			let turnImg = getShowdownGif(turnPoke.name, turnPoke.isShiny);
-			let otherImg = getShowdownGif(otherPoke.name, otherPoke.isShiny);
+			let turnImg = await getShowdownGif(turnPoke.name, turnPoke.isShiny, true);
+			let otherImg = await getShowdownGif(otherPoke.name, otherPoke.isShiny, false);
 			const battleEmbed = new EmbedBuilder()
 				.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
@@ -4017,6 +4018,7 @@ client.on('interactionCreate', async interaction => {
 						{ name: '📖 Pokédex & Stats', value:
 							'`/pokedex` - View your caught Pokémon, including shiny count and stats. Paginated for easy browsing.\n' +
 							'`/pokestats` - View detailed Pokémon statistics and collection information\n' +
+							'`/pokebattlestats` - View your Pokémon battle statistics and performance\n' +
 							'`/setpokedexpokemon` - Choose which Pokémon (including shiny/normal) is always displayed as the main artwork in your Pokédex.'
 						},
 						{ name: '👾 Battling', value:
@@ -4033,6 +4035,13 @@ client.on('interactionCreate', async interaction => {
 						{ name: '🎯 Quests & Progression', value:
 							'`/pokequests` - View your Pokémon quests and claim rewards!\n' +
 							'`/pokeevolve` - Evolve your Pokémon using duplicates!'
+						},
+						{ name: '📦 Packs & Events', value:
+							'`/pokeopen` - Open Pokémon card packs for rare cards!\n' +
+							'`/pokepacks` - View available Pokémon card packs\n' +
+							'`/pokecollection` - View your Pokémon TCG card collection\n' +
+							'`/doubleweekend` - (Admin) Manage double weekend events for 2x XP and Stardust\n' +
+							'`/weekend` - (Admin) Manage automatic weekend events'
 						},
 					],
 					timestamp: new Date()
@@ -4527,6 +4536,8 @@ client.on('interactionCreate', async interaction => {
 		await weekendCommand.execute(interaction);
 	} else if (commandName === 'pokebattlestats') {
 		await pokebattlestatsCommand.execute(interaction);
+	} else if (commandName === 'cancelbattle') {
+		await cancelbattleCommand.execute(interaction);
 	}
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);
@@ -4674,12 +4685,43 @@ function getAliveCount(pokemons) {
 }
 
 // Helper to get Showdown animated GIF URL
-function getShowdownGif(name, isShiny) {
-  const showdownName = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-  return isShiny
-    ? `https://play.pokemonshowdown.com/sprites/ani-shiny/${showdownName}.gif`
-    : `https://play.pokemonshowdown.com/sprites/ani/${showdownName}.gif`;
+async function getShowdownGif(name, isShiny, isActive = true) {
+	// Choose sprite type based on whether Pokémon is active or not
+	let baseUrl;
+	if (isShiny) {
+		baseUrl = isActive 
+			? 'https://play.pokemonshowdown.com/sprites/ani-shiny/'
+			: 'https://play.pokemonshowdown.com/sprites/gen5ani-shiny/';
+	} else {
+		baseUrl = isActive 
+			? 'https://play.pokemonshowdown.com/sprites/ani/'
+			: 'https://play.pokemonshowdown.com/sprites/gen5ani/';
+	}
+  
+	// 1) full form ID: removes hyphens, spaces, camelCase, etc.
+	const fullId = name
+	  .replace(/[^A-Za-z0-9]+/g, '')  // strip any non‑alphanumeric
+	  .toLowerCase();                 // lower‑case everything
+  
+	let url = `${baseUrl}${fullId}.gif`;
+  
+	// 2) try HEAD to see if it exists
+	try {
+	  const res = await fetch(url, { method: 'HEAD' });
+	  if (res.ok) return url;
+	} catch (e) {
+	  // network error? just fall through to fallback
+	}
+  
+	// 3) fallback: use only the species name (before any hyphen)
+	const species = name
+	  .split(/[-\s]/)[0]              // cut at first hyphen or space
+	  .replace(/[^A-Za-z0-9]+/g, '')  // strip again just in case
+	  .toLowerCase();
+  
+	return `${baseUrl}${species}.gif`;
 }
+  
 
 // Helper to filter Pokémon options based on search term
 function filterPokemonOptions(options, searchTerm) {

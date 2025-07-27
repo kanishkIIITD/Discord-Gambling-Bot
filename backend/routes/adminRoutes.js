@@ -30,4 +30,16 @@ router.patch('/users/:id/role', auth, requireSuperAdmin, async (req, res) => {
   }
 });
 
+// Battle cleanup endpoint for scheduled events
+router.post('/cleanup-battles', async (req, res) => {
+  try {
+    const { cleanupStuckBattles } = require('../scripts/cleanupStuckBattles');
+    await cleanupStuckBattles();
+    res.json({ message: 'Battle cleanup completed successfully' });
+  } catch (error) {
+    console.error('[Admin] Error during battle cleanup:', error);
+    res.status(500).json({ error: 'Battle cleanup failed' });
+  }
+});
+
 module.exports = router; 

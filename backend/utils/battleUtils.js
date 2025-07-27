@@ -368,11 +368,11 @@ async function getLegalMoveset(
   // Selection order: primaryStab, secondaryStab, coverage, priority, recovery, field, setup (if style), utility, filler
   const selectedMoves = [];
   
-  // Helper function to pick from top 3 moves in a pool
-  const pickFromTop3 = (pool) => {
+  // Helper function to pick from top 5 moves in a pool
+  const pickFromTop5 = (pool) => {
     if (!pool || pool.length === 0) return null;
-    const top3 = pool.slice(0, 3);
-    return top3[Math.floor(Math.random() * top3.length)];
+    const top5 = pool.slice(0, 5);
+    return top5[Math.floor(Math.random() * top5.length)];
   };
   
   // Helper function to add move if not already selected
@@ -386,26 +386,26 @@ async function getLegalMoveset(
   
   // 1. Primary STAB (sorted by expected damage)
   if (primaryStab.length) {
-    const move = pickFromTop3(primaryStab);
+    const move = pickFromTop5(primaryStab);
     addMoveIfNotSelected(move);
   }
   
   // 2. Secondary STAB (sorted by expected damage)
   if (secondaryStab.length) {
-    const move = pickFromTop3(secondaryStab);
+    const move = pickFromTop5(secondaryStab);
     addMoveIfNotSelected(move);
   }
   
   // 3. Coverage (sorted by marginal coverage gain)
   if (coverageCandidates && coverageCandidates.length) {
-    const move = pickFromTop3(coverageCandidates);
+    const move = pickFromTop5(coverageCandidates);
     addMoveIfNotSelected(move);
   }
   
   // 4. Priority moves (sorted by priority, then power)
   if (priorityPool.length) {
     const sortedPriority = priorityPool.sort((a, b) => (b.priority || 0) - (a.priority || 0));
-    const move = pickFromTop3(sortedPriority);
+    const move = pickFromTop5(sortedPriority);
     addMoveIfNotSelected(move);
   }
   
@@ -417,7 +417,7 @@ async function getLegalMoveset(
       if (aHeal !== bHeal) return bHeal - aHeal;
       return (b.effectivePP || 0) - (a.effectivePP || 0);
     });
-    const move = pickFromTop3(sortedRecovery);
+    const move = pickFromTop5(sortedRecovery);
     addMoveIfNotSelected(move);
   }
   
@@ -429,7 +429,7 @@ async function getLegalMoveset(
       const bPriority = priority[b.effectType] || 0;
       return bPriority - aPriority;
     });
-    const move = pickFromTop3(sortedField);
+    const move = pickFromTop5(sortedField);
     addMoveIfNotSelected(move);
   }
   
@@ -440,7 +440,7 @@ async function getLegalMoveset(
       const bBoost = b.effectType === 'multi-boost' ? 2 : 1;
       return bBoost - aBoost;
     });
-    const move = pickFromTop3(sortedSetup);
+    const move = pickFromTop5(sortedSetup);
     addMoveIfNotSelected(move);
   }
   
@@ -452,7 +452,7 @@ async function getLegalMoveset(
       const bChance = b.meta?.ailment_chance || 0;
       return bChance - aChance;
     });
-    const move = pickFromTop3(sortedUtility);
+    const move = pickFromTop5(sortedUtility);
     addMoveIfNotSelected(move);
   }
   
@@ -462,7 +462,7 @@ async function getLegalMoveset(
       if ((a.effectivePP || 0) !== (b.effectivePP || 0)) return (b.effectivePP || 0) - (a.effectivePP || 0);
       return (b.power || 0) - (a.power || 0);
     });
-    const move = pickFromTop3(sortedFiller);
+    const move = pickFromTop5(sortedFiller);
     addMoveIfNotSelected(move);
   }
   

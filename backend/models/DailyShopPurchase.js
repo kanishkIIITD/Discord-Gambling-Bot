@@ -20,7 +20,7 @@ const dailyShopPurchaseSchema = new mongoose.Schema({
   }, // YYYY-MM-DD format
   rarity: { 
     type: String, 
-    enum: ['common', 'uncommon', 'rare'], 
+    enum: ['common', 'uncommon', 'rare', 'legendary'], 
     required: true 
   },
   pokemonName: { 
@@ -30,6 +30,10 @@ const dailyShopPurchaseSchema = new mongoose.Schema({
   price: { 
     type: Number, 
     required: true 
+  },
+  isShiny: {
+    type: Boolean,
+    default: false
   },
   purchasedAt: { 
     type: Date, 

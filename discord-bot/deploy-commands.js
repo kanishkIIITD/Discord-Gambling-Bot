@@ -20,6 +20,7 @@ const pokepacksCommand = require('./commands/pokepacks');
 const doubleweekendCommand = require('./commands/doubleweekend');
 const weekendCommand = require('./commands/weekend');
 const pokebattlestatsCommand = require('./commands/pokebattlestats');
+const cancelbattleCommand = require('./commands/cancelbattle');
 const commands = [
 	{
 		name: 'balance',
@@ -1034,6 +1035,7 @@ commands.push(pokepacksCommand.data.toJSON());
 commands.push(doubleweekendCommand.data.toJSON());
 commands.push(weekendCommand.data.toJSON());
 commands.push(pokebattlestatsCommand.data.toJSON());
+commands.push(cancelbattleCommand.data.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
 

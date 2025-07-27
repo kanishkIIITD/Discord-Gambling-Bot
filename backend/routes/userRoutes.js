@@ -378,7 +378,7 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
   try {
     const { discordId } = req.params;
     const guildId = req.headers['x-guild-id'];
-    const { pokemonName, price, rarity } = req.body;
+    const { pokemonName, price, rarity, isShiny = false } = req.body;
     const now = new Date();
 
     // Validate required fields
@@ -445,7 +445,7 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
       discordId, 
       guildId, 
       pokemonId: pokemonData.id,
-      isShiny: false 
+      isShiny: !!isShiny 
     });
 
     if (existingPokemon) {
@@ -458,7 +458,7 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
         guildId,
         pokemonId: pokemonData.id,
         name: pokemonData.name,
-        isShiny: false,
+        isShiny: !!isShiny,
         count: 1,
         caughtAt: now,
         // Generate random IVs and EVs
@@ -493,6 +493,7 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
       rarity,
       pokemonName: pokemonData.name,
       price: price,
+      isShiny: !!isShiny,
       purchasedAt: now
     });
     await dailyPurchase.save();
