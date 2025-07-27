@@ -6,6 +6,19 @@ const axios = require('axios');
 
 const SHINY_ODDS = 1 / 1024;
 
+// Helper function to get display name for Pokémon
+function getDisplayName(pokemonName) {
+  if (pokemonName.toLowerCase() === 'rattata') {
+    return 'joanatta';
+  }
+  return pokemonName;
+}
+
+// Helper function to capitalize first letter
+function capitalizeFirst(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('pokecatch')
@@ -70,9 +83,10 @@ module.exports = {
     const row = new ActionRowBuilder().addComponents(buttons);
     // Show artwork and ask for ball selection
     const artwork = pokemonData.sprites.other['official-artwork'].front_default;
+    const displayName = capitalizeFirst(getDisplayName(pokemonData.name));
     const promptEmbed = new EmbedBuilder()
       .setColor(0x3498db)
-      .setTitle(`A wild ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} appeared!`)
+      .setTitle(`A wild ${displayName} appeared!`)
       .setImage(artwork)
       .setDescription('Which Poké Ball would you like to use?');
     await interaction.reply({ embeds: [promptEmbed], components: [row], ephemeral: true });
@@ -138,7 +152,7 @@ module.exports = {
           { name: 'Catch Chance', value: data.embedData?.catchChance || '?', inline: true },
           { name: 'Shiny', value: data.embedData?.isShiny ? 'Yes ✨' : 'No', inline: true }
         )
-        .setFooter({ text: 'Gotta catch ’em all!' });
+        .setFooter({ text: 'Gotta catch \'em all!' });
       // Add extra fields if present
       if (data.xpAward) embed.addFields({ name: 'XP Gained', value: `${data.xpAward}`, inline: true });
       if (data.dustAward) embed.addFields({ name: 'Dust Gained', value: `${data.dustAward}`, inline: true });
