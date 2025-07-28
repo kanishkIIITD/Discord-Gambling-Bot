@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const axios = require('axios');
+const { getEmojiString } = require('../utils/emojiConfig');
 
 // EV optimization suggestions based on Pokemon types and common builds
 function getEVSuggestions(pokemonName, pokemonId) {
@@ -31,6 +32,30 @@ function getEVSuggestions(pokemonName, pokemonId) {
   };
   
   return suggestions[pokemonId] || null;
+}
+
+// Helper function to create progress bar using emojis
+function createProgressBar(value, max = 252) {
+  const percentage = value / max;
+  const totalSegments = 3; // Reduced to 3 segments for maximum compactness
+  const filledSegments = Math.round(percentage * totalSegments);
+  
+  let bar = '';
+  
+  for (let i = 0; i < totalSegments; i++) {
+    if (i === 0) {
+      // Left segment
+      bar += getEmojiString(i < filledSegments ? 'filled_lb_left' : 'empty_lb_left');
+    } else if (i === totalSegments - 1) {
+      // Right segment
+      bar += getEmojiString(i < filledSegments ? 'filled_lb_right' : 'empty_lb_right');
+    } else {
+      // Middle segments
+      bar += getEmojiString(i < filledSegments ? 'filled_lb_middle' : 'empty_lb_middle');
+    }
+  }
+  
+  return bar;
 }
 
 module.exports = {
@@ -74,20 +99,6 @@ module.exports = {
         });
       }
       
-      // Create EV bars (max 252 per stat) - using 20 bars for better precision
-      const createEVBar = (value, max = 252) => {
-        const percentage = value / max;
-        const filled = Math.round(percentage * 20);
-        const empty = 20 - filled;
-        
-        // Ensure at least 1 bar is filled if there are any EVs
-        if (value > 0 && filled === 0) {
-          return '█░░░░░░░░░░░░░░░░░░░';
-        }
-        
-        return '█'.repeat(filled) + '░'.repeat(empty);
-      };
-      
       // Calculate total EVs
       const totalEVs = Object.values(evs).reduce((sum, ev) => sum + ev, 0);
       const maxTotalEVs = 510;
@@ -99,14 +110,14 @@ module.exports = {
         .setColor(isShiny ? 0xFFD700 : 0x3498db)
         .addFields(
           {
-            name: '💪 Effort Values (EVs)',
-            value: `**Total EVs:** ${totalEVs}/${maxTotalEVs}\n\n` +
-                   `**HP:** ${evs.hp}/252 ${createEVBar(evs.hp)}\n` +
-                   `**Attack:** ${evs.attack}/252 ${createEVBar(evs.attack)}\n` +
-                   `**Defense:** ${evs.defense}/252 ${createEVBar(evs.defense)}\n` +
-                   `**Sp. Attack:** ${evs.spAttack}/252 ${createEVBar(evs.spAttack)}\n` +
-                   `**Sp. Defense:** ${evs.spDefense}/252 ${createEVBar(evs.spDefense)}\n` +
-                   `**Speed:** ${evs.speed}/252 ${createEVBar(evs.speed)}`,
+            name: '🔋 Effort Values (EVs)',
+            value: `**Total EVs:** ${totalEVs}/${maxTotalEVs}\n` +
+                   `**HP:** ${evs.hp}/252 ${createProgressBar(evs.hp)}\n` +
+                   `**Attack:** ${evs.attack}/252 ${createProgressBar(evs.attack)}\n` +
+                   `**Defense:** ${evs.defense}/252 ${createProgressBar(evs.defense)}\n` +
+                   `**Sp. Attack:** ${evs.spAttack}/252 ${createProgressBar(evs.spAttack)}\n` +
+                   `**Sp. Defense:** ${evs.spDefense}/252 ${createProgressBar(evs.spDefense)}\n` +
+                   `**Speed:** ${evs.speed}/252 ${createProgressBar(evs.speed)}`,
             inline: false
           },
           {
@@ -340,14 +351,14 @@ module.exports = {
                 // Update the embed with new stats
                 const updatedEmbed = EmbedBuilder.from(embed);
                 updatedEmbed.spliceFields(0, 1, {
-                  name: '💪 Effort Values (EVs)',
-                  value: `**Total EVs:** ${Object.values(refreshedEvs).reduce((sum, ev) => sum + ev, 0)}/${maxTotalEVs}\n\n` +
-                         `**HP:** ${refreshedEvs.hp}/252 ${createEVBar(refreshedEvs.hp)}\n` +
-                         `**Attack:** ${refreshedEvs.attack}/252 ${createEVBar(refreshedEvs.attack)}\n` +
-                         `**Defense:** ${refreshedEvs.defense}/252 ${createEVBar(refreshedEvs.defense)}\n` +
-                         `**Sp. Attack:** ${refreshedEvs.spAttack}/252 ${createEVBar(refreshedEvs.spAttack)}\n` +
-                         `**Sp. Defense:** ${refreshedEvs.spDefense}/252 ${createEVBar(refreshedEvs.spDefense)}\n` +
-                         `**Speed:** ${refreshedEvs.speed}/252 ${createEVBar(refreshedEvs.speed)}`,
+                  name: '🔋 Effort Values (EVs)',
+                  value: `**Total EVs:** ${Object.values(refreshedEvs).reduce((sum, ev) => sum + ev, 0)}/${maxTotalEVs}\n` +
+                         `**HP:** ${refreshedEvs.hp}/252 ${createProgressBar(refreshedEvs.hp)}\n` +
+                         `**Attack:** ${refreshedEvs.attack}/252 ${createProgressBar(refreshedEvs.attack)}\n` +
+                         `**Defense:** ${refreshedEvs.defense}/252 ${createProgressBar(refreshedEvs.defense)}\n` +
+                         `**Sp. Attack:** ${refreshedEvs.spAttack}/252 ${createProgressBar(refreshedEvs.spAttack)}\n` +
+                         `**Sp. Defense:** ${refreshedEvs.spDefense}/252 ${createProgressBar(refreshedEvs.spDefense)}\n` +
+                         `**Speed:** ${refreshedEvs.speed}/252 ${createProgressBar(refreshedEvs.speed)}`,
                   inline: false
                 });
                 

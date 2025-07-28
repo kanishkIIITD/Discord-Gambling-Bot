@@ -1085,6 +1085,113 @@ router.post('/:discordId/pokemon/sell-duplicates', requireGuildId, async (req, r
   }
 });
 
+// POST /:discordId/pokemon/steal - Superadmin: Steal a random common Pokémon from a user
+router.post('/:discordId/pokemon/steal', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const { pokemonId, isShiny, count, stolenBy } = req.body;
+
+    // Validate required fields
+    if (!pokemonId || typeof isShiny !== 'boolean' || !count || !stolenBy) {
+      return res.status(400).json({ 
+        message: 'Missing required fields: pokemonId, isShiny, count, stolenBy.' 
+      });
+    }
+
+    // Check if the thief is a superadmin
+    const thief = await User.findOne({ discordId: stolenBy, guildId });
+    if (!thief || thief.role !== 'superadmin') {
+      return res.status(403).json({ 
+        message: 'Only superadmins can steal Pokémon.' 
+      });
+    }
+
+    // Check cooldown (1 hour)
+    const now = new Date();
+    const cooldownHours = 1;
+    if (thief.pokestealCooldown && now - new Date(thief.pokestealCooldown) < cooldownHours * 60 * 60 * 1000) {
+      const msLeft = cooldownHours * 60 * 60 * 1000 - (now - new Date(thief.pokestealCooldown));
+      const hours = Math.floor(msLeft / 3600000);
+      const mins = Math.floor((msLeft % 3600000) / 60000);
+      return res.status(429).json({ 
+        message: `You must wait ${hours}h ${mins}m before using pokesteal again.`,
+        cooldown: thief.pokestealCooldown
+      });
+    }
+
+    // Find the target user
+    const target = await User.findOne({ discordId, guildId });
+    if (!target) {
+      return res.status(404).json({ message: 'Target user not found.' });
+    }
+
+    // Find the Pokémon to steal
+    const pokemon = await Pokemon.findOne({ 
+      discordId, 
+      guildId, 
+      pokemonId, 
+      isShiny 
+    });
+
+    if (!pokemon) {
+      return res.status(404).json({ message: 'Pokémon not found in target user\'s collection.' });
+    }
+
+    // Check if the Pokémon is common (using customSpawnRates)
+    const customSpawnRates = require('../utils/customSpawnRates.json');
+    const rarity = customSpawnRates[pokemon.name.toLowerCase()]?.rarity || 'common';
+    
+    if (rarity !== 'common') {
+      return res.status(400).json({ 
+        message: 'Only common Pokémon can be stolen.' 
+      });
+    }
+
+    // Check if user has enough to steal
+    if (pokemon.count < count) {
+      return res.status(400).json({ 
+        message: `Target user only has ${pokemon.count} of this Pokémon, but you tried to steal ${count}.` 
+      });
+    }
+
+    // Update Pokémon count (remove from target)
+    pokemon.count -= count;
+    if (pokemon.count <= 0) {
+      await pokemon.deleteOne();
+    } else {
+      await pokemon.save();
+    }
+
+    // Update cooldown for the thief
+    thief.pokestealCooldown = now;
+    await thief.save();
+
+    // Log the theft for audit purposes
+    console.log(`[Pokemon Steal] Superadmin ${stolenBy} stole ${count}x ${pokemon.name}${isShiny ? ' (shiny)' : ''} from user ${discordId} in guild ${guildId}`);
+
+    // Return success response
+    res.json({
+      success: true,
+      message: `Successfully stole ${count}x ${pokemon.isShiny ? '✨ SHINY ' : ''}${pokemon.name} from the target user.`,
+      stolenPokemon: {
+        name: pokemon.name,
+        pokemonId: pokemon.pokemonId,
+        isShiny: pokemon.isShiny,
+        count: count,
+        rarity: rarity
+      },
+      targetUser: discordId,
+      stolenBy: stolenBy,
+      remainingCount: pokemon.count > 0 ? pokemon.count : 0
+    });
+
+  } catch (error) {
+    console.error('[Pokemon Steal] Error:', error);
+    res.status(500).json({ message: 'Failed to steal Pokémon.' });
+  }
+});
+
 // --- TIMEOUT ENDPOINT ---
 router.post('/:userId/timeout', requireGuildId, async (req, res) => {
   try {

@@ -147,6 +147,8 @@ const userSchema = new mongoose.Schema({
   poke_rare_candy_uses: { type: Number, default: 0 },
   poke_master_ball_uses: { type: Number, default: 0 },
   poke_reset_bag_uses: { type: Number, default: 0 },
+  // Pokémon steal cooldown
+  pokestealCooldown: { type: Date, default: null },
 });
 
 userSchema.index({ discordId: 1, guildId: 1 }, { unique: true });

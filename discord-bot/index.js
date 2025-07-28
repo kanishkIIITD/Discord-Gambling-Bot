@@ -45,6 +45,7 @@ const doubleweekendCommand = require('./commands/doubleweekend');
 const weekendCommand = require('./commands/weekend');
 const pokebattlestatsCommand = require('./commands/pokebattlestats');
 const cancelbattleCommand = require('./commands/cancelbattle');
+const pokestealCommand = require('./commands/pokesteal');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 const pokeCache = require('./utils/pokeCache');
@@ -4539,6 +4540,9 @@ client.on('interactionCreate', async interaction => {
 		await pokebattlestatsCommand.execute(interaction);
 	} else if (commandName === 'cancelbattle') {
 		await cancelbattleCommand.execute(interaction);
+	}
+	else if (commandName === 'pokesteal') {
+		await pokestealCommand.execute(interaction);
 	}
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);

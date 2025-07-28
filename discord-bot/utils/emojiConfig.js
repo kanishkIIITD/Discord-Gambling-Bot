@@ -17,7 +17,16 @@ const EMOJI_CONFIG = {
     calcium: '1399358400395087902',
     zinc: '1399358414399869008',
     carbos: '1399358439620214894',
-    rarecandy: '1399358446842941510'
+    rarecandy: '1399358446842941510',
+    // progress bar emojis
+    empty_lb_right: '1399373731251617895',
+    empty_lb_middle: '1399373723009552534',
+    empty_lb_left: '1399373700192538644',
+    filled_lb_right: '1399373679539912795',
+    filled_lb_middle: '1399373660263026741',
+    filled_lb_left: '1399373645943410739',
+
+    mew_kiss: '1399386180419850302',
   },
   production: {
     // Production bot emoji IDs - UPDATE THESE WITH REAL BOT EMOJI IDs
@@ -32,7 +41,16 @@ const EMOJI_CONFIG = {
     calcium: '1399359267278159903',
     zinc: '1399359279638777937',
     carbos: '1399359290472402994',
-    rarecandy: '1399359304124862545'
+    rarecandy: '1399359304124862545',
+    // progress bar emojis
+    empty_lb_right: '1399376936173699092',
+    empty_lb_middle: '1399376928888066209',
+    empty_lb_left: '1399376921699291247',
+    filled_lb_right: '1399376913545429083',
+    filled_lb_middle: '1399376904712224918',
+    filled_lb_left: '1399376895606521906',
+
+    mew_kiss: '1399386147695890584',
   }
 };
 
