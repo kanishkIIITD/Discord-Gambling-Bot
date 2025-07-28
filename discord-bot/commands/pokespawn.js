@@ -8,6 +8,9 @@ function getDisplayName(pokemonName) {
   if (pokemonName.toLowerCase() === 'rattata') {
     return 'joanatta';
   }
+  else if (pokemonName.toLowerCase() === 'bellsprout') {
+    return 'mohasprout';
+  }
   return pokemonName;
 }
 
