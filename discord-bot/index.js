@@ -4416,6 +4416,9 @@ client.on('interactionCreate', async interaction => {
 	} else if (commandName === 'giveaway') {
 		const giveawayCommand = require('./commands/giveaway');
 		await giveawayCommand.execute(interaction);
+	} else if (commandName === 'giveawaypokemon') {
+		const giveawaypokemonCommand = require('./commands/giveawaypokemon');
+		await giveawaypokemonCommand.execute(interaction);
 	} else if (commandName === 'collection-list') {
 		await collectionListCommand.execute(interaction);
 	} else if (commandName === 'timeout') {

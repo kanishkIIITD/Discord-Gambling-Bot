@@ -1444,6 +1444,115 @@ router.post('/:discordId/quests/reset-daily', requireGuildId, async (req, res) =
   }
 });
 
+// POST /:discordId/pokemon/transfer - Transfer a Pokémon to another user (for giveaways)
+router.post('/:discordId/pokemon/transfer', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const { pokemonDbId, recipientDiscordId, allowLastPokemon = false } = req.body;
+
+    if (!pokemonDbId || !recipientDiscordId) {
+      return res.status(400).json({ message: 'Missing required fields: pokemonDbId, recipientDiscordId.' });
+    }
+
+    // Find the sender's Pokémon
+    const senderPokemon = await Pokemon.findOne({ 
+      _id: pokemonDbId, 
+      discordId, 
+      guildId 
+    });
+
+    if (!senderPokemon) {
+      return res.status(404).json({ message: 'Pokémon not found in your collection.' });
+    }
+
+    // Only check for last Pokémon if allowLastPokemon is false
+    if (!allowLastPokemon && senderPokemon.count <= 1) {
+      return res.status(400).json({ message: 'You cannot transfer your last Pokémon of this type.' });
+    }
+
+    // Find or create recipient user
+    let recipientUser = await User.findOne({ discordId: recipientDiscordId, guildId });
+    if (!recipientUser) {
+      recipientUser = new User({ discordId: recipientDiscordId, guildId, username: recipientDiscordId });
+      await recipientUser.save();
+    }
+
+    // Remove 1 from sender
+    senderPokemon.count -= 1;
+    if (senderPokemon.count <= 0) {
+      await senderPokemon.deleteOne();
+    } else {
+      await senderPokemon.save();
+    }
+
+    // Add 1 to recipient (stack if possible)
+    let recipientPokemon = await Pokemon.findOne({
+      discordId: recipientDiscordId,
+      guildId,
+      pokemonId: senderPokemon.pokemonId,
+      isShiny: senderPokemon.isShiny
+    });
+
+    if (recipientPokemon) {
+      recipientPokemon.count += 1;
+      await recipientPokemon.save();
+    } else {
+      // Create new Pokémon entry for recipient
+      const newPokemon = new Pokemon({
+        user: recipientUser._id,
+        discordId: recipientDiscordId,
+        guildId,
+        pokemonId: senderPokemon.pokemonId,
+        name: senderPokemon.name,
+        isShiny: senderPokemon.isShiny,
+        count: 1,
+        caughtAt: new Date(),
+        ivs: senderPokemon.ivs,
+        evs: senderPokemon.evs,
+        nature: senderPokemon.nature,
+        ability: senderPokemon.ability,
+        status: senderPokemon.status,
+        boosts: senderPokemon.boosts
+      });
+      await newPokemon.save();
+    }
+
+    // Record transaction for sender
+    const senderTransaction = new Transaction({
+      user: await User.findOne({ discordId, guildId }),
+      guildId,
+      type: 'trade_sent',
+      amount: 0,
+      description: `Transferred ${senderPokemon.name}${senderPokemon.isShiny ? ' ✨' : ''} to ${recipientDiscordId} via giveaway`,
+    });
+    await senderTransaction.save();
+
+    // Record transaction for recipient
+    const recipientTransaction = new Transaction({
+      user: recipientUser._id,
+      guildId,
+      type: 'trade_received',
+      amount: 0,
+      description: `Received ${senderPokemon.name}${senderPokemon.isShiny ? ' ✨' : ''} from ${discordId} via giveaway`,
+    });
+    await recipientTransaction.save();
+
+    res.json({ 
+      message: `Successfully transferred ${senderPokemon.name}${senderPokemon.isShiny ? ' ✨' : ''} to ${recipientDiscordId}.`,
+      pokemon: {
+        name: senderPokemon.name,
+        isShiny: senderPokemon.isShiny,
+        pokemonId: senderPokemon.pokemonId
+      }
+    });
+
+  } catch (error) {
+    console.error('[Pokemon Transfer] Error:', error);
+    res.status(500).json({ message: 'Failed to transfer Pokémon.' });
+  }
+});
+
 // POST /:discordId/quests/reset-weekly
 router.post('/:discordId/quests/reset-weekly', requireGuildId, async (req, res) => {
   try {

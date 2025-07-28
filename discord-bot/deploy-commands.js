@@ -256,6 +256,19 @@ const commands = [
 		],
 	},
 	{
+		name: 'giveawaypokemon',
+		description: 'Start a giveaway for a Pokémon from your collection!',
+		options: [
+			{
+				name: 'description',
+				description: 'Optional description for the giveaway',
+				type: ApplicationCommandOptionType.String,
+				required: false,
+				max_length: 200,
+			},
+		],
+	},
+	{
 		name: 'profile',
 		description: 'View your detailed profile, including balance, betting, and gambling stats.',
 		options: [
