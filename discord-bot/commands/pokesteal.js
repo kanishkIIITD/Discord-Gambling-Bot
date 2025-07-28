@@ -14,8 +14,6 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: false });
-    
     const userId = interaction.user.id;
     const guildId = interaction.guildId;
     const targetUser = interaction.options.getUser('target');
@@ -30,7 +28,7 @@ module.exports = {
       const user = userResponse.data.user || userResponse.data;
       
       if (user.role !== 'superadmin') {
-        return interaction.editReply({
+        return interaction.reply({
           content: '❌ You do not have permission to use this command. Only BigDog superadmins can steal Pokémon.',
           ephemeral: true
         });
@@ -44,7 +42,7 @@ module.exports = {
       const targetPokedex = targetResponse.data.pokedex || [];
       
       if (!targetPokedex || targetPokedex.length === 0) {
-        return interaction.editReply({
+        return interaction.reply({
           content: `❌ ${targetUser.username} has no Pokémon to steal.`,
           ephemeral: true
         });
@@ -57,7 +55,7 @@ module.exports = {
       });
 
       if (commonPokemon.length === 0) {
-        return interaction.editReply({
+        return interaction.reply({
           content: `❌ ${targetUser.username} has no common Pokémon to steal.`,
           ephemeral: true
         });
@@ -90,9 +88,13 @@ module.exports = {
           .setFooter({ text: 'Superadmin action logged' })
           .setTimestamp();
 
-        await interaction.editReply({ embeds: [embed], ephemeral: false });
+        await interaction.reply({ 
+          content: `<@${userId}> stole a ${stolenPokemon.isShiny ? '✨ SHINY ' : ''}${stolenPokemon.name.charAt(0).toUpperCase() + stolenPokemon.name.slice(1)} from <@${targetUser.id}>!`,
+          embeds: [embed], 
+          ephemeral: false 
+        });
       } else {
-        await interaction.editReply({
+        await interaction.reply({
           content: `❌ Failed to steal Pokémon: ${stealResponse.data.message || 'Unknown error'}`,
           ephemeral: true
         });
@@ -101,7 +103,7 @@ module.exports = {
     } catch (error) {
       console.error('[Pokesteal] Error:', error);
       const errorMessage = error.response?.data?.message || 'Failed to steal Pokémon.';
-      await interaction.editReply({
+      await interaction.reply({
         content: `❌ ${errorMessage}`,
         ephemeral: true
       });
