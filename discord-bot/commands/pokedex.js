@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder } = require('discord.js');
 const axios = require('axios');
 const customSpawnRates = require('../data/customSpawnRates.json');
+const { getEmojiString } = require('../utils/emojiConfig');
 
 // Helper to fetch user preferences
 async function getUserPreferences(userId, guildId, backendUrl) {
@@ -90,7 +91,7 @@ module.exports = {
         } catch {}
         const embed = new EmbedBuilder()
           .setColor(0x3498db)
-          .setTitle(`Pokédex — Page ${pageIdx + 1} of ${totalPages}`)
+          .setTitle(`${getEmojiString('pokeball')} Pokédex — Page ${pageIdx + 1} of ${totalPages}`)
           .setDescription(pageMons.map(mon => {
             const rarityMultipliers = { common: 6, uncommon: 5, rare: 4, legendary: null };
             const rarity = customSpawnRates[mon.name.toLowerCase()]?.rarity || 'common';

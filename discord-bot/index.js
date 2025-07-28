@@ -54,6 +54,7 @@ const { activeSpawns } = require('./commands/pokespawn');
 const { despawnTimers } = require('./utils/pokeAutoSpawner');
 const { spawnCustomPokemonCommand } = require('./commands/pokespawn');
 const customSpawnRates = require('./data/customSpawnRates.json');
+const { getEmojiString } = require('./utils/emojiConfig');
 let betMessageMap = {};
 
 const backendApiUrl = process.env.BACKEND_API_URL;
@@ -4005,7 +4006,7 @@ client.on('interactionCreate', async interaction => {
 			} else if (sub === 'pokemon') {
 				embed = {
 					color: 0x0099ff,
-					title: '🐾 Pokémon Commands',
+					title: `${getEmojiString('pokeball')} Pokémon Commands`,
 					description: 'Catch, collect, and compete with Pokémon in your server! Powered by PokéAPI. More regions coming soon.',
 					fields: [
 						{ name: '🌱 Spawning', value:

@@ -3,6 +3,7 @@ const pokeCache = require('./pokeCache');
 const { activeSpawns } = require('../commands/pokespawn');
 const { EmbedBuilder } = require('discord.js');
 const customSpawnRates = require('../data/customSpawnRates.json');
+const { getEmojiString } = require('./emojiConfig');
 
 // Helper function to get display name for Pokémon
 function getDisplayName(pokemonName) {
@@ -11,6 +12,9 @@ function getDisplayName(pokemonName) {
   }
   else if (pokemonName.toLowerCase() === 'bellsprout') {
     return 'mohasprout';
+  }
+  else if (pokemonName.toLowerCase() === 'koffing') {
+    return 'rezzing';
   }
   return pokemonName;
 }
@@ -80,7 +84,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     }
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
-      .setTitle(`A wild #${dexNum.toString().padStart(3, '0')} ${capitalizeFirst(getDisplayName(pokemonData.name))} appeared!`)
+      .setTitle(`${getEmojiString('pokeball')} A wild #${dexNum.toString().padStart(3, '0')} ${capitalizeFirst(getDisplayName(pokemonData.name))} appeared!`)
       .setImage(artwork)
       .addFields(
         { name: 'Type', value: types, inline: true },
@@ -131,7 +135,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
           const name = capitalizeFirst(getDisplayName(pokemonData.name));
           const goneEmbed = new EmbedBuilder()
             .setColor(0x636e72)
-            .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${name} ran away!`)
+            .setTitle(`${getEmojiString('pokeball')} The wild #${dexNum.toString().padStart(3, '0')} ${name} ran away!`)
             .setDescription(`The wild Pokémon ran away after 1 minute.`)
             .setImage(artwork);
           const msg = await channel.messages.fetch(message.id);

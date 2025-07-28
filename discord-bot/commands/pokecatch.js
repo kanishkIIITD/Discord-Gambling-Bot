@@ -3,6 +3,7 @@ const pokeCache = require('../utils/pokeCache');
 const { activeSpawns } = require('./pokespawn');
 const { manualDespawnTimers } = require('./pokespawn');
 const axios = require('axios');
+const { getEmoji, getEmojiString, getAnimatedEmojiString } = require('../utils/emojiConfig');
 
 const SHINY_ODDS = 1 / 1024;
 
@@ -13,6 +14,9 @@ function getDisplayName(pokemonName) {
   }
   else if (pokemonName.toLowerCase() === 'bellsprout') {
     return 'mohasprout';
+  }
+  else if (pokemonName.toLowerCase() === 'koffing') {
+    return 'rezzing';
   }
   return pokemonName;
 }
@@ -68,12 +72,14 @@ module.exports = {
       .setCustomId('pokecatch_normal')
       .setLabel('Poké Ball')
       .setStyle(ButtonStyle.Primary)
+      .setEmoji(getEmoji('pokeball_normal'))
     );
     if ((user.poke_rareball_uses || 0) > 0) {
       buttons.push(new ButtonBuilder()
         .setCustomId('pokecatch_rare')
         .setLabel(`Rare Ball (${user.poke_rareball_uses})`)
         .setStyle(ButtonStyle.Success)
+        .setEmoji(getEmoji('pokeball_great'))
       );
     }
     if ((user.poke_ultraball_uses || 0) > 0) {
@@ -81,6 +87,7 @@ module.exports = {
         .setCustomId('pokecatch_ultra')
         .setLabel(`Ultra Ball (${user.poke_ultraball_uses})`)
         .setStyle(ButtonStyle.Danger)
+        .setEmoji(getEmoji('pokeball_ultra'))
       );
     }
     const row = new ActionRowBuilder().addComponents(buttons);
@@ -89,7 +96,7 @@ module.exports = {
     const displayName = capitalizeFirst(getDisplayName(pokemonData.name));
     const promptEmbed = new EmbedBuilder()
       .setColor(0x3498db)
-      .setTitle(`A wild ${displayName} appeared!`)
+      .setTitle(`${getEmojiString('pokeball')} A wild ${displayName} appeared!`)
       .setImage(artwork)
       .setDescription('Which Poké Ball would you like to use?');
     await interaction.reply({ embeds: [promptEmbed], components: [row], ephemeral: true });
@@ -146,7 +153,10 @@ module.exports = {
       }
       const embed = new EmbedBuilder()
         .setColor(data.success ? 0x2ecc71 : 0xe74c3c)
-        .setTitle(data.embedData?.title || (data.success ? 'Pokémon Caught!' : 'Catch Failed'))
+        .setTitle(data.success ? 
+          `${getAnimatedEmojiString('pokeball_success')} ${data.embedData?.title || 'Pokémon Caught!'}` : 
+          `${getAnimatedEmojiString('pokeball_shake')} ${data.embedData?.title || 'Catch Failed'}`
+        )
         .setImage(resultArtwork)
         .addFields(
           { name: 'Type', value: types, inline: true },

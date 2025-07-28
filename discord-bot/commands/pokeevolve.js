@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBui
 const axios = require('axios');
 const customSpawnRates = require('../data/customSpawnRates.json');
 const pokeCache = require('../utils/pokeCache');
+const { getEmojiString } = require('../utils/emojiConfig');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -165,7 +166,7 @@ module.exports = {
               // Place shinyMark logic before embed creation
               const shinyMark = evolved && evolved.isShiny ? ' ✨' : '';
               const embed = new EmbedBuilder()
-                .setTitle(`Evolution Successful!${shinyMark}`)
+                .setTitle(`${getEmojiString('pokeball')} Evolution Successful!${shinyMark}`)
                 .setDescription(`<@${interaction.user.id}> evolved their Pokémon!${shinyMark}\nYour Pokémon evolved to the next stage!${shinyMark}\nRing charges left: ${ringCharges}`)
                 .setColor(0x2ecc71);
               if (evolved && evolved.pokemonId) {
@@ -206,7 +207,7 @@ module.exports = {
         // Place shinyMark logic before embed creation
         const shinyMark = evolved && evolved.isShiny ? ' ✨' : '';
         const embed = new EmbedBuilder()
-          .setTitle(`Evolution Successful!${shinyMark}`)
+          .setTitle(`${getEmojiString('pokeball')} Evolution Successful!${shinyMark}`)
           .setDescription(`<@${interaction.user.id}> evolved their Pokémon!${shinyMark}\nYour Pokémon evolved to the next stage!${shinyMark}\nRing charges left: ${ringCharges}`)
           .setColor(0x2ecc71);
         if (evolved && evolved.pokemonId) {

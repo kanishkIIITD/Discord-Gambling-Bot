@@ -251,6 +251,9 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
         else if (pokemonName.toLowerCase() === 'bellsprout') {
           return 'mohasprout';
         }
+        else if (pokemonName.toLowerCase() === 'koffing') {
+          return 'rezzing';
+        }
         return pokemonName;
       }
       function capitalizeFirst(str) {
@@ -285,6 +288,9 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
         }
         else if (pokemonName.toLowerCase() === 'bellsprout') {
           return 'mohasprout';
+        }
+        else if (pokemonName.toLowerCase() === 'koffing') {
+          return 'rezzing';
         }
         return pokemonName;
       }
