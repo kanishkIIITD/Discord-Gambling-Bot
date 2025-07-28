@@ -4,7 +4,7 @@ require('dotenv').config();
 
 // Configuration
 const BATTLE_TIMEOUT_MINUTES = 60; // Battles will be auto-cancelled after 60 minutes
-const CLEANUP_INTERVAL_MINUTES = 5; // Run cleanup every 5 minutes
+const CLEANUP_INTERVAL_MINUTES = 30; // Run cleanup every 30 minutes
 
 async function cleanupStuckBattles() {
   try {

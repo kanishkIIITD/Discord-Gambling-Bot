@@ -243,9 +243,20 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
         newlyUnlocked = newUnlocks.map(i => i.name);
       }
       await user.save();
+      // --- Custom display name logic for embed title ---
+      function getDisplayName(pokemonName) {
+        if (pokemonName.toLowerCase() === 'rattata') {
+          return 'joanatta';
+        }
+        return pokemonName;
+      }
+      function capitalizeFirst(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+      }
+      const displayName = capitalizeFirst(getDisplayName(name));
       embedData.title = isDuplicate
-        ? `You caught another ${isShiny ? '✨ SHINY ' : ''}${name.charAt(0).toUpperCase() + name.slice(1)}!`
-        : `🎉 This is your first ${isShiny ? '✨ SHINY ' : ''}${name.charAt(0).toUpperCase() + name.slice(1)}! Added to your Pokédex!`;
+        ? `You caught another ${isShiny ? '✨ SHINY ' : ''}${displayName}!`
+        : `🎉 This is your first ${isShiny ? '✨ SHINY ' : ''}${displayName}! Added to your Pokédex!`;
       embedData.description = flavorText || (isShiny ? `✨ Incredible! <@${discordId}> caught a shiny Pokémon! ✨` : `Congratulations <@${discordId}>! The wild Pokémon is now yours.`);      
       return res.json({
         success: true,
@@ -264,7 +275,18 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
     } else {
       // Failure: Pokémon broke free
       await user.save(); // Save ball decrement and XP booster decrement if any
-      embedData.title = `Oh no! The #${String(dexNum).padStart(3, '0')} ${name.charAt(0).toUpperCase() + name.slice(1)} broke free!`;
+      // --- Custom display name logic for embed title ---
+      function getDisplayName(pokemonName) {
+        if (pokemonName.toLowerCase() === 'rattata') {
+          return 'joanatta';
+        }
+        return pokemonName;
+      }
+      function capitalizeFirst(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+      }
+      const displayName = capitalizeFirst(getDisplayName(name));
+      embedData.title = `Oh no! The #${String(dexNum).padStart(3, '0')} ${displayName} broke free!`;
       embedData.description = flavorText || `<@${discordId}> Better luck next time!`;
       return res.json({
         success: false,

@@ -4,6 +4,19 @@ const { activeSpawns } = require('../commands/pokespawn');
 const { EmbedBuilder } = require('discord.js');
 const customSpawnRates = require('../data/customSpawnRates.json');
 
+// Helper function to get display name for Pokémon
+function getDisplayName(pokemonName) {
+  if (pokemonName.toLowerCase() === 'rattata') {
+    return 'joanatta';
+  }
+  return pokemonName;
+}
+
+// Helper function to capitalize first letter
+function capitalizeFirst(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 // const SPAWN_INTERVAL = 10 * 60 * 1000; // 10 minutes
 const DESPAWN_TIME = 60 * 1000; // 1 minute
 
@@ -64,7 +77,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     }
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
-      .setTitle(`A wild #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} appeared!`)
+      .setTitle(`A wild #${dexNum.toString().padStart(3, '0')} ${capitalizeFirst(getDisplayName(pokemonData.name))} appeared!`)
       .setImage(artwork)
       .addFields(
         { name: 'Type', value: types, inline: true },
@@ -112,7 +125,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
           const speciesData = await speciesRes.json();
           const dexNum = speciesData.id;
           const artwork = pokemonData.sprites.other['official-artwork'].front_default;
-          const name = pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1);
+          const name = capitalizeFirst(getDisplayName(pokemonData.name));
           const goneEmbed = new EmbedBuilder()
             .setColor(0x636e72)
             .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${name} ran away!`)

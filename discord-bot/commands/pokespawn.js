@@ -3,6 +3,19 @@ const pokeCache = require('../utils/pokeCache');
 const customSpawnRates = require('../data/customSpawnRates.json');
 const axios = require('axios');
 
+// Helper function to get display name for Pokémon
+function getDisplayName(pokemonName) {
+  if (pokemonName.toLowerCase() === 'rattata') {
+    return 'joanatta';
+  }
+  return pokemonName;
+}
+
+// Helper function to capitalize first letter
+function capitalizeFirst(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 // In-memory map: channelId -> { pokemonId, spawnedAt, attempts }
 const activeSpawns = new Map();
 // Manual despawn timers: channelId -> { timeout, messageId }
@@ -81,7 +94,7 @@ module.exports = {
     activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
-      .setTitle(`A wild #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} appeared!`)
+      .setTitle(`A wild #${dexNum.toString().padStart(3, '0')} ${capitalizeFirst(getDisplayName(pokemonData.name))} appeared!`)
       .setImage(artwork)
       .addFields(
         { name: 'Type', value: types, inline: true },
@@ -99,7 +112,7 @@ module.exports = {
         try {
           const goneEmbed = new EmbedBuilder()
             .setColor(0x636e72)
-            .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} ran away!`)
+            .setTitle(`The wild #${dexNum.toString().padStart(3, '0')} ${capitalizeFirst(getDisplayName(pokemonData.name))} ran away!`)
             .setDescription(`The wild Pokémon ran away after 20 seconds.`)
             .setImage(artwork);
           // --- Update: fetch channel and message like auto-spawn ---
