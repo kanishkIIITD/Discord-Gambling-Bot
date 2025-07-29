@@ -21,7 +21,7 @@ const RETRY_CONFIG = {
   maxRetries: 3,
   baseDelay: 1000, // 1 second
   maxDelay: 10000, // 10 seconds
-  timeout: 30000, // 30 seconds
+  timeout: 300000, // 30 seconds
 };
 
 // Circuit breaker configuration

@@ -15,6 +15,9 @@ function getDisplayName(pokemonName) {
   else if (pokemonName.toLowerCase() === 'koffing') {
     return 'rezzing';
   }
+  else if (pokemonName.toLowerCase() === 'drowzee') {
+    return 'thornzee';
+  }
   return pokemonName;
 }
 
