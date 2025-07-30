@@ -364,10 +364,15 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     // Set different cooldowns for EV items
     if (item.includes('_')) {
       // EV items have different cooldowns
-      if (item === 'rare_candy') cooldownHours = 12;
-      else if (item === 'master_ball') cooldownHours = 24; // Effort Candy
+      if (item === 'rare_candy') cooldownHours = 4;
+      else if (item === 'master_ball') cooldownHours = 4; // Effort Candy
       else if (item === 'reset_bag') cooldownHours = 48;
-      else cooldownHours = 6; // Vitamins: 6 hours
+      else cooldownHours = 4; // Vitamins: 4 hours
+    }
+    
+    // Special cooldown for Evolver's Ring (4 hours)
+    if (item === 'evolution') {
+      cooldownHours = 4; // 4 hours
     }
     
     // Special cooldown for Master Poké Ball (7 days)
@@ -619,9 +624,9 @@ router.post('/:discordId/evolve-duplicate', requireGuildId, async (req, res) => 
     const user = await User.findOne({ discordId, guildId });
     if (!user) return res.status(404).json({ message: 'User not found.' });
     if ((user.poke_level || 1) < 20) return res.status(403).json({ message: 'You must be level 20+ to use Evolver\'s Ring.' });
-    // Check ring purchase (within 24h)
-    if (!user.poke_daily_ring_ts || now - user.poke_daily_ring_ts > 24*60*60*1000) {
-      return res.status(403).json({ message: 'You must buy an Evolver\'s Ring from the shop today.' });
+    // Check ring purchase (within 4h)
+    if (!user.poke_daily_ring_ts || now - user.poke_daily_ring_ts > 4*60*60*1000) {
+      return res.status(403).json({ message: 'You must buy an Evolver\'s Ring from the shop within the last 4 hours.' });
     }
     if (!user.poke_ring_charges || user.poke_ring_charges <= 0) {
       return res.status(403).json({ message: 'Your Evolver\'s Ring has no charges left. Buy a new one tomorrow.' });

@@ -80,10 +80,15 @@ module.exports = {
       
       // Set different cooldowns for EV items
       if (item.key.includes('_')) {
-        if (item.key === 'rare_candy') cooldownHours = 12;
-        else if (item.key === 'master_ball') cooldownHours = 24; // Effort Candy
+        if (item.key === 'rare_candy') cooldownHours = 4;
+        else if (item.key === 'master_ball') cooldownHours = 4; // Effort Candy
         else if (item.key === 'reset_bag') cooldownHours = 48;
-        else cooldownHours = 6; // Vitamins: 6 hours
+        else cooldownHours = 4; // Vitamins: 4 hours
+      }
+      
+      // Special cooldown for Evolver's Ring (4 hours)
+      if (item.key === 'evolution') {
+        cooldownHours = 4; // 4 hours
       }
       
       // Special cooldown for Master Poké Ball (7 days)
