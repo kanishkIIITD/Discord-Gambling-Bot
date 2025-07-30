@@ -56,7 +56,7 @@ function getLevelForXp(xp) {
 
 // Shop unlock levels
 const SHOP_UNLOCKS = [
-  { key: 'rare', name: 'Rare Poké Ball', level: 5 },
+  { key: 'rare', name: 'Great Poké Ball', level: 5 },
   { key: 'ultra', name: 'Ultra Poké Ball', level: 10 },
   { key: 'xp', name: 'XP Booster', level: 15 },
   { key: 'evolution', name: "Evolver's Ring", level: 20 },

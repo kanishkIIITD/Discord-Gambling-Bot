@@ -97,12 +97,16 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
     let ballField = null, ballLabel = 'Poké Ball', ballBonus = 1.0;
     if (ballType === 'rare') {
       ballField = 'poke_rareball_uses';
-      ballLabel = 'Rare Poké Ball';
+      ballLabel = 'Great Poké Ball';
       ballBonus = 1.75;
     } else if (ballType === 'ultra') {
       ballField = 'poke_ultraball_uses';
       ballLabel = 'Ultra Poké Ball';
       ballBonus = 2.0;
+    } else if (ballType === 'masterball') {
+      ballField = 'poke_masterball_uses';
+      ballLabel = 'Master Poké Ball';
+      ballBonus = 100.0; // 100% catch rate
     }
     if (ballField) {
       if ((user[ballField] || 0) <= 0) {
@@ -328,7 +332,7 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     const { item } = req.body; // item: 'rare', 'ultra', 'xp', 'evolution'
     const now = new Date();
     const SHOP_ITEMS = {
-      rare: { name: '5x Rare Poké Balls', level: 5, price: 250, cooldownField: 'poke_rareball_ts' },
+      rare: { name: '5x Great Poké Balls', level: 5, price: 250, cooldownField: 'poke_rareball_ts' },
       ultra: { name: '3x Ultra Poké Balls', level: 10, price: 225, cooldownField: 'poke_ultraball_ts' },
       xp: { name: '6x XP Booster', level: 15, price: 100, cooldownField: 'poke_xp_booster_ts' },
       evolution: { name: "Evolver's Ring", level: 20, price: 200, cooldownField: 'poke_daily_ring_ts' },
@@ -340,8 +344,9 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
       zinc: { name: '4x Zinc', level: 25, price: 150, cooldownField: 'poke_zinc_ts' },
       carbos: { name: '4x Carbos', level: 25, price: 150, cooldownField: 'poke_carbos_ts' },
       rare_candy: { name: '3x Rare Candy', level: 30, price: 500, cooldownField: 'poke_rare_candy_ts' },
-      master_ball: { name: '1 Master Ball', level: 35, price: 1000, cooldownField: 'poke_master_ball_ts' },
+      master_ball: { name: '1 Effort Candy', level: 35, price: 1000, cooldownField: 'poke_master_ball_ts' },
       reset_bag: { name: '1 Reset Bag', level: 20, price: 300, cooldownField: 'poke_reset_bag_ts' },
+      masterball: { name: '1 Master Poké Ball', level: 35, price: 5000, cooldownField: 'poke_masterball_ts', cooldownDays: 7 }
     };
     if (!SHOP_ITEMS[item]) {
       return res.status(400).json({ message: 'Invalid shop item.' });
@@ -360,9 +365,14 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
     if (item.includes('_')) {
       // EV items have different cooldowns
       if (item === 'rare_candy') cooldownHours = 12;
-      else if (item === 'master_ball') cooldownHours = 24;
+      else if (item === 'master_ball') cooldownHours = 24; // Effort Candy
       else if (item === 'reset_bag') cooldownHours = 48;
       else cooldownHours = 6; // Vitamins: 6 hours
+    }
+    
+    // Special cooldown for Master Poké Ball (7 days)
+    if (item === 'masterball') {
+      cooldownHours = 24 * 7; // 7 days
     }
     
     if (lastTs && now - lastTs < cooldownHours * 60 * 60 * 1000) {
@@ -403,6 +413,8 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
       user.poke_master_ball_uses = (user.poke_master_ball_uses || 0) + 1;
     } else if (item === 'reset_bag') {
       user.poke_reset_bag_uses = (user.poke_reset_bag_uses || 0) + 1;
+    } else if (item === 'masterball') {
+      user.poke_masterball_uses = (user.poke_masterball_uses || 0) + 1;
     }
     
     await user.save();
@@ -627,9 +639,10 @@ router.post('/:discordId/evolve-duplicate', requireGuildId, async (req, res) => 
     if (!pokemons.length) return res.status(404).json({ message: 'No Pokémon found to evolve.' });
     const spawnInfo = require('../utils/pokeApi').getCustomSpawnInfo ? require('../utils/pokeApi').getCustomSpawnInfo(pokemons[0]?.name) : null;
     const rarity = spawnInfo?.rarity || 'common';
+    const canEvolve = spawnInfo?.canEvolve || false;
     const multiplier = rarityMultipliers[rarity];
-    if (multiplier == null) {
-      return res.status(403).json({ message: 'Legendary Pokémon cannot use duplicate evolution.' });
+    if (!canEvolve) {
+      return res.status(403).json({ message: 'This Pokémon cannot evolve.' });
     }
     // --- Shiny requirement override ---
     const neededDupes = isShiny ? 2 : baseValue * multiplier;
@@ -1146,9 +1159,10 @@ router.post('/:discordId/pokemon/steal', requireGuildId, async (req, res) => {
 
     // Check if the Pokémon is common (using customSpawnRates)
     const customSpawnRates = require('../utils/customSpawnRates.json');
-    const rarity = customSpawnRates[pokemon.name.toLowerCase()]?.rarity || 'common';
+    const pokemonConfig = customSpawnRates[pokemon.name.toLowerCase()];
     
-    if (rarity !== 'common') {
+    // Only allow stealing Pokémon that are explicitly defined as "common" in the config
+    if (!pokemonConfig || pokemonConfig.rarity !== 'common') {
       return res.status(400).json({ 
         message: 'Only common Pokémon can be stolen.' 
       });
@@ -1185,7 +1199,7 @@ router.post('/:discordId/pokemon/steal', requireGuildId, async (req, res) => {
         pokemonId: pokemon.pokemonId,
         isShiny: pokemon.isShiny,
         count: count,
-        rarity: rarity
+        rarity: pokemonConfig.rarity
       },
       targetUser: discordId,
       stolenBy: stolenBy,

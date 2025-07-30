@@ -124,8 +124,9 @@ const userSchema = new mongoose.Schema({
   poke_quest_weekly_last_reset: { type: Date, default: null },
   poke_quest_weekly_claimed: { type: Boolean, default: false },
   poke_ring_charges: { type: Number, default: 0 }, // Evolver's Ring charges
-  poke_rareball_uses: { type: Number, default: 0 }, // Rare Poké Ball uses left
+  poke_rareball_uses: { type: Number, default: 0 }, // Great Poké Ball uses left (renamed from Rare)
   poke_ultraball_uses: { type: Number, default: 0 }, // Ultra Poké Ball uses left
+  poke_masterball_uses: { type: Number, default: 0 }, // Master Poké Ball uses left (new 100% catch rate ball)
   poke_xp_booster_uses: { type: Number, default: 0 }, // XP Booster uses left
   // EV item cooldown timestamps
   poke_hp_up_ts: { type: Date, default: null },
@@ -135,7 +136,8 @@ const userSchema = new mongoose.Schema({
   poke_zinc_ts: { type: Date, default: null },
   poke_carbos_ts: { type: Date, default: null },
   poke_rare_candy_ts: { type: Date, default: null },
-  poke_master_ball_ts: { type: Date, default: null },
+  poke_master_ball_ts: { type: Date, default: null }, // Effort Candy cooldown (renamed from Master Ball)
+  poke_masterball_ts: { type: Date, default: null }, // Master Poké Ball cooldown (new 100% catch rate ball)
   poke_reset_bag_ts: { type: Date, default: null },
   // EV item uses left
   poke_hp_up_uses: { type: Number, default: 0 },
@@ -145,7 +147,8 @@ const userSchema = new mongoose.Schema({
   poke_zinc_uses: { type: Number, default: 0 },
   poke_carbos_uses: { type: Number, default: 0 },
   poke_rare_candy_uses: { type: Number, default: 0 },
-  poke_master_ball_uses: { type: Number, default: 0 },
+  poke_master_ball_uses: { type: Number, default: 0 }, // Effort Candy uses (renamed from Master Ball)
+  poke_masterball_uses: { type: Number, default: 0 }, // Master Poké Ball uses (new 100% catch rate ball)
   poke_reset_bag_uses: { type: Number, default: 0 },
   // Pokémon steal cooldown
   pokestealCooldown: { type: Date, default: null },

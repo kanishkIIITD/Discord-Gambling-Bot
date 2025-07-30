@@ -286,9 +286,9 @@ module.exports = {
           multiRow.addComponents(
             new ButtonBuilder()
               .setCustomId(`ev:master_ball:${pokemonId}:${isShiny}`)
-              .setLabel('Master Ball')
+              .setLabel('Effort Candy')
               .setStyle(ButtonStyle.Success)
-              .setEmoji('🔮')
+              .setEmoji('🍬')
           );
         }
         

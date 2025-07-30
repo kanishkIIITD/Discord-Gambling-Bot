@@ -3,7 +3,7 @@ const axios = require('axios');
 const { getEmoji } = require('../utils/emojiConfig');
 
 const SHOP_ITEMS = [
-  { key: 'rare', name: '5x Rare Poké Balls', emoji: 'pokeball_great', level: 5, price: 250, effect: '1.75x catch rate', cooldownField: 'poke_rareball_ts' },
+  { key: 'rare', name: '5x Great Poké Balls', emoji: 'pokeball_great', level: 5, price: 250, effect: '1.75x catch rate', cooldownField: 'poke_rareball_ts' },
   { key: 'ultra', name: '3x Ultra Poké Balls', emoji: 'pokeball_ultra', level: 10, price: 225, effect: '2x catch rate', cooldownField: 'poke_ultraball_ts' },
   { key: 'xp', name: '6x XP Booster', emoji: null, level: 15, price: 100, effect: '2x XP (1 battle/catch)', cooldownField: 'poke_xp_booster_ts' },
   { key: 'evolution', name: "Evolver's Ring", emoji: null, level: 20, price: 200, effect: 'Evolve with duplicates', cooldownField: 'poke_daily_ring_ts' },
@@ -15,7 +15,8 @@ const SHOP_ITEMS = [
   { key: 'zinc', name: '4x Zinc', emoji: 'zinc', level: 25, price: 150, effect: '+10 Sp. Defense EVs (max 252)', cooldownField: 'poke_zinc_ts' },
   { key: 'carbos', name: '4x Carbos', emoji: 'carbos', level: 25, price: 150, effect: '+10 Speed EVs (max 252)', cooldownField: 'poke_carbos_ts' },
   { key: 'rare_candy', name: '3x Rare Candy', emoji: 'rarecandy', level: 30, price: 500, effect: '+4 EVs to all stats (max 252 each)', cooldownField: 'poke_rare_candy_ts' },
-  { key: 'master_ball', name: '1 Master Ball', emoji: null, level: 35, price: 1000, effect: '+8 EVs to all stats (max 252 each)', cooldownField: 'poke_master_ball_ts' },
+  { key: 'master_ball', name: '1 Effort Candy', emoji: null, level: 35, price: 1000, effect: '+8 EVs to all stats (max 252 each)', cooldownField: 'poke_master_ball_ts' },
+  { key: 'masterball', name: '1 Master Poké Ball', emoji: 'pokeball_master', level: 40, price: 5000, effect: '100% catch rate', cooldownField: 'poke_masterball_ts' },
   { key: 'reset_bag', name: '1 Reset Bag', emoji: null, level: 20, price: 300, effect: 'Reset all EVs to 0', cooldownField: 'poke_reset_bag_ts' },
 ];
 
@@ -80,9 +81,14 @@ module.exports = {
       // Set different cooldowns for EV items
       if (item.key.includes('_')) {
         if (item.key === 'rare_candy') cooldownHours = 12;
-        else if (item.key === 'master_ball') cooldownHours = 24;
+        else if (item.key === 'master_ball') cooldownHours = 24; // Effort Candy
         else if (item.key === 'reset_bag') cooldownHours = 48;
         else cooldownHours = 6; // Vitamins: 6 hours
+      }
+      
+      // Special cooldown for Master Poké Ball (7 days)
+      if (item.key === 'masterball') {
+        cooldownHours = 24 * 7; // 7 days
       }
       
       if (lastTs && now - new Date(lastTs).getTime() < cooldownHours * 60 * 60 * 1000) {

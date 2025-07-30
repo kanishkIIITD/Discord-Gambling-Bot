@@ -3,6 +3,7 @@ const pokeCache = require('../utils/pokeCache');
 const customSpawnRates = require('../data/customSpawnRates.json');
 const axios = require('axios');
 const { getEmojiString } = require('../utils/emojiConfig');
+const { clearAllDespawnTimers, setDespawnTimer } = require('../utils/despawnTimerManager');
 
 // Helper function to get display name for Pokémon
 function getDisplayName(pokemonName) {
@@ -28,8 +29,6 @@ function capitalizeFirst(str) {
 
 // In-memory map: channelId -> { pokemonId, spawnedAt, attempts }
 const activeSpawns = new Map();
-// Manual despawn timers: channelId -> { timeout, messageId }
-const manualDespawnTimers = new Map();
 
 // Custom despawn timers for custom spawns: channelId -> { timeout, messageId }
 const customDespawnTimers = new Map();
@@ -66,12 +65,10 @@ module.exports = {
     }
     pokespawnCooldowns.set(guildId, now);
     const channelId = interaction.channelId;
-    // Before spawning, clear any old manual despawn timer and delete old spawn
-    if (manualDespawnTimers.has(channelId)) {
-      console.log(`[PokeSpawn] Clearing previous manual despawn timer for channel ${channelId} before new spawn.`);
-      clearTimeout(manualDespawnTimers.get(channelId).timeout);
-      manualDespawnTimers.delete(channelId);
-    }
+    
+    // Clear any existing despawn timers before spawning
+    clearAllDespawnTimers(channelId);
+    
     if (activeSpawns.has(channelId)) {
       console.log(`[PokeSpawn] Removing stale spawn for channel ${channelId} before new spawn.`);
       activeSpawns.delete(channelId);
@@ -113,7 +110,8 @@ module.exports = {
       .setDescription(flavorText)
       .setFooter({ text: 'Type /pokecatch to try catching!' });
     const sentMsg = await interaction.reply({ embeds: [embed], fetchReply: true });
-    // Set manual despawn timer
+    
+    // Set manual despawn timer using the shared timer manager
     const DESPAWN_TIME = 60 * 1000; // 1 minute
     const timeout = setTimeout(async () => {
       // If still active, despawn only if messageId matches
@@ -137,16 +135,16 @@ module.exports = {
         activeSpawns.delete(channelId);
         console.log(`[PokeSpawn] Despawn timer fired for channel ${channelId}, but messageId did not match. Fallback: deleted spawn.`);
       }
-      manualDespawnTimers.delete(channelId);
-      console.log(`[PokeSpawn] Cleared manual despawn timer for channel ${channelId}`);
+      // Clear the timer from the shared manager
+      clearAllDespawnTimers(channelId);
     }, DESPAWN_TIME);
-    manualDespawnTimers.set(channelId, { timeout, messageId: sentMsg.id });
-    console.log(`[PokeSpawn] Set manual despawn timer for channel ${channelId}, messageId: ${sentMsg.id}`);
+    
+    // Set the timer using the shared manager
+    setDespawnTimer(channelId, timeout, sentMsg.id, 'manual');
   },
 
   // Export for pokecatch.js to access
   activeSpawns,
-  manualDespawnTimers,
 };
 
 module.exports.spawnCustomPokemonCommand = {

@@ -5,7 +5,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "rattata": {
     "spawn": 28,
@@ -13,7 +14,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "zubat": {
     "spawn": 28,
@@ -21,7 +23,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "magikarp": {
     "spawn": 28,
@@ -29,7 +32,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "caterpie": {
     "spawn": 28,
@@ -37,7 +41,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "weedle": {
     "spawn": 28,
@@ -45,7 +50,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "bellsprout": {
     "spawn": 28,
@@ -53,7 +59,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "oddish": {
     "spawn": 28,
@@ -61,7 +68,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "geodude": {
     "spawn": 28,
@@ -69,7 +77,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "spearow": {
     "spawn": 28,
@@ -77,7 +86,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "paras": {
     "spawn": 28,
@@ -85,7 +95,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "krabby": {
     "spawn": 28,
@@ -93,7 +104,8 @@
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "pikachu": {
     "spawn": 7,
@@ -101,7 +113,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "vulpix": {
     "spawn": 7,
@@ -109,7 +122,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "meowth": {
     "spawn": 7,
@@ -117,7 +131,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "machop": {
     "spawn": 7,
@@ -125,7 +140,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "psyduck": {
     "spawn": 7,
@@ -133,7 +149,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "growlithe": {
     "spawn": 7,
@@ -141,7 +158,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "tentacool": {
     "spawn": 7,
@@ -149,7 +167,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "horsea": {
     "spawn": 7,
@@ -157,7 +176,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "goldeen": {
     "spawn": 7,
@@ -165,7 +185,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "sandshrew": {
     "spawn": 7,
@@ -173,7 +194,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "slowpoke": {
     "spawn": 7,
@@ -181,7 +203,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "gastly": {
     "spawn": 7,
@@ -189,7 +212,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "bulbasaur": {
     "spawn": 2,
@@ -197,7 +221,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "charmander": {
     "spawn": 2,
@@ -205,7 +230,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "squirtle": {
     "spawn": 2,
@@ -213,7 +239,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "ivysaur": {
     "spawn": 2,
@@ -221,7 +248,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "charmeleon": {
     "spawn": 2,
@@ -229,7 +257,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "wartortle": {
     "spawn": 2,
@@ -237,7 +266,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "pidgeotto": {
     "spawn": 2,
@@ -245,7 +275,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "pidgeot": {
     "spawn": 2,
@@ -253,7 +284,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "butterfree": {
     "spawn": 2,
@@ -261,7 +293,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "beedrill": {
     "spawn": 2,
@@ -269,7 +302,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "gloom": {
     "spawn": 2,
@@ -277,7 +311,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "nidorina": {
     "spawn": 2,
@@ -285,7 +320,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "nidorino": {
     "spawn": 2,
@@ -293,7 +329,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "kadabra": {
     "spawn": 2,
@@ -301,7 +338,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "machoke": {
     "spawn": 2,
@@ -309,7 +347,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "haunter": {
     "spawn": 2,
@@ -317,7 +356,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "scyther": {
     "spawn": 2,
@@ -325,7 +365,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "jynx": {
     "spawn": 2,
@@ -333,7 +374,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "electabuzz": {
     "spawn": 2,
@@ -341,7 +383,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "magmar": {
     "spawn": 2,
@@ -349,7 +392,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "lickitung": {
     "spawn": 2,
@@ -357,7 +401,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "porygon": {
     "spawn": 2,
@@ -365,7 +410,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "omanyte": {
     "spawn": 2,
@@ -373,7 +419,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "kabuto": {
     "spawn": 2,
@@ -381,7 +428,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "eevee": {
     "spawn": 2,
@@ -389,7 +437,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "dratini": {
     "spawn": 2,
@@ -397,7 +446,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "dragonair": {
     "spawn": 2,
@@ -405,7 +455,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "onix": {
     "spawn": 2,
@@ -413,7 +464,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "mewtwo": {
     "spawn": 1,
@@ -421,7 +473,8 @@
     "rarity": "legendary",
     "xpYield": 150,
     "dustYield": 150,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "mew": {
     "spawn": 1,
@@ -429,7 +482,8 @@
     "rarity": "legendary",
     "xpYield": 150,
     "dustYield": 150,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "articuno": {
     "spawn": 1,
@@ -437,7 +491,8 @@
     "rarity": "legendary",
     "xpYield": 150,
     "dustYield": 150,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "zapdos": {
     "spawn": 1,
@@ -445,7 +500,8 @@
     "rarity": "legendary",
     "xpYield": 150,
     "dustYield": 150,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "moltres": {
     "spawn": 1,
@@ -453,7 +509,8 @@
     "rarity": "legendary",
     "xpYield": 150,
     "dustYield": 150,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "aerodactyl": {
     "spawn": 2,
@@ -461,7 +518,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "kabutops": {
     "spawn": 2,
@@ -469,7 +527,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "omastar": {
     "spawn": 2,
@@ -477,7 +536,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "dragonite": {
     "spawn": 2,
@@ -485,7 +545,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "venusaur": {
     "spawn": 2,
@@ -493,7 +554,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "charizard": {
     "spawn": 2,
@@ -501,7 +563,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "blastoise": {
     "spawn": 2,
@@ -509,7 +572,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "metapod": {
     "spawn": 6,
@@ -517,7 +581,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "kakuna": {
     "spawn": 6,
@@ -525,7 +590,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "raticate": {
     "spawn": 6,
@@ -533,7 +599,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "fearow": {
     "spawn": 2,
@@ -541,7 +608,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "ekans": {
     "spawn": 6,
@@ -549,7 +617,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "arbok": {
     "spawn": 2,
@@ -557,7 +626,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "raichu": {
     "spawn": 2,
@@ -565,7 +635,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "sandslash": {
     "spawn": 2,
@@ -573,7 +644,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "nidoran-f": {
     "spawn": 6,
@@ -581,7 +653,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "nidoqueen": {
     "spawn": 2,
@@ -589,7 +662,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "nidoran-m": {
     "spawn": 6,
@@ -597,7 +671,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "nidoking": {
     "spawn": 2,
@@ -605,7 +680,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "clefairy": {
     "spawn": 6,
@@ -613,7 +689,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "clefable": {
     "spawn": 2,
@@ -621,7 +698,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "ninetales": {
     "spawn": 2,
@@ -629,7 +707,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "jigglypuff": {
     "spawn": 6,
@@ -637,7 +716,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "wigglytuff": {
     "spawn": 2,
@@ -645,7 +725,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "golbat": {
     "spawn": 2,
@@ -653,7 +734,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "vileplume": {
     "spawn": 2,
@@ -661,7 +743,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "parasect": {
     "spawn": 2,
@@ -669,7 +752,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "venonat": {
     "spawn": 6,
@@ -677,7 +761,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "venomoth": {
     "spawn": 2,
@@ -685,7 +770,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "diglett": {
     "spawn": 6,
@@ -693,7 +779,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "dugtrio": {
     "spawn": 2,
@@ -701,7 +788,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "persian": {
     "spawn": 2,
@@ -709,7 +797,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "golduck": {
     "spawn": 2,
@@ -717,7 +806,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "mankey": {
     "spawn": 6,
@@ -725,7 +815,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "primeape": {
     "spawn": 2,
@@ -733,7 +824,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "arcanine": {
     "spawn": 2,
@@ -741,7 +833,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "poliwag": {
     "spawn": 6,
@@ -749,7 +842,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "poliwhirl": {
     "spawn": 6,
@@ -757,7 +851,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "poliwrath": {
     "spawn": 2,
@@ -765,7 +860,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "abra": {
     "spawn": 6,
@@ -773,7 +869,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "alakazam": {
     "spawn": 2,
@@ -781,7 +878,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "machamp": {
     "spawn": 2,
@@ -789,7 +887,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "weepinbell": {
     "spawn": 6,
@@ -797,7 +896,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "victreebel": {
     "spawn": 2,
@@ -805,7 +905,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "tentacruel": {
     "spawn": 2,
@@ -813,7 +914,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "graveler": {
     "spawn": 6,
@@ -821,7 +923,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "golem": {
     "spawn": 2,
@@ -829,7 +932,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "ponyta": {
     "spawn": 6,
@@ -837,7 +941,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "rapidash": {
     "spawn": 2,
@@ -845,7 +950,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "slowbro": {
     "spawn": 2,
@@ -853,7 +959,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "magnemite": {
     "spawn": 6,
@@ -861,7 +968,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "magneton": {
     "spawn": 2,
@@ -869,7 +977,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "farfetchd": {
     "spawn": 2,
@@ -877,7 +986,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "doduo": {
     "spawn": 6,
@@ -885,7 +995,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "dodrio": {
     "spawn": 2,
@@ -893,7 +1004,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "seel": {
     "spawn": 6,
@@ -901,7 +1013,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "dewgong": {
     "spawn": 2,
@@ -909,7 +1022,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "grimer": {
     "spawn": 6,
@@ -917,7 +1031,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "muk": {
     "spawn": 2,
@@ -925,7 +1040,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "shellder": {
     "spawn": 6,
@@ -933,7 +1049,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "cloyster": {
     "spawn": 2,
@@ -941,7 +1058,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "gengar": {
     "spawn": 2,
@@ -949,7 +1067,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 3
+    "evolutionStage": 3,
+    "canEvolve": false
   },
   "drowzee": {
     "spawn": 6,
@@ -957,7 +1076,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "hypno": {
     "spawn": 2,
@@ -965,7 +1085,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "kingler": {
     "spawn": 2,
@@ -973,7 +1094,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "voltorb": {
     "spawn": 6,
@@ -981,7 +1103,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "electrode": {
     "spawn": 2,
@@ -989,7 +1112,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "exeggcute": {
     "spawn": 6,
@@ -997,7 +1121,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "exeggutor": {
     "spawn": 2,
@@ -1005,7 +1130,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "cubone": {
     "spawn": 6,
@@ -1013,7 +1139,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "marowak": {
     "spawn": 2,
@@ -1021,7 +1148,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "hitmonlee": {
     "spawn": 2,
@@ -1029,7 +1157,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "hitmonchan": {
     "spawn": 2,
@@ -1037,7 +1166,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "koffing": {
     "spawn": 6,
@@ -1045,7 +1175,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "weezing": {
     "spawn": 2,
@@ -1053,7 +1184,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "rhyhorn": {
     "spawn": 6,
@@ -1061,7 +1193,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "rhydon": {
     "spawn": 2,
@@ -1069,7 +1202,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "chansey": {
     "spawn": 2,
@@ -1077,7 +1211,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "tangela": {
     "spawn": 2,
@@ -1085,7 +1220,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "kangaskhan": {
     "spawn": 2,
@@ -1093,7 +1229,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "seadra": {
     "spawn": 2,
@@ -1101,7 +1238,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": true
   },
   "seaking": {
     "spawn": 2,
@@ -1109,7 +1247,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "staryu": {
     "spawn": 6,
@@ -1117,7 +1256,8 @@
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "starmie": {
     "spawn": 2,
@@ -1125,7 +1265,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "mr-mime": {
     "spawn": 2,
@@ -1133,7 +1274,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": true
   },
   "pinsir": {
     "spawn": 2,
@@ -1141,7 +1283,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "tauros": {
     "spawn": 2,
@@ -1149,7 +1292,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "gyarados": {
     "spawn": 2,
@@ -1157,7 +1301,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "lapras": {
     "spawn": 2,
@@ -1165,7 +1310,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "ditto": {
     "spawn": 2,
@@ -1173,7 +1319,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   },
   "vaporeon": {
     "spawn": 2,
@@ -1181,7 +1328,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "jolteon": {
     "spawn": 2,
@@ -1189,7 +1337,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "flareon": {
     "spawn": 2,
@@ -1197,7 +1346,8 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 2
+    "evolutionStage": 2,
+    "canEvolve": false
   },
   "snorlax": {
     "spawn": 2,
@@ -1205,6 +1355,7 @@
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
-    "evolutionStage": 1
+    "evolutionStage": 1,
+    "canEvolve": false
   }
 }

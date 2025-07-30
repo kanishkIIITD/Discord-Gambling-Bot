@@ -4,6 +4,7 @@ const { activeSpawns } = require('../commands/pokespawn');
 const { EmbedBuilder } = require('discord.js');
 const customSpawnRates = require('../data/customSpawnRates.json');
 const { getEmojiString } = require('./emojiConfig');
+const { clearAllDespawnTimers, setDespawnTimer } = require('./despawnTimerManager');
 
 // Helper function to get display name for Pokémon
 function getDisplayName(pokemonName) {
@@ -30,9 +31,6 @@ function capitalizeFirst(str) {
 // const SPAWN_INTERVAL = 10 * 60 * 1000; // 10 minutes
 const DESPAWN_TIME = 60 * 1000; // 1 minute
 
-// Map: channelId -> { timeout, messageId }
-const despawnTimers = new Map();
-
 async function fetchSpawnChannels(backendUrl) {
   try {
     const res = await axios.get(`${backendUrl}/servers/pokechannels`);
@@ -51,6 +49,10 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
       return;
     }
     console.log(`[AutoSpawner] Spawning Pokémon in channel ${channelId} (guild ${guildId})`);
+    
+    // Clear any existing despawn timers before spawning
+    clearAllDespawnTimers(channelId);
+    
     // Fetch channel and log type/permissions
     let channel;
     try {
@@ -117,11 +119,8 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     }
     activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id, attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
     console.log(`[AutoSpawner] activeSpawns after spawn:`, Array.from(activeSpawns.entries()));
-    // Set despawn timer
-    if (despawnTimers.has(channelId)) {
-      console.log(`[AutoSpawner] Clearing previous despawn timer for channel ${channelId}`);
-      clearTimeout(despawnTimers.get(channelId).timeout);
-    }
+    
+    // Set despawn timer using the shared timer manager
     const timeout = setTimeout(async () => {
       // If still active, despawn only if messageId matches
       const spawn = activeSpawns.get(channelId);
@@ -150,11 +149,12 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
       } else {
         console.log(`[AutoSpawner] Despawn timer fired for channel ${channelId}, but messageId did not match. No action taken.`);
       }
-      despawnTimers.delete(channelId);
-      console.log(`[AutoSpawner] Cleared despawn timer for channel ${channelId}`);
+      // Clear the timer from the shared manager
+      clearAllDespawnTimers(channelId);
     }, DESPAWN_TIME);
-    despawnTimers.set(channelId, { timeout, messageId: message.id });
-    console.log(`[AutoSpawner] Set despawn timer for channel ${channelId}, messageId: ${message.id}`);
+    
+    // Set the timer using the shared manager
+    setDespawnTimer(channelId, timeout, message.id, 'auto');
   } catch (err) {
     console.error(`[AutoSpawner] Failed to spawn in ${channelId} (guild ${guildId}):`, err);
   }
@@ -173,11 +173,7 @@ async function startAutoSpawner(client, backendUrl) {
       if (s.pokeSpawnChannelId) {
         console.log(`[AutoSpawner] Considering guild ${s.guildId}, channel ${s.pokeSpawnChannelId}`);
         // Before spawning, clear any old despawn timer and delete old spawn
-        if (despawnTimers.has(s.pokeSpawnChannelId)) {
-          console.log(`[AutoSpawner] Clearing previous despawn timer for channel ${s.pokeSpawnChannelId} before new spawn.`);
-          clearTimeout(despawnTimers.get(s.pokeSpawnChannelId).timeout);
-          despawnTimers.delete(s.pokeSpawnChannelId);
-        }
+        clearAllDespawnTimers(s.pokeSpawnChannelId);
         if (activeSpawns.has(s.pokeSpawnChannelId)) {
           console.log(`[AutoSpawner] Removing stale spawn for channel ${s.pokeSpawnChannelId} before new spawn.`);
           activeSpawns.delete(s.pokeSpawnChannelId);
@@ -194,4 +190,4 @@ async function startAutoSpawner(client, backendUrl) {
   setTimeout(spawnAll, getRandomSpawnInterval());
 }
 
-module.exports = { startAutoSpawner, despawnTimers }; 
+module.exports = { startAutoSpawner }; 

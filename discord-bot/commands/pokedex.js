@@ -95,16 +95,17 @@ module.exports = {
           .setDescription(pageMons.map(mon => {
             const rarityMultipliers = { common: 6, uncommon: 5, rare: 4, legendary: null };
             const rarity = customSpawnRates[mon.name.toLowerCase()]?.rarity || 'common';
+            const canEvolve = customSpawnRates[mon.name.toLowerCase()]?.canEvolve || false;
             const required = mon.isShiny ? 2 : rarityMultipliers[rarity];
             let evoText = '';
-            if (required && required > 0) {
+            if (canEvolve && required && required > 0) {
               const more = Math.max(0, required - (mon.count || 1));
               if (more === 0) {
                 evoText = '(Can be evolved)';
               } else {
                 evoText = `(${more} more to evolve)`;
               }
-            } else if (required === null) {
+            } else if (!canEvolve) {
               evoText = '(Cannot evolve)';
             }
             return `#${mon.pokemonId.toString().padStart(3, '0')} ${mon.name.charAt(0).toUpperCase() + mon.name.slice(1)}${mon.isShiny ? ' ✨' : ''} x${mon.count || 1}${evoText ? ` **${evoText}**` : ''}`;

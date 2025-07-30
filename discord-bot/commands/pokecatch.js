@@ -1,7 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const pokeCache = require('../utils/pokeCache');
 const { activeSpawns } = require('./pokespawn');
-const { manualDespawnTimers } = require('./pokespawn');
 const axios = require('axios');
 const { getEmoji, getEmojiString, getAnimatedEmojiString } = require('../utils/emojiConfig');
 
@@ -80,7 +79,7 @@ module.exports = {
     if ((user.poke_rareball_uses || 0) > 0) {
       buttons.push(new ButtonBuilder()
         .setCustomId('pokecatch_rare')
-        .setLabel(`Rare Ball (${user.poke_rareball_uses})`)
+        .setLabel(`Great Ball (${user.poke_rareball_uses})`)
         .setStyle(ButtonStyle.Success)
         .setEmoji(getEmoji('pokeball_great'))
       );
@@ -91,6 +90,14 @@ module.exports = {
         .setLabel(`Ultra Ball (${user.poke_ultraball_uses})`)
         .setStyle(ButtonStyle.Danger)
         .setEmoji(getEmoji('pokeball_ultra'))
+      );
+    }
+    if ((user.poke_masterball_uses || 0) > 0) {
+      buttons.push(new ButtonBuilder()
+        .setCustomId('pokecatch_masterball')
+        .setLabel(`Master Ball (${user.poke_masterball_uses})`)
+        .setStyle(ButtonStyle.Secondary)
+        .setEmoji(getEmoji('pokeball_master'))
       );
     }
     const row = new ActionRowBuilder().addComponents(buttons);
@@ -122,6 +129,7 @@ module.exports = {
       let ballType = 'normal';
       if (buttonInt.customId === 'pokecatch_rare') ballType = 'rare';
       if (buttonInt.customId === 'pokecatch_ultra') ballType = 'ultra';
+      if (buttonInt.customId === 'pokecatch_masterball') ballType = 'masterball';
       // Random shiny roll (keep in bot for now)
       const isShiny = Math.random() < SHINY_ODDS;
       // Call backend catch endpoint

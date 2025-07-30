@@ -52,7 +52,7 @@ const pokeCache = require('./utils/pokeCache');
 const { startAutoSpawner } = require('./utils/pokeAutoSpawner');
 const { handleTimeoutRemoval } = require('./utils/discordUtils');
 const { activeSpawns } = require('./commands/pokespawn');
-const { despawnTimers } = require('./utils/pokeAutoSpawner');
+const { getAllTimers } = require('./utils/despawnTimerManager');
 const { spawnCustomPokemonCommand } = require('./commands/pokespawn');
 const customSpawnRates = require('./data/customSpawnRates.json');
 const { getEmojiString } = require('./utils/emojiConfig');
@@ -96,11 +96,12 @@ global.activeGiveaways = new Map(); // key: messageId => giveaway data
     } else {
       console.log('[Startup] activeSpawns is empty at startup.');
     }
-    if (typeof despawnTimers !== 'undefined' && despawnTimers.size > 0) {
-      console.warn(`[Startup] despawnTimers is not empty at startup! Clearing ${despawnTimers.size} entries.`);
-      for (const [channelId, timer] of despawnTimers.entries()) {
+    const allTimers = getAllTimers();
+    if (allTimers && allTimers.size > 0) {
+      console.warn(`[Startup] despawnTimers is not empty at startup! Clearing ${allTimers.size} entries.`);
+      for (const [channelId, timer] of allTimers.entries()) {
         clearTimeout(timer.timeout);
-        despawnTimers.delete(channelId);
+        allTimers.delete(channelId);
       }
     } else {
       console.log('[Startup] despawnTimers is empty at startup.');

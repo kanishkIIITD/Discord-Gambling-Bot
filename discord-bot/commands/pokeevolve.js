@@ -46,18 +46,19 @@ module.exports = {
       isShiny
         ? 2
         : baseValue * rarityMultipliers[rarity];
-    // Filter eligible Pokémon (duplicates, not legendary, not final stage, etc.)
+    // Filter eligible Pokémon (duplicates, can evolve, etc.)
     const eligible = pokedex.filter(mon => {
       const pokeName = mon.name.toLowerCase();
       const rarity    = customSpawnRates[pokeName]?.rarity || 'common';
+      const canEvolve = customSpawnRates[pokeName]?.canEvolve || false;
       const multiplier = rarityMultipliers[rarity];
-      if (multiplier == null) return false; // legendary lockout
+      if (!canEvolve) return false; // cannot evolve
     
       const requiredDupes = calcNeededDupes(mon.isShiny, rarity);
       return (mon.count || 1) >= requiredDupes;
     });
     if (eligible.length === 0) {
-      return interaction.editReply('You do not have any eligible duplicate Pokémon to evolve. You need enough duplicates of a non-legendary Pokémon.');
+      return interaction.editReply('You do not have any eligible duplicate Pokémon to evolve. You need enough duplicates of a Pokémon that can evolve.');
     }
     // Build select menu
     const options = eligible.map(mon => ({

@@ -50,8 +50,9 @@ module.exports = {
 
       // Filter for common Pokémon with count > 0
       const commonPokemon = targetPokedex.filter(mon => {
-        const rarity = customSpawnRates[mon.name.toLowerCase()]?.rarity || 'common';
-        return rarity === 'common' && (mon.count || 1) > 0;
+        const pokemonConfig = customSpawnRates[mon.name.toLowerCase()];
+        // Only consider Pokémon that are explicitly defined as "common" in the config
+        return pokemonConfig && pokemonConfig.rarity === 'common' && (mon.count || 1) > 0;
       });
 
       if (commonPokemon.length === 0) {
