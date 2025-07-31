@@ -3,6 +3,7 @@ const pokeCache = require('../utils/pokeCache');
 const { activeSpawns } = require('./pokespawn');
 const axios = require('axios');
 const { getEmoji, getEmojiString, getAnimatedEmojiString } = require('../utils/emojiConfig');
+const customSpawnRates = require('../data/customSpawnRates.json');
 
 const SHINY_ODDS = 1 / 1024;
 
@@ -150,6 +151,28 @@ module.exports = {
       const data = result.data;
       // Calculate attempts left
       const attemptsLeft = 5 - spawn.attempts;
+      // Get evolution stage from customSpawnRates
+      let evolutionStage = null;
+      let evolutionStageText = '';
+      if (customSpawnRates[pokemonData.name]) {
+        evolutionStage = customSpawnRates[pokemonData.name].evolutionStage;
+        if (evolutionStage !== null) {
+          switch (evolutionStage) {
+            case 1:
+              evolutionStageText = 'Basic';
+              break;
+            case 2:
+              evolutionStageText = 'Stage 1';
+              break;
+            case 3:
+              evolutionStageText = 'Stage 2';
+              break;
+            default:
+              evolutionStageText = `Stage ${evolutionStage}`;
+          }
+        }
+      }
+      
       // Build result embed
       const types = pokemonData.types.map(t => t.type.name.charAt(0).toUpperCase() + t.type.name.slice(1)).join(', ');
       const region = 'Kanto';
@@ -177,6 +200,11 @@ module.exports = {
           { name: 'Shiny', value: data.embedData?.isShiny ? 'Yes ✨' : 'No', inline: true }
         )
         .setFooter({ text: 'Gotta catch \'em all!' });
+      
+      // Add evolution stage field if available
+      if (evolutionStageText) {
+        embed.addFields({ name: 'Evolution', value: evolutionStageText, inline: true });
+      }
       // Add extra fields if present
       if (data.xpAward) embed.addFields({ name: 'XP Gained', value: `${data.xpAward}`, inline: true });
       if (data.dustAward) embed.addFields({ name: 'Dust Gained', value: `${data.dustAward}`, inline: true });
