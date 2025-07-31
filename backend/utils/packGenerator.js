@@ -5,15 +5,24 @@ const packTemplates = require('./packTemplates');
 
 // Map logical rarities to all possible API values
 const rarityAliases = {
-  common: ['Common', 'common'],
-  uncommon: ['Uncommon', 'uncommon'],
-  rare: ['Rare', 'Rare Holo', 'Rare Holo Foil', 'Rare Secret', 'rare', 'Rare Holo Rare'],
-  promo: ['Promo', 'Black Star Promo', 'Wizards Black Star Promo', 'PROMO', 'promo'],
-  energy: ['Energy', 'energy'],
+  common: ['Common'],
+  uncommon: ['Uncommon'],
+  rare: [
+    'Rare', 'Rare Holo', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo LV.X', 'Rare Holo Star',
+    'Rare Holo V', 'Rare Holo VMAX', 'Rare Prime', 'Rare Prism Star', 'Rare Rainbow',
+    'Rare Secret', 'Rare Shining', 'Rare Ultra', 'Rare ACE'
+  ],
+  promo: ['Promo', 'LEGEND'],
+  energy: ['Energy'], // Not in rarity list, but keep for logic
+  shiny: [
+    'Rare Shiny', 'Rare Shiny GX', 'Rare Shiny V', 'Rare Shiny VMAX', 'Amazing Rare'
+  ],
+  break: ['Rare BREAK'],
+  reverseHolo: ['Common', 'Uncommon'] // Use any common/uncommon and mark as reverse holo
 };
 
 // Proactively warm cache for all pack sets on cold start
-const popularSets = ['base1', 'base2', 'basep', 'base3', 'base4', 'base5', 'base6'];
+const popularSets = ['base1', 'base2', 'basep', 'base3', 'base4', 'base5', 'base6', 'sm115', 'swsh45', 'xy8', 'swsh35', 'swsh9'];
 let warmed = false;
 
 async function warmSetCache() {
@@ -82,8 +91,12 @@ class PackGenerator {
     for (const slot of template.slots) {
       const slotStart = Date.now();
       for (const [rarity, count] of Object.entries(slot.composition)) {
+        const drawn = await this.drawCardsByRarity(
+          rarity,
+          count * slot.count,
+          packConfig.allowedSets && packConfig.allowedSets.length > 0 ? packConfig.allowedSets : [setId]
+        );
         const rarityStart = Date.now();
-        const drawn = await this.drawCardsByRarity(rarity, count * slot.count, [setId]);
         const rarityDuration = Date.now() - rarityStart;
         console.log(`[PackGenerator][TIMING] drawCardsByRarity(rarity=${rarity}, count=${count * slot.count}) took ${rarityDuration}ms`);
         if (rarity === 'rare') rare.push(...drawn);
@@ -127,12 +140,38 @@ class PackGenerator {
     const cards = [];
     const apiRarities = rarityAliases[logicalRarity] || [logicalRarity];
     for (const setCode of allowedSets) {
+      console.log(`[PackGenerator][DEBUG] Checking setCode=${setCode} for logicalRarity=${logicalRarity}`);
       const preloadStart = Date.now();
       const setCache = await this.preloadSet(setCode);
       const preloadDuration = Date.now() - preloadStart;
+      if (setCache) {
+        const uniqueRarities = [
+          ...new Set(
+            [].concat(
+              setCache.common || [],
+              setCache.uncommon || [],
+              setCache.rare || [],
+              setCache.holoRare || [],
+              setCache.ultraRare || [],
+              setCache.shiny || [],
+              setCache.break || []
+            ).map(card => card.rarity)
+          )
+        ];
+        console.log(`[PackGenerator][DEBUG] setCode=${setCode}, uniqueRarities=${JSON.stringify(uniqueRarities)}`);
+      }
       console.log(`[PackGenerator][TIMING] preloadSet(${setCode}) took ${preloadDuration}ms`);
       if (setCache) {
         let pool = [];
+        if (logicalRarity === 'shiny' && setCache.shiny) {
+          pool = pool.concat(setCache.shiny);
+        }
+        if (logicalRarity === 'break' && setCache.break) {
+          pool = pool.concat(setCache.break);
+        }
+        if (logicalRarity === 'reverseHolo' && setCache.reverseHolo) {
+          pool = pool.concat(setCache.reverseHolo);
+        }
         for (const apiRarity of apiRarities) {
           if (logicalRarity === 'energy') {
             pool = pool.concat(setCache.energy || []);
@@ -165,6 +204,10 @@ class PackGenerator {
         processedCards.forEach((processedCard, idx) => {
           console.log(`[PackGenerator][TIMING] processCardData for card ${selected[idx].name} took (parallelized)`);
         });
+        // If this is a reverseHolo slot, mark the cards as reverse holo
+        if (logicalRarity === 'reverseHolo') {
+          processedCards.forEach(card => { card.isReverseHolo = true; });
+        }
         cards.push(...processedCards);
         if (cards.length >= count) {
           const duration = Date.now() - start;
@@ -207,7 +250,10 @@ class PackGenerator {
         holoRare: [],
         ultraRare: [],
         energy: [],
-        promo: [] // Added promo pool
+        promo: [], // Added promo pool
+        shiny: [], // Added shiny pool
+        break: [], // Added break pool
+        reverseHolo: [] // Added reverse holo pool
       };
       for (const card of allCards) {
         if (card.supertype === 'Energy') {
@@ -222,6 +268,13 @@ class PackGenerator {
           byRarity.holoRare.push(card);
         } else if (card.rarity && card.rarity.includes('Ultra')) {
           byRarity.ultraRare.push(card);
+        } else if (card.rarity && card.rarity.includes('BREAK')) {
+          byRarity.break.push(card);
+        } else if (card.rarity && card.rarity.includes('Reverse Holo')) {
+          byRarity.reverseHolo.push(card);
+        }
+        if (card.rarity && rarityAliases.shiny.includes(card.rarity)) {
+          byRarity.shiny.push(card);
         }
         // Pool promo cards
         if (card.rarity && rarityAliases.promo.includes(card.rarity)) {
@@ -878,7 +931,7 @@ class PackGenerator {
     try {
       console.log(`[PackGenerator] Adding ${cards.length} cards to collection for user ${discordId}`);
       const savedCards = [];
-      const newCardDocs = [];
+      const newCardDocsMap = new Map();
       for (const cardData of cards) {
         try {
           const cardDocument = {
@@ -908,7 +961,22 @@ class PackGenerator {
             packId,
             estimatedValue: cardData.estimatedValue || 10
           };
-          // Check if card already exists (more robust query)
+          // Unique key for aggregation
+          const uniqueKey = [
+            discordId,
+            guildId,
+            cardDocument.cardId,
+            cardDocument.condition,
+            cardDocument.isFoil,
+            cardDocument.isReverseHolo
+          ].join('|');
+          // Check if card already exists in this batch
+          if (newCardDocsMap.has(uniqueKey)) {
+            newCardDocsMap.get(uniqueKey).count += 1;
+          } else {
+            newCardDocsMap.set(uniqueKey, cardDocument);
+          }
+          // Check if card already exists in DB
           const existingCard = await Card.findOne({
             discordId,
             guildId,
@@ -922,19 +990,38 @@ class PackGenerator {
             await existingCard.save();
             savedCards.push(existingCard);
             console.log(`[PackGenerator] Incremented count for existing card: ${cardDocument.name}`);
-          } else {
-            newCardDocs.push(cardDocument);
-            console.log(`[PackGenerator] Prepared new card for batch insert: ${cardDocument.name}`);
+            // Remove from batch if present
+            newCardDocsMap.delete(uniqueKey);
           }
         } catch (err) {
           console.error(`[PackGenerator] Error processing card: ${cardData.name}`, err);
         }
       }
-      // Batch insert new cards
-      if (newCardDocs.length > 0) {
-        const inserted = await Card.insertMany(newCardDocs);
+      // Batch insert new cards (aggregated)
+      const newCardDocs = Array.from(newCardDocsMap.values());
+      const toInsert = [];
+      for (const cardDoc of newCardDocs) {
+        const existingCard = await Card.findOne({
+          discordId,
+          guildId,
+          cardId: cardDoc.cardId,
+          condition: cardDoc.condition,
+          isFoil: cardDoc.isFoil,
+          isReverseHolo: cardDoc.isReverseHolo
+        });
+        if (existingCard) {
+          existingCard.count += cardDoc.count;
+          await existingCard.save();
+          savedCards.push(existingCard);
+          console.log(`[PackGenerator] Incremented count for existing card: ${cardDoc.name} (+${cardDoc.count})`);
+        } else {
+          toInsert.push(cardDoc);
+        }
+      }
+      if (toInsert.length > 0) {
+        const inserted = await Card.insertMany(toInsert);
         savedCards.push(...inserted);
-        newCardDocs.forEach(doc => console.log(`[PackGenerator] Created new card: ${doc.name}`));
+        toInsert.forEach(doc => console.log(`[PackGenerator] Created new card: ${doc.name}`));
       }
       console.log(`[PackGenerator] Successfully processed ${cards.length} cards`);
       return savedCards;

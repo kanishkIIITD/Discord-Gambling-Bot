@@ -10,12 +10,37 @@ const { requireGuildId } = require('../middleware/auth');
 const PackGenerator = require('../utils/packGenerator');
 const packGenerator = new PackGenerator();
 
+// Broad rarity categories → raw API rarities
+const RARITY_CATEGORIES = {
+  common: ["Common"],
+  uncommon: ["Uncommon"],
+  rare: [
+    "Rare", "Black White Rare", "Double Rare", "LEGEND", "ACE SPEC Rare", "Rare ACE", "Rare BREAK", "Rare Prime"
+  ],
+  holo_rare: [
+    "Rare Holo", "Rare Holo EX", "Rare Holo GX", "Rare Holo LV.X", "Rare Holo Star", "Rare Holo V", "Rare Holo VMAX", "Rare Holo VSTAR", "Trainer Gallery Rare Holo"
+  ],
+  ultra_rare: [
+    "Ultra Rare", "Rare Ultra", "Shiny Ultra Rare"
+  ],
+  secret_rare: [
+    "Rare Secret", "Rare Shining", "Rare Shiny", "Rare Shiny GX", "Shiny Rare"
+  ],
+  prism: [
+    "Rare Prism Star", "Radiant Rare", "Illustration Rare", "Special Illustration Rare"
+  ],
+  rainbow: ["Rare Rainbow"],
+  amazing: ["Amazing Rare"],
+  promo: ["Promo", "Classic Collection"],
+  hyper: ["Hyper Rare"]
+};
+
 // GET /users/:discordId/cards - Get user's card collection
 router.get('/users/:discordId/cards', requireGuildId, async (req, res) => {
   try {
     const { discordId } = req.params;
     const guildId = req.headers['x-guild-id'];
-    const { page = 1, limit = 20, rarity, supertype, search } = req.query;
+    const { page = 1, limit = 20, rarity, rarityCategory, supertype, search } = req.query;
 
     // Find user
     const user = await User.findOne({ discordId, guildId });
@@ -25,7 +50,11 @@ router.get('/users/:discordId/cards', requireGuildId, async (req, res) => {
 
     // Build query
     const query = { discordId, guildId };
-    if (rarity) query.rarity = rarity;
+    if (rarityCategory && RARITY_CATEGORIES[rarityCategory]) {
+      query.rarity = { $in: RARITY_CATEGORIES[rarityCategory] };
+    } else if (rarity) {
+      query.rarity = rarity;
+    }
     if (supertype) query.supertype = supertype;
     if (search) {
       query.name = { $regex: search, $options: 'i' };

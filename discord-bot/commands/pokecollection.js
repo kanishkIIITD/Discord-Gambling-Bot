@@ -1,6 +1,112 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const axios = require('axios');
 
+const RARITY_CATEGORIES = {
+  common: [
+    "Common"
+  ],
+
+  uncommon: [
+    "Uncommon"
+  ],
+
+  rare: [
+    "Rare",
+    "Black White Rare",
+    "Double Rare",
+    "LEGEND",
+    "ACE SPEC Rare",
+    "Rare ACE",
+    "Rare BREAK",
+    "Rare Prime"
+  ],
+
+  holo_rare: [
+    "Rare Holo",
+    "Rare Holo EX",
+    "Rare Holo GX",
+    "Rare Holo LV.X",
+    "Rare Holo Star",
+    "Rare Holo V",
+    "Rare Holo VMAX",
+    "Rare Holo VSTAR",
+    "Trainer Gallery Rare Holo"
+  ],
+
+  ultra_rare: [
+    "Ultra Rare",
+    "Rare Ultra",
+    "Shiny Ultra Rare"
+  ],
+
+  secret_rare: [
+    "Rare Secret",
+    "Rare Shining",
+    "Rare Shiny",
+    "Rare Shiny GX",
+    "Shiny Rare"
+  ],
+
+  prism: [
+    "Rare Prism Star",
+    "Radiant Rare",
+    "Illustration Rare",
+    "Special Illustration Rare"
+  ],
+
+  rainbow: [
+    "Rare Rainbow"
+  ],
+
+  amazing: [
+    "Amazing Rare"
+  ],
+
+  promo: [
+    "Promo",
+    "Classic Collection"
+  ],
+
+  hyper: [
+    "Hyper Rare"
+  ]
+};
+
+const rarityChoices = Object.keys(RARITY_CATEGORIES).map(key => ({
+  name: key
+    .split('_')
+    .map(w => w[0].toUpperCase() + w.slice(1))
+    .join(' '),
+  value: key
+}));
+
+const RARITY_EMOJI = {
+  common: '⚪',
+  uncommon: '🟢',
+  rare: '🔵',
+  holo_rare: '🟣',
+  ultra_rare: '🟡',
+  secret_rare: '🌈',
+  prism: '🎴',
+  rainbow: '🌈',
+  amazing: '✨',
+  promo: '🎟️',
+  hyper: '🔥'
+};
+const RARITY_COLOR = {
+  common: 0x95a5a6,
+  uncommon: 0x2ecc71,
+  rare: 0x3498db,
+  holo_rare: 0x9b59b6,
+  ultra_rare: 0xf1c40f,
+  secret_rare: 0x8e44ad,
+  prism: 0xe67e22,
+  rainbow: 0xf39c12,
+  amazing: 0x00cec9,
+  promo: 0xe84393,
+  hyper: 0xd35400
+};
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('pokecollection')
@@ -11,15 +117,10 @@ module.exports = {
         .setRequired(false))
     .addStringOption(option =>
       option.setName('rarity')
-        .setDescription('Filter by card rarity')
+        .setDescription('Filter by category of rarity')
         .setRequired(false)
-        .addChoices(
-          { name: 'Common', value: 'Common' },
-          { name: 'Uncommon', value: 'Uncommon' },
-          { name: 'Rare', value: 'Rare' },
-          { name: 'Rare Holo', value: 'Rare Holo' },
-          { name: 'Ultra Rare', value: 'Ultra Rare' }
-        ))
+        .addChoices(...rarityChoices)
+    )
     .addStringOption(option =>
       option.setName('supertype')
         .setDescription('Filter by card type')
@@ -45,7 +146,7 @@ module.exports = {
       // Build query parameters
       const params = new URLSearchParams();
       if (search) params.append('search', search);
-      if (rarity) params.append('rarity', rarity);
+      if (rarity) params.append('rarityCategory', rarity);
       if (supertype) params.append('supertype', supertype);
 
       // Fetch user's collection
@@ -68,10 +169,13 @@ module.exports = {
       }
 
       // Create main collection embed
+      const cat = rarity || 'all';
+      const emoji = getRarityEmoji(cat);
+      const color = getRarityColor(cat);
       const mainEmbed = new EmbedBuilder()
-        .setTitle('📚 Your Card Collection')
+        .setTitle(`${emoji} Your ${cat !== 'all' ? `${rarityChoices.find(c=>c.value===cat).name} ` : ''}Collection`)
         .setDescription(`Showing ${cards.length} of ${pagination.totalCards} cards`)
-        .setColor(0x3498db)
+        .setColor(color)
         .addFields(
           { name: '📊 Total Cards', value: `${stats.totalCards.toLocaleString()}`, inline: true },
           { name: '🎯 Unique Cards', value: `${stats.uniqueCards.toLocaleString()}`, inline: true },
@@ -430,26 +534,11 @@ async function updateCollectionDisplay(message, data, filterRow, interaction) {
 }
 
 // Helper functions
-function getRarityEmoji(rarity) {
-  const emojis = {
-    'common': '⚪',
-    'uncommon': '🟢',
-    'rare': '🔵',
-    'holo-rare': '🟣',
-    'ultra-rare': '🟡'
-  };
-  return emojis[rarity] || '⚪';
+function getRarityEmoji(category) {
+  return RARITY_EMOJI[category] || '⚪';
 }
-
-function getRarityColor(rarity) {
-  const colors = {
-    'common': 0x95a5a6,
-    'uncommon': 0x2ecc71,
-    'rare': 0x3498db,
-    'holo-rare': 0x9b59b6,
-    'ultra-rare': 0xf1c40f
-  };
-  return colors[rarity] || 0x95a5a6;
+function getRarityColor(category) {
+  return RARITY_COLOR[category] || 0x3498db;
 }
 
 function getSupertypeEmoji(supertype) {

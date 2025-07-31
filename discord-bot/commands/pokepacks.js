@@ -58,7 +58,7 @@ module.exports = {
             { name: '📦 Cards', value: `${pack.cardCount} cards per pack`, inline: true },
             // { name: '📊 Rarity', value: formatRarityDistribution(pack.rarityDistribution), inline: false },
             { name: '🎯 Guarantees', value: formatGuarantees(pack), inline: false },
-            { name: '✅ Status', value: statusEmoji, inline: false }
+            // { name: '✅ Status', value: statusEmoji, inline: false }
           );
 
         if (pack.imageUrl) {
@@ -97,7 +97,10 @@ module.exports = {
       const selectRow = new ActionRowBuilder().addComponents(selectMenu);
 
       // Combine all embeds
-      const allEmbeds = [mainEmbed, ...packEmbeds];
+      if (packEmbeds.length > 9) {
+        mainEmbed.addFields({ name: 'Note', value: `Only showing the first 9 packs. Use the select menu to view and purchase any pack.` });
+      }
+      const allEmbeds = [mainEmbed, ...packEmbeds.slice(0, 9)];
       
       const message = await interaction.editReply({
         embeds: allEmbeds,

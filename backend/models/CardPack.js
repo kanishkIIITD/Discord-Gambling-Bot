@@ -313,6 +313,105 @@ cardPackSchema.statics.createDefaultPacks = async function() {
       setLogo: 'https://images.pokemontcg.io/base6/logo.png',
       dailyLimit: 0,
       weeklyLimit: 0
+    },
+    {
+      packId: 'sm115',
+      name: 'Hidden Fates (Shiny Vault)',
+      description: 'Hidden Fates Shiny Vault (2019). 5-card all-foil booster: 3 Commons, 1 Uncommon, 1 Rare (guaranteed Shiny Vault slot).',
+      price: 1200000,
+      cardCount: 5,
+      rarityDistribution: {
+        common: 3,
+        uncommon: 1,
+        rare: 1
+      },
+      packRarity: 'epic',
+      guaranteedHolo: true,
+      foilGuaranteed: true,
+      allowedSets: ['sm115'],
+      releaseDate: '2019-08-23',
+      setLogo: 'https://images.pokemontcg.io/hidden-fates/logo.png',
+      dailyLimit: 0,
+      weeklyLimit: 0
+    },
+    {
+      packId: 'swsh45',
+      name: 'Shining Fates',
+      description: 'Shining Fates (2021). 1 Shiny Vault, 1 Rare/Holo, 1 Energy, 1 Reverse Holo, 6 Commons/Uncommons.',
+      price: 1200000,
+      cardCount: 10,
+      rarityDistribution: {
+        shiny: 1,
+        rare: 1,
+        energy: 1,
+        reverseHolo: 1,
+        common: 6
+      },
+      packRarity: 'epic',
+      guaranteedHolo: true,
+      allowedSets: ['swsh45'],
+      releaseDate: '2021-02-19',
+      setLogo: 'https://images.pokemontcg.io/swsh45/logo.png',
+      dailyLimit: 0,
+      weeklyLimit: 0
+    },
+    {
+      packId: 'xy8',
+      name: 'BREAKthrough',
+      description: 'BREAKthrough (2015). 1 BREAK, 3 Uncommons, 6 Commons.',
+      price: 900000,
+      cardCount: 10,
+      rarityDistribution: {
+        break: 1,
+        uncommon: 3,
+        common: 6
+      },
+      packRarity: 'rare',
+      guaranteedHolo: false,
+      allowedSets: ['xy8'],
+      releaseDate: '2015-11-04',
+      setLogo: 'https://images.pokemontcg.io/xy8/logo.png',
+      dailyLimit: 0,
+      weeklyLimit: 0
+    },
+    {
+      packId: 'swsh35',
+      name: "Champion's Path",
+      description: "Champion's Path (2020). 1 Holo or better, 3 Uncommons, 6 Commons.",
+      price: 1000000,
+      cardCount: 10,
+      rarityDistribution: {
+        rare: 1,
+        uncommon: 3,
+        common: 6
+      },
+      packRarity: 'epic',
+      guaranteedHolo: true,
+      allowedSets: ['swsh35'],
+      releaseDate: '2020-09-25',
+      setLogo: 'https://images.pokemontcg.io/swsh35/logo.png',
+      dailyLimit: 0,
+      weeklyLimit: 0
+    },
+    {
+      packId: 'swsh9',
+      name: 'Brilliant Stars',
+      description: 'Brilliant Stars (2022). 1 Rare/Holo/Ultra/ACE, 1 Reverse Holo/Trainer Gallery, 3 Uncommons, 5 Commons.',
+      price: 1100000,
+      cardCount: 10,
+      rarityDistribution: {
+        rare: 1,
+        reverseHolo: 1,
+        uncommon: 3,
+        common: 5
+      },
+      packRarity: 'epic',
+      guaranteedHolo: true,
+      allowedSets: ['swsh9'],
+      releaseDate: '2022-02-25',
+      setLogo: 'https://images.pokemontcg.io/swsh9/logo.png',
+      dailyLimit: 0,
+      weeklyLimit: 0
     }
   ];
 
