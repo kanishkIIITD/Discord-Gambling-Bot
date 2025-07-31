@@ -2,8 +2,9 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const axios = require('axios');
 const customSpawnRates = require('../data/customSpawnRates.json');
 const pokeCache = require('../utils/pokeCache');
+const { getPreviousGenInfo } = require('../config/generationConfig');
 
-// Group Pokémon by rarity
+// Group Pokémon by rarity (Gen 1 only)
 const pokemonByRarity = {
   common: [],
   uncommon: [],
@@ -11,9 +12,10 @@ const pokemonByRarity = {
   legendary: []
 };
 
-// Populate the rarity groups
+// Populate the rarity groups with only Gen 1 Pokémon (IDs 1-151)
 Object.entries(customSpawnRates).forEach(([name, data]) => {
-  if (pokemonByRarity[data.rarity]) {
+  // Only include Gen 1 Pokémon (IDs 1-151)
+  if (data.gen === 1 && pokemonByRarity[data.rarity]) {
     pokemonByRarity[data.rarity].push({ name, ...data });
   }
 });
@@ -81,7 +83,7 @@ function getRarityEmoji(rarity) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('pokeshopdaily')
-    .setDescription('View today\'s rotating Pokémon shop featuring Pokémon from different rarities!'),
+    .setDescription('View today\'s rotating Gen 1 Pokémon shop featuring Pokémon from different rarities!'),
 
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
@@ -135,8 +137,8 @@ module.exports = {
 
     // Build main shop embed
     const mainEmbed = new EmbedBuilder()
-      .setTitle('🛒 Daily Pokémon Shop')
-      .setDescription(`Today's rotating Pokémon selection!`)
+      .setTitle('🛒 Daily Gen 1 Pokémon Shop')
+      .setDescription(`Today's rotating Gen 1 Pokémon selection!`)
       .setColor(0x3498db)
       .addFields(
         { name: 'Your Stardust', value: String(user.poke_stardust || 0), inline: true },

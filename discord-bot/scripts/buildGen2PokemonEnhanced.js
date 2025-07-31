@@ -113,11 +113,11 @@ function determineSpawnRate(rarity) {
 function determineCatchRate(baseCatchRate, rarity) {
   // Adjust catch rate based on rarity
   switch (rarity) {
-    case 'legendary': return Math.max(0.01, baseCatchRate / 100);
-    case 'rare': return Math.max(0.07, baseCatchRate / 100);
-    case 'uncommon': return Math.max(0.18, baseCatchRate / 100);
-    case 'common': return Math.max(0.29, baseCatchRate / 100);
-    default: return Math.max(0.29, baseCatchRate / 100);
+    case 'legendary': return Math.max(0.01, baseCatchRate / 255);
+    case 'rare': return Math.max(0.07, baseCatchRate / 255);
+    case 'uncommon': return Math.max(0.18, baseCatchRate / 255);
+    case 'common': return Math.max(0.29, baseCatchRate / 255);
+    default: return Math.max(0.29, baseCatchRate / 255);
   }
 }
 

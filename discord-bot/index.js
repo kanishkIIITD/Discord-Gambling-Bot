@@ -4038,7 +4038,7 @@ client.on('interactionCreate', async interaction => {
 						},
 						{ name: '🛒 Shops', value:
 							'`/pokeshop` - View and buy special progression items (Poké Balls, XP Booster, Evolver\'s Ring and more)!\n' +
-							'`/pokeshopdaily` - Daily rotating Pokémon shop with common, uncommon, and rare Pokémon (1 per rarity per day)'
+							'`/pokeshopdaily` - Daily rotating previous gen Pokémon shop with common, uncommon, and rare Pokémon (1 per rarity per day)'
 						},
 						{ name: '🎯 Quests & Progression', value:
 							'`/pokequests` - View your Pokémon quests and claim rewards!\n' +
