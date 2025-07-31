@@ -181,8 +181,8 @@ router.post('/users/:discordId/packs/purchase', requireGuildId, async (req, res)
     const { packId, quantity = 1 } = req.body;
 
     // Validate quantity
-    if (quantity < 1 || quantity > 10) {
-      return res.status(400).json({ message: 'Quantity must be between 1 and 10.' });
+    if (quantity < 1 || quantity > 100) {
+      return res.status(400).json({ message: 'Quantity must be between 1 and 100.' });
     }
 
     // Find user

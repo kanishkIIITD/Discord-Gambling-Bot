@@ -6569,6 +6569,47 @@ router.get('/:discordId/battle-stats', requireGuildId, async (req, res) => {
   }
 });
 
+// Get user's Pokémon collection for a specific guild
+router.get('/:userId/pokemon', auth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { guildId } = req.query;
+    
+    // Verify that the authenticated user is requesting their own data
+    if (req.user.discordId !== userId && req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'You can only request your own Pokémon collection.' });
+    }
+    
+    if (!guildId) {
+      return res.status(400).json({ message: 'Guild ID is required' });
+    }
+
+    // Find user's Pokémon in the specified guild
+    const userPokemon = await Pokemon.find({ discordId: userId, guildId }).sort({ pokemonId: 1, caughtAt: 1 });
+
+    // Return individual Pokémon records
+    const pokemonRecords = userPokemon.map(pokemon => ({
+      pokemonId: pokemon.pokemonId,
+      name: pokemon.name,
+      isShiny: pokemon.isShiny,
+      level: pokemon.level,
+      nickname: pokemon.nickname,
+      caughtAt: pokemon.createdAt,
+      _id: pokemon._id
+    }));
+
+    res.json({
+      success: true,
+      pokemon: pokemonRecords,
+      totalPokemon: userPokemon.length,
+      uniquePokemon: new Set(userPokemon.map(p => p.pokemonId)).size
+    });
+  } catch (error) {
+    console.error('Error fetching user Pokémon collection:', error);
+    res.status(500).json({ message: 'Failed to fetch Pokémon collection' });
+  }
+});
+
 function randomNature() {
   const natures = [
     'hardy','lonely','brave','adamant','naughty','bold','docile','relaxed','impish','lax',

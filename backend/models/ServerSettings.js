@@ -19,7 +19,9 @@ const serverSettingsSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
-    pokeSpawnChannelId: { type: String, default: null }
+    pokeSpawnChannelId: { type: String, default: null },
+    currentGenSpawnChannelId: { type: String, default: null },
+    prevGenSpawnChannelId: { type: String, default: null }
 });
 
 // Update the updatedAt timestamp before saving

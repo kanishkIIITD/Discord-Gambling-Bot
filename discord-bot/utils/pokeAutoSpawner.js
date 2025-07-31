@@ -5,6 +5,7 @@ const { EmbedBuilder } = require('discord.js');
 const customSpawnRates = require('../data/customSpawnRates.json');
 const { getEmojiString } = require('./emojiConfig');
 const { clearAllDespawnTimers, setDespawnTimer } = require('./despawnTimerManager');
+const { getCurrentGenInfo, getPreviousGenInfo } = require('../config/generationConfig');
 
 // Helper function to get display name for Pokémon
 function getDisplayName(pokemonName) {
@@ -41,14 +42,14 @@ async function fetchSpawnChannels(backendUrl) {
   }
 }
 
-async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
+async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, generation = null) {
   try {
     // Prevent double spawn in the same channel
     if (activeSpawns.has(channelId)) {
       console.log(`[AutoSpawner] Skipping spawn in channel ${channelId} (guild ${guildId}) because a spawn is already active.`);
       return;
     }
-    console.log(`[AutoSpawner] Spawning Pokémon in channel ${channelId} (guild ${guildId})`);
+    console.log(`[AutoSpawner] Spawning Pokémon in channel ${channelId} (guild ${guildId}) for generation ${generation}`);
     
     // Clear any existing despawn timers before spawning
     clearAllDespawnTimers(channelId);
@@ -69,7 +70,15 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
       console.error(`[AutoSpawner] Failed to fetch channel ${channelId} (guild ${guildId}):`, e);
       return;
     }
-    const pokemonId = pokeCache.getRandomKantoPokemonId();
+    
+    // Determine which generation to spawn based on channel type
+    let targetGeneration = generation;
+    if (!targetGeneration) {
+      // Default to current generation if not specified
+      targetGeneration = getCurrentGenInfo().number;
+    }
+    
+    const pokemonId = pokeCache.getRandomPokemonIdByGeneration(targetGeneration);
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
     const pokemonName = pokemonData.name;
     const fetch = require('node-fetch');
@@ -87,13 +96,17 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
     if (customSpawnRates[pokemonName] && typeof customSpawnRates[pokemonName].catchRate === 'number') {
       catchRateOverride = customSpawnRates[pokemonName].catchRate;
     }
+    
+    // Get region name based on generation
+    const regionName = targetGeneration === 1 ? 'Kanto' : 'Johto';
+    
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
       .setTitle(`${getEmojiString('pokeball')} A wild #${dexNum.toString().padStart(3, '0')} ${capitalizeFirst(getDisplayName(pokemonData.name))} appeared!`)
       .setImage(artwork)
       .addFields(
         { name: 'Type', value: types, inline: true },
-        { name: 'Region', value: 'Kanto', inline: true }
+        { name: 'Region', value: regionName, inline: true }
       )
       .setDescription(flavorText)
       .setFooter({ text: 'Type /pokecatch to try catching!' });
@@ -172,18 +185,35 @@ async function startAutoSpawner(client, backendUrl) {
     const servers = await fetchSpawnChannels(backendUrl);
     console.log(`[AutoSpawner] Fetched ${servers.length} servers with spawn channels.`);
     for (const s of servers) {
-      if (s.pokeSpawnChannelId) {
-        console.log(`[AutoSpawner] Considering guild ${s.guildId}, channel ${s.pokeSpawnChannelId}`);
+      // Spawn current generation Pokémon in current gen channel
+      if (s.currentGenSpawnChannelId) {
+        console.log(`[AutoSpawner] Considering guild ${s.guildId}, Current Gen channel ${s.currentGenSpawnChannelId}`);
         // Before spawning, clear any old despawn timer and delete old spawn
-        clearAllDespawnTimers(s.pokeSpawnChannelId);
-        if (activeSpawns.has(s.pokeSpawnChannelId)) {
-          console.log(`[AutoSpawner] Removing stale spawn for channel ${s.pokeSpawnChannelId} before new spawn.`);
-          activeSpawns.delete(s.pokeSpawnChannelId);
-          console.log(`[AutoSpawner][DELETE] Deleted stale spawn for channel ${s.pokeSpawnChannelId} before new spawn.`);
+        clearAllDespawnTimers(s.currentGenSpawnChannelId);
+        if (activeSpawns.has(s.currentGenSpawnChannelId)) {
+          console.log(`[AutoSpawner] Removing stale spawn for channel ${s.currentGenSpawnChannelId} before new spawn.`);
+          activeSpawns.delete(s.currentGenSpawnChannelId);
+          console.log(`[AutoSpawner][DELETE] Deleted stale spawn for channel ${s.currentGenSpawnChannelId} before new spawn.`);
         }
-        await spawnPokemonInChannel(client, s.guildId, s.pokeSpawnChannelId, backendUrl);
-      } else {
-        console.log(`[AutoSpawner] Guild ${s.guildId} has no spawn channel set, skipping.`);
+        await spawnPokemonInChannel(client, s.guildId, s.currentGenSpawnChannelId, backendUrl, getCurrentGenInfo().number);
+      }
+      
+      // Spawn previous generation Pokémon in previous gen channel
+      if (s.prevGenSpawnChannelId) {
+        console.log(`[AutoSpawner] Considering guild ${s.guildId}, Previous Gen channel ${s.prevGenSpawnChannelId}`);
+        // Before spawning, clear any old despawn timer and delete old spawn
+        clearAllDespawnTimers(s.prevGenSpawnChannelId);
+        if (activeSpawns.has(s.prevGenSpawnChannelId)) {
+          console.log(`[AutoSpawner] Removing stale spawn for channel ${s.prevGenSpawnChannelId} before new spawn.`);
+          activeSpawns.delete(s.prevGenSpawnChannelId);
+          console.log(`[AutoSpawner][DELETE] Deleted stale spawn for channel ${s.prevGenSpawnChannelId} before new spawn.`);
+        }
+        await spawnPokemonInChannel(client, s.guildId, s.prevGenSpawnChannelId, backendUrl, getPreviousGenInfo().number);
+      }
+      
+      // If no channels set, skip
+      if (!s.currentGenSpawnChannelId && !s.prevGenSpawnChannelId) {
+        console.log(`[AutoSpawner] Guild ${s.guildId} has no spawn channels set, skipping.`);
       }
     }
     // Schedule next spawn with random interval

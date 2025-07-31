@@ -4,6 +4,7 @@ const customSpawnRates = require('../data/customSpawnRates.json');
 const axios = require('axios');
 const { getEmojiString } = require('../utils/emojiConfig');
 const { clearAllDespawnTimers, setDespawnTimer } = require('../utils/despawnTimerManager');
+const { getCurrentGenInfo } = require('../config/generationConfig');
 
 // Helper function to get display name for Pokémon
 function getDisplayName(pokemonName) {
@@ -43,13 +44,20 @@ const ALLOWED_DISCORD_ID = '294497956348821505'; // <-- Replace with the allowed
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('pokespawn')
-    .setDescription('Admin: Spawn a wild Kanto Pokémon in this channel!')
+    .setDescription('Admin: Spawn a wild current generation Pokémon in this channel!')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction) {
-    if (!pokeCache.isKantoCacheReady()) {
+    // Check if current generation cache is ready
+    const currentGen = getCurrentGenInfo().number;
+    if (currentGen === 1 && !pokeCache.isKantoCacheReady()) {
       return interaction.reply({
-        content: 'Pokémon data is still loading. Please try again in a few seconds!',
+        content: 'Current generation Pokémon data is still loading. Please try again in a few seconds!',
+        ephemeral: true
+      });
+    } else if (currentGen === 2 && !pokeCache.isGen2CacheReady()) {
+      return interaction.reply({
+        content: 'Current generation Pokémon data is still loading. Please try again in a few seconds!',
         ephemeral: true
       });
     }
@@ -77,7 +85,9 @@ module.exports = {
     if (activeSpawns.has(channelId)) {
       return interaction.reply({ content: 'A wild Pokémon is already present in this channel! Use /pokecatch to try catching it.', ephemeral: true });
     }
-    const pokemonId = pokeCache.getRandomKantoPokemonId();
+    
+    // Spawn current generation Pokémon
+    const pokemonId = pokeCache.getRandomPokemonIdByGeneration(currentGen);
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
     const pokemonName = pokemonData.name;
     // Fetch species for dex number and flavor text
@@ -99,6 +109,10 @@ module.exports = {
     if (customSpawnRates[pokemonName] && typeof customSpawnRates[pokemonName].catchRate === 'number') {
       catchRateOverride = customSpawnRates[pokemonName].catchRate;
     }
+    
+    // Get region name based on current generation
+    const regionName = currentGen === 1 ? 'Kanto' : 'Johto';
+    
     // Create the embed for the spawned Pokémon
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
@@ -106,7 +120,7 @@ module.exports = {
       .setImage(artwork)
       .addFields(
         { name: 'Type', value: types, inline: true },
-        { name: 'Region', value: 'Kanto', inline: true }
+        { name: 'Region', value: regionName, inline: true }
       )
       .setDescription(flavorText)
       .setFooter({ text: 'Type /pokecatch to try catching!' });

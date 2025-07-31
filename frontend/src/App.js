@@ -84,6 +84,9 @@ const ActiveBetsPage = lazyLoad(() => import('./pages/ActiveBetsPage').then(modu
 const MyBetsPage = lazyLoad(() => import('./pages/MyBetsPage').then(module => ({ default: module.default })));
 const BetHistoryPage = lazyLoad(() => import('./pages/BetHistoryPage').then(module => ({ default: module.default })));
 
+// Pokémon components - lazy loaded
+const PokedexPage = lazyLoad(() => import('./pages/PokedexPage').then(module => ({ default: module.default })));
+
 function AppRoutes() {
   useScrollToTop();
 
@@ -147,6 +150,9 @@ function AppRoutes() {
         
         {/* Statistics route */}
         <Route path="statistics" element={<StatisticsDashboard />} />
+        
+        {/* Pokémon routes */}
+        <Route path="pokedex" element={<PokedexPage />} />
         </Route>
       </Route>
     </Routes>

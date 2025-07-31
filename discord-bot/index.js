@@ -86,6 +86,11 @@ global.activeGiveaways = new Map(); // key: messageId => giveaway data
     console.log('[PokéCache] Building Kanto Pokémon cache...');
     await pokeCache.buildKantoCache();
     console.log('[PokéCache] Kanto Pokémon cache ready!');
+    
+    console.log('[PokéCache] Building Gen 2 Pokémon cache...');
+    await pokeCache.buildGen2Cache();
+    console.log('[PokéCache] Gen 2 Pokémon cache ready!');
+    
     // --- Startup cleanup for activeSpawns and despawnTimers ---
     if (activeSpawns && activeSpawns.size > 0) {
       console.warn(`[Startup] activeSpawns is not empty at startup! Clearing ${activeSpawns.size} entries. This may indicate missed despawn(s) or a previous crash.`);
@@ -110,7 +115,7 @@ global.activeGiveaways = new Map(); // key: messageId => giveaway data
     startAutoSpawner(client, backendApiUrl);
     await client.login(process.env.DISCORD_TOKEN);
   } catch (err) {
-    console.error('[PokéCache] Failed to build Kanto cache:', err);
+    console.error('[PokéCache] Failed to build Pokémon cache:', err);
     process.exit(1);
   }
 })();
@@ -4012,8 +4017,8 @@ client.on('interactionCreate', async interaction => {
 					description: 'Catch, collect, and compete with Pokémon in your server! Powered by PokéAPI. More regions coming soon.',
 					fields: [
 						{ name: '🌱 Spawning', value:
-							'`/pokespawn` - (Admin) Manually spawn a wild Pokémon in the current channel with 1 hour cooldown\n' +
-							'`/setpokechannel` - (Admin) Set the channel for automatic Pokémon spawns (every 5-10 min)'
+							'`/pokespawn` - (Admin) Manually spawn a wild current generation Pokémon in the current channel with 1 hour cooldown\n' +
+							'`/setpokechannel` - (Admin) Set the channel for automatic current or previous generation Pokémon spawns (every 5-10 min)'
 						},
 						{ name: '🎣 Catching', value:
 							'`/pokecatch` - Attempt to catch the currently spawned Pokémon in this channel. Shiny Pokémon are extremely rare!'

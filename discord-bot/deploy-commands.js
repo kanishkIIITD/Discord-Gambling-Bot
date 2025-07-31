@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { REST, Routes, ApplicationCommandOptionType } = require('discord.js');
+const { getCurrentGenInfo, getPreviousGenInfo } = require('./config/generationConfig');
 const clientId = process.env.CLIENT_ID;
 const token = process.env.DISCORD_TOKEN;
 const guildId1 = process.env.GUILD_ID_1;
@@ -985,7 +986,7 @@ const commands = [
 	},
 	{
 		name: 'pokespawn',
-		description: 'Admin: Spawn a wild Kanto Pokémon in this channel!',
+		description: 'Admin: Spawn a wild current generation Pokémon in this channel!',
 		defaultMemberPermissions: '0', // Admin only
 	},
 	{
@@ -999,6 +1000,18 @@ const commands = [
 	{
 		name: 'setpokechannel',
 		description: 'Set this channel as the Pokémon spawn channel for your server (admin only).',
+		options: [
+			{
+				name: 'generation',
+				description: 'Which generation of Pokémon to spawn in this channel',
+				type: ApplicationCommandOptionType.String,
+				required: true,
+				choices: [
+					{ name: `Current Generation (${getCurrentGenInfo().description})`, value: 'current' },
+					{ name: `Previous Generation (${getPreviousGenInfo().description})`, value: 'previous' }
+				]
+			}
+		],
 		defaultMemberPermissions: '0',
 	},
 	// {
