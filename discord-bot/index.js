@@ -4024,7 +4024,7 @@ client.on('interactionCreate', async interaction => {
 							'`/pokecatch` - Attempt to catch the currently spawned Pokémon in this channel. Shiny Pokémon are extremely rare!'
 						},
 						{ name: '📖 Pokédex & Stats', value:
-							'`/pokedex` - View your caught Pokémon, including shiny count and stats. Paginated for easy browsing.\n' +
+							'`/pokedex` - View your caught Pokémon, including shiny count and stats. Use gen option to filter by generation. Paginated for easy browsing.\n' +
 							'`/pokestats` - View detailed Pokémon statistics and collection information\n' +
 							'`/pokebattlestats` - View your Pokémon battle statistics and performance\n' +
 							'`/setpokedexpokemon` - Choose which Pokémon (including shiny/normal) is always displayed as the main artwork in your Pokédex.'

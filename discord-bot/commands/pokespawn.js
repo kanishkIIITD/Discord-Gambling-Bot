@@ -106,12 +106,36 @@ module.exports = {
       : `A wild ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} is watching you closely...`;
     // Set catchRateOverride if available in customSpawnRates
     let catchRateOverride;
-    if (customSpawnRates[pokemonName] && typeof customSpawnRates[pokemonName].catchRate === 'number') {
-      catchRateOverride = customSpawnRates[pokemonName].catchRate;
+    let evolutionStage = null;
+    if (customSpawnRates[pokemonName]) {
+      if (typeof customSpawnRates[pokemonName].catchRate === 'number') {
+        catchRateOverride = customSpawnRates[pokemonName].catchRate;
+      }
+      if (customSpawnRates[pokemonName].evolutionStage) {
+        evolutionStage = customSpawnRates[pokemonName].evolutionStage;
+      }
     }
     
     // Get region name based on current generation
     const regionName = currentGen === 1 ? 'Kanto' : 'Johto';
+    
+    // Get evolution stage display text
+    let evolutionStageText = '';
+    if (evolutionStage !== null) {
+      switch (evolutionStage) {
+        case 1:
+          evolutionStageText = 'Basic';
+          break;
+        case 2:
+          evolutionStageText = 'Stage 1';
+          break;
+        case 3:
+          evolutionStageText = 'Stage 2';
+          break;
+        default:
+          evolutionStageText = `Stage ${evolutionStage}`;
+      }
+    }
     
     // Create the embed for the spawned Pokémon
     const embed = new EmbedBuilder()
@@ -124,6 +148,11 @@ module.exports = {
       )
       .setDescription(flavorText)
       .setFooter({ text: 'Type /pokecatch to try catching!' });
+    
+    // Add evolution stage field if available
+    if (evolutionStageText) {
+      embed.addFields({ name: 'Evolution', value: evolutionStageText, inline: true });
+    }
 
     const sentMsg = await interaction.reply({ embeds: [embed], fetchReply: true });
     activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: sentMsg.id, attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });

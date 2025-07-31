@@ -93,12 +93,36 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, gen
       : `A wild ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} is watching you closely...`;
     // Set catchRateOverride if available in customSpawnRates
     let catchRateOverride;
-    if (customSpawnRates[pokemonName] && typeof customSpawnRates[pokemonName].catchRate === 'number') {
-      catchRateOverride = customSpawnRates[pokemonName].catchRate;
+    let evolutionStage = null;
+    if (customSpawnRates[pokemonName]) {
+      if (typeof customSpawnRates[pokemonName].catchRate === 'number') {
+        catchRateOverride = customSpawnRates[pokemonName].catchRate;
+      }
+      if (customSpawnRates[pokemonName].evolutionStage) {
+        evolutionStage = customSpawnRates[pokemonName].evolutionStage;
+      }
     }
     
     // Get region name based on generation
     const regionName = targetGeneration === 1 ? 'Kanto' : 'Johto';
+    
+    // Get evolution stage display text
+    let evolutionStageText = '';
+    if (evolutionStage !== null) {
+      switch (evolutionStage) {
+        case 1:
+          evolutionStageText = 'Basic';
+          break;
+        case 2:
+          evolutionStageText = 'Stage 1';
+          break;
+        case 3:
+          evolutionStageText = 'Stage 2';
+          break;
+        default:
+          evolutionStageText = `Stage ${evolutionStage}`;
+      }
+    }
     
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
@@ -110,6 +134,11 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, gen
       )
       .setDescription(flavorText)
       .setFooter({ text: 'Type /pokecatch to try catching!' });
+    
+    // Add evolution stage field if available
+    if (evolutionStageText) {
+      embed.addFields({ name: 'Evolution', value: evolutionStageText, inline: true });
+    }
     console.log(`[AutoSpawner] Attempting to send spawn message in channel ${channelId} (guild ${guildId})`);
     let message;
     try {
