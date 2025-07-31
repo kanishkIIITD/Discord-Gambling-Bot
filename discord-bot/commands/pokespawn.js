@@ -72,6 +72,7 @@ module.exports = {
     if (activeSpawns.has(channelId)) {
       console.log(`[PokeSpawn] Removing stale spawn for channel ${channelId} before new spawn.`);
       activeSpawns.delete(channelId);
+      console.log(`[PokeSpawn][DELETE] Deleted stale spawn for channel ${channelId} before new spawn.`);
     }
     if (activeSpawns.has(channelId)) {
       return interaction.reply({ content: 'A wild Pokémon is already present in this channel! Use /pokecatch to try catching it.', ephemeral: true });
@@ -98,7 +99,7 @@ module.exports = {
     if (customSpawnRates[pokemonName] && typeof customSpawnRates[pokemonName].catchRate === 'number') {
       catchRateOverride = customSpawnRates[pokemonName].catchRate;
     }
-    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
+    // Create the embed for the spawned Pokémon
     const embed = new EmbedBuilder()
       .setColor(0x3498db)
       .setTitle(`${getEmojiString('pokeball')} A wild #${dexNum.toString().padStart(3, '0')} ${capitalizeFirst(getDisplayName(pokemonData.name))} appeared!`)
@@ -109,13 +110,15 @@ module.exports = {
       )
       .setDescription(flavorText)
       .setFooter({ text: 'Type /pokecatch to try catching!' });
+
     const sentMsg = await interaction.reply({ embeds: [embed], fetchReply: true });
-    
-    // Set manual despawn timer using the shared timer manager
+    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: sentMsg.id, attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
+    console.log(`[PokeSpawn][SPAWN] Created spawn in channel ${channelId}: messageId=${sentMsg.id}, pokemonId=${pokemonId}, spawnedAt=${Date.now()}`);
     const DESPAWN_TIME = 60 * 1000; // 1 minute
     const timeout = setTimeout(async () => {
-      // If still active, despawn only if messageId matches
       const spawn = activeSpawns.get(channelId);
+      console.log(`[PokeSpawn][TIMER] Timer fired for channel ${channelId}. Timer messageId: ${sentMsg.id}, activeSpawns messageId: ${spawn ? spawn.messageId : 'none'}`);
+      // If still active, despawn only if messageId matches
       if (spawn && spawn.messageId === sentMsg.id) {
         try {
           const goneEmbed = new EmbedBuilder()
@@ -129,11 +132,11 @@ module.exports = {
           await msg.edit({ embeds: [goneEmbed] });
         } catch (e) { console.error('[PokeSpawn] Failed to edit despawn message:', e); }
         activeSpawns.delete(channelId);
-        console.log(`[PokeSpawn] Deleted spawn for channel ${channelId} (messageId: ${sentMsg.id}, spawnedAt: ${spawn.spawnedAt})`);
+        console.log(`[PokeSpawn][DELETE] Deleted spawn for channel ${channelId} (messageId: ${sentMsg.id}, spawnedAt: ${spawn.spawnedAt}) [reason: despawn timer fired]`);
       } else {
         // Fallback: always delete the spawn if the timer fires, to prevent stale spawns
         activeSpawns.delete(channelId);
-        console.log(`[PokeSpawn] Despawn timer fired for channel ${channelId}, but messageId did not match. Fallback: deleted spawn.`);
+        console.log(`[PokeSpawn][DELETE] Despawn timer fired for channel ${channelId}, but messageId did not match. Fallback: deleted spawn.`);
       }
       // Clear the timer from the shared manager
       clearAllDespawnTimers(channelId);

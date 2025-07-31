@@ -118,12 +118,14 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
       console.error(`[AutoSpawner] Error fetching message after sending in channel ${channelId}, messageId: ${message.id}:`, e);
     }
     activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id, attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
+    console.log(`[AutoSpawner][SPAWN] Created spawn in channel ${channelId} (guild ${guildId}): messageId=${message.id}, pokemonId=${pokemonId}, spawnedAt=${Date.now()}`);
     console.log(`[AutoSpawner] activeSpawns after spawn:`, Array.from(activeSpawns.entries()));
     
     // Set despawn timer using the shared timer manager
     const timeout = setTimeout(async () => {
       // If still active, despawn only if messageId matches
       const spawn = activeSpawns.get(channelId);
+      console.log(`[AutoSpawner][TIMER] Timer fired for channel ${channelId}. Timer messageId: ${message.id}, activeSpawns messageId: ${spawn ? spawn.messageId : 'none'}`);
       if (spawn && spawn.messageId === message.id) {
         try {
           // Fetch the Pokémon info again for the despawn embed
@@ -145,7 +147,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl) {
           console.log(`[AutoSpawner] Despawned Pokémon in channel ${channelId} (guild ${guildId}), messageId: ${message.id}`);
         } catch (e) { console.error('[AutoSpawner] Failed to edit despawn message:', e); }
         activeSpawns.delete(channelId);
-        console.log(`[AutoSpawner] Deleted spawn for channel ${channelId} (messageId: ${message.id}, spawnedAt: ${spawn.spawnedAt})`);
+        console.log(`[AutoSpawner][DELETE] Deleted spawn for channel ${channelId} (messageId: ${message.id}, spawnedAt: ${spawn.spawnedAt}) [reason: despawn timer fired]`);
       } else {
         console.log(`[AutoSpawner] Despawn timer fired for channel ${channelId}, but messageId did not match. No action taken.`);
       }
@@ -177,6 +179,7 @@ async function startAutoSpawner(client, backendUrl) {
         if (activeSpawns.has(s.pokeSpawnChannelId)) {
           console.log(`[AutoSpawner] Removing stale spawn for channel ${s.pokeSpawnChannelId} before new spawn.`);
           activeSpawns.delete(s.pokeSpawnChannelId);
+          console.log(`[AutoSpawner][DELETE] Deleted stale spawn for channel ${s.pokeSpawnChannelId} before new spawn.`);
         }
         await spawnPokemonInChannel(client, s.guildId, s.pokeSpawnChannelId, backendUrl);
       } else {
