@@ -1601,7 +1601,7 @@
   },
   "sentret": {
     "spawn": 28,
-    "catchRate": 1,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -1621,7 +1621,7 @@
   },
   "hoothoot": {
     "spawn": 28,
-    "catchRate": 1,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -1641,7 +1641,7 @@
   },
   "ledyba": {
     "spawn": 28,
-    "catchRate": 1,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -1661,7 +1661,7 @@
   },
   "spinarak": {
     "spawn": 28,
-    "catchRate": 1,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -1781,7 +1781,7 @@
   },
   "mareep": {
     "spawn": 28,
-    "catchRate": 0.9215686274509803,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -1821,7 +1821,7 @@
   },
   "marill": {
     "spawn": 28,
-    "catchRate": 0.7450980392156863,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -1861,7 +1861,7 @@
   },
   "hoppip": {
     "spawn": 28,
-    "catchRate": 1,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -1901,7 +1901,7 @@
   },
   "sunkern": {
     "spawn": 28,
-    "catchRate": 0.9215686274509803,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -1931,7 +1931,7 @@
   },
   "wooper": {
     "spawn": 28,
-    "catchRate": 1,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -2001,7 +2001,7 @@
   },
   "unown": {
     "spawn": 28,
-    "catchRate": 0.8823529411764706,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -2031,7 +2031,7 @@
   },
   "pineco": {
     "spawn": 28,
-    "catchRate": 0.7450980392156863,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -2051,7 +2051,7 @@
   },
   "dunsparce": {
     "spawn": 6,
-    "catchRate": 0.7450980392156863,
+    "catchRate": 0.5,
     "rarity": "uncommon",
     "xpYield": 35,
     "dustYield": 30,
@@ -2081,7 +2081,7 @@
   },
   "snubbull": {
     "spawn": 28,
-    "catchRate": 0.7450980392156863,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -2121,7 +2121,7 @@
   },
   "shuckle": {
     "spawn": 2,
-    "catchRate": 0.7450980392156863,
+    "catchRate": 0.5,
     "rarity": "rare",
     "xpYield": 60,
     "dustYield": 60,
@@ -2171,7 +2171,7 @@
   },
   "slugma": {
     "spawn": 28,
-    "catchRate": 0.7450980392156863,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -2191,7 +2191,7 @@
   },
   "swinub": {
     "spawn": 28,
-    "catchRate": 0.8823529411764706,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
@@ -2221,7 +2221,7 @@
   },
   "remoraid": {
     "spawn": 28,
-    "catchRate": 0.7450980392156863,
+    "catchRate": 0.5,
     "rarity": "common",
     "xpYield": 20,
     "dustYield": 15,
