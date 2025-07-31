@@ -86,9 +86,9 @@ module.exports = {
         else cooldownHours = 4; // Vitamins: 4 hours
       }
       
-      // Special cooldown for Evolver's Ring (4 hours)
+      // Special cooldown for Evolver's Ring (12 hours)
       if (item.key === 'evolution') {
-        cooldownHours = 4; // 4 hours
+        cooldownHours = 12; // 12 hours
       }
       
       // Special cooldown for Master Poké Ball (7 days)
