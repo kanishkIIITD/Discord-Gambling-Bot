@@ -15,8 +15,34 @@ const auth = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Find user
-    const user = await User.findOne({ _id: decoded.id });
+    // Get guildId from request
+    const guildId = req.body.guildId || req.query.guildId || req.headers['x-guild-id'];
+    
+    // Find user - if guildId is provided, use it for guild-specific context
+    // Otherwise, find the user by _id for basic authentication
+    let user;
+    if (guildId) {
+      // Find user in the specific guild context
+      user = await User.findOne({ discordId: decoded.discordId, guildId: guildId });
+      
+      // If user doesn't exist in this guild, create them with their existing role
+      if (!user) {
+        // Check if user exists in any other guild to preserve their role
+        const existingUser = await User.findOne({ discordId: decoded.discordId });
+        const defaultRole = existingUser ? existingUser.role : 'user';
+        
+        user = new User({
+          discordId: decoded.discordId,
+          guildId: guildId,
+          username: decoded.discordId, // Will be updated later
+          role: defaultRole
+        });
+        await user.save();
+      }
+    } else {
+      // For non-guild-specific requests, find by _id
+      user = await User.findOne({ _id: decoded.id });
+    }
     
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
