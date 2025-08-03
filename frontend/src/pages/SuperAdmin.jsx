@@ -248,6 +248,13 @@ export const SuperAdmin = () => {
       setGiveawayError('Enter a valid amount.');
       return;
     }
+    
+    // Prevent giving points to yourself
+    if (giveawayUser && user && giveawayUser.discordId === user.discordId) {
+      setGiveawayError('You cannot give points to yourself.');
+      return;
+    }
+    
     setGiveawayLoading(true);
     setGiveawayError(null);
     setGiveawaySuccess(null);

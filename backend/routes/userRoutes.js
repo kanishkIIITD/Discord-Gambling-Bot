@@ -624,12 +624,9 @@ router.post('/:discordId/evolve-duplicate', requireGuildId, async (req, res) => 
     const user = await User.findOne({ discordId, guildId });
     if (!user) return res.status(404).json({ message: 'User not found.' });
     if ((user.poke_level || 1) < 20) return res.status(403).json({ message: 'You must be level 20+ to use Evolver\'s Ring.' });
-    // Check ring purchase (within 12h)
-    if (!user.poke_daily_ring_ts || now - user.poke_daily_ring_ts > 12*60*60*1000) {
-      return res.status(403).json({ message: 'You must buy an Evolver\'s Ring from the shop within the last 12 hours.' });
-    }
+    // Check ring charges
     if (!user.poke_ring_charges || user.poke_ring_charges <= 0) {
-      return res.status(403).json({ message: 'Your Evolver\'s Ring has no charges left. Buy a new one tomorrow.' });
+      return res.status(403).json({ message: 'Your Evolver\'s Ring has no charges left. Buy one from the shop!' });
     }
     // --- Evolution requirements ---
     const rarityMultipliers = {
@@ -1186,6 +1183,38 @@ router.post('/:discordId/pokemon/steal', requireGuildId, async (req, res) => {
       await pokemon.deleteOne();
     } else {
       await pokemon.save();
+    }
+
+    // Add the stolen Pokémon to the thief's collection
+    let thiefPokemon = await Pokemon.findOne({
+      discordId: stolenBy,
+      guildId,
+      pokemonId: pokemon.pokemonId,
+      isShiny: pokemon.isShiny
+    });
+
+    if (thiefPokemon) {
+      // Thief already has this Pokémon, increase count
+      thiefPokemon.count += count;
+      await thiefPokemon.save();
+    } else {
+      // Thief doesn't have this Pokémon, create new entry
+      await Pokemon.create({
+        user: thief._id,
+        discordId: stolenBy,
+        guildId,
+        pokemonId: pokemon.pokemonId,
+        name: pokemon.name,
+        isShiny: pokemon.isShiny,
+        count: count,
+        caughtAt: new Date(),
+        ivs: pokemon.ivs,
+        evs: pokemon.evs,
+        nature: pokemon.nature,
+        ability: pokemon.ability,
+        status: pokemon.status,
+        boosts: pokemon.boosts
+      });
     }
 
     // Update cooldown for the thief

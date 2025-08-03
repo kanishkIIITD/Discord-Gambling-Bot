@@ -26,13 +26,11 @@ module.exports = {
     } catch (e) {
       return interaction.editReply('Failed to fetch your user data. Please try again later.');
     }
-    // Check for Evolver's Ring and cooldown
-    const now = Date.now();
-    const ringTs = user.poke_daily_ring_ts;
+    // Check for Evolver's Ring and charges
     const ringCharges = user.poke_ring_charges || 0;
-    const hasRing = !!ringTs && (now - new Date(ringTs).getTime() < 4 * 60 * 60 * 1000);
-    if (!hasRing || ringCharges <= 0) {
-      return interaction.editReply('You do not have an active Evolver\'s Ring or you are out of charges. Buy one from /pokeshop!');
+    
+    if (ringCharges <= 0) {
+      return interaction.editReply('Your Evolver\'s Ring has no charges left. Buy one from /pokeshop!');
     }
     // Rarity-based requirements
     const rarityMultipliers = {
