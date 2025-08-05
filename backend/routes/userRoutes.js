@@ -1758,12 +1758,12 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       let stolenItems = [];
       let stolenAmount = 0;
       let totalValue = 0;
+      let caughtEntireBalance = false;
 
       if (stealType === 'points') {
         // Check for 0.1% chance to steal entire balance
         const catchChance = Math.random();
         let stealPercentage;
-        let caughtEntireBalance = false;
         
         if (catchChance < 0.001) { // 0.1% chance
           stealPercentage = 1.0; // Steal entire balance
@@ -5982,9 +5982,11 @@ router.get('/:discordId/cooldowns', async (req, res) => {
       stealFishCooldown: user.stealFishCooldown || null,
       stealAnimalCooldown: user.stealAnimalCooldown || null,
       stealItemCooldown: user.stealItemCooldown || null,
+      pokestealCooldown: user.pokestealCooldown || null,
       jailedUntil: user.jailedUntil || null,
       lastDailyClaim: wallet ? wallet.lastDailyClaim || null : null,
-      cooldownTime: user.lastTimeoutAt || null
+      cooldownTime: user.lastTimeoutAt || null,
+      role: user.role || 'user',
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching cooldowns.' });

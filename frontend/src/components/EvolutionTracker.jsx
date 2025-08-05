@@ -14,6 +14,36 @@ const EVOLUTION_REQUIREMENTS = {
 
 const SHINY_REQUIREMENT = 2;
 
+// Helper function to determine evolution stage
+const getEvolutionStage = (pokemon, isBase) => {
+  if (isBase) return 'Base';
+  
+  // Check if this Pokémon has evolutions
+  if (pokemon.evolutions && pokemon.evolutions.length > 0) {
+    return 'Stage 1';
+  }
+  
+  // If no evolutions, it's the final stage
+  return 'Final';
+};
+
+// Helper function to get generation color
+const getGenerationColor = (pokemonId) => {
+  const generation = Math.ceil(pokemonId / 151);
+  const colors = {
+    1: '#80BB1D', // Gen 1 - Kanto
+    2: '#CAC02E', // Gen 2 - Johto
+    3: '#67C1AB', // Gen 3 - Hoenn
+    4: '#9072A3', // Gen 4 - Sinnoh
+    5: '#6BAECE', // Gen 5 - Unova
+    6: '#CB0B4F', // Gen 6 - Kalos
+    7: '#DC5A40', // Gen 7 - Alola
+    8: '#AC379E', // Gen 8 - Galar
+    9: '#E19F3E'  // Gen 9 - Paldea
+  };
+  return colors[generation] || '#80BB1D'; // Default to Gen 1 color
+};
+
 const EvolutionTracker = () => {
   const user = useUserStore(state => state.user);
   const theme = useUIStore(state => state.theme);
@@ -292,77 +322,80 @@ const PokemonCard = ({ pokemon, isBase = false }) => {
             e.target.src = '/pokemon-card-backside.png';
           }}
         />
-        {isBase && (
-          <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-            Base
-          </div>
-        )}
+                 <div 
+           className="absolute -top-2 -right-2 text-white text-xs px-2 py-1 rounded-full"
+           style={{ backgroundColor: getGenerationColor(pokemon.id) }}
+         >
+           Gen {Math.ceil(pokemon.id / 151)} • {getEvolutionStage(pokemon, isBase)}
+         </div>
       </div>
 
-      {/* Pokémon Info */}
-      <div className="text-center mb-4">
-        <div className="text-xs text-text-secondary mb-1">
-          #{pokemon.id.toString().padStart(3, '0')}
-        </div>
-        <div className={`font-semibold text-text-primary capitalize ${
-          isBase ? 'text-lg' : 'text-base'
-        }`}>
-          {pokemon.name}
-        </div>
-      </div>
+             {/* Pokémon Info */}
+       <div className="text-center mb-4">
+         <div className="text-xs text-text-secondary mb-1">
+           #{pokemon.id.toString().padStart(3, '0')}
+         </div>
+                   <div className={`font-semibold text-text-primary capitalize ${
+            isBase ? 'text-lg' : 'text-base'
+          }`}>
+            {pokemon.name}
+          </div>
+       </div>
 
-      {/* Evolution Progress */}
-      <div className="space-y-3">
-        {/* Normal Evolution */}
-        <div className="text-center">
-          <div className="text-xs text-text-secondary mb-2 font-medium">
-            Normal Evolution
-          </div>
-          <div className="flex items-center justify-center space-x-2 mb-2">
-            <span className="text-xs text-text-secondary">
-              {pokemon.normalCount}/{pokemon.normalRequired}
-            </span>
-            {pokemon.canEvolveNormal && (
-              <span className="text-green-500 text-xs font-bold">✓</span>
-            )}
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
-            <div 
-              className={`h-2.5 rounded-full transition-all duration-300 ${
-                pokemon.canEvolveNormal 
-                  ? 'bg-green-500' 
-                  : 'bg-blue-500'
-              }`}
-              style={{ width: `${pokemon.normalProgress * 100}%` }}
-            ></div>
-          </div>
-        </div>
+             {/* Evolution Progress - Only show for Pokémon that can evolve */}
+       {getEvolutionStage(pokemon, isBase) !== 'Final' && (
+         <div className="space-y-3">
+           {/* Normal Evolution */}
+           <div className="text-center">
+             <div className="text-xs text-text-secondary mb-2 font-medium">
+               Normal Evolution
+             </div>
+             <div className="flex items-center justify-center space-x-2 mb-2">
+               <span className="text-xs text-text-secondary">
+                 {pokemon.normalCount}/{pokemon.normalRequired}
+               </span>
+               {pokemon.canEvolveNormal && (
+                 <span className="text-green-500 text-xs font-bold">✓</span>
+               )}
+             </div>
+             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+               <div 
+                 className={`h-2.5 rounded-full transition-all duration-300 ${
+                   pokemon.canEvolveNormal 
+                     ? 'bg-green-500' 
+                     : 'bg-blue-500'
+                 }`}
+                 style={{ width: `${pokemon.normalProgress * 100}%` }}
+               ></div>
+             </div>
+           </div>
 
-        {/* Shiny Evolution */}
-        <div className="text-center">
-          <div className="text-xs text-text-secondary mb-2 font-medium">
-            Shiny Evolution ✨
-          </div>
-          <div className="flex items-center justify-center space-x-2 mb-2">
-            <span className="text-xs text-text-secondary">
-              {pokemon.shinyCount}/{pokemon.shinyRequired}
-            </span>
-            {pokemon.canEvolveShiny && (
-              <span className="text-green-500 text-xs font-bold">✓</span>
-            )}
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
-            <div 
-              className={`h-2.5 rounded-full transition-all duration-300 ${
-                pokemon.canEvolveShiny 
-                  ? 'bg-green-500' 
-                  : 'bg-yellow-500'
-              }`}
-              style={{ width: `${pokemon.shinyProgress * 100}%` }}
-            ></div>
-          </div>
-        </div>
-      </div>
+           {/* Shiny Evolution */}
+           <div className="text-center">
+             <div className="text-xs text-text-secondary mb-2 font-medium">
+               Shiny Evolution ✨
+             </div>
+             <div className="flex items-center justify-center space-x-2 mb-2">
+               <span className="text-xs text-text-secondary">
+                 {pokemon.shinyCount}/{pokemon.shinyRequired}
+               </span>
+               {pokemon.canEvolveShiny && (
+                 <span className="text-green-500 text-xs font-bold">✓</span>
+               )}
+             </div>
+             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+               <div 
+                 className={`h-2.5 rounded-full transition-all duration-300 ${
+                   pokemon.canEvolveShiny 
+                     ? 'bg-green-500' 
+                     : 'bg-yellow-500'
+                 }`}
+                 style={{ width: `${pokemon.shinyProgress * 100}%` }}
+               ></div>
+             </div>
+           </div>
+         </div>
+       )}
     </div>
   );
 };

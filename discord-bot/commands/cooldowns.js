@@ -45,6 +45,14 @@ module.exports = {
         return `${minutes}m ${seconds}s`;
       };
 
+      // Helper function to format Pokémon steal cooldown based on role
+      const formatPokemonStealCooldown = () => {
+        if (cooldowns.role !== 'superadmin') {
+          return 'Not Accessible';
+        }
+        return formatCooldown(cooldowns.pokestealCooldown, false, 300);
+      };
+
       // Add fields for each cooldown
       const fields = [
         { name: `${formatCooldown(cooldowns.crimeCooldown)}`, value: '🧙 Crime', inline: false },
@@ -58,7 +66,8 @@ module.exports = {
         { name: `${formatCooldown(cooldowns.stealPointsCooldown, false, 120)}`, value: '🦹 Steal Points', inline: false },
         { name: `${formatCooldown(cooldowns.stealFishCooldown, false, 180)}`, value: '🦹 Steal Fish', inline: false },
         { name: `${formatCooldown(cooldowns.stealAnimalCooldown, false, 180)}`, value: '🦹 Steal Animals', inline: false },
-        { name: `${formatCooldown(cooldowns.stealItemCooldown, false, 240)}`, value: '🦹 Steal Items', inline: false }
+        { name: `${formatCooldown(cooldowns.stealItemCooldown, false, 240)}`, value: '🦹 Steal Items', inline: false },
+        { name: `${formatPokemonStealCooldown()}`, value: '🦹 Steal Pokémon', inline: false },
       ];
 
       // Add jail status if applicable
