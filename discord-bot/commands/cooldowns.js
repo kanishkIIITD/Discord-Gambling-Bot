@@ -50,7 +50,7 @@ module.exports = {
         if (cooldowns.role !== 'superadmin') {
           return 'Not Accessible';
         }
-        return formatCooldown(cooldowns.pokestealCooldown, false, 300);
+        return formatCooldown(cooldowns.pokestealCooldown, false, 60);
       };
 
       // Add fields for each cooldown
