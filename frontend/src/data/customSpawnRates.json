@@ -1652,9 +1652,9 @@
   "ledian": {
     "spawn": 28,
     "catchRate": 0.18294117647058826,
-    "rarity": "common",
-    "xpYield": 20,
-    "dustYield": 15,
+    "rarity": "uncommon",
+    "xpYield": 35,
+    "dustYield": 30,
     "evolutionStage": 2,
     "canEvolve": false,
     "gen": 2
@@ -1792,9 +1792,9 @@
   "flaaffy": {
     "spawn": 28,
     "catchRate": 0.17058823529411764,
-    "rarity": "common",
-    "xpYield": 20,
-    "dustYield": 15,
+    "rarity": "uncommon",
+    "xpYield": 35,
+    "dustYield": 30,
     "evolutionStage": 2,
     "canEvolve": true,
     "gen": 2
@@ -1812,9 +1812,9 @@
   "bellossom": {
     "spawn": 6,
     "catchRate": 0.18,
-    "rarity": "uncommon",
-    "xpYield": 35,
-    "dustYield": 30,
+    "rarity": "rare",
+    "xpYield": 60,
+    "dustYield": 60,
     "evolutionStage": 3,
     "canEvolve": false,
     "gen": 2
@@ -1822,9 +1822,9 @@
   "marill": {
     "spawn": 28,
     "catchRate": 0.35,
-    "rarity": "common",
-    "xpYield": 20,
-    "dustYield": 15,
+    "rarity": "uncommon",
+    "xpYield": 35,
+    "dustYield": 30,
     "evolutionStage": 2,
     "canEvolve": true,
     "gen": 2
@@ -1832,9 +1832,9 @@
   "azumarill": {
     "spawn": 6,
     "catchRate": 0.19411764705882354,
-    "rarity": "uncommon",
-    "xpYield": 35,
-    "dustYield": 30,
+    "rarity": "rare",
+    "xpYield": 60,
+    "dustYield": 60,
     "evolutionStage": 3,
     "canEvolve": false,
     "gen": 2
@@ -1872,9 +1872,9 @@
   "skiploom": {
     "spawn": 28,
     "catchRate": 0.17058823529411764,
-    "rarity": "common",
-    "xpYield": 20,
-    "dustYield": 15,
+    "rarity": "uncommon",
+    "xpYield": 35,
+    "dustYield": 30,
     "evolutionStage": 2,
     "canEvolve": true,
     "gen": 2
@@ -1882,9 +1882,9 @@
   "jumpluff": {
     "spawn": 6,
     "catchRate": 0.08,
-    "rarity": "uncommon",
-    "xpYield": 35,
-    "dustYield": 30,
+    "rarity": "rare",
+    "xpYield": 60,
+    "dustYield": 60,
     "evolutionStage": 3,
     "canEvolve": false,
     "gen": 2

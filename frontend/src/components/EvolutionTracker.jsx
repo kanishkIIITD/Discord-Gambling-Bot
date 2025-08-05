@@ -312,6 +312,14 @@ const PokemonCard = ({ pokemon, isBase = false }) => {
     }`}>
       {/* Pokémon Image */}
       <div className="relative mb-4">
+        {/* Generation and Evolution Stage Label */}
+        <div 
+          className="absolute -top-3 left-1/2 transform -translate-x-1/2 text-white text-xs px-2 py-1 rounded-full shadow-md z-10 text-center min-w-max"
+          style={{ backgroundColor: getGenerationColor(pokemon.id) }}
+        >
+          Gen {Math.ceil(pokemon.id / 151)} • {getEvolutionStage(pokemon, isBase)}
+        </div>
+        
         <img
           src={pokemonService.getImageUrl(pokemon.id, 'official-artwork')}
           alt={pokemon.name}
@@ -322,12 +330,6 @@ const PokemonCard = ({ pokemon, isBase = false }) => {
             e.target.src = '/pokemon-card-backside.png';
           }}
         />
-                 <div 
-           className="absolute -top-2 -right-2 text-white text-xs px-2 py-1 rounded-full"
-           style={{ backgroundColor: getGenerationColor(pokemon.id) }}
-         >
-           Gen {Math.ceil(pokemon.id / 151)} • {getEvolutionStage(pokemon, isBase)}
-         </div>
       </div>
 
              {/* Pokémon Info */}

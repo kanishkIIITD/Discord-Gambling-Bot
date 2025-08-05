@@ -120,8 +120,45 @@ export const Roulette = () => {
   const [pendingSpin, setPendingSpin] = useState(false);
   const [lastBets, setLastBets] = useState({});
   const [showResultModal, setShowResultModal] = useState(false);
+  const [manualBetAmount, setManualBetAmount] = useState('');
 
   const windowSize = useWindowSize();
+
+  // Function to convert amount to chip stack (similar to blackjack)
+  function amountToChipStack(amount) {
+    let remainingAmount = amount;
+    const stack = [];
+    // Use chips in descending order of value
+    const sortedChips = [...CHIP_OPTIONS].sort((a, b) => b.value - a.value);
+
+    for (const chip of sortedChips) {
+      while (remainingAmount >= chip.value) {
+        stack.push(chip.value);
+        remainingAmount -= chip.value;
+      }
+    }
+    return stack;
+  }
+
+  // Handle direct amount input change
+  const handleManualBetAmountChange = (event) => {
+    const value = event.target.value;
+    setManualBetAmount(value);
+    const numValue = parseInt(value, 10);
+
+    if (!isNaN(numValue) && numValue >= 0) {
+      // Play coin sound if chips are added (amount increases)
+      const prevTotal = Object.values(bets).reduce((sum, bet) => sum + (bet.amount || 0), 0);
+      if (numValue > prevTotal) {
+        coinSound.stop();
+        coinSound.play();
+      }
+      // For roulette, we'll use this to set a default chip value for the next bet
+      setSelectedChip(amountToChipStack(numValue)[0] || CHIP_OPTIONS[0].value);
+    } else if (value === '') {
+      setSelectedChip(CHIP_OPTIONS[0].value);
+    }
+  };
 
   // Fetch user preferences on mount
   useEffect(() => {
@@ -155,8 +192,13 @@ export const Roulette = () => {
   const handleBet = useCallback((betData) => {
     const { bet, payload, id } = betData;
     setBets((prev) => {
+      // Use manual bet amount if available, otherwise use selected chip
+      const betAmount = manualBetAmount && !isNaN(parseInt(manualBetAmount, 10)) 
+        ? parseInt(manualBetAmount, 10) 
+        : selectedChip;
+      
       const prevAmount = prev[id]?.amount || 0;
-      const nextAmount = prevAmount + selectedChip;
+      const nextAmount = prevAmount + betAmount;
       const nextTotalBet = Object.entries(prev).reduce((sum, [key, b]) => sum + (key === id ? nextAmount : b.amount || 0), 0);
       if (nextTotalBet > walletBalance) {
         toast.error('Insufficient balance for this bet.');
@@ -186,6 +228,11 @@ export const Roulette = () => {
       },
       };
     });
+    
+    // Clear manual bet amount after placing a bet
+    if (manualBetAmount && !isNaN(parseInt(manualBetAmount, 10))) {
+      setManualBetAmount('');
+    }
   });
 
   // Calculate total bet - memoized to prevent recalculation on every render
@@ -288,7 +335,10 @@ export const Roulette = () => {
   const handleChipSelect = useCallback((value) => setSelectedChip(value), []);
 
   // Handle clearing bets - memoized to prevent unnecessary re-renders
-  const handleClearBets = useCallback(() => setBets({}), []);
+  const handleClearBets = useCallback(() => {
+    setBets({});
+    setManualBetAmount('');
+  }, []);
 
   // Double Bet - memoized to prevent unnecessary re-renders
   const handleDoubleBet = useCallback(() => {
@@ -416,6 +466,37 @@ export const Roulette = () => {
       <AnimatedElement variant="FADE_IN_UP" delay={0.4} className="flex flex-col md:flex-row items-center md:items-start gap-6 w-full max-w-5xl mx-auto mt-8 px-2 sm:px-0">
         <div className="flex flex-col items-center gap-4">
           <RouletteWheel start={start} winningBet={winningBet} onSpinningEnd={() => setStart(false)} />
+          
+          {/* Manual Amount Input */}
+          <div className="flex flex-col items-center gap-2 w-full max-w-xs">
+            <div className="flex items-center gap-2 w-full">
+              <input
+                type="number"
+                value={manualBetAmount}
+                onChange={handleManualBetAmountChange}
+                placeholder="Enter bet amount"
+                className="flex-1 px-4 py-2 rounded-lg bg-surface text-text-primary text-lg text-center placeholder-text-secondary no-spinners border border-text-secondary font-mono"
+                min="0"
+                disabled={spinning}
+              />
+              {manualBetAmount && (
+                <button
+                  onClick={() => setManualBetAmount('')}
+                  className="px-3 py-2 rounded-lg bg-surface text-text-secondary hover:text-text-primary border border-text-secondary hover:border-text-primary transition-colors"
+                  disabled={spinning}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <div className="text-sm text-text-secondary font-base">
+              {manualBetAmount && !isNaN(parseInt(manualBetAmount, 10)) 
+                ? `Next bet will be ${parseInt(manualBetAmount, 10).toLocaleString()} points`
+                : 'Enter amount for custom bet'
+              }
+            </div>
+          </div>
+          
           <ChipList
             chips={CHIP_OPTIONS}
             selectedChip={selectedChip}
