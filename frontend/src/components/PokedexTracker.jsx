@@ -169,6 +169,9 @@ const PokedexTracker = () => {
       case 'non-shiny':
         pokemon = pokemon.filter(p => !p.shiny);
         break;
+      case 'non-shiny-missing':
+        pokemon = pokemon.filter(p => !p.shiny && !p.caught);
+        break;
       default:
         break;
     }
@@ -255,6 +258,7 @@ const PokedexTracker = () => {
                  <option value="shiny">Shiny Only</option>
                  <option value="caught">Caught Only</option>
                  <option value="missing">Missing Only</option>
+                 <option value="non-shiny-missing">Non-Shiny Missing Only</option>
                </select>
             </div>
 

@@ -2423,8 +2423,8 @@
     "spawn": 2,
     "catchRate": 0.02,
     "rarity": "legendary",
-    "xpYield": 60,
-    "dustYield": 60,
+    "xpYield": 150,
+    "dustYield": 150,
     "evolutionStage": 1,
     "canEvolve": false,
     "gen": 2
@@ -2433,8 +2433,8 @@
     "spawn": 2,
     "catchRate": 0.02,
     "rarity": "legendary",
-    "xpYield": 60,
-    "dustYield": 60,
+    "xpYield": 150,
+    "dustYield": 150,
     "evolutionStage": 1,
     "canEvolve": false,
     "gen": 2
@@ -2443,8 +2443,8 @@
     "spawn": 2,
     "catchRate": 0.02,
     "rarity": "legendary",
-    "xpYield": 60,
-    "dustYield": 60,
+    "xpYield": 150,
+    "dustYield": 150,
     "evolutionStage": 1,
     "canEvolve": false,
     "gen": 2
@@ -2501,7 +2501,7 @@
   },
   "celebi": {
     "spawn": 1,
-    "catchRate": 0.17647058823529413,
+    "catchRate": 0.017647058823529413,
     "rarity": "legendary",
     "xpYield": 150,
     "dustYield": 150,

@@ -226,19 +226,28 @@ module.exports = {
 
             const {
                 success, stolenItems, stolenAmount, totalValue, newBalance, newCollectionValue,
-                punishment, bailInfo, jailInfo, buffMessage, stealType: responseStealType
+                punishment, bailInfo, jailInfo, buffMessage, stealType: responseStealType,
+                caughtEntireBalance
             } = response.data;
 
             if (success) {
-                const embed = createSuccessEmbed(`${typeEmojis[stealType]} Steal Successful!`)
+                const embedTitle = caughtEntireBalance ? 
+                    `🏆 MASSIVE STEAL SUCCESS!` :
+                    `${typeEmojis[stealType]} Steal Successful!`;
+                
+                const embed = createSuccessEmbed(embedTitle)
                     .addFields(
                         { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
                         { name: 'Type', value: stealType.charAt(0).toUpperCase() + stealType.slice(1), inline: true }
                     );
 
                 if (stealType === 'points') {
+                    const amountStolenText = caughtEntireBalance ? 
+                        `🏆 **ENTIRE BALANCE STOLEN!** ${stolenAmount.toLocaleString('en-US')} points` :
+                        `${stolenAmount.toLocaleString('en-US')} points`;
+                    
                     embed.addFields(
-                        { name: 'Amount Stolen', value: `${stolenAmount.toLocaleString('en-US')} points`, inline: true },
+                        { name: 'Amount Stolen', value: amountStolenText, inline: true },
                         { name: 'New Balance', value: `${newBalance.toLocaleString('en-US')} points`, inline: true }
                     );
                 } else if (stolenItems && stolenItems.length > 0) {

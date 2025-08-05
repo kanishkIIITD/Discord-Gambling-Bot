@@ -135,22 +135,125 @@ module.exports = {
       filter: i => i.user.id === interaction.user.id && i.customId.startsWith('shop_buy_'),
       time: 60000
     });
+    
+    // Track which buttons have been clicked
+    const clickedButtons = new Set();
+    
     collector.on('collect', async i => {
       const itemKey = i.customId.replace('shop_buy_', '');
+      
+      // Check if button was already clicked
+      if (clickedButtons.has(itemKey)) {
+        await i.reply({ content: '❌ You already purchased this item!', ephemeral: true });
+        return;
+      }
+      
       await i.deferUpdate();
+      
       try {
         const res = await axios.post(`${backendUrl}/users/${userId}/shop/buy`, { item: itemKey }, { headers: { 'x-guild-id': guildId } });
-        await interaction.followUp({ content: `✅ ${res.data.message}`, ephemeral: true });
+        
+        // Mark button as clicked
+        clickedButtons.add(itemKey);
+        
+        // Disable the specific button that was clicked
+        rows.forEach(row => {
+          row.components.forEach(btn => {
+            if (btn.data.custom_id === i.customId) {
+              btn.setDisabled(true);
+              btn.setLabel('✅ Purchased');
+            }
+          });
+        });
+        
+        // Refresh user data to get updated stardust and cooldowns
+        try {
+          const userRes = await axios.get(`${backendUrl}/users/${userId}`, { headers: { 'x-guild-id': guildId } });
+          user = userRes.data.user || userRes.data;
+          
+          // Update embed with new stardust balance
+          const currentXp = user.poke_xp || 0;
+          const currentLevel = user.poke_level || 1;
+          const xpForCurrentLevel = getNextLevelXp(currentLevel);
+          const xpForNextLevel = getNextLevelXp(currentLevel + 1);
+          const xpThisLevel = currentXp - xpForCurrentLevel;
+          const xpNeeded = xpForNextLevel - xpForCurrentLevel;
+          
+          embed.spliceFields(0, 3, 
+            { name: 'Your Level', value: String(currentLevel), inline: true },
+            { name: 'Stardust', value: String(user.poke_stardust || 0), inline: true },
+            { name: 'XP to level up', value: `${xpThisLevel} / ${xpNeeded}`, inline: true }
+          );
+          
+          // Update button states based on new data
+          rows.forEach((row, rowIndex) => {
+            row.components.forEach((btn, btnIndex) => {
+              const itemKey = btn.data.custom_id.replace('shop_buy_', '');
+              const item = SHOP_ITEMS.find(item => item.key === itemKey);
+              
+              if (item) {
+                const unlocked = (user.poke_level || 1) >= item.level;
+                const lastTs = user[item.cooldownField];
+                let cooldownMsg = '';
+                
+                // Calculate cooldown based on item type
+                let cooldownHours = 12; // Default cooldown
+                
+                // Set different cooldowns for EV items
+                if (item.key.includes('_')) {
+                  if (item.key === 'rare_candy') cooldownHours = 4;
+                  else if (item.key === 'master_ball') cooldownHours = 4; // Effort Candy
+                  else if (item.key === 'reset_bag') cooldownHours = 48;
+                  else cooldownHours = 4; // Vitamins: 4 hours
+                }
+                
+                // Special cooldown for Evolver's Ring (12 hours)
+                if (item.key === 'evolution') {
+                  cooldownHours = 12; // 12 hours
+                }
+                
+                // Special cooldown for Master Poké Ball (7 days)
+                if (item.key === 'masterball') {
+                  cooldownHours = 24 * 7; // 7 days
+                }
+                
+                if (lastTs && now - new Date(lastTs).getTime() < cooldownHours * 60 * 60 * 1000) {
+                  const msLeft = cooldownHours * 60 * 60 * 1000 - (now - new Date(lastTs).getTime());
+                  const hours = Math.floor(msLeft / 3600000);
+                  const mins = Math.floor((msLeft % 3600000) / 60000);
+                  cooldownMsg = `Cooldown: ${hours}h ${mins}m left`;
+                }
+                
+                // Only update if not already clicked
+                if (!clickedButtons.has(itemKey)) {
+                  btn.setDisabled(!unlocked || (user.poke_stardust < item.price) || !!cooldownMsg);
+                }
+              }
+            });
+          });
+        } catch (refreshError) {
+          console.error('Failed to refresh user data:', refreshError);
+        }
+        
+        // Update the message with disabled button and refreshed data
+        await interaction.editReply({ embeds: [embed], components: rows });
+        
+        await i.followUp({ content: `✅ ${res.data.message}`, ephemeral: true });
+        
       } catch (e) {
         const msg = e.response?.data?.message || 'Failed to buy item.';
-        await interaction.followUp({ content: `❌ ${msg}`, ephemeral: true });
+        await i.followUp({ content: `❌ ${msg}`, ephemeral: true });
       }
-      collector.stop();
     });
+    
     collector.on('end', () => {
-      // Disable buttons after timeout
+      // Disable all remaining buttons after timeout
       rows.forEach(row => {
-        row.components.forEach(btn => btn.setDisabled(true));
+        row.components.forEach(btn => {
+          if (!clickedButtons.has(btn.data.custom_id.replace('shop_buy_', ''))) {
+            btn.setDisabled(true);
+          }
+        });
       });
       interaction.editReply({ components: rows }).catch(() => {});
     });

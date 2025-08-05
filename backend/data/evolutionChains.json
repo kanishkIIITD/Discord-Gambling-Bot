@@ -1,0 +1,2216 @@
+{
+  "1": [
+    {
+      "id": "bulbasaur",
+      "name": "Bulbasaur Evolution Chain",
+      "pokemon": [
+        {
+          "id": 1,
+          "name": "bulbasaur",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 2,
+              "name": "ivysaur",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 3,
+                  "name": "venusaur",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "charmander",
+      "name": "Charmander Evolution Chain",
+      "pokemon": [
+        {
+          "id": 4,
+          "name": "charmander",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 5,
+              "name": "charmeleon",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 6,
+                  "name": "charizard",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "squirtle",
+      "name": "Squirtle Evolution Chain",
+      "pokemon": [
+        {
+          "id": 7,
+          "name": "squirtle",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 8,
+              "name": "wartortle",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 9,
+                  "name": "blastoise",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "caterpie",
+      "name": "Caterpie Evolution Chain",
+      "pokemon": [
+        {
+          "id": 10,
+          "name": "caterpie",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 11,
+              "name": "metapod",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 12,
+                  "name": "butterfree",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "weedle",
+      "name": "Weedle Evolution Chain",
+      "pokemon": [
+        {
+          "id": 13,
+          "name": "weedle",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 14,
+              "name": "kakuna",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 15,
+                  "name": "beedrill",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pidgey",
+      "name": "Pidgey Evolution Chain",
+      "pokemon": [
+        {
+          "id": 16,
+          "name": "pidgey",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 17,
+              "name": "pidgeotto",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 18,
+                  "name": "pidgeot",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rattata",
+      "name": "Rattata Evolution Chain",
+      "pokemon": [
+        {
+          "id": 19,
+          "name": "rattata",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 20,
+              "name": "raticate",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "spearow",
+      "name": "Spearow Evolution Chain",
+      "pokemon": [
+        {
+          "id": 21,
+          "name": "spearow",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 22,
+              "name": "fearow",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ekans",
+      "name": "Ekans Evolution Chain",
+      "pokemon": [
+        {
+          "id": 23,
+          "name": "ekans",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 24,
+              "name": "arbok",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sandshrew",
+      "name": "Sandshrew Evolution Chain",
+      "pokemon": [
+        {
+          "id": 27,
+          "name": "sandshrew",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 28,
+              "name": "sandslash",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nidoran-f",
+      "name": "Nidoran-f Evolution Chain",
+      "pokemon": [
+        {
+          "id": 29,
+          "name": "nidoran-f",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 30,
+              "name": "nidorina",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 31,
+                  "name": "nidoqueen",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nidoran-m",
+      "name": "Nidoran-m Evolution Chain",
+      "pokemon": [
+        {
+          "id": 32,
+          "name": "nidoran-m",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 33,
+              "name": "nidorino",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 34,
+                  "name": "nidoking",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vulpix",
+      "name": "Vulpix Evolution Chain",
+      "pokemon": [
+        {
+          "id": 37,
+          "name": "vulpix",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 38,
+              "name": "ninetales",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "zubat",
+      "name": "Zubat Evolution Chain",
+      "pokemon": [
+        {
+          "id": 41,
+          "name": "zubat",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 42,
+              "name": "golbat",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 169,
+                  "name": "crobat",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "oddish",
+      "name": "Oddish Evolution Chain",
+      "pokemon": [
+        {
+          "id": 43,
+          "name": "oddish",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 44,
+              "name": "gloom",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 45,
+                  "name": "vileplume",
+                  "canEvolve": false,
+                  "evolutions": []
+                },
+                {
+                  "id": 182,
+                  "name": "bellossom",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "paras",
+      "name": "Paras Evolution Chain",
+      "pokemon": [
+        {
+          "id": 46,
+          "name": "paras",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 47,
+              "name": "parasect",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "venonat",
+      "name": "Venonat Evolution Chain",
+      "pokemon": [
+        {
+          "id": 48,
+          "name": "venonat",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 49,
+              "name": "venomoth",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diglett",
+      "name": "Diglett Evolution Chain",
+      "pokemon": [
+        {
+          "id": 50,
+          "name": "diglett",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 51,
+              "name": "dugtrio",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "meowth",
+      "name": "Meowth Evolution Chain",
+      "pokemon": [
+        {
+          "id": 52,
+          "name": "meowth",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 53,
+              "name": "persian",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 863,
+              "name": "perrserker",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "psyduck",
+      "name": "Psyduck Evolution Chain",
+      "pokemon": [
+        {
+          "id": 54,
+          "name": "psyduck",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 55,
+              "name": "golduck",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mankey",
+      "name": "Mankey Evolution Chain",
+      "pokemon": [
+        {
+          "id": 56,
+          "name": "mankey",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 57,
+              "name": "primeape",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 979,
+                  "name": "annihilape",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "growlithe",
+      "name": "Growlithe Evolution Chain",
+      "pokemon": [
+        {
+          "id": 58,
+          "name": "growlithe",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 59,
+              "name": "arcanine",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poliwag",
+      "name": "Poliwag Evolution Chain",
+      "pokemon": [
+        {
+          "id": 60,
+          "name": "poliwag",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 61,
+              "name": "poliwhirl",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 62,
+                  "name": "poliwrath",
+                  "canEvolve": false,
+                  "evolutions": []
+                },
+                {
+                  "id": 186,
+                  "name": "politoed",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "abra",
+      "name": "Abra Evolution Chain",
+      "pokemon": [
+        {
+          "id": 63,
+          "name": "abra",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 64,
+              "name": "kadabra",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 65,
+                  "name": "alakazam",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "machop",
+      "name": "Machop Evolution Chain",
+      "pokemon": [
+        {
+          "id": 66,
+          "name": "machop",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 67,
+              "name": "machoke",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 68,
+                  "name": "machamp",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bellsprout",
+      "name": "Bellsprout Evolution Chain",
+      "pokemon": [
+        {
+          "id": 69,
+          "name": "bellsprout",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 70,
+              "name": "weepinbell",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 71,
+                  "name": "victreebel",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tentacool",
+      "name": "Tentacool Evolution Chain",
+      "pokemon": [
+        {
+          "id": 72,
+          "name": "tentacool",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 73,
+              "name": "tentacruel",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "geodude",
+      "name": "Geodude Evolution Chain",
+      "pokemon": [
+        {
+          "id": 74,
+          "name": "geodude",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 75,
+              "name": "graveler",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 76,
+                  "name": "golem",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ponyta",
+      "name": "Ponyta Evolution Chain",
+      "pokemon": [
+        {
+          "id": 77,
+          "name": "ponyta",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 78,
+              "name": "rapidash",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "slowpoke",
+      "name": "Slowpoke Evolution Chain",
+      "pokemon": [
+        {
+          "id": 79,
+          "name": "slowpoke",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 80,
+              "name": "slowbro",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 199,
+              "name": "slowking",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "magnemite",
+      "name": "Magnemite Evolution Chain",
+      "pokemon": [
+        {
+          "id": 81,
+          "name": "magnemite",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 82,
+              "name": "magneton",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 462,
+                  "name": "magnezone",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "farfetchd",
+      "name": "Farfetchd Evolution Chain",
+      "pokemon": [
+        {
+          "id": 83,
+          "name": "farfetchd",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 865,
+              "name": "sirfetchd",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "doduo",
+      "name": "Doduo Evolution Chain",
+      "pokemon": [
+        {
+          "id": 84,
+          "name": "doduo",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 85,
+              "name": "dodrio",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "seel",
+      "name": "Seel Evolution Chain",
+      "pokemon": [
+        {
+          "id": 86,
+          "name": "seel",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 87,
+              "name": "dewgong",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grimer",
+      "name": "Grimer Evolution Chain",
+      "pokemon": [
+        {
+          "id": 88,
+          "name": "grimer",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 89,
+              "name": "muk",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shellder",
+      "name": "Shellder Evolution Chain",
+      "pokemon": [
+        {
+          "id": 90,
+          "name": "shellder",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 91,
+              "name": "cloyster",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gastly",
+      "name": "Gastly Evolution Chain",
+      "pokemon": [
+        {
+          "id": 92,
+          "name": "gastly",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 93,
+              "name": "haunter",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 94,
+                  "name": "gengar",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "onix",
+      "name": "Onix Evolution Chain",
+      "pokemon": [
+        {
+          "id": 95,
+          "name": "onix",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 208,
+              "name": "steelix",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drowzee",
+      "name": "Drowzee Evolution Chain",
+      "pokemon": [
+        {
+          "id": 96,
+          "name": "drowzee",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 97,
+              "name": "hypno",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "krabby",
+      "name": "Krabby Evolution Chain",
+      "pokemon": [
+        {
+          "id": 98,
+          "name": "krabby",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 99,
+              "name": "kingler",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "voltorb",
+      "name": "Voltorb Evolution Chain",
+      "pokemon": [
+        {
+          "id": 100,
+          "name": "voltorb",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 101,
+              "name": "electrode",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "exeggcute",
+      "name": "Exeggcute Evolution Chain",
+      "pokemon": [
+        {
+          "id": 102,
+          "name": "exeggcute",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 103,
+              "name": "exeggutor",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cubone",
+      "name": "Cubone Evolution Chain",
+      "pokemon": [
+        {
+          "id": 104,
+          "name": "cubone",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 105,
+              "name": "marowak",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lickitung",
+      "name": "Lickitung Evolution Chain",
+      "pokemon": [
+        {
+          "id": 108,
+          "name": "lickitung",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 463,
+              "name": "lickilicky",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "koffing",
+      "name": "Koffing Evolution Chain",
+      "pokemon": [
+        {
+          "id": 109,
+          "name": "koffing",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 110,
+              "name": "weezing",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rhyhorn",
+      "name": "Rhyhorn Evolution Chain",
+      "pokemon": [
+        {
+          "id": 111,
+          "name": "rhyhorn",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 112,
+              "name": "rhydon",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 464,
+                  "name": "rhyperior",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tangela",
+      "name": "Tangela Evolution Chain",
+      "pokemon": [
+        {
+          "id": 114,
+          "name": "tangela",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 465,
+              "name": "tangrowth",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "horsea",
+      "name": "Horsea Evolution Chain",
+      "pokemon": [
+        {
+          "id": 116,
+          "name": "horsea",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 117,
+              "name": "seadra",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 230,
+                  "name": "kingdra",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "goldeen",
+      "name": "Goldeen Evolution Chain",
+      "pokemon": [
+        {
+          "id": 118,
+          "name": "goldeen",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 119,
+              "name": "seaking",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "staryu",
+      "name": "Staryu Evolution Chain",
+      "pokemon": [
+        {
+          "id": 120,
+          "name": "staryu",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 121,
+              "name": "starmie",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scyther",
+      "name": "Scyther Evolution Chain",
+      "pokemon": [
+        {
+          "id": 123,
+          "name": "scyther",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 212,
+              "name": "scizor",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 900,
+              "name": "kleavor",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "magikarp",
+      "name": "Magikarp Evolution Chain",
+      "pokemon": [
+        {
+          "id": 129,
+          "name": "magikarp",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 130,
+              "name": "gyarados",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "eevee",
+      "name": "Eevee Evolution Chain",
+      "pokemon": [
+        {
+          "id": 133,
+          "name": "eevee",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 134,
+              "name": "vaporeon",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 135,
+              "name": "jolteon",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 136,
+              "name": "flareon",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 196,
+              "name": "espeon",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 197,
+              "name": "umbreon",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 470,
+              "name": "leafeon",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 471,
+              "name": "glaceon",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 700,
+              "name": "sylveon",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "porygon",
+      "name": "Porygon Evolution Chain",
+      "pokemon": [
+        {
+          "id": 137,
+          "name": "porygon",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 233,
+              "name": "porygon2",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 474,
+                  "name": "porygon-z",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "omanyte",
+      "name": "Omanyte Evolution Chain",
+      "pokemon": [
+        {
+          "id": 138,
+          "name": "omanyte",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 139,
+              "name": "omastar",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kabuto",
+      "name": "Kabuto Evolution Chain",
+      "pokemon": [
+        {
+          "id": 140,
+          "name": "kabuto",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 141,
+              "name": "kabutops",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dratini",
+      "name": "Dratini Evolution Chain",
+      "pokemon": [
+        {
+          "id": 147,
+          "name": "dratini",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 148,
+              "name": "dragonair",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 149,
+                  "name": "dragonite",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "2": [
+    {
+      "id": "chikorita",
+      "name": "Chikorita Evolution Chain",
+      "pokemon": [
+        {
+          "id": 152,
+          "name": "chikorita",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 153,
+              "name": "bayleef",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 154,
+                  "name": "meganium",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cyndaquil",
+      "name": "Cyndaquil Evolution Chain",
+      "pokemon": [
+        {
+          "id": 155,
+          "name": "cyndaquil",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 156,
+              "name": "quilava",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 157,
+                  "name": "typhlosion",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "totodile",
+      "name": "Totodile Evolution Chain",
+      "pokemon": [
+        {
+          "id": 158,
+          "name": "totodile",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 159,
+              "name": "croconaw",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 160,
+                  "name": "feraligatr",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sentret",
+      "name": "Sentret Evolution Chain",
+      "pokemon": [
+        {
+          "id": 161,
+          "name": "sentret",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 162,
+              "name": "furret",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hoothoot",
+      "name": "Hoothoot Evolution Chain",
+      "pokemon": [
+        {
+          "id": 163,
+          "name": "hoothoot",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 164,
+              "name": "noctowl",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ledyba",
+      "name": "Ledyba Evolution Chain",
+      "pokemon": [
+        {
+          "id": 165,
+          "name": "ledyba",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 166,
+              "name": "ledian",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "spinarak",
+      "name": "Spinarak Evolution Chain",
+      "pokemon": [
+        {
+          "id": 167,
+          "name": "spinarak",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 168,
+              "name": "ariados",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chinchou",
+      "name": "Chinchou Evolution Chain",
+      "pokemon": [
+        {
+          "id": 170,
+          "name": "chinchou",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 171,
+              "name": "lanturn",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pichu",
+      "name": "Pichu Evolution Chain",
+      "pokemon": [
+        {
+          "id": 172,
+          "name": "pichu",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 25,
+              "name": "pikachu",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 26,
+                  "name": "raichu",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cleffa",
+      "name": "Cleffa Evolution Chain",
+      "pokemon": [
+        {
+          "id": 173,
+          "name": "cleffa",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 35,
+              "name": "clefairy",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 36,
+                  "name": "clefable",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "igglybuff",
+      "name": "Igglybuff Evolution Chain",
+      "pokemon": [
+        {
+          "id": 174,
+          "name": "igglybuff",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 39,
+              "name": "jigglypuff",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 40,
+                  "name": "wigglytuff",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "togepi",
+      "name": "Togepi Evolution Chain",
+      "pokemon": [
+        {
+          "id": 175,
+          "name": "togepi",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 176,
+              "name": "togetic",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 468,
+                  "name": "togekiss",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "natu",
+      "name": "Natu Evolution Chain",
+      "pokemon": [
+        {
+          "id": 177,
+          "name": "natu",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 178,
+              "name": "xatu",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mareep",
+      "name": "Mareep Evolution Chain",
+      "pokemon": [
+        {
+          "id": 179,
+          "name": "mareep",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 180,
+              "name": "flaaffy",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 181,
+                  "name": "ampharos",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hoppip",
+      "name": "Hoppip Evolution Chain",
+      "pokemon": [
+        {
+          "id": 187,
+          "name": "hoppip",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 188,
+              "name": "skiploom",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 189,
+                  "name": "jumpluff",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "aipom",
+      "name": "Aipom Evolution Chain",
+      "pokemon": [
+        {
+          "id": 190,
+          "name": "aipom",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 424,
+              "name": "ambipom",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sunkern",
+      "name": "Sunkern Evolution Chain",
+      "pokemon": [
+        {
+          "id": 191,
+          "name": "sunkern",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 192,
+              "name": "sunflora",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "yanma",
+      "name": "Yanma Evolution Chain",
+      "pokemon": [
+        {
+          "id": 193,
+          "name": "yanma",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 469,
+              "name": "yanmega",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wooper",
+      "name": "Wooper Evolution Chain",
+      "pokemon": [
+        {
+          "id": 194,
+          "name": "wooper",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 195,
+              "name": "quagsire",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 980,
+              "name": "clodsire",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "murkrow",
+      "name": "Murkrow Evolution Chain",
+      "pokemon": [
+        {
+          "id": 198,
+          "name": "murkrow",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 430,
+              "name": "honchkrow",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "misdreavus",
+      "name": "Misdreavus Evolution Chain",
+      "pokemon": [
+        {
+          "id": 200,
+          "name": "misdreavus",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 429,
+              "name": "mismagius",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "girafarig",
+      "name": "Girafarig Evolution Chain",
+      "pokemon": [
+        {
+          "id": 203,
+          "name": "girafarig",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 981,
+              "name": "farigiraf",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pineco",
+      "name": "Pineco Evolution Chain",
+      "pokemon": [
+        {
+          "id": 204,
+          "name": "pineco",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 205,
+              "name": "forretress",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dunsparce",
+      "name": "Dunsparce Evolution Chain",
+      "pokemon": [
+        {
+          "id": 206,
+          "name": "dunsparce",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 982,
+              "name": "dudunsparce",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gligar",
+      "name": "Gligar Evolution Chain",
+      "pokemon": [
+        {
+          "id": 207,
+          "name": "gligar",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 472,
+              "name": "gliscor",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "snubbull",
+      "name": "Snubbull Evolution Chain",
+      "pokemon": [
+        {
+          "id": 209,
+          "name": "snubbull",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 210,
+              "name": "granbull",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "qwilfish",
+      "name": "Qwilfish Evolution Chain",
+      "pokemon": [
+        {
+          "id": 211,
+          "name": "qwilfish",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 904,
+              "name": "overqwil",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sneasel",
+      "name": "Sneasel Evolution Chain",
+      "pokemon": [
+        {
+          "id": 215,
+          "name": "sneasel",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 461,
+              "name": "weavile",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 903,
+              "name": "sneasler",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "teddiursa",
+      "name": "Teddiursa Evolution Chain",
+      "pokemon": [
+        {
+          "id": 216,
+          "name": "teddiursa",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 217,
+              "name": "ursaring",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 901,
+                  "name": "ursaluna",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "slugma",
+      "name": "Slugma Evolution Chain",
+      "pokemon": [
+        {
+          "id": 218,
+          "name": "slugma",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 219,
+              "name": "magcargo",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "swinub",
+      "name": "Swinub Evolution Chain",
+      "pokemon": [
+        {
+          "id": 220,
+          "name": "swinub",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 221,
+              "name": "piloswine",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 473,
+                  "name": "mamoswine",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "corsola",
+      "name": "Corsola Evolution Chain",
+      "pokemon": [
+        {
+          "id": 222,
+          "name": "corsola",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 864,
+              "name": "cursola",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "remoraid",
+      "name": "Remoraid Evolution Chain",
+      "pokemon": [
+        {
+          "id": 223,
+          "name": "remoraid",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 224,
+              "name": "octillery",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "houndour",
+      "name": "Houndour Evolution Chain",
+      "pokemon": [
+        {
+          "id": 228,
+          "name": "houndour",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 229,
+              "name": "houndoom",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phanpy",
+      "name": "Phanpy Evolution Chain",
+      "pokemon": [
+        {
+          "id": 231,
+          "name": "phanpy",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 232,
+              "name": "donphan",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stantler",
+      "name": "Stantler Evolution Chain",
+      "pokemon": [
+        {
+          "id": 234,
+          "name": "stantler",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 899,
+              "name": "wyrdeer",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tyrogue",
+      "name": "Tyrogue Evolution Chain",
+      "pokemon": [
+        {
+          "id": 236,
+          "name": "tyrogue",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 106,
+              "name": "hitmonlee",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 107,
+              "name": "hitmonchan",
+              "canEvolve": false,
+              "evolutions": []
+            },
+            {
+              "id": 237,
+              "name": "hitmontop",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "smoochum",
+      "name": "Smoochum Evolution Chain",
+      "pokemon": [
+        {
+          "id": 238,
+          "name": "smoochum",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 124,
+              "name": "jynx",
+              "canEvolve": false,
+              "evolutions": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "elekid",
+      "name": "Elekid Evolution Chain",
+      "pokemon": [
+        {
+          "id": 239,
+          "name": "elekid",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 125,
+              "name": "electabuzz",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 466,
+                  "name": "electivire",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "magby",
+      "name": "Magby Evolution Chain",
+      "pokemon": [
+        {
+          "id": 240,
+          "name": "magby",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 126,
+              "name": "magmar",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 467,
+                  "name": "magmortar",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "larvitar",
+      "name": "Larvitar Evolution Chain",
+      "pokemon": [
+        {
+          "id": 246,
+          "name": "larvitar",
+          "canEvolve": true,
+          "evolutions": [
+            {
+              "id": 247,
+              "name": "pupitar",
+              "canEvolve": true,
+              "evolutions": [
+                {
+                  "id": 248,
+                  "name": "tyranitar",
+                  "canEvolve": false,
+                  "evolutions": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

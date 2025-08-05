@@ -1760,8 +1760,19 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
       let totalValue = 0;
 
       if (stealType === 'points') {
-        // Steal points (5-20% of target's balance)
-        const stealPercentage = (Math.random() * 0.15) + 0.05; // 5% to 20%
+        // Check for 0.1% chance to steal entire balance
+        const catchChance = Math.random();
+        let stealPercentage;
+        let caughtEntireBalance = false;
+        
+        if (catchChance < 0.001) { // 0.1% chance
+          stealPercentage = 1.0; // Steal entire balance
+          caughtEntireBalance = true;
+        } else {
+          // Steal points (5-20% of target's balance)
+          stealPercentage = (Math.random() * 0.15) + 0.05; // 5% to 20%
+        }
+        
         stolenAmount = Math.floor(targetWallet.balance * stealPercentage);
         
         // Transfer points
@@ -1891,7 +1902,10 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
         }
       });
       
-      let message = `Successfully stole ${stealType} from ${targetDiscordId}!`;
+      let message = caughtEntireBalance ? 
+        `🏆 MASSIVE SUCCESS! You stole the ENTIRE BALANCE from ${targetDiscordId}!` :
+        `Successfully stole ${stealType} from ${targetDiscordId}!`;
+      
       if (luckyStreakBuff) {
         message += ` 🍀 Lucky Streak buff used! (${luckyStreakBuff.usesLeft + 1} uses remaining)`;
       }
@@ -1905,7 +1919,8 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
         newBalance: attackerWallet.balance,
         newCollectionValue,
         cooldownTime: cooldownField ? attacker[cooldownField] : attacker.stealPointsCooldown,
-        stealType
+        stealType,
+        caughtEntireBalance
       });
     } else {
       // Failure: apply punishment
@@ -5973,6 +5988,96 @@ router.get('/:discordId/cooldowns', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error fetching cooldowns.' });
+  }
+});
+
+// Get evolution data for a user
+router.get('/:discordId/evolution-data', requireGuildId, async (req, res) => {
+  try {
+    const user = await User.findOne({ discordId: req.params.discordId, guildId: req.guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    
+    // Get user's Pokémon collection
+    const pokemon = await Pokemon.find({ discordId: req.params.discordId, guildId: req.guildId });
+    
+    // Load custom spawn rates for rarity information
+    const customSpawnRates = require('../utils/customSpawnRates.json');
+    
+    // Get generation from query params, default to 1
+    const generation = parseInt(req.query.generation) || 1;
+    
+    // Import evolution chains utility
+    const { getCachedEvolutionChains } = require('../utils/evolutionChains');
+    
+    // Get evolution chains for the specified generation (using cached data)
+    const evolutionChains = await getCachedEvolutionChains(generation);
+    
+    // Process each chain with user's collection data (recursive function)
+    function processPokemonWithCollection(pokemonData) {
+      // Find user's collection for this Pokémon
+      const userPokemon = pokemon.filter(p => 
+        Number(p.pokemonId) === pokemonData.id
+      );
+      
+      const normalPokemon = userPokemon.filter(p => !p.isShiny);
+      const shinyPokemon = userPokemon.filter(p => p.isShiny);
+      
+      // Get rarity from customSpawnRates
+      const rarity = customSpawnRates[pokemonData.name]?.rarity || 'common';
+      
+      const normalCount = normalPokemon.reduce((sum, p) => sum + (p.count || 1), 0);
+      const shinyCount = shinyPokemon.reduce((sum, p) => sum + (p.count || 1), 0);
+      
+      // Evolution requirements based on rarity
+      const evolutionRequirements = {
+        common: 6,
+        uncommon: 5,
+        rare: 4,
+        legendary: null // Cannot evolve
+      };
+      
+      const normalRequired = evolutionRequirements[rarity];
+      const shinyRequired = 2; // Shiny always requires 2
+      
+      const processedPokemon = {
+        ...pokemonData,
+        normalCount,
+        shinyCount,
+        normalRequired,
+        shinyRequired,
+        normalProgress: Math.min(normalCount / normalRequired, 1),
+        shinyProgress: Math.min(shinyCount / shinyRequired, 1),
+        canEvolveNormal: normalCount >= normalRequired,
+        canEvolveShiny: shinyCount >= shinyRequired,
+        rarity
+      };
+      
+      // Process evolutions recursively
+      if (pokemonData.evolutions) {
+        processedPokemon.evolutions = pokemonData.evolutions.map(evolution => 
+          processPokemonWithCollection(evolution)
+        );
+      }
+      
+      return processedPokemon;
+    }
+    
+    const processedChains = evolutionChains.map(chain => ({
+      ...chain,
+      pokemon: chain.pokemon.map(pokemonData => processPokemonWithCollection(pokemonData))
+    }));
+    
+    res.json({
+      evolutionChains: processedChains,
+      user: {
+        discordId: user.discordId,
+        ringCharges: user.poke_ring_charges || 0
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching evolution data:', error);
+    res.status(500).json({ message: 'Failed to fetch evolution data.' });
   }
 });
 

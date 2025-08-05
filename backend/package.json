@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "jest"
+    "test": "jest",
+    "generate-evolution-chains": "node scripts/generateEvolutionChains.js"
   },
   "keywords": [],
   "author": "",
