@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const axios = require('axios');
+const pokeCache = require('../utils/pokeCache');
 
 // Helper to paginate options
 function paginateOptions(options, page = 0, pageSize = 25) {
@@ -410,6 +411,23 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
   const guildId = interaction.guildId;
 
   try {
+    // Fetch Pokemon artwork
+    let artwork = null;
+    try {
+      const pokemonData = await pokeCache.getPokemonDataById(selectedPokemon.pokemonId);
+      if (selectedPokemon.isShiny && pokemonData.sprites.other['official-artwork'].front_shiny) {
+        artwork = pokemonData.sprites.other['official-artwork'].front_shiny;
+      } else if (pokemonData.sprites.other['official-artwork'].front_default) {
+        artwork = pokemonData.sprites.other['official-artwork'].front_default;
+      } else if (selectedPokemon.isShiny && pokemonData.sprites.front_shiny) {
+        artwork = pokemonData.sprites.front_shiny;
+      } else if (pokemonData.sprites.front_default) {
+        artwork = pokemonData.sprites.front_default;
+      }
+    } catch (error) {
+      console.error('[Pokemon Giveaway] Error fetching Pokemon artwork:', error);
+    }
+
     // Create giveaway embed
     const embed = new EmbedBuilder()
       .setTitle('🎉 POKÉMON GIVEAWAY! 🎉')
@@ -417,6 +435,11 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
       .setColor(0x00ff00)
       .setTimestamp()
       .setFooter({ text: `Hosted by ${interaction.user.username}` });
+
+    // Add artwork if available
+    if (artwork) {
+      embed.setImage(artwork);
+    }
 
     // Get gamblers role for ping
     const guild = interaction.guild;
@@ -546,6 +569,23 @@ async function endPokemonGiveaway(messageId, client) {
       const gamblersRole = guild.roles.cache.find(role => role.name === 'Gamblers');
       const announcementContent = gamblersRole ? `<@&${gamblersRole.id}>` : '';
 
+      // Fetch Pokemon artwork for winner announcement
+      let winnerArtwork = null;
+      try {
+        const pokemonData = await pokeCache.getPokemonDataById(giveaway.pokemonId);
+        if (giveaway.isShiny && pokemonData.sprites.other['official-artwork'].front_shiny) {
+          winnerArtwork = pokemonData.sprites.other['official-artwork'].front_shiny;
+        } else if (pokemonData.sprites.other['official-artwork'].front_default) {
+          winnerArtwork = pokemonData.sprites.other['official-artwork'].front_default;
+        } else if (giveaway.isShiny && pokemonData.sprites.front_shiny) {
+          winnerArtwork = pokemonData.sprites.front_shiny;
+        } else if (pokemonData.sprites.front_default) {
+          winnerArtwork = pokemonData.sprites.front_default;
+        }
+      } catch (error) {
+        console.error('[Pokemon Giveaway] Error fetching Pokemon artwork for winner:', error);
+      }
+
       // Announce winner in a new message
       const winnerEmbed = new EmbedBuilder()
         .setTitle('🎉 POKÉMON GIVEAWAY ENDED! 🎉')
@@ -553,6 +593,11 @@ async function endPokemonGiveaway(messageId, client) {
         .setColor(0x00ff00)
         .setTimestamp()
         .setFooter({ text: `Hosted by ${(await client.users.fetch(giveaway.hostId)).username}` });
+
+      // Add artwork if available
+      if (winnerArtwork) {
+        winnerEmbed.setImage(winnerArtwork);
+      }
 
       await channel.send({
         content: `${announcementContent} 🎉 Congratulations <@${winnerId}>! You won ${giveaway.pokemonName}${giveaway.isShiny ? ' ✨' : ''}!`,
