@@ -11,6 +11,9 @@ const pokemonBattleSchema = new mongoose.Schema({
   level:       { type: Number, required: true },
   stats:       { type: Object, required: true }, // { hp, attack, defense, spAttack, spDefense, speed }
   types:       { type: [String], required: true },
+
+  formId:      { type: String, default: null }, // e.g., "charizard-mega-x", "charizard-mega-y"
+  formName:    { type: String, default: null }, // e.g., "Mega Charizard X", "Mega Charizard Y"
   // --- Competitive enhancements ---
   ivs: {
     hp:        { type: Number, default: 31 },

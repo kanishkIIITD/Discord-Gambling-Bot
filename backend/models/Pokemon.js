@@ -7,6 +7,9 @@ const pokemonSchema = new mongoose.Schema({
   pokemonId: { type: Number, required: true },
   name: { type: String, required: true },
   isShiny: { type: Boolean, default: false },
+  // --- Form support ---
+  formId: { type: String, default: null }, // e.g., "charizard-mega-x", "charizard-mega-y"
+  formName: { type: String, default: null }, // e.g., "Mega Charizard X", "Mega Charizard Y"
   caughtAt: { type: Date, default: Date.now },
   count: { type: Number, default: 1 },
   // --- Competitive fields ---
@@ -48,7 +51,8 @@ const pokemonSchema = new mongoose.Schema({
   // Optionally add more fields: region, dexNum, types, etc.
 });
 
-pokemonSchema.index({ discordId: 1, guildId: 1, pokemonId: 1, isShiny: 1 }, { unique: false });
+// Update index to include formId for proper form tracking
+pokemonSchema.index({ discordId: 1, guildId: 1, pokemonId: 1, isShiny: 1, formId: 1 }, { unique: false });
 
 const Pokemon = mongoose.model('Pokemon', pokemonSchema);
 

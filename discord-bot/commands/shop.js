@@ -16,6 +16,8 @@ const SHOP_ITEMS = [
   { key: 'carbos', name: '4x Carbos', emoji: 'carbos', level: 25, price: 150, effect: '+10 Speed EVs (max 252)', cooldownField: 'poke_carbos_ts' },
   { key: 'rare_candy', name: '3x Rare Candy', emoji: 'rarecandy', level: 30, price: 500, effect: '+4 EVs to all stats (max 252 each)', cooldownField: 'poke_rare_candy_ts' },
   { key: 'master_ball', name: '1 Effort Candy', emoji: null, level: 35, price: 1000, effect: '+8 EVs to all stats (max 252 each)', cooldownField: 'poke_master_ball_ts' },
+  // Form evolution item
+  { key: 'form_stone', name: 'Form Stone', emoji: null, level: 35, price: 3000, effect: 'Transform any Pokémon to its special form', cooldownField: 'poke_form_stone_ts' },
   { key: 'masterball', name: '1 Master Poké Ball', emoji: 'pokeball_master', level: 40, price: 5000, effect: '100% catch rate', cooldownField: 'poke_masterball_ts' },
   { key: 'reset_bag', name: '1 Reset Bag', emoji: null, level: 20, price: 300, effect: 'Reset all EVs to 0', cooldownField: 'poke_reset_bag_ts' },
 ];

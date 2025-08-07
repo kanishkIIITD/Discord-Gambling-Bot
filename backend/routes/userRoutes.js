@@ -83,7 +83,7 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
   try {
     const { discordId } = req.params;
     const guildId = req.headers['x-guild-id'];
-    const { pokemonId, name, isShiny, ballType = 'normal' } = req.body;
+    const { pokemonId, name, isShiny, formId, formName, ballType = 'normal' } = req.body;
     if (!pokemonId || !name) {
       return res.status(400).json({ success: false, message: 'Missing pokemonId or name.' });
     }
@@ -159,12 +159,13 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
       ballUsed: ballLabel,
       catchChance: (finalChance * 100).toFixed(2) + '%',
       isShiny: !!isShiny,
+      formName: formName || null,
       flavorText,
       xpBoosterUsed,
     };
     // --- Atomicity: check for duplicate after asyncs ---
     let isDuplicate = false;
-    let pokemon = await Pokemon.findOne({ discordId, guildId, pokemonId, isShiny: !!isShiny });
+    let pokemon = await Pokemon.findOne({ discordId, guildId, pokemonId, isShiny: !!isShiny, formId: formId || null });
     if (pokemon) isDuplicate = true;
     // --- Catch logic ---
     if (roll < finalChance) {
@@ -197,6 +198,8 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
           pokemonId,
           name,
           isShiny: !!isShiny,
+          formId: formId || null,
+          formName: formName || null,
           caughtAt: new Date(),
           count: 1,
           ivs: {
@@ -345,6 +348,8 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
       carbos: { name: '4x Carbos', level: 25, price: 150, cooldownField: 'poke_carbos_ts' },
       rare_candy: { name: '3x Rare Candy', level: 30, price: 500, cooldownField: 'poke_rare_candy_ts' },
       master_ball: { name: '1 Effort Candy', level: 35, price: 1000, cooldownField: 'poke_master_ball_ts' },
+      // Form evolution item
+      form_stone: { name: 'Form Stone', level: 35, price: 3000, cooldownField: 'poke_form_stone_ts' },
       reset_bag: { name: '1 Reset Bag', level: 20, price: 300, cooldownField: 'poke_reset_bag_ts' },
       masterball: { name: '1 Master Poké Ball', level: 35, price: 5000, cooldownField: 'poke_masterball_ts', cooldownDays: 7 }
     };
@@ -416,6 +421,8 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
       user.poke_rare_candy_uses = (user.poke_rare_candy_uses || 0) + 3;
     } else if (item === 'master_ball') {
       user.poke_master_ball_uses = (user.poke_master_ball_uses || 0) + 1;
+    } else if (item === 'form_stone') {
+      user.poke_form_stone_uses = (user.poke_form_stone_uses || 0) + 1;
     } else if (item === 'reset_bag') {
       user.poke_reset_bag_uses = (user.poke_reset_bag_uses || 0) + 1;
     } else if (item === 'masterball') {
@@ -435,7 +442,7 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
   try {
     const { discordId } = req.params;
     const guildId = req.headers['x-guild-id'];
-    const { pokemonName, price, rarity, isShiny = false } = req.body;
+    const { pokemonName, price, rarity, isShiny = false, formId = null, formName = null } = req.body;
     const now = new Date();
 
     // Validate required fields
@@ -474,6 +481,7 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
     // Get Pokémon data from PokeAPI
     const pokeApi = require('../utils/pokeApi');
     let pokemonData;
+    let pokemonId;
     try {
       // Find the Pokémon ID by name
       const customSpawnRates = require('../utils/customSpawnRates.json');
@@ -482,13 +490,41 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
         return res.status(400).json({ message: 'Invalid Pokémon name.' });
       }
       
-      // Get the Pokémon ID by name using axios
-      const axios = require('axios');
-      const speciesResponse = await axios.get(`https://pokeapi.co/api/v2/pokemon-species/${pokemonName.toLowerCase()}`);
-      const speciesData = speciesResponse.data;
-      
-      // Then get the full Pokémon data using the ID
-      pokemonData = await pokeApi.getPokemonDataById(speciesData.id);
+      // If it's a form, use the form's specific Pokemon ID
+      if (formId) {
+        try {
+          const pokemonForms = require('../data/pokemonForms.json');
+          const forms = pokemonForms[pokemonName.toLowerCase()]?.forms || [];
+          const formData = forms.find(form => form.id === formId);
+          if (formData) {
+            pokemonId = formData.pokemonId;
+            // Get the form's specific Pokemon data
+            pokemonData = await pokeApi.getPokemonDataById(formData.pokemonId);
+          } else {
+            // Fallback to base Pokemon if form not found
+            const speciesResponse = await axios.get(`https://pokeapi.co/api/v2/pokemon-species/${pokemonName.toLowerCase()}`);
+            const speciesData = speciesResponse.data;
+            pokemonId = speciesData.id;
+            pokemonData = await pokeApi.getPokemonDataById(speciesData.id);
+          }
+        } catch (formError) {
+          console.error('[Pokemon Purchase] Error fetching form data:', formError);
+          // Fallback to base Pokemon
+          const speciesResponse = await axios.get(`https://pokeapi.co/api/v2/pokemon-species/${pokemonName.toLowerCase()}`);
+          const speciesData = speciesResponse.data;
+          pokemonId = speciesData.id;
+          pokemonData = await pokeApi.getPokemonDataById(speciesData.id);
+        }
+      } else {
+        // Get the base Pokemon ID by name using axios
+        const axios = require('axios');
+        const speciesResponse = await axios.get(`https://pokeapi.co/api/v2/pokemon-species/${pokemonName.toLowerCase()}`);
+        const speciesData = speciesResponse.data;
+        pokemonId = speciesData.id;
+        
+        // Then get the full Pokémon data using the ID
+        pokemonData = await pokeApi.getPokemonDataById(speciesData.id);
+      }
     } catch (error) {
       console.error('[Pokemon Purchase] Error fetching Pokémon data:', error);
       return res.status(500).json({ message: 'Failed to fetch Pokémon data.' });
@@ -501,8 +537,9 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
     let existingPokemon = await Pokemon.findOne({ 
       discordId, 
       guildId, 
-      pokemonId: pokemonData.id,
-      isShiny: !!isShiny 
+      pokemonId: pokemonId,
+      isShiny: !!isShiny,
+      formId: formId || null
     });
 
     if (existingPokemon) {
@@ -513,9 +550,11 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
         user: user._id,
         discordId,
         guildId,
-        pokemonId: pokemonData.id,
+        pokemonId: pokemonId,
         name: pokemonData.name,
         isShiny: !!isShiny,
+        formId: formId || null,
+        formName: formName || null,
         count: 1,
         caughtAt: now,
         // Generate random IVs and EVs
@@ -551,6 +590,8 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
       pokemonName: pokemonData.name,
       price: price,
       isShiny: !!isShiny,
+      formId: formId || null,
+      formName: formName || null,
       purchasedAt: now
     });
     await dailyPurchase.save();
@@ -569,11 +610,13 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
 
     await user.save();
 
+    const displayName = formName || pokemonData.name;
     res.json({ 
-      message: `Successfully purchased ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)} for ${price} Stardust!`,
+      message: `Successfully purchased ${displayName.charAt(0).toUpperCase() + displayName.slice(1)}${formName ? ' 🔮' : ''} for ${price} Stardust!`,
       pokemon: pokemonData.name,
       price: price,
-      rarity: rarity
+      rarity: rarity,
+      formName: formName
     });
 
   } catch (error) {
@@ -6743,6 +6786,120 @@ router.get('/:userId/pokemon', auth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching user Pokémon collection:', error);
     res.status(500).json({ message: 'Failed to fetch Pokémon collection' });
+  }
+});
+
+// POST /:discordId/pokemon/:pokemonId/evolve-form - Evolve Pokemon to a special form
+router.post('/:discordId/pokemon/:pokemonId/evolve-form', requireGuildId, async (req, res) => {
+  try {
+    const { discordId, pokemonId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const { formId, itemKey, isShiny = false } = req.body;
+    
+    if (!formId || !itemKey) {
+      return res.status(400).json({ message: 'Missing formId or itemKey.' });
+    }
+
+    // Find user
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Check level requirement
+    if ((user.poke_level || 1) < 35) {
+      return res.status(403).json({ message: 'You must be level 35+ to evolve Pokémon to special forms.' });
+    }
+
+    // Check if user has the form stone
+    if (!user.poke_form_stone_uses || user.poke_form_stone_uses <= 0) {
+      return res.status(403).json({ message: 'You don\'t have any Form Stones. Buy them from the shop!' });
+    }
+
+    // Load forms data
+    const pokemonForms = require('../data/pokemonForms.json');
+    
+    // Find the Pokemon to evolve
+    const pokemon = await Pokemon.findOne({ 
+      discordId, 
+      guildId, 
+      pokemonId: parseInt(pokemonId), 
+      isShiny,
+      formId: null // Only evolve base forms
+    });
+
+    if (!pokemon) {
+      return res.status(404).json({ message: 'Pokemon not found or already has a form.' });
+    }
+
+    // Verify the form exists and can be evolved to
+    const forms = pokemonForms[pokemon.name]?.forms || [];
+    const targetForm = forms.find(form => form.id === formId); // Any form, not just those with evolution items
+    
+    if (!targetForm) {
+      return res.status(400).json({ message: 'Invalid form or Pokemon combination.' });
+    }
+
+    // Check if user already has this form
+    const existingForm = await Pokemon.findOne({ 
+      discordId, 
+      guildId, 
+      pokemonId: targetForm.pokemonId, // Use the form's specific Pokemon ID
+      isShiny,
+      formId: formId
+    });
+
+    if (existingForm) {
+      return res.status(400).json({ message: 'You already have this form of the Pokemon.' });
+    }
+
+    // Consume the form stone
+    user.poke_form_stone_uses -= 1;
+
+    // Create the evolved Pokemon with form data
+    const evolvedPokemon = new Pokemon({
+      user: user._id,
+      discordId,
+      guildId,
+      pokemonId: targetForm.pokemonId, // Use the form's specific Pokemon ID
+      name: pokemon.name,
+      isShiny: pokemon.isShiny,
+      formId: formId,
+      formName: targetForm.name,
+      caughtAt: new Date(),
+      count: 1,
+      ivs: pokemon.ivs,
+      evs: pokemon.evs,
+      nature: pokemon.nature,
+      ability: pokemon.ability,
+      status: pokemon.status,
+      boosts: pokemon.boosts,
+      evHistory: pokemon.evHistory
+    });
+
+    // Handle base Pokemon count (transform, don't duplicate)
+    if (pokemon.count > 1) {
+      // If user has multiple, decrease count by 1
+      pokemon.count -= 1;
+      await pokemon.save();
+    } else {
+      // If user has only 1, delete the base Pokemon entirely
+      await pokemon.deleteOne();
+    }
+    
+    // Save the evolved Pokemon and user
+    await evolvedPokemon.save();
+    await user.save();
+
+    return res.json({
+      message: `Successfully evolved ${pokemon.name} to ${targetForm.name}!`,
+      evolved: evolvedPokemon,
+      itemUses: user.poke_form_stone_uses
+    });
+
+  } catch (error) {
+    console.error('[Form Evolution] Error:', error);
+    res.status(500).json({ message: 'Failed to evolve Pokemon to form.' });
   }
 });
 

@@ -138,6 +138,7 @@ const userSchema = new mongoose.Schema({
   poke_rare_candy_ts: { type: Date, default: null },
   poke_master_ball_ts: { type: Date, default: null }, // Effort Candy cooldown (renamed from Master Ball)
   poke_masterball_ts: { type: Date, default: null }, // Master Poké Ball cooldown (new 100% catch rate ball)
+  poke_form_stone_ts: { type: Date, default: null }, // Form Stone cooldown
   poke_reset_bag_ts: { type: Date, default: null },
   // EV item uses left
   poke_hp_up_uses: { type: Number, default: 0 },
@@ -149,6 +150,7 @@ const userSchema = new mongoose.Schema({
   poke_rare_candy_uses: { type: Number, default: 0 },
   poke_master_ball_uses: { type: Number, default: 0 }, // Effort Candy uses (renamed from Master Ball)
   poke_masterball_uses: { type: Number, default: 0 }, // Master Poké Ball uses (new 100% catch rate ball)
+  poke_form_stone_uses: { type: Number, default: 0 }, // Form Stone uses (for evolving Pokemon to forms)
   poke_reset_bag_uses: { type: Number, default: 0 },
   // Pokémon steal cooldown
   pokestealCooldown: { type: Date, default: null },

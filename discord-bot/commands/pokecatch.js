@@ -6,6 +6,7 @@ const { getEmoji, getEmojiString, getAnimatedEmojiString } = require('../utils/e
 const customSpawnRates = require('../data/customSpawnRates.json');
 
 const SHINY_ODDS = 1 / 1024;
+const FORM_ODDS = 0.05;
 
 // Helper function to get display name for Pokémon
 function getDisplayName(pokemonName) {
@@ -133,6 +134,40 @@ module.exports = {
       if (buttonInt.customId === 'pokecatch_masterball') ballType = 'masterball';
       // Random shiny roll (keep in bot for now)
       const isShiny = Math.random() < SHINY_ODDS;
+      
+      // Random form roll (much rarer than shinies)
+      const isForm = Math.random() < FORM_ODDS;
+      let formData = null;
+      
+      // If form should spawn, get a random form for this Pokemon
+      if (isForm) {
+        // Import forms utility (we'll need to create this for discord-bot)
+        try {
+          const pokemonForms = require('../data/pokemonForms.json');
+          const forms = pokemonForms[pokemonData.name]?.forms || [];
+          if (forms.length > 0) {
+            // Weight forms by their spawn rate
+            const totalWeight = forms.reduce((sum, form) => sum + form.spawnRate, 0);
+            let random = Math.random() * totalWeight;
+            
+            for (const form of forms) {
+              random -= form.spawnRate;
+              if (random <= 0) {
+                formData = form;
+                break;
+              }
+            }
+            
+            // Fallback to first form if no form was selected
+            if (!formData && forms.length > 0) {
+              formData = forms[0];
+            }
+          }
+        } catch (error) {
+          console.error('Error loading forms data:', error);
+        }
+      }
+      
       // Call backend catch endpoint
       let result;
       try {
@@ -140,6 +175,8 @@ module.exports = {
           pokemonId,
           name: pokemonData.name,
           isShiny,
+          formId: formData?.id || null,
+          formName: formData?.name || null,
           ballType
         }, {
           headers: { 'x-guild-id': interaction.guildId }
@@ -174,15 +211,34 @@ module.exports = {
       }
       
       // Build result embed
-      const types = pokemonData.types.map(t => t.type.name.charAt(0).toUpperCase() + t.type.name.slice(1)).join(', ');
       const region = 'Kanto';
-      // Select artwork: shiny if shiny, else normal
+      
+      // Get correct artwork based on whether it's a form or not
       let resultArtwork = artwork;
+      let formPokemonData = pokemonData; // Default to base Pokemon data
+      
+      // If it's a form, get the form's specific Pokemon data
+      if (data.embedData?.formName && formData) {
+        try {
+          formPokemonData = await pokeCache.getPokemonDataById(formData.pokemonId);
+          // Use form's artwork instead of base Pokemon's artwork
+          resultArtwork = formPokemonData.sprites.other['official-artwork'].front_default;
+        } catch (error) {
+          console.error('Error fetching form Pokemon data:', error);
+          // Fallback to base Pokemon data if form data fetch fails
+          formPokemonData = pokemonData;
+        }
+      }
+      
+      // Get types from the correct Pokemon data (form or base)
+      const types = formPokemonData.types.map(t => t.type.name.charAt(0).toUpperCase() + t.type.name.slice(1)).join(', ');
+      
+      // Select artwork: shiny if shiny, else normal
       if (data.embedData?.isShiny) {
-        if (pokemonData.sprites.other?.['official-artwork']?.front_shiny) {
-          resultArtwork = pokemonData.sprites.other['official-artwork'].front_shiny;
-        } else if (pokemonData.sprites.front_shiny) {
-          resultArtwork = pokemonData.sprites.front_shiny;
+        if (formPokemonData.sprites.other?.['official-artwork']?.front_shiny) {
+          resultArtwork = formPokemonData.sprites.other['official-artwork'].front_shiny;
+        } else if (formPokemonData.sprites.front_shiny) {
+          resultArtwork = formPokemonData.sprites.front_shiny;
         }
       }
       const embed = new EmbedBuilder()
@@ -197,7 +253,8 @@ module.exports = {
           { name: 'Region', value: region, inline: true },
           { name: 'Ball Used', value: data.ballUsed || ballType, inline: true },
           { name: 'Catch Chance', value: data.embedData?.catchChance || '?', inline: true },
-          { name: 'Shiny', value: data.embedData?.isShiny ? 'Yes ✨' : 'No', inline: true }
+          { name: 'Shiny', value: data.embedData?.isShiny ? 'Yes ✨' : 'No', inline: true },
+          { name: 'Form', value: data.embedData?.formName ? `${data.embedData.formName} 🔮` : 'Base Form', inline: true }
         )
         .setFooter({ text: 'Gotta catch \'em all!' });
       

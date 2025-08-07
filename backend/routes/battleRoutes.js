@@ -6,13 +6,30 @@ const GlobalEvent = require('../models/GlobalEvent');
 const pokeApi = require('../utils/pokeApi');
 const battleUtils = require('../utils/battleUtils');
 const { moveEffectRegistry, stageMultiplier, abilityRegistry } = require('../utils/battleUtils');
+const { getFormById, getAllFormsData } = require('../utils/pokemonForms');
 
 const DAILY_GOALS = { catch: 10, battle: 3, evolve: 2 };
 const WEEKLY_GOALS = { catch: 50, battle: 15, evolve: 7 };
 
+// Helper function to detect form by Pokemon ID
+const detectFormByPokemonId = (pokemonId) => {
+  const allForms = getAllFormsData();
+  for (const [basePokemon, formsData] of Object.entries(allForms)) {
+    const form = formsData.forms.find(f => f.pokemonId === pokemonId);
+    if (form) {
+      return form;
+    }
+  }
+  return null;
+};
+
 // Helper function to get Pokémon data for selection
 const getUserPokemons = async (userId, selectedPokemonIds) => {
   const pokemons = await Pokemon.find({ _id: { $in: selectedPokemonIds }, discordId: userId });
+  console.log(`[BattleRoutes] Retrieved ${pokemons.length} Pokemon from database:`);
+  pokemons.forEach(p => {
+    console.log(`[BattleRoutes] Pokemon: ${p.name} (ID: ${p.pokemonId}), formId: ${p.formId}, formName: ${p.formName}`);
+  });
   return pokemons.map(p => ({
     pokemonId: p.pokemonId,
     name: p.name,
@@ -23,6 +40,8 @@ const getUserPokemons = async (userId, selectedPokemonIds) => {
     evs: p.evs,
     status: p.status,
     boosts: p.boosts,
+    formId: p.formId,
+    formName: p.formName,
     // Add any other fields you want to support in battle
   }));
 };
@@ -658,7 +677,34 @@ router.post('/:battleId/select', async (req, res) => {
     
     const builtPokemons = await Promise.all(userPokemons.map(async (p) => {
       console.log(`[BattleRoutes] Processing Pokemon: ${p.name} (ID: ${p.pokemonId})`);
-      const pokeData = await pokeApi.getPokemonDataById(p.pokemonId);
+      
+      // Determine the correct Pokemon ID to use for API calls
+      let apiPokemonId = p.pokemonId;
+      let pokemonName = p.name;
+      let detectedFormId = p.formId;
+      let detectedFormName = p.formName;
+      
+      // If this is a form Pokemon, use the form's specific Pokemon ID
+      if (p.formId) {
+        const formData = getFormById(p.formId);
+        if (formData) {
+          apiPokemonId = formData.pokemonId;
+          pokemonName = formData.name;
+          console.log(`[BattleRoutes] Using form data: ${formData.name} (ID: ${apiPokemonId})`);
+        }
+      } else {
+        // Try to detect form by Pokemon ID if form data is missing
+        const detectedForm = detectFormByPokemonId(p.pokemonId);
+        if (detectedForm) {
+          apiPokemonId = detectedForm.pokemonId;
+          pokemonName = detectedForm.name;
+          detectedFormId = detectedForm.id;
+          detectedFormName = detectedForm.name;
+          console.log(`[BattleRoutes] Detected form by ID: ${detectedForm.name} (ID: ${apiPokemonId})`);
+        }
+      }
+      
+      const pokeData = await pokeApi.getPokemonDataById(apiPokemonId);
       // --- Use IVs, EVs, nature, ability from p if present ---
       const stats = (() => {
         const baseStats = battleUtils.calculateStats(
@@ -675,8 +721,10 @@ router.post('/:battleId/select', async (req, res) => {
       // --- Pass battleSize to getLegalMoveset ---
       let moves = [];
       try {
+        // For moves fetching, always use the base Pokemon name, not the form name
+        const basePokemonName = p.name.toLowerCase();
         moves = await battleUtils.getLegalMoveset(
-          pokeData.name,
+          basePokemonName,
           50, // level
           battleSize,
           p.ability || '',
@@ -701,7 +749,7 @@ router.post('/:battleId/select', async (req, res) => {
           p._id?.toString() || ''
         );
       } catch (error) {
-        console.error(`[BattleRoutes] Failed to get moves for ${pokeData.name}:`, error.message);
+        console.error(`[BattleRoutes] Failed to get moves for ${basePokemonName}:`, error.message);
         // Fallback: create basic moves
         moves = [
           {
@@ -721,7 +769,7 @@ router.post('/:battleId/select', async (req, res) => {
       
       // Ensure Pokemon has at least one move
       if (!moves || moves.length === 0) {
-        console.warn(`[BattleRoutes] No moves returned for ${pokeData.name}, adding fallback`);
+        console.warn(`[BattleRoutes] No moves returned for ${basePokemonName}, adding fallback`);
         moves = [
           {
             name: 'tackle',
@@ -738,7 +786,7 @@ router.post('/:battleId/select', async (req, res) => {
         ];
       }
       
-      return {
+      const builtPokemon = {
         pokemonId: p.pokemonId,
         name: p.name,
         maxHp: stats.hp,
@@ -755,7 +803,13 @@ router.post('/:battleId/select', async (req, res) => {
         status: p.status || null,
         boosts: p.boosts || {},
         volatileStatuses: {},
+        formId: detectedFormId,
+        formName: detectedFormName,
       };
+      
+      console.log(`[BattleRoutes] Built Pokemon: ${builtPokemon.name} (ID: ${builtPokemon.pokemonId}), formId: ${builtPokemon.formId}, formName: ${builtPokemon.formName}`);
+      
+      return builtPokemon;
     }));
     
     console.log(`[BattleRoutes] Built Pokemon with moves:`, builtPokemons.map(p => ({ name: p.name, moveCount: p.moves?.length || 0 })));

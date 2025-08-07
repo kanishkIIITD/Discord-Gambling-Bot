@@ -46,6 +46,7 @@ const weekendCommand = require('./commands/weekend');
 const pokebattlestatsCommand = require('./commands/pokebattlestats');
 const cancelbattleCommand = require('./commands/cancelbattle');
 const pokestealCommand = require('./commands/pokesteal');
+const pokeevolveformCommand = require('./commands/pokeevolveform');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 const pokeCache = require('./utils/pokeCache');
@@ -981,9 +982,10 @@ client.on('interactionCreate', async interaction => {
 					]);
 					const challengerOptions = challengerRes.data.pokemons.map(p => ({
 						label: (() => {
+							const displayName = getPokemonDisplayName(p);
 							const lowerName = p.name.toLowerCase();
 							const xp = customSpawnRates[lowerName]?.xpYield;
-							return `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
+							return `#${String(p.pokemonId).padStart(3, '0')} ${displayName}${p.isShiny ? ' ✨' : ''}${p.formName ? ' 🔮' : ''}${xp ? ` (XP: ${xp})` : ''}`;
 						})(),
 						value: p._id,
 						pokemonType: p.type || p.types?.[0] || null,
@@ -995,9 +997,10 @@ client.on('interactionCreate', async interaction => {
 					}));
 					const opponentOptions = opponentRes.data.pokemons.map(p => ({
 						label: (() => {
+							const displayName = getPokemonDisplayName(p);
 							const lowerName = p.name.toLowerCase();
 							const xp = customSpawnRates[lowerName]?.xpYield;
-							return `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
+							return `#${String(p.pokemonId).padStart(3, '0')} ${displayName}${p.isShiny ? ' ✨' : ''}${p.formName ? ' 🔮' : ''}${xp ? ` (XP: ${xp})` : ''}`;
 						})(),
 						value: p._id,
 						pokemonType: p.type || p.types?.[0] || null,
@@ -1177,16 +1180,18 @@ client.on('interactionCreate', async interaction => {
 							const otherPoke = session2.turn === 'challenger' ? opponentPoke : challengerPoke;
 							const turnTeam = session2.turn === 'challenger' ? session2.challengerPokemons : session2.opponentPokemons;
 							const otherTeam = session2.turn === 'challenger' ? session2.opponentPokemons : session2.challengerPokemons;
-							let turnImg = await getShowdownGif(turnPoke.name, turnPoke.isShiny, true);
-							let otherImg = await getShowdownGif(otherPoke.name, otherPoke.isShiny, false);
+							let turnImg = await getShowdownGif(getPokemonSpriteName(turnPoke), turnPoke.isShiny, true);
+							let otherImg = await getShowdownGif(getPokemonSpriteName(otherPoke), otherPoke.isShiny, false);
+							const turnDisplayName = getPokemonDisplayName(turnPoke);
+							const otherDisplayName = getPokemonDisplayName(otherPoke);
 							const battleEmbed = new EmbedBuilder()
-								.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
+								.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnDisplayName} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 								.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
 								.setImage(turnImg)
 								.setThumbnail(otherImg)
 								.addFields(
-									{ name: 'Active Pokémon', value: `${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
-									{ name: 'Opponent', value: `${otherPoke.name}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
+									{ name: 'Active Pokémon', value: `${turnDisplayName}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
+									{ name: 'Opponent', value: `${otherDisplayName}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
 									{ name: ' ', value: ' ', inline: true },
 									{ name: 'Weather', value: session2.weather || 'None', inline: true },
 									{ name: 'Terrain', value: session2.terrain || 'None', inline: true }
@@ -1210,7 +1215,7 @@ client.on('interactionCreate', async interaction => {
 							const actionRow = getBattleActionRow(battleId, turnUserId);
 							const logText = (session2.log && session2.log.length) ? session2.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 							await message.channel.send({
-								content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+								content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnDisplayName}**:`,
 								embeds: [battleEmbed],
 								components: [...moveRows, actionRow],
 								allowedMentions: { users: [turnUserId] },
@@ -1270,16 +1275,18 @@ client.on('interactionCreate', async interaction => {
 				const otherPoke = session.turn === 'challenger' ? opponentPoke : challengerPoke;
 				const turnTeam = session.turn === 'challenger' ? session.challengerPokemons : session.opponentPokemons;
 				const otherTeam = session.turn === 'challenger' ? session.opponentPokemons : session.challengerPokemons;
-				let turnImg = await getShowdownGif(turnPoke.name, turnPoke.isShiny, true);
-				let otherImg = await getShowdownGif(otherPoke.name, otherPoke.isShiny, false);
+				let turnImg = await getShowdownGif(getPokemonSpriteName(turnPoke), turnPoke.isShiny, true);
+				let otherImg = await getShowdownGif(getPokemonSpriteName(otherPoke), otherPoke.isShiny, false);
+				const turnDisplayName = getPokemonDisplayName(turnPoke);
+				const otherDisplayName = getPokemonDisplayName(otherPoke);
 				const logText = (session.log && session.log.length) ? session.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 				const battleEmbed = new EmbedBuilder()
-					.setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
+					.setTitle(`${session.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnDisplayName} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				  .setImage(turnImg)
 				  .setThumbnail(otherImg)
 				  .addFields(
-						{ name: 'Active Pokémon', value: `${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
-						{ name: 'Opponent', value: `${otherPoke.name}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
+						{ name: 'Active Pokémon', value: `${turnDisplayName}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
+						{ name: 'Opponent', value: `${otherDisplayName}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
 						{ name: ' ', value: ' ', inline: true },
 						{ name: 'Weather', value: session.weather || 'None', inline: true },
 						{ name: 'Terrain', value: session.terrain || 'None', inline: true }
@@ -1328,7 +1335,7 @@ client.on('interactionCreate', async interaction => {
 				const { getBattleActionRow } = require('./utils/discordUtils');
 				const actionRow = getBattleActionRow(battleId, turnUserId);
 				await interaction.update({
-					content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+					content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnDisplayName}**:`,
 					embeds: [battleEmbed],
 					components: [...moveRows, actionRow],
 					allowedMentions: { users: [turnUserId] },
@@ -1361,7 +1368,7 @@ client.on('interactionCreate', async interaction => {
 						const pokemons = isChallenger ? session.challengerPokemons : session.opponentPokemons;
 						const activeIndex = isChallenger ? (session.activeChallengerIndex || 0) : (session.activeOpponentIndex || 0);
 						const switchable = pokemons.map((p, i) => ({
-							label: `#${String(p.pokemonId || 0).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''} (${p.currentHp} HP)${i === activeIndex ? ' (Active)' : ''}`,
+							label: `#${String(p.pokemonId || 0).padStart(3, '0')} ${getPokemonDisplayName(p)}${p.isShiny ? ' ✨' : ''}${p.formName ? ' 🔮' : ''} (${p.currentHp} HP)${i === activeIndex ? ' (Active)' : ''}`,
 							value: i.toString(),
 							default: i === activeIndex,
 							disabled: p.currentHp <= 0 || i === activeIndex
@@ -1476,15 +1483,17 @@ client.on('interactionCreate', async interaction => {
 				: updatedSession.challengerPokemons[updatedSession.activeChallengerIndex || 0];
 			const turnTeam = updatedSession.turn === 'challenger' ? updatedSession.challengerPokemons : updatedSession.opponentPokemons;
 			const otherTeam = updatedSession.turn === 'challenger' ? updatedSession.opponentPokemons : updatedSession.challengerPokemons;
-			let turnImg = await getShowdownGif(turnPoke.name, turnPoke.isShiny, true);
-			let otherImg = await getShowdownGif(otherPoke.name, otherPoke.isShiny, false);
+			let turnImg = await getShowdownGif(getPokemonSpriteName(turnPoke), turnPoke.isShiny, true);
+			let otherImg = await getShowdownGif(getPokemonSpriteName(otherPoke), otherPoke.isShiny, false);
+			const turnDisplayName = getPokemonDisplayName(turnPoke);
+			const otherDisplayName = getPokemonDisplayName(otherPoke);
 			const battleEmbed = new EmbedBuilder()
-				.setTitle(`${updatedSession.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
+				.setTitle(`${updatedSession.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnDisplayName} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				.setImage(turnImg)
 				.setThumbnail(otherImg)
 				.addFields(
-					{ name: 'Active Pokémon', value: `${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
-					{ name: 'Opponent', value: `${otherPoke.name}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
+					{ name: 'Active Pokémon', value: `${turnDisplayName}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
+					{ name: 'Opponent', value: `${otherDisplayName}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
 					{ name: ' ', value: ' ', inline: true },
 					{ name: 'Weather', value: updatedSession.weather || 'None', inline: true },
 					{ name: 'Terrain', value: updatedSession.terrain || 'None', inline: true }
@@ -1509,7 +1518,7 @@ client.on('interactionCreate', async interaction => {
 			const logText = (updatedSession.log && updatedSession.log.length) ? updatedSession.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 			// Update the main battle message in place
 			await interaction.update({
-				content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+				content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnDisplayName}**:`,
 				embeds: [battleEmbed],
 				components: [...moveRows, actionRow],
 				allowedMentions: { users: [turnUserId] },
@@ -1575,9 +1584,10 @@ client.on('interactionCreate', async interaction => {
 				const opponentRes = await axios.get(`${backendApiUrl}/battles/${battleId}/pokemon/${session.opponentId}`, { headers: { 'x-guild-id': interaction.guildId } });
 				const opponentOptions = opponentRes.data.pokemons.map(p => ({
 					label: (() => {
+						const displayName = getPokemonDisplayName(p);
 						const lowerName = p.name.toLowerCase();
 						const xp = customSpawnRates[lowerName]?.xpYield;
-						return `#${String(p.pokemonId).padStart(3, '0')} ${p.name}${p.isShiny ? ' ✨' : ''}${xp ? ` (XP: ${xp})` : ''}`;
+						return `#${String(p.pokemonId).padStart(3, '0')} ${displayName}${p.isShiny ? ' ✨' : ''}${p.formName ? ' 🔮' : ''}${xp ? ` (XP: ${xp})` : ''}`;
 					})(),
 					value: p._id,
 				}));
@@ -1623,16 +1633,18 @@ client.on('interactionCreate', async interaction => {
 			const otherPoke = session2.turn === 'challenger' ? opponentPoke : challengerPoke;
 			const turnTeam = session2.turn === 'challenger' ? session2.challengerPokemons : session2.opponentPokemons;
 			const otherTeam = session2.turn === 'challenger' ? session2.opponentPokemons : session2.challengerPokemons;
-			let turnImg = await getShowdownGif(turnPoke.name, turnPoke.isShiny, true);
-			let otherImg = await getShowdownGif(otherPoke.name, otherPoke.isShiny, false);
+			let turnImg = await getShowdownGif(getPokemonSpriteName(turnPoke), turnPoke.isShiny, true);
+			let otherImg = await getShowdownGif(getPokemonSpriteName(otherPoke), otherPoke.isShiny, false);
+			const turnDisplayName = getPokemonDisplayName(turnPoke);
+			const otherDisplayName = getPokemonDisplayName(otherPoke);
 			const battleEmbed = new EmbedBuilder()
-				.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnPoke.name} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
+				.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnDisplayName} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
 				.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
 				.setImage(turnImg)
 				.setThumbnail(otherImg)
 				.addFields(
-					{ name: 'Active Pokémon', value: `${turnPoke.name}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
-					{ name: 'Opponent', value: `${otherPoke.name}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
+					{ name: 'Active Pokémon', value: `${turnDisplayName}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
+					{ name: 'Opponent', value: `${otherDisplayName}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
 					{ name: ' ', value: ' ', inline: true },
 					{ name: 'Weather', value: session2.weather || 'None', inline: true },
 					{ name: 'Terrain', value: session2.terrain || 'None', inline: true }
@@ -1656,7 +1668,7 @@ client.on('interactionCreate', async interaction => {
 			const actionRow = getBattleActionRow(battleId, turnUserId);
 			const logText = (session2.log && session2.log.length) ? session2.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
 			await interaction.update({
-				content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnPoke.name}**:`,
+				content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnDisplayName}**:`,
 				embeds: [battleEmbed],
 				components: [...moveRows, actionRow],
 				allowedMentions: { users: [turnUserId] },
@@ -4042,7 +4054,8 @@ client.on('interactionCreate', async interaction => {
 						},
 						{ name: '🎯 Quests & Progression', value:
 							'`/pokequests` - View your Pokémon quests and claim rewards!\n' +
-							'`/pokeevolve` - Evolve your Pokémon using duplicates!'
+							'`/pokeevolve` - Evolve your Pokémon using duplicates!\n' +
+							'`/pokeevolveform ` - Evolve a Pokémon to any special form using Form Stone'
 						},
 						{ name: '📦 Packs & Events', value:
 							'`/pokeopen` - Open Pokémon card packs for rare cards!\n' +
@@ -4553,6 +4566,9 @@ client.on('interactionCreate', async interaction => {
 	else if (commandName === 'pokesteal') {
 		await pokestealCommand.execute(interaction);
 	}
+	else if (commandName === 'pokeevolveform') {
+		await pokeevolveformCommand.execute(interaction);
+	}
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);
 		// Use safeErrorReply to handle the error response regardless of interaction state
@@ -4712,23 +4728,45 @@ async function getShowdownGif(name, isShiny, isActive = true) {
 			: 'https://play.pokemonshowdown.com/sprites/gen5ani/';
 	}
   
-	// 1) full form ID: removes hyphens, spaces, camelCase, etc.
-	const fullId = name
-	  .replace(/[^A-Za-z0-9]+/g, '')  // strip any non‑alphanumeric
-	  .toLowerCase();                 // lower‑case everything
+	// Convert form names to Pokemon Showdown naming convention
+	let showdownName = name;
+	
+	// Handle specific form naming conventions for Pokemon Showdown
+	if (name.includes('-')) {
+		const parts = name.split('-');
+		const basePokemon = parts[0];
+		const form = parts.slice(1).join('-'); // Join remaining parts
+		
+		// Convert form names to Showdown format
+		let showdownForm = form.toLowerCase();
+		
+		// Handle specific form conversions
+		if (showdownForm === 'mega-x') showdownForm = 'megax';
+		else if (showdownForm === 'mega-y') showdownForm = 'megay';
+		else if (showdownForm === 'gigantamax') showdownForm = 'gmax';
+		else if (showdownForm === 'alola') showdownForm = 'alola';
+		else if (showdownForm === 'galar') showdownForm = 'galar';
+		else if (showdownForm === 'hisui') showdownForm = 'hisui';
+		else if (showdownForm === 'paldea') showdownForm = 'paldea';
+		
+		showdownName = `${basePokemon}-${showdownForm}`;
+	}
   
-	let url = `${baseUrl}${fullId}.gif`;
+	// 1) Try the exact showdown name first (with hyphens)
+	let url = `${baseUrl}${showdownName}.gif`;
   
 	// 2) try HEAD to see if it exists
 	try {
 	  const res = await fetch(url, { method: 'HEAD' });
-	  if (res.ok) return url;
+	  if (res.ok) {
+		return url;
+	  }
 	} catch (e) {
 	  // network error? just fall through to fallback
 	}
   
 	// 3) fallback: use only the species name (before any hyphen)
-	const species = name
+	const species = showdownName
 	  .split(/[-\s]/)[0]              // cut at first hyphen or space
 	  .replace(/[^A-Za-z0-9]+/g, '')  // strip again just in case
 	  .toLowerCase();
@@ -4822,4 +4860,25 @@ function buildBattleSelectRow(availableOptions, page, searchTerm, type, battleId
 	
 	return [row, btnRow, filteredOptions.length, totalPages];
 }
+
+// Helper function to get the correct display name for a Pokemon (including forms)
+function getPokemonDisplayName(pokemon) {
+  if (pokemon.formName) {
+    return pokemon.formName;
+  }
+  return pokemon.name;
+}
+
+// Helper function to get the correct sprite name for a Pokemon (including forms)
+function getPokemonSpriteName(pokemon) {
+  if (pokemon.formId) {
+    return pokemon.formId;
+  }
+  return pokemon.name;
+}
+
+// Export functions for use in other modules
+module.exports.getShowdownGif = getShowdownGif;
+module.exports.getPokemonDisplayName = getPokemonDisplayName;
+module.exports.getPokemonSpriteName = getPokemonSpriteName;
 
