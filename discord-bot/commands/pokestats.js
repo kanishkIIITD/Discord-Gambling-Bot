@@ -67,7 +67,7 @@ module.exports = {
         .setDescription('The Pokemon ID to view stats for')
         .setRequired(true)
         .setMinValue(1)
-        .setMaxValue(999)
+        .setMaxValue(99999)
     )
     .addBooleanOption(option =>
       option.setName('shiny')

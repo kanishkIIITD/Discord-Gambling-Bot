@@ -87,6 +87,27 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
     if (!pokemonId || !name) {
       return res.status(400).json({ success: false, message: 'Missing pokemonId or name.' });
     }
+    
+    // If this is a form Pokemon, get the correct pokemonId from pokemonForms.json
+    let actualPokemonId = pokemonId;
+    let actualPokemonName = name;
+    
+    if (formId && formName) {
+      try {
+        const pokemonForms = require('../data/pokemonForms.json');
+        const basePokemon = name.toLowerCase();
+        const forms = pokemonForms[basePokemon]?.forms || [];
+        const targetForm = forms.find(form => form.id === formId);
+        
+        if (targetForm) {
+          actualPokemonId = targetForm.pokemonId;
+          actualPokemonName = targetForm.name;
+        }
+      } catch (error) {
+        console.error('Error loading pokemonForms.json:', error);
+        // Fallback to original values if forms data can't be loaded
+      }
+    }
     // Find or create user
     let user = await User.findOne({ discordId, guildId });
     if (!user) {
@@ -165,7 +186,7 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
     };
     // --- Atomicity: check for duplicate after asyncs ---
     let isDuplicate = false;
-    let pokemon = await Pokemon.findOne({ discordId, guildId, pokemonId, isShiny: !!isShiny, formId: formId || null });
+    let pokemon = await Pokemon.findOne({ discordId, guildId, pokemonId: actualPokemonId, isShiny: !!isShiny, formId: formId || null });
     if (pokemon) isDuplicate = true;
     // --- Catch logic ---
     if (roll < finalChance) {
@@ -177,7 +198,7 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
       }
       let ability = '';
       try {
-        const pokeData = await pokeApi.getPokemonDataById(pokemonId);
+        const pokeData = await pokeApi.getPokemonDataById(actualPokemonId);
         const abilitiesArr = pokeData.abilities || [];
         const nonHidden = abilitiesArr.filter(a => !a.is_hidden);
         const pool = nonHidden.length > 0 ? nonHidden : abilitiesArr;
@@ -195,8 +216,8 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
           user: user._id,
           discordId,
           guildId,
-          pokemonId,
-          name,
+          pokemonId: actualPokemonId,
+          name: actualPokemonName,
           isShiny: !!isShiny,
           formId: formId || null,
           formName: formName || null,
@@ -269,7 +290,7 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
       function capitalizeFirst(str) {
         return str.charAt(0).toUpperCase() + str.slice(1);
       }
-      const displayName = capitalizeFirst(getDisplayName(name));
+      const displayName = capitalizeFirst(getDisplayName(actualPokemonName));
       embedData.title = isDuplicate
         ? `You caught another ${isShiny ? '✨ SHINY ' : ''}${displayName}!`
         : `🎉 This is your first ${isShiny ? '✨ SHINY ' : ''}${displayName}! Added to your Pokédex!`;
@@ -310,7 +331,7 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
       function capitalizeFirst(str) {
         return str.charAt(0).toUpperCase() + str.slice(1);
       }
-      const displayName = capitalizeFirst(getDisplayName(name));
+      const displayName = capitalizeFirst(getDisplayName(actualPokemonName));
       embedData.title = `Oh no! The #${String(dexNum).padStart(3, '0')} ${displayName} broke free!`;
       embedData.description = flavorText || `<@${discordId}> Better luck next time!`;
       return res.json({
