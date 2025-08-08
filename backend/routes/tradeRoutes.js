@@ -165,7 +165,7 @@ router.post('/:tradeId/respond', async (req, res) => {
           evs: recipientPoke.evs,
           nature: recipientPoke.nature,
           ability: recipientPoke.ability,
-          status: recipientPoke.status,
+          status: null, // Don't transfer battle status conditions
           boosts: recipientPoke.boosts
         });
       }

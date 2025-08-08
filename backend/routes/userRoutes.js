@@ -137,7 +137,53 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
     }
     // --- Use customSpawnRates if available ---
     const { getCustomSpawnInfo, getLevelForXp, getUnlockedShopItems } = require('../utils/pokeApi');
-    const spawnInfo = getCustomSpawnInfo(name);
+
+// Helper function to get the base Pokemon name for XP lookup (for forms)
+function getBasePokemonNameForXP(pokemonName) {
+  const pokemonNameLower = pokemonName.toLowerCase();
+  
+  // Search through all base Pokemon in pokemonForms to find if this name matches any form
+  const pokemonForms = require('../data/pokemonForms.json');
+  for (const [baseName, baseData] of Object.entries(pokemonForms)) {
+    if (baseData.forms) {
+      // Check if this Pokemon name matches any form ID
+      const matchingForm = baseData.forms.find(form => 
+        form.id === pokemonNameLower
+      );
+      if (matchingForm) {
+        return matchingForm.basePokemon;
+      }
+    }
+  }
+  
+  // If no form found, return the original name
+  return pokemonNameLower;
+}
+
+// Helper function to detect if a Pokemon is a form
+function isPokemonForm(pokemonName) {
+  const pokemonNameLower = pokemonName.toLowerCase();
+  
+  // Search through all base Pokemon in pokemonForms to find if this name matches any form
+  const pokemonForms = require('../data/pokemonForms.json');
+  for (const [baseName, baseData] of Object.entries(pokemonForms)) {
+    if (baseData.forms) {
+      // Check if this Pokemon name matches any form ID
+      const matchingForm = baseData.forms.find(form => 
+        form.id === pokemonNameLower
+      );
+      if (matchingForm) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
+// Get the base Pokemon name for XP lookup (for forms)
+const basePokemonName = getBasePokemonNameForXP(name);
+const spawnInfo = getCustomSpawnInfo(basePokemonName);
     let catchRate = null;
     let xpYield = 0;
     let dustYield = 0;
@@ -246,6 +292,19 @@ router.post('/:discordId/pokemon/attempt-catch', requireGuildId, async (req, res
       // Award XP and Stardust
       let xpAward = xpYield * xpMultiplier;
       let dustAward = dustYield;
+      
+      // Apply multipliers for shiny and form Pokemon
+      const isForm = isPokemonForm(actualPokemonName);
+      
+      if (isShiny) {
+        xpAward = Math.floor(xpAward * 1.5);
+        dustAward = Math.floor(dustAward * 1.5);
+      }
+      
+      if (isForm) {
+        xpAward = Math.floor(xpAward * 2);
+        dustAward = Math.floor(dustAward * 2);
+      }
       
       // Check for double weekend event
       const doubleWeekendEvent = await GlobalEvent.getActiveDoubleWeekend();
@@ -1464,6 +1523,20 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
   }
 });
 
+// Helper function to check if a Pokemon is a form based on pokemonId
+function isPokemonFormById(pokemonId) {
+  const pokemonForms = require('../data/pokemonForms.json');
+  for (const [baseName, baseData] of Object.entries(pokemonForms)) {
+    if (baseData.forms) {
+      const matchingForm = baseData.forms.find(form => form.pokemonId === pokemonId);
+      if (matchingForm) {
+        return { isForm: true, formId: matchingForm.id, formName: matchingForm.name };
+      }
+    }
+  }
+  return { isForm: false, formId: null, formName: null };
+}
+
 // --- ADMIN GIVE POKEMON ENDPOINT ---
 const ALLOWED_DISCORD_ID = '294497956348821505'; // <-- Replace with the allowed Discord ID
 router.post('/admin/give-pokemon', async (req, res) => {
@@ -1504,8 +1577,19 @@ router.post('/admin/give-pokemon', async (req, res) => {
       name = `pokemon_${pokemonId}`;
       ability = '';
     }
-    // Check if this Pokémon (with shiny status) already exists
-    let pokemon = await Pokemon.findOne({ discordId: targetDiscordId, guildId, pokemonId, isShiny: !!isShiny });
+    
+    // Check if this Pokémon is a form
+    const formInfo = isPokemonFormById(pokemonId);
+    console.log(`[Admin Give Pokemon] Pokemon ID ${pokemonId}: isForm=${formInfo.isForm}, formId=${formInfo.formId}, formName=${formInfo.formName}`);
+    
+    // Check if this Pokémon (with shiny status and form) already exists
+    let pokemon = await Pokemon.findOne({ 
+      discordId: targetDiscordId, 
+      guildId, 
+      pokemonId, 
+      isShiny: !!isShiny,
+      formId: formInfo.formId 
+    });
     if (pokemon) {
       pokemon.count = (pokemon.count || 1) + giveCount;
       pokemon.caughtAt = new Date();
@@ -1518,6 +1602,8 @@ router.post('/admin/give-pokemon', async (req, res) => {
         pokemonId,
         name,
         isShiny: !!isShiny,
+        formId: formInfo.formId,
+        formName: formInfo.formName,
         caughtAt: new Date(),
         count: giveCount,
         ivs: {

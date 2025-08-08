@@ -56,6 +56,7 @@ const { activeSpawns } = require('./commands/pokespawn');
 const { getAllTimers } = require('./utils/despawnTimerManager');
 const { spawnCustomPokemonCommand } = require('./commands/pokespawn');
 const customSpawnRates = require('./data/customSpawnRates.json');
+const pokemonForms = require('./data/pokemonForms.json');
 const { getEmojiString } = require('./utils/emojiConfig');
 let betMessageMap = {};
 
@@ -983,9 +984,31 @@ client.on('interactionCreate', async interaction => {
 					const challengerOptions = challengerRes.data.pokemons.map(p => ({
 						label: (() => {
 							const displayName = getPokemonDisplayName(p);
-							const lowerName = p.name.toLowerCase();
-							const xp = customSpawnRates[lowerName]?.xpYield;
-							return `#${String(p.pokemonId).padStart(3, '0')} ${displayName}${p.isShiny ? ' ✨' : ''}${p.formName ? ' 🔮' : ''}${xp ? ` (XP: ${xp})` : ''}`;
+							const baseNameForXP = getBasePokemonNameForXP(p);
+							const baseXp = customSpawnRates[baseNameForXP]?.xpYield;
+							const isForm = isPokemonForm(p);
+							const isShiny = p.isShiny || false;
+							
+							// Calculate XP with multipliers: 1.5x for shiny, 2x for form, 3x if both
+							let finalXp = baseXp || 0;
+							if (isShiny) {
+								finalXp = Math.floor(finalXp * 1.5);
+							}
+							if (isForm) {
+								finalXp = Math.floor(finalXp * 2);
+							}
+							
+							// Build emoji string: ✨ for shiny, 🔮 for form, both if shiny form
+							let emojiString = '';
+							if (isShiny && isForm) {
+								emojiString = ' ✨🔮';
+							} else if (isShiny) {
+								emojiString = ' ✨';
+							} else if (isForm) {
+								emojiString = ' 🔮';
+							}
+							
+							return `#${String(p.pokemonId).padStart(3, '0')} ${displayName}${emojiString}${finalXp > 0 ? ` (XP: ${finalXp})` : ''}`;
 						})(),
 						value: p._id,
 						pokemonType: p.type || p.types?.[0] || null,
@@ -998,9 +1021,31 @@ client.on('interactionCreate', async interaction => {
 					const opponentOptions = opponentRes.data.pokemons.map(p => ({
 						label: (() => {
 							const displayName = getPokemonDisplayName(p);
-							const lowerName = p.name.toLowerCase();
-							const xp = customSpawnRates[lowerName]?.xpYield;
-							return `#${String(p.pokemonId).padStart(3, '0')} ${displayName}${p.isShiny ? ' ✨' : ''}${p.formName ? ' 🔮' : ''}${xp ? ` (XP: ${xp})` : ''}`;
+							const baseNameForXP = getBasePokemonNameForXP(p);
+							const baseXp = customSpawnRates[baseNameForXP]?.xpYield;
+							const isForm = isPokemonForm(p);
+							const isShiny = p.isShiny || false;
+							
+							// Calculate XP with multipliers: 1.5x for shiny, 2x for form, 3x if both
+							let finalXp = baseXp || 0;
+							if (isShiny) {
+								finalXp = Math.floor(finalXp * 1.5);
+							}
+							if (isForm) {
+								finalXp = Math.floor(finalXp * 2);
+							}
+							
+							// Build emoji string: ✨ for shiny, 🔮 for form, both if shiny form
+							let emojiString = '';
+							if (isShiny && isForm) {
+								emojiString = ' ✨🔮';
+							} else if (isShiny) {
+								emojiString = ' ✨';
+							} else if (isForm) {
+								emojiString = ' 🔮';
+							}
+							
+							return `#${String(p.pokemonId).padStart(3, '0')} ${displayName}${emojiString}${finalXp > 0 ? ` (XP: ${finalXp})` : ''}`;
 						})(),
 						value: p._id,
 						pokemonType: p.type || p.types?.[0] || null,
@@ -4744,10 +4789,10 @@ async function getShowdownGif(name, isShiny, isActive = true) {
 		if (showdownForm === 'mega-x') showdownForm = 'megax';
 		else if (showdownForm === 'mega-y') showdownForm = 'megay';
 		else if (showdownForm === 'gigantamax') showdownForm = 'gmax';
-		else if (showdownForm === 'alola') showdownForm = 'alola';
-		else if (showdownForm === 'galar') showdownForm = 'galar';
-		else if (showdownForm === 'hisui') showdownForm = 'hisui';
-		else if (showdownForm === 'paldea') showdownForm = 'paldea';
+		// else if (showdownForm === 'alola') showdownForm = 'alola';
+		// else if (showdownForm === 'galar') showdownForm = 'galar';
+		// else if (showdownForm === 'hisui') showdownForm = 'hisui';
+		// else if (showdownForm === 'paldea') showdownForm = 'paldea';
 		
 		showdownName = `${basePokemon}-${showdownForm}`;
 	}
@@ -4863,9 +4908,32 @@ function buildBattleSelectRow(availableOptions, page, searchTerm, type, battleId
 
 // Helper function to get the correct display name for a Pokemon (including forms)
 function getPokemonDisplayName(pokemon) {
+  // If formName is available, use it
   if (pokemon.formName) {
     return pokemon.formName;
   }
+  
+  // Check if the Pokemon name itself is a form name and get the proper display name
+  const pokemonNameLower = pokemon.name.toLowerCase();
+  
+  // Search through all base Pokemon in pokemonForms to find if this name matches any form
+  for (const [baseName, baseData] of Object.entries(pokemonForms)) {
+    if (baseData.forms) {
+      // Check if this Pokemon name matches any form ID, or if pokemonId matches
+      const matchingForm = baseData.forms.find(form => 
+        form.id === pokemonNameLower ||
+        form.id === pokemon.formId ||
+        form.name === pokemon.formName ||
+        form.pokemonId === pokemon.pokemonId
+      );
+      if (matchingForm) {
+        // Return the proper form display name
+        return matchingForm.name;
+      }
+    }
+  }
+  
+  // If no form found, return the original name
   return pokemon.name;
 }
 
@@ -4875,6 +4943,60 @@ function getPokemonSpriteName(pokemon) {
     return pokemon.formId;
   }
   return pokemon.name;
+}
+
+// Helper function to get the base Pokemon name for XP lookup (for forms)
+function getBasePokemonNameForXP(pokemon) {  
+  // First, check if the Pokemon name itself is a form name (even if formId/formName are undefined)
+  const pokemonNameLower = pokemon.name.toLowerCase();
+  
+  // Search through all base Pokemon in pokemonForms to find if this name matches any form
+  for (const [baseName, baseData] of Object.entries(pokemonForms)) {
+    if (baseData.forms) {
+      // Check if this Pokemon name matches any form ID, or if pokemonId matches
+      const matchingForm = baseData.forms.find(form => 
+        form.id === pokemonNameLower ||
+        form.id === pokemon.formId ||
+        form.name === pokemon.formName ||
+        form.pokemonId === pokemon.pokemonId
+      );
+      if (matchingForm) {
+        return matchingForm.basePokemon;
+      }
+    }
+  }
+  
+  // If no form found, return the original name
+  return pokemonNameLower;
+}
+
+// Helper function to detect if a Pokemon is a form
+function isPokemonForm(pokemon) {
+  // If formName is available, it's definitely a form
+  if (pokemon.formName) {
+    return true;
+  }
+  
+  // Check if the Pokemon name itself is a form name
+  const pokemonNameLower = pokemon.name.toLowerCase();
+  
+  // Search through all base Pokemon in pokemonForms to find if this name matches any form
+  for (const [baseName, baseData] of Object.entries(pokemonForms)) {
+    if (baseData.forms) {
+      // Check if this Pokemon name matches any form ID, or if pokemonId matches
+      const matchingForm = baseData.forms.find(form => 
+        form.id === pokemonNameLower ||
+        form.id === pokemon.formId ||
+        form.name === pokemon.formName ||
+        form.pokemonId === pokemon.pokemonId
+      );
+      if (matchingForm) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
 }
 
 // Export functions for use in other modules

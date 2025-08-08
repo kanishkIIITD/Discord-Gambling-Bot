@@ -55,6 +55,62 @@ function applyOnSwitchAbilities(poke, target, session, log) {
   }
 }
 
+// Helper function to get the base Pokemon name for XP lookup (for forms)
+function getBasePokemonNameForXP(pokemon) {
+  // First, check if the Pokemon name itself is a form name (even if formId/formName are undefined)
+  const pokemonNameLower = pokemon.name.toLowerCase();
+  
+  // Search through all base Pokemon in pokemonForms to find if this name matches any form
+  const pokemonForms = require('../data/pokemonForms.json');
+  for (const [baseName, baseData] of Object.entries(pokemonForms)) {
+    if (baseData.forms) {
+      // Check if this Pokemon name matches any form ID, or if pokemonId matches
+      const matchingForm = baseData.forms.find(form => 
+        form.id === pokemonNameLower ||
+        form.id === pokemon.formId ||
+        form.name === pokemon.formName ||
+        form.pokemonId === pokemon.pokemonId
+      );
+      if (matchingForm) {
+        return matchingForm.basePokemon;
+      }
+    }
+  }
+  
+  // If no form found, return the original name
+  return pokemonNameLower;
+}
+
+// Helper function to detect if a Pokemon is a form
+function isPokemonForm(pokemon) {
+  // If formName is available, it's definitely a form
+  if (pokemon.formName) {
+    return true;
+  }
+  
+  // Check if the Pokemon name itself is a form name
+  const pokemonNameLower = pokemon.name.toLowerCase();
+  
+  // Search through all base Pokemon in pokemonForms to find if this name matches any form
+  const pokemonForms = require('../data/pokemonForms.json');
+  for (const [baseName, baseData] of Object.entries(pokemonForms)) {
+    if (baseData.forms) {
+      // Check if this Pokemon name matches any form ID, or if pokemonId matches
+      const matchingForm = baseData.forms.find(form => 
+        form.id === pokemonNameLower ||
+        form.id === pokemon.formId ||
+        form.name === pokemon.formName ||
+        form.pokemonId === pokemon.pokemonId
+      );
+      if (matchingForm) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
 // Helper to process battle rewards when battle ends
 async function processBattleRewards(session) {
   if (!session.winnerId || session.status !== 'finished') return;
@@ -72,10 +128,29 @@ async function processBattleRewards(session) {
       const loserPokemons = session.winnerId === session.challengerId ? session.opponentPokemons : session.challengerPokemons;
       
       for (const poke of loserPokemons) {
-        const spawnInfo = getCustomSpawnInfo(poke.name);
+        // Get the base Pokemon name for XP lookup (for forms)
+        const basePokemonName = getBasePokemonNameForXP(poke);
+        const spawnInfo = getCustomSpawnInfo(basePokemonName);
         if (spawnInfo) {
-          totalXp += spawnInfo.xpYield || 0;
-          totalDust += spawnInfo.dustYield || 0;
+          let xpReward = spawnInfo.xpYield || 0;
+          let dustReward = spawnInfo.dustYield || 0;
+          
+          // Apply multipliers for shiny and form Pokemon
+          const isShiny = poke.isShiny || false;
+          const isForm = isPokemonForm(poke);
+          
+          if (isShiny) {
+            xpReward = Math.floor(xpReward * 1.5);
+            dustReward = Math.floor(dustReward * 1.5);
+          }
+          
+          if (isForm) {
+            xpReward = Math.floor(xpReward * 2);
+            dustReward = Math.floor(dustReward * 2);
+          }
+          
+          totalXp += xpReward;
+          totalDust += dustReward;
         }
       }
       
@@ -177,7 +252,7 @@ async function processBattleRewards(session) {
                 evs: poke.evs,
                 nature: poke.nature,
                 ability: poke.ability,
-                status: poke.status,
+                status: null, // Don't transfer battle status conditions
                 boosts: poke.boosts
               });
             }
@@ -722,7 +797,24 @@ router.post('/:battleId/select', async (req, res) => {
       let moves = [];
       try {
         // For moves fetching, always use the base Pokemon name, not the form name
-        const basePokemonName = p.name.toLowerCase();
+        let basePokemonName = p.name.toLowerCase();
+        
+        // If this is a form Pokemon, use the base Pokemon name for move fetching
+        if (p.formId) {
+          const formData = getFormById(p.formId);
+          if (formData && formData.basePokemon) {
+            basePokemonName = formData.basePokemon.toLowerCase();
+            console.log(`[BattleRoutes] Using base Pokemon name for moves: ${basePokemonName} (form: ${p.name})`);
+          }
+        } else if (detectedFormId) {
+          // If form was detected by ID, use the base Pokemon name for move fetching
+          const formData = getFormById(detectedFormId);
+          if (formData && formData.basePokemon) {
+            basePokemonName = formData.basePokemon.toLowerCase();
+            console.log(`[BattleRoutes] Using base Pokemon name for moves: ${basePokemonName} (detected form: ${p.name})`);
+          }
+        }
+        
         moves = await battleUtils.getLegalMoveset(
           basePokemonName,
           50, // level
@@ -800,14 +892,14 @@ router.post('/:battleId/select', async (req, res) => {
         evs: p.evs || {},
         nature: p.nature || 'hardy',
         ability: p.ability || '',
-        status: p.status || null,
+        status: null, // Always start battles with no status conditions
         boosts: p.boosts || {},
         volatileStatuses: {},
         formId: detectedFormId,
         formName: detectedFormName,
       };
       
-      console.log(`[BattleRoutes] Built Pokemon: ${builtPokemon.name} (ID: ${builtPokemon.pokemonId}), formId: ${builtPokemon.formId}, formName: ${builtPokemon.formName}`);
+      console.log(`[BattleRoutes] Built Pokemon: ${builtPokemon.name} (ID: ${builtPokemon.pokemonId}), formId: ${builtPokemon.formId}, formName: ${builtPokemon.formName}, moveCount: ${moves.length}`);
       
       return builtPokemon;
     }));

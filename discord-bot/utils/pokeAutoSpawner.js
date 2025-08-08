@@ -21,6 +21,12 @@ function getDisplayName(pokemonName) {
   else if (pokemonName.toLowerCase() === 'drowzee') {
     return 'thornzee';
   }
+  else if (pokemonName.toLowerCase() === 'quilava') {
+    return 'spettermark jr';
+  }
+  else if (pokemonName.toLowerCase() === 'typhlosion') {
+    return 'spettermark';
+  }
   return pokemonName;
 }
 
