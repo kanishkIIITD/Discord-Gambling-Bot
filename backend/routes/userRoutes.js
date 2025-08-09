@@ -344,6 +344,12 @@ const spawnInfo = getCustomSpawnInfo(basePokemonName);
         else if (pokemonName.toLowerCase() === 'drowzee') {
           return 'thornzee';
         }
+        else if (pokemonName.toLowerCase() === 'quilava') {
+          return 'spettermark jr';
+        }
+        else if (pokemonName.toLowerCase() === 'typhlosion') {
+          return 'spettermark';
+        }
         return pokemonName;
       }
       function capitalizeFirst(str) {
@@ -371,7 +377,7 @@ const spawnInfo = getCustomSpawnInfo(basePokemonName);
     } else {
       // Failure: Pokémon broke free
       await user.save(); // Save ball decrement and XP booster decrement if any
-      // --- Custom display name logic for embed title ---
+      // --- Custom display name logic for embed titles ---
       function getDisplayName(pokemonName) {
         if (pokemonName.toLowerCase() === 'rattata') {
           return 'joanatta';
@@ -384,6 +390,12 @@ const spawnInfo = getCustomSpawnInfo(basePokemonName);
         }
         else if (pokemonName.toLowerCase() === 'drowzee') {
           return 'thornzee';
+        }
+        else if (pokemonName.toLowerCase() === 'quilava') {
+          return 'spettermark jr';
+        }
+        else if (pokemonName.toLowerCase() === 'typhlosion') {
+          return 'spettermark';
         }
         return pokemonName;
       }

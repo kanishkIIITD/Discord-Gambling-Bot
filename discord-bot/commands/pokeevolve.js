@@ -58,24 +58,91 @@ module.exports = {
     if (eligible.length === 0) {
       return interaction.editReply('You do not have any eligible duplicate Pokémon to evolve. You need enough duplicates of a Pokémon that can evolve.');
     }
-    // Build select menu
+    // Build select menu with pagination
     const options = eligible.map(mon => ({
       label: `#${mon.pokemonId.toString().padStart(3, '0')} ${mon.name.charAt(0).toUpperCase() + mon.name.slice(1)}${mon.isShiny ? ' ✨' : ''} x${mon.count}`,
       value: `${mon.pokemonId}:${mon.isShiny ? 'shiny' : 'normal'}`
     }));
-    const selectRow = new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('pokeevolve_select')
-        .setPlaceholder('Select a Pokémon to evolve')
-        .addOptions(options)
-    );
-    const msg = await interaction.editReply({ content: `Select a Pokémon to evolve using your Evolver's Ring (${ringCharges} charges left):`, components: [selectRow], ephemeral: true });
-    // Collector for select menu
-    const collector = msg.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60000 });
+
+    const ITEMS_PER_PAGE = 25;
+    const totalPages = Math.ceil(options.length / ITEMS_PER_PAGE);
+    let currentPage = 0;
+
+    const getPageOptions = (page) => {
+      const start = page * ITEMS_PER_PAGE;
+      const end = start + ITEMS_PER_PAGE;
+      return options.slice(start, end);
+    };
+
+    const createComponents = (page) => {
+      const components = [];
+      
+      // Select menu
+      const selectRow = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('pokeevolve_select')
+          .setPlaceholder('Select a Pokémon to evolve')
+          .addOptions(getPageOptions(page))
+      );
+      components.push(selectRow);
+
+      // Navigation buttons (only if multiple pages)
+      if (totalPages > 1) {
+        const buttonRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('pokeevolve_prev')
+            .setLabel('Previous')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(page === 0),
+          new ButtonBuilder()
+            .setCustomId('pokeevolve_next')
+            .setLabel('Next')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(page === totalPages - 1)
+        );
+        components.push(buttonRow);
+      }
+
+      return components;
+    };
+
+    const getPageContent = (page) => {
+      let content = `Select a Pokémon to evolve using your Evolver's Ring (${ringCharges} charges left):`;
+      if (totalPages > 1) {
+        content += `\n\nPage ${page + 1}/${totalPages} (${eligible.length} total Pokémon)`;
+      }
+      return content;
+    };
+
+    const msg = await interaction.editReply({ 
+      content: getPageContent(currentPage), 
+      components: createComponents(currentPage), 
+      ephemeral: true 
+    });
+    // Collector for select menu and buttons
+    const collector = msg.createMessageComponentCollector({ time: 60000 });
     collector.on('collect', async i => {
       if (i.user.id !== interaction.user.id) {
-        return i.reply({ content: 'This select menu is not for you!', ephemeral: true });
+        return i.reply({ content: 'This interaction is not for you!', ephemeral: true });
       }
+
+      // Handle pagination buttons
+      if (i.customId === 'pokeevolve_prev' || i.customId === 'pokeevolve_next') {
+        if (i.customId === 'pokeevolve_prev' && currentPage > 0) {
+          currentPage--;
+        } else if (i.customId === 'pokeevolve_next' && currentPage < totalPages - 1) {
+          currentPage++;
+        }
+        
+        await i.update({
+          content: getPageContent(currentPage),
+          components: createComponents(currentPage)
+        });
+        return;
+      }
+
+      // Handle select menu
+      if (i.customId !== 'pokeevolve_select') return;
       const [pokemonId, shinyStr] = i.values[0].split(':');
       const isShiny = shinyStr === 'shiny';
       // Find the selected Pokémon in pokedex
@@ -113,19 +180,87 @@ module.exports = {
               // Removed emoji property with custom URL, as Discord.js select menus do not support arbitrary image URLs for emoji
             };
           }));
-          const evoSelectRow = new ActionRowBuilder().addComponents(
-            new StringSelectMenuBuilder()
-              .setCustomId('pokeevolve_evo_select')
-              .setPlaceholder('Select an evolution')
-              .addOptions(evoOptions)
-          );
-          await interaction.followUp({ content: 'Select which evolution you want:', components: [evoSelectRow], ephemeral: true });
-          // Collector for evolution select
-          const evoCollector = interaction.channel.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60000 });
+
+          // Handle pagination for evolution options (unlikely to exceed 25, but safety first)
+          const evoItemsPerPage = 25;
+          const evoTotalPages = Math.ceil(evoOptions.length / evoItemsPerPage);
+          let evoCurrentPage = 0;
+
+          const getEvoPageOptions = (page) => {
+            const start = page * evoItemsPerPage;
+            const end = start + evoItemsPerPage;
+            return evoOptions.slice(start, end);
+          };
+
+          const createEvoComponents = (page) => {
+            const components = [];
+            
+            // Select menu
+            const evoSelectRow = new ActionRowBuilder().addComponents(
+              new StringSelectMenuBuilder()
+                .setCustomId('pokeevolve_evo_select')
+                .setPlaceholder('Select an evolution')
+                .addOptions(getEvoPageOptions(page))
+            );
+            components.push(evoSelectRow);
+
+            // Navigation buttons (only if multiple pages)
+            if (evoTotalPages > 1) {
+              const buttonRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setCustomId('pokeevolve_evo_prev')
+                  .setLabel('Previous')
+                  .setStyle(ButtonStyle.Secondary)
+                  .setDisabled(page === 0),
+                new ButtonBuilder()
+                  .setCustomId('pokeevolve_evo_next')
+                  .setLabel('Next')
+                  .setStyle(ButtonStyle.Secondary)
+                  .setDisabled(page === evoTotalPages - 1)
+              );
+              components.push(buttonRow);
+            }
+
+            return components;
+          };
+
+          const getEvoPageContent = (page) => {
+            let content = 'Select which evolution you want:';
+            if (evoTotalPages > 1) {
+              content += `\n\nPage ${page + 1}/${evoTotalPages} (${evoOptions.length} total evolutions)`;
+            }
+            return content;
+          };
+
+          await interaction.followUp({ 
+            content: getEvoPageContent(evoCurrentPage), 
+            components: createEvoComponents(evoCurrentPage), 
+            ephemeral: true 
+          });
+          // Collector for evolution select and buttons
+          const evoCollector = interaction.channel.createMessageComponentCollector({ time: 60000 });
           evoCollector.on('collect', async evoI => {
             if (evoI.user.id !== interaction.user.id) {
-              return evoI.reply({ content: 'This select menu is not for you!', ephemeral: true });
+              return evoI.reply({ content: 'This interaction is not for you!', ephemeral: true });
             }
+
+            // Handle evolution pagination buttons
+            if (evoI.customId === 'pokeevolve_evo_prev' || evoI.customId === 'pokeevolve_evo_next') {
+              if (evoI.customId === 'pokeevolve_evo_prev' && evoCurrentPage > 0) {
+                evoCurrentPage--;
+              } else if (evoI.customId === 'pokeevolve_evo_next' && evoCurrentPage < evoTotalPages - 1) {
+                evoCurrentPage++;
+              }
+              
+              await evoI.update({
+                content: getEvoPageContent(evoCurrentPage),
+                components: createEvoComponents(evoCurrentPage)
+              });
+              return;
+            }
+
+            // Handle evolution select menu
+            if (evoI.customId !== 'pokeevolve_evo_select') return;
             const chosenEvoId = Number(evoI.values[0]);
             console.log('[pokeevolve] User selected evolutionId:', chosenEvoId);
             await evoI.deferUpdate();
