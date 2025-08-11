@@ -28,6 +28,7 @@ const tradeRoutes = require('./routes/tradeRoutes');
 const questRoutes = require('./routes/questRoutes');
 const tcgRoutes = require('./routes/tcgRoutes');
 const eventRoutes = require('./routes/eventRoutes');
+const cs2Routes = require('./routes/cs2Routes');
 const { warmMoveCache } = require('./utils/cacheWarmer');
 const weekendScheduler = require('./utils/weekendScheduler');
 const { cleanupStuckBattles } = require('./scripts/cleanupStuckBattles');
@@ -135,6 +136,7 @@ app.use('/api/trades', tradeRoutes);
 app.use('/api/quests', questRoutes);
 app.use('/api/tcg', tcgRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/cs2', cs2Routes);
 
 // Cache warming endpoint (for maintenance)
 app.post('/api/admin/warm-cache', async (req, res) => {

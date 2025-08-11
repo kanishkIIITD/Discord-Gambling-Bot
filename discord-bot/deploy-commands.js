@@ -24,6 +24,14 @@ const weekendCommand = require('./commands/weekend');
 const pokebattlestatsCommand = require('./commands/pokebattlestats');
 const cancelbattleCommand = require('./commands/cancelbattle');
 const pokestealCommand = require('./commands/pokesteal');
+const cs2casesCommand = require('./commands/cs2cases');
+const cs2inventoryCommand = require('./commands/cs2inventory');
+const cs2leaderboardCommand = require('./commands/cs2leaderboard');
+const cs2openCommand = require('./commands/cs2open');
+const cs2statsCommand = require('./commands/cs2stats');
+const cs2sellCommand = require('./commands/cs2sell');
+const cs2tradeCommand = require('./commands/cs2trade');
+
 const commands = [
 	{
 		name: 'balance',
@@ -469,7 +477,8 @@ const commands = [
 					{ name: 'Duel', value: 'duel' },
 					{ name: 'Buffs', value: 'buffs' },
 					{ name: 'Moderation', value: 'moderation' },
-					{ name: 'Pokémon', value: 'pokemon' }
+					{ name: 'Pokémon', value: 'pokemon' },
+					{ name: 'CS2 Gaming', value: 'cs2' }
 				]
 			}
 		]
@@ -1066,6 +1075,13 @@ commands.push(weekendCommand.data.toJSON());
 commands.push(pokebattlestatsCommand.data.toJSON());
 commands.push(cancelbattleCommand.data.toJSON());
 commands.push(pokestealCommand.data.toJSON());
+	commands.push(cs2casesCommand.data.toJSON());
+	commands.push(cs2inventoryCommand.data.toJSON());
+	commands.push(cs2leaderboardCommand.data.toJSON());
+	commands.push(cs2openCommand.data.toJSON());
+	commands.push(cs2statsCommand.data.toJSON());
+	commands.push(cs2sellCommand.data.toJSON());
+	commands.push(cs2tradeCommand.data.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
 

@@ -1,0 +1,1273 @@
+{
+  "anubis collection package": {
+    "formatted_name": "Anubis Collection Package",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUlNhJw1EiamxJBVlw-HHfDIMuonkl4XbkaTyZOvXzzkAvZIk07jAp9Xx21Hn_RVuMDyhd9WXdVA4ZUaQpAaRvoU2Gw/256fx256f",
+    "items": {
+      "consumer grade": [
+        "xm1014 hieroglyph",
+        "aug snake pit",
+        "mp7 sunbaked",
+        "r8 revolver inlay",
+        "m249 submerged"
+      ],
+      "industrial grade": [
+        "m4a1s mudspec",
+        "usps desert tactical",
+        "ssg 08 azure glyph",
+        "mac10 echoing sands"
+      ],
+      "mil-spec": [
+        "awp black nile",
+        "ak47 steel delta",
+        "tec9 mummys rot",
+        "mag7 copper coated"
+      ],
+      "restricted": [
+        "glock18 rameses reach",
+        "p90 scarab rush",
+        "nova sobeks bite"
+      ],
+      "classified": [
+        "famas waters of nephthys",
+        "p250 apeps curse"
+      ],
+      "covert": [
+        "m4a4 eye of horus"
+      ]
+    },
+    "requires_key": false
+  },
+  "chroma 2 case": {
+    "formatted_name": "Chroma 2 Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFAuhqSaKWtEu43mxtbbk6b1a77Twm4Iu8Yl3bCU9Imii1Xt80M5MmD7JZjVLFH-6VnQJQ/256fx256f",
+    "items": {
+      "mil-spec": [
+        "ak47 elite build",
+        "desert eagle bronze deco",
+        "p250 valence",
+        "sawedoff origami",
+        "mp7 armor core",
+        "negev manowar"
+      ],
+      "restricted": [
+        "awp worm god",
+        "mag7 heat",
+        "cz75auto pole position",
+        "ump45 grand prix"
+      ],
+      "classified": [
+        "galil ar eco",
+        "fiveseven monkey business",
+        "famas djinn"
+      ],
+      "covert": [
+        "m4a1s hyper beast",
+        "mac10 neon rider"
+      ]
+    },
+    "requires_key": true
+  },
+  "chroma 3 case": {
+    "formatted_name": "Chroma 3 Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFYynaSdJGhE74y0wNWIw_OlNuvXkDpSuZQmi--SrN-h3gey-Uo6YWmlIoCLMlhplhFFvwI/256fx256f",
+    "items": {
+      "mil-spec": [
+        "mp9 bioleak",
+        "dual berettas ventilators",
+        "p2000 oceanic",
+        "m249 spectre",
+        "g3sg1 orange crash",
+        "sg 553 atlas",
+        "sawedoff fubar"
+      ],
+      "restricted": [
+        "ssg 08 ghost crusader",
+        "xm1014 black tie",
+        "galil ar firefight",
+        "tec9 reentry",
+        "cz75auto red astor"
+      ],
+      "classified": [
+        "p250 asiimov",
+        "aug fleet flock",
+        "ump45 primal saber"
+      ],
+      "covert": [
+        "m4a1s chanticos fire",
+        "ppbizon judgement of anubis"
+      ]
+    },
+    "requires_key": true
+  },
+  "chroma case": {
+    "formatted_name": "Chroma Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFEuh_KQJTtEuI63xIXbxqOtauyClTMEsJV1jruS89T3iQKx_BBqa2j3JpjVLFH1xpp0EQ/256fx256f",
+    "items": {
+      "mil-spec": [
+        "mp9 deadly poison",
+        "glock18 catacombs",
+        "xm1014 quicksilver",
+        "scar20 grotto",
+        "m249 system lock"
+      ],
+      "restricted": [
+        "desert eagle naga",
+        "mac10 malachite",
+        "sawedoff serenity",
+        "dual berettas urban shock"
+      ],
+      "classified": [
+        "ak47 cartel",
+        "m4a4 dragon king",
+        "p250 muertos"
+      ],
+      "covert": [
+        "galil ar chatterbox",
+        "awp manowar"
+      ]
+    },
+    "requires_key": true
+  },
+  "clutch case": {
+    "formatted_name": "Clutch Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFY5naqQIz4R7Yjix9bZkvKiZrmAzzlTu5AoibiT8d_x21Wy8hY_MWz1doSLMlhpM3FKbNs/256fx256f",
+    "items": {
+      "mil-spec": [
+        "r8 revolver grip",
+        "mp9 black sand",
+        "p2000 urban hazard",
+        "fiveseven flame test",
+        "xm1014 oxide blaze",
+        "sg 553 aloha",
+        "ppbizon night riot"
+      ],
+      "restricted": [
+        "glock18 moonrise",
+        "mag7 swag7",
+        "negev lionfish",
+        "nova wild six",
+        "ump45 arctic wolf"
+      ],
+      "classified": [
+        "usps cortex",
+        "awp mortis",
+        "aug stymphalian"
+      ],
+      "covert": [
+        "m4a4 neonoir",
+        "mp7 bloodsport"
+      ]
+    },
+    "requires_key": true
+  },
+  "cs20 case": {
+    "formatted_name": "CS20 Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFU0naHKIj9D7oTgl4LelaGnMuqIwDgFusR337HCpYmhiwzm8ktqMjv2INKLMlhprbp6CTE/256fx256f",
+    "items": {
+      "mil-spec": [
+        "glock18 sacrifice",
+        "famas decommissioned",
+        "mag7 popdog",
+        "tec9 flash out",
+        "mac10 classic crate",
+        "dual berettas elite 16",
+        "scar20 assault"
+      ],
+      "restricted": [
+        "mp5sd agent",
+        "fiveseven buddy",
+        "m249 aztec",
+        "ump45 plastique",
+        "p250 inferno"
+      ],
+      "classified": [
+        "mp9 hydra",
+        "aug death by puppy",
+        "p90 nostalgia"
+      ],
+      "covert": [
+        "awp wildfire",
+        "famas commemoration"
+      ]
+    },
+    "requires_key": true
+  },
+  "csgo weapon case": {
+    "formatted_name": "CS:GO Weapon Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsRVx4MwFo5_T3eAQ3i6DMIW0X7ojiwoHax6egMOKGxj4G68Nz3-jCp4itjFWx-ktqfSmtcwqVx6sT/256fx256f",
+    "items": {
+      "mil-spec": [
+        "sg 553 ultraviolet",
+        "aug wings",
+        "mp7 skulls"
+      ],
+      "restricted": [
+        "glock18 dragon tattoo",
+        "m4a1s dark water",
+        "usps dark water"
+      ],
+      "classified": [
+        "ak47 case hardened",
+        "desert eagle hypnotic"
+      ],
+      "covert": [
+        "awp lightning strike"
+      ]
+    },
+    "requires_key": true
+  },
+  "csgo weapon case 2": {
+    "formatted_name": "CS:GO Weapon Case 2",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsRVx4MwFo5PT8elUwgKKZJmtEvo_kxITZk6StNe-Fz2pTu8Aj3eqVpIqgjVfjrRI9fSmtc1Nw-Kh3/256fx256f",
+    "items": {
+      "mil-spec": [
+        "scar20 crimson web",
+        "m4a1s blood tiger",
+        "tec9 blue titanium",
+        "p250 hive",
+        "famas hexane"
+      ],
+      "restricted": [
+        "fiveseven case hardened",
+        "nova graphite",
+        "mp9 hypnotic",
+        "dual berettas hemoglobin"
+      ],
+      "classified": [
+        "p90 cold blooded",
+        "usps serum"
+      ],
+      "covert": [
+        "ssg 08 blood in the water"
+      ]
+    },
+    "requires_key": true
+  },
+  "csgo weapon case 3": {
+    "formatted_name": "CS:GO Weapon Case 3",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsRVx4MwFo5fSnf15k0KGacG0UtYXnzdTdkq-gariGlDgHvMcmjryZotqg2wCxrUVtfSmtc20v4quI/256fx256f",
+    "items": {
+      "mil-spec": [
+        "usps stainless",
+        "glock18 blue fissure",
+        "cz75auto crimson web",
+        "dual berettas panther",
+        "p2000 red fragcam"
+      ],
+      "restricted": [
+        "desert eagle heirloom",
+        "fiveseven copper galaxy",
+        "cz75auto tread plate",
+        "tec9 titanium bit"
+      ],
+      "classified": [
+        "p250 undertow",
+        "cz75auto the fuschia is now"
+      ],
+      "covert": [
+        "cz75auto victoria"
+      ]
+    },
+    "requires_key": true
+  },
+  "danger zone case": {
+    "formatted_name": "Danger Zone Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUxnaPLJz5H74y1xtTcz6etNumIx29U6Zd3j7yQoYih3lG1-UJqY27xJIeLMlhpaD9Aclo/256fx256f",
+    "items": {
+      "mil-spec": [
+        "m4a4 magnesium",
+        "tec9 fubar",
+        "glock18 oxide blaze",
+        "mp9 modest threat",
+        "sg 553 danger close",
+        "nova wood fired",
+        "sawedoff black sand"
+      ],
+      "restricted": [
+        "p250 nevermore",
+        "usps flashback",
+        "mac10 pipe down",
+        "galil ar signal",
+        "g3sg1 scavenger"
+      ],
+      "classified": [
+        "desert eagle mecha industries",
+        "ump45 momentum",
+        "mp5sd phosphor"
+      ],
+      "covert": [
+        "ak47 asiimov",
+        "awp neonoir"
+      ]
+    },
+    "requires_key": true
+  },
+  "dreams and nightmares case": {
+    "formatted_name": "Dreams & Nightmares Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFQwnfCcJmxDv9rhwIHZwqP3a-uGwz9Xv8F0j-qQrI3xiVLkrxVuZW-mJoWLMlhpWhFkc9M/256fx256f",
+    "items": {
+      "mil-spec": [
+        "fiveseven scrawl",
+        "mac10 ensnared",
+        "mp5sd necro jr",
+        "p2000 lifted spirits",
+        "sawedoff spirit board",
+        "scar20 poultrygeist",
+        "mag7 foresight"
+      ],
+      "restricted": [
+        "m4a1s night terror",
+        "usps ticket to hell",
+        "ppbizon space cat",
+        "g3sg1 dream glade",
+        "xm1014 zombie offensive"
+      ],
+      "classified": [
+        "dual berettas melondrama",
+        "famas rapid eye movement",
+        "mp7 abyssal apparition"
+      ],
+      "covert": [
+        "ak47 nightwish",
+        "mp9 starlight protector"
+      ]
+    },
+    "requires_key": true
+  },
+  "esports 2013 case": {
+    "formatted_name": "eSports 2013 Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsVk5kKhZDpYX3e1YznfCcdzkR74vnw9TZwa-sYOOCzzoF6ZJ0jL6Qp9uj3Qbj_Uc6Z2z1I9WLMlhp9VPHu3g/256fx256f",
+    "items": {
+      "mil-spec": [
+        "m4a4 faded zebra",
+        "mag7 memento",
+        "famas doomkitty"
+      ],
+      "restricted": [
+        "galil ar orange ddpat",
+        "p250 splash",
+        "sawedoff orange ddpat"
+      ],
+      "classified": [
+        "awp boom",
+        "ak47 red laminate"
+      ],
+      "covert": [
+        "p90 death by kitty"
+      ]
+    },
+    "requires_key": true
+  },
+  "esports 2013 winter case": {
+    "formatted_name": "eSports 2013 Winter Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsVk5kKhZDpYX3e1Yz7KKcPzwav9jnzdfdlfWmY7_TzmkF6ZMlj77A9o3x0Qe1qhBkZGjxI9LBJgMgIQaH1G7WeaA/256fx256f",
+    "items": {
+      "mil-spec": [
+        "galil ar blue titanium",
+        "fiveseven nightshade",
+        "p250 steel disruption",
+        "nova ghost camo",
+        "ppbizon water sigil",
+        "g3sg1 azure zebra"
+      ],
+      "restricted": [
+        "ak47 blue laminate",
+        "p90 blind spot"
+      ],
+      "classified": [
+        "desert eagle cobalt disruption",
+        "awp electric hive",
+        "famas afterimage"
+      ],
+      "covert": [
+        "m4a4 xray"
+      ]
+    },
+    "requires_key": true
+  },
+  "esports 2014 summer case": {
+    "formatted_name": "eSports 2014 Summer Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsVk5kKhZDpYX3e1Y07ODdfDBH_pKzwdfSkqTyZLjQxjsF7sEoiLyQ9I2ljgHt_EZlYzr6J4DHIA9oZ1-D5BHglkR7Cs6C/256fx256f",
+    "items": {
+      "mil-spec": [
+        "mac10 ultraviolet",
+        "negev bratatat",
+        "usps blood tiger",
+        "cz75auto hexane",
+        "ssg 08 dark water",
+        "xm1014 red python"
+      ],
+      "restricted": [
+        "desert eagle crimson web",
+        "mp7 ocean foam",
+        "ppbizon blue streak",
+        "glock18 steel disruption",
+        "p90 virus"
+      ],
+      "classified": [
+        "nova bloomstick",
+        "awp corticera",
+        "aug bengal tiger",
+        "p2000 corticera"
+      ],
+      "covert": [
+        "ak47 jaguar",
+        "m4a4 bullet rain"
+      ]
+    },
+    "requires_key": true
+  },
+  "falchion case": {
+    "formatted_name": "Falchion Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FF8ugPDMIWpAuIq1w4KIlaChZOyFwzgJuZNy3-2T89T0jlC2rhZla2vwIJjVLFHz75yKpg/256fx256f",
+    "items": {
+      "mil-spec": [
+        "galil ar rocket pop",
+        "usps torque",
+        "glock18 bunsen burner",
+        "p90 elite build",
+        "nova ranger",
+        "ump45 riot"
+      ],
+      "restricted": [
+        "negev loudmouth",
+        "m4a4 evil daimyo",
+        "p2000 handgun",
+        "mp9 ruby poison dart",
+        "famas neural net"
+      ],
+      "classified": [
+        "sg 553 cyrex",
+        "mp7 nemesis",
+        "cz75auto yellow jacket"
+      ],
+      "covert": [
+        "ak47 aquamarine revenge",
+        "awp hyper beast"
+      ]
+    },
+    "requires_key": true
+  },
+  "fracture case": {
+    "formatted_name": "Fracture Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFU2nfGaJG0btN2wwYHfxa-hY-uFxj4Dv50nj7uXpI7w3AewrhBpMWH6d9CLMlhpEbAe-Zk/256fx256f",
+    "items": {
+      "mil-spec": [
+        "ssg 08 mainframe 001",
+        "ppbizon runic",
+        "p2000 gnarled",
+        "p90 freight",
+        "p250 cassette",
+        "negev ultralight",
+        "sg 553 ol rusty"
+      ],
+      "restricted": [
+        "mag7 monster call",
+        "mac10 allure",
+        "galil ar connexion",
+        "tec9 brother",
+        "mp5sd kitbash"
+      ],
+      "classified": [
+        "glock18 vogue",
+        "m4a4 tooth fairy",
+        "xm1014 entombed"
+      ],
+      "covert": [
+        "desert eagle printstream",
+        "ak47 legion of anubis"
+      ]
+    },
+    "requires_key": true
+  },
+  "gamma 2 case": {
+    "formatted_name": "Gamma 2 Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsVFx5KAVo5PSkKV4xhfGfKTgVvIXlxNPSwaOmMLiGwzgJvJMniO-Zoo_z2wXg-EVvfSmtc78HsNoy/256fx256f",
+    "items": {
+      "mil-spec": [
+        "negev dazzle",
+        "p90 grim",
+        "cz75auto imprint",
+        "xm1014 slipstream",
+        "fiveseven scumbria",
+        "g3sg1 ventilator",
+        "ump45 briefing"
+      ],
+      "restricted": [
+        "desert eagle directive",
+        "glock18 weasel",
+        "mag7 petroglyph",
+        "scar20 powercore",
+        "sg 553 triarch"
+      ],
+      "classified": [
+        "tec9 fuel injector",
+        "mp9 airlock",
+        "aug syd mead"
+      ],
+      "covert": [
+        "ak47 neon revolution",
+        "famas roll cage"
+      ]
+    },
+    "requires_key": true
+  },
+  "gamma case": {
+    "formatted_name": "Gamma Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFYznarJJjkQ6ovjw4SPlfP3auqEl2oBuJB1j--WoY322QziqkdpZGr3IteLMlhpw4RJCv8/256fx256f",
+    "items": {
+      "mil-spec": [
+        "fiveseven violent daimyo",
+        "tec9 ice cap",
+        "p250 iron clad",
+        "mac10 carnivore",
+        "ppbizon harvester",
+        "nova exo",
+        "sg 553 aerial"
+      ],
+      "restricted": [
+        "awp phobos",
+        "r8 revolver reboot",
+        "aug aristocrat",
+        "p90 chopper",
+        "sawedoff limelight"
+      ],
+      "classified": [
+        "m4a4 desolate space",
+        "p2000 imperial dragon",
+        "scar20 bloodsport"
+      ],
+      "covert": [
+        "m4a1s mecha industries",
+        "glock18 wasteland rebel"
+      ]
+    },
+    "requires_key": true
+  },
+  "glove case": {
+    "formatted_name": "Glove Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFY1naTMdzwTtNrukteIkqT2MO_Uwz5Q6cYhibyXo4rw2ALsrkRoYjuncNCLMlhpEV4XDTk/256fx256f",
+    "items": {
+      "mil-spec": [
+        "glock18 ironwork",
+        "p2000 turf",
+        "mp7 cirrus",
+        "galil ar black sand",
+        "mp9 sand scale",
+        "mag7 sonar",
+        "cz75auto polymer"
+      ],
+      "restricted": [
+        "usps cyrex",
+        "m4a1s flashback",
+        "dual berettas royal consorts",
+        "nova gila",
+        "g3sg1 stinger"
+      ],
+      "classified": [
+        "famas mecha industries",
+        "p90 shallow grave",
+        "sawedoff wasteland princess"
+      ],
+      "covert": [
+        "ssg 08 dragonfire",
+        "m4a4 buzz kill"
+      ]
+    },
+    "requires_key": true
+  },
+  "horizon case": {
+    "formatted_name": "Horizon Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUwnfbOdDgavYXukYTZkqf2ZbrTwmkE6scgj7CY94ml3FXl-ENkMW3wctOLMlhpVHKV9YA/256fx256f",
+    "items": {
+      "mil-spec": [
+        "p90 traction",
+        "tec9 snek9",
+        "glock18 warhawk",
+        "mp9 capillary",
+        "aug amber slipstream",
+        "dual berettas shred",
+        "r8 revolver survivalist"
+      ],
+      "restricted": [
+        "awp paw",
+        "nova toy soldier",
+        "mp7 powercore",
+        "g3sg1 high seas",
+        "cz75auto eco"
+      ],
+      "classified": [
+        "m4a1s nightmare",
+        "famas eye of athena",
+        "sawedoff devourer"
+      ],
+      "covert": [
+        "ak47 neon rider",
+        "desert eagle code red"
+      ]
+    },
+    "requires_key": true
+  },
+  "huntsman weapon case": {
+    "formatted_name": "Huntsman Weapon Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFQu0PaQIm9DtY6wzYaIxKWtN7iJwW8G6Z0h2LqWoY6s2Qy2-0Q_Nzv7IJjVLFGZqUbjlQ/256fx256f",
+    "items": {
+      "mil-spec": [
+        "p90 module",
+        "p2000 pulse",
+        "cz75auto twist",
+        "tec9 isaac",
+        "galil ar kami",
+        "ssg 08 slashed"
+      ],
+      "restricted": [
+        "mac10 tatter",
+        "ppbizon antique",
+        "xm1014 heaven guard",
+        "aug torque"
+      ],
+      "classified": [
+        "usps caiman",
+        "m4a1s atomic alloy",
+        "scar20 cyrex"
+      ],
+      "covert": [
+        "m4a4 desertstrike",
+        "ak47 vulcan"
+      ]
+    },
+    "requires_key": true
+  },
+  "kilowatt case": {
+    "formatted_name": "Kilowatt Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFQznaKdID5D6d23ldHSwKOmZeyEz21XvZZ12LzE9t6nigbgqkplNjihJIaLMlhpF1ZeR5c/256fx256f",
+    "items": {
+      "mil-spec": [
+        "mac10 light box",
+        "ssg 08 dezastre",
+        "xm1014 irezumi",
+        "ump45 motorized",
+        "tec9 slag",
+        "dual berettas hideout",
+        "nova dark sigil"
+      ],
+      "restricted": [
+        "glock18 block18",
+        "m4a4 etch lord",
+        "mp7 just smile",
+        "fiveseven hybrid",
+        "sawedoff analog input"
+      ],
+      "classified": [
+        "m4a1s black lotus",
+        "usps jawbreaker",
+        "zeus x27 olympus"
+      ],
+      "covert": [
+        "ak47 inheritance",
+        "awp chrome cannon"
+      ]
+    },
+    "requires_key": true
+  },
+  "operation bravo case": {
+    "formatted_name": "Operation Bravo Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsXE1xNwVDv7WrFA5pnabNJGwSuN3gxtnawKOlMO6HzzhQucAm0uvFo4n2iw3h_UM-ZmilJNeLMlhpjfjxEoE/256fx256f",
+    "items": {
+      "mil-spec": [
+        "sg 553 wave spray",
+        "galil ar shattered",
+        "nova tempest",
+        "ump45 bone pile",
+        "dual berettas black limba",
+        "g3sg1 demeter"
+      ],
+      "restricted": [
+        "usps overgrowth",
+        "m4a4 zirka",
+        "mac10 graven",
+        "m4a1s bright water"
+      ],
+      "classified": [
+        "p90 emerald dragon",
+        "awp graphite",
+        "p2000 ocean foam"
+      ],
+      "covert": [
+        "ak47 fire serpent",
+        "desert eagle golden koi"
+      ]
+    },
+    "requires_key": true
+  },
+  "operation breakout weapon case": {
+    "formatted_name": "Operation Breakout Weapon Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFMu1aPMI24auITjxteJwPXxY72AkGgIvZAniLjHpon2jlbl-kpvNjz3JJjVLFG9rl1YLQ/256fx256f",
+    "items": {
+      "mil-spec": [
+        "ssg 08 abyss",
+        "p2000 ivory",
+        "ump45 labyrinth",
+        "mp7 urban hazard",
+        "negev desertstrike"
+      ],
+      "restricted": [
+        "p250 supernova",
+        "nova koi",
+        "ppbizon osiris",
+        "cz75auto tigris"
+      ],
+      "classified": [
+        "glock18 water elemental",
+        "desert eagle conspiracy",
+        "fiveseven fowl play"
+      ],
+      "covert": [
+        "m4a1s cyrex",
+        "p90 asiimov"
+      ]
+    },
+    "requires_key": true
+  },
+  "operation broken fang case": {
+    "formatted_name": "Operation Broken Fang Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFU3naeZIWUStYjgxdnewfGmZb6DxW8AupMp27yT9IqiilCxqkRkZGyldoaLMlhp6IQjKcg/256fx256f",
+    "items": {
+      "mil-spec": [
+        "galil ar vandal",
+        "mp5sd condition zero",
+        "cz75auto vendetta",
+        "p250 contaminant",
+        "p90 cocoa rampage",
+        "g3sg1 digital mesh",
+        "m249 deep relief"
+      ],
+      "restricted": [
+        "awp exoskeleton",
+        "dual berettas dezastre",
+        "ump45 gold bismuth",
+        "ssg 08 parallax",
+        "nova clear polymer"
+      ],
+      "classified": [
+        "fiveseven fairy tale",
+        "usps monster mashup",
+        "m4a4 cyber security"
+      ],
+      "covert": [
+        "m4a1s printstream",
+        "glock18 neonoir"
+      ]
+    },
+    "requires_key": true
+  },
+  "operation hydra case": {
+    "formatted_name": "Operation Hydra Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFY3navMJWgQtNm1ldLZzvOiZr-BlToIsZcoi-yTpdutiVW2-Es4NWjwIo-LMlhpinMS53M/256fx256f",
+    "items": {
+      "mil-spec": [
+        "usps blueprint",
+        "m4a1s briefing",
+        "tec9 cut out",
+        "mac10 aloha",
+        "mag7 hard water",
+        "famas macabre",
+        "ump45 metal flowers"
+      ],
+      "restricted": [
+        "ak47 orbit mk01",
+        "p2000 woodsman",
+        "p90 death grip",
+        "ssg 08 deaths head",
+        "p250 red rock"
+      ],
+      "classified": [
+        "galil ar sugar rush",
+        "dual berettas cobra strike",
+        "m4a4 hellfire"
+      ],
+      "covert": [
+        "awp oni taiji",
+        "fiveseven hyper beast"
+      ]
+    },
+    "requires_key": true
+  },
+  "operation phoenix weapon case": {
+    "formatted_name": "Operation Phoenix Weapon Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUuh6qZJmlD7tiyl4OIlaGhYuLTzjhVupJ12urH89ii3lHlqEdoMDr2I5jVLFFSv_J2Rg/256fx256f",
+    "items": {
+      "mil-spec": [
+        "tec9 sandstorm",
+        "negev terrain",
+        "mag7 heaven guard",
+        "ump45 corporal"
+      ],
+      "restricted": [
+        "usps guardian",
+        "mac10 heat",
+        "famas sergeant",
+        "sg 553 pulse"
+      ],
+      "classified": [
+        "ak47 redline",
+        "nova antique",
+        "p90 trigon"
+      ],
+      "covert": [
+        "awp asiimov",
+        "aug chameleon"
+      ]
+    },
+    "requires_key": false
+  },
+  "operation riptide case": {
+    "formatted_name": "Operation Riptide Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFU5narKKW4SvIrhw9PZlaPwNuqAxmgBucNz2L3C8dyj31Xn-0VtMW3wdY6LMlhplna0TPI/256fx256f",
+    "items": {
+      "mil-spec": [
+        "usps black lotus",
+        "xm1014 watchdog",
+        "aug plague",
+        "mp7 guerrilla",
+        "ppbizon lumen",
+        "g3sg1 keeping tabs",
+        "dual berettas tread"
+      ],
+      "restricted": [
+        "m4a4 spider lily",
+        "mp9 mount fuji",
+        "famas zx spectron",
+        "fiveseven boost protocol",
+        "mag7 bi83 spectrum"
+      ],
+      "classified": [
+        "glock18 snack attack",
+        "ssg 08 turbo peek",
+        "mac10 toybox"
+      ],
+      "covert": [
+        "desert eagle ocean drive",
+        "ak47 leet museo"
+      ]
+    },
+    "requires_key": true
+  },
+  "operation vanguard weapon case": {
+    "formatted_name": "Operation Vanguard Weapon Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFIuh6rJImVGvtjllYaNka6la7rUxWkE65BzibvD9N7z0Q22-0Fka2GlJ5jVLFHqavWW2g/256fx256f",
+    "items": {
+      "mil-spec": [
+        "mag7 firestarter",
+        "ump45 delusion",
+        "fiveseven urban hazard",
+        "mp9 dart",
+        "g3sg1 murky"
+      ],
+      "restricted": [
+        "m4a1s basilisk",
+        "m4a4 griffin",
+        "glock18 grinder",
+        "sawedoff highwayman"
+      ],
+      "classified": [
+        "xm1014 tranquility",
+        "p250 cartel",
+        "scar20 cardiac"
+      ],
+      "covert": [
+        "ak47 wasteland rebel",
+        "p2000 fire elemental"
+      ]
+    },
+    "requires_key": true
+  },
+  "operation wildfire case": {
+    "formatted_name": "Operation Wildfire Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFYxnaeQImRGu4S1x9TawfSmY-iHkmoD7cEl2LiQpIjz3wPl_ERkYWHwLY-LMlhp9pkR_UQ/256fx256f",
+    "items": {
+      "mil-spec": [
+        "usps lead conduit",
+        "ssg 08 necropos",
+        "ppbizon photic zone",
+        "tec9 jambiya",
+        "dual berettas cartel",
+        "mac10 lapis gator"
+      ],
+      "restricted": [
+        "glock18 royal legion",
+        "famas valence",
+        "mp7 impire",
+        "mag7 praetorian",
+        "fiveseven triumvirate"
+      ],
+      "classified": [
+        "desert eagle kumicho dragon",
+        "nova hyper beast",
+        "awp elite build"
+      ],
+      "covert": [
+        "ak47 fuel injector",
+        "m4a4 the battlestar"
+      ]
+    },
+    "requires_key": true
+  },
+  "prisma 2 case": {
+    "formatted_name": "Prisma 2 Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFU1nfbOIj8W7oWzkYLdlPOsMOmIk2kGscAj2erE99Sn2AGw_0M4NW2hIYOLMlhpcmY0CRM/256fx256f",
+    "items": {
+      "mil-spec": [
+        "awp capillary",
+        "desert eagle blue ply",
+        "negev prototype",
+        "aug tom cat",
+        "cz75auto distressed",
+        "mp5sd desert strike",
+        "r8 revolver bone forged"
+      ],
+      "restricted": [
+        "ssg 08 fever dream",
+        "sg 553 darkwing",
+        "p2000 acid etched",
+        "scar20 enforcer",
+        "sawedoff apocalypto"
+      ],
+      "classified": [
+        "ak47 phantom disruptor",
+        "mac10 disco tech",
+        "mag7 justice"
+      ],
+      "covert": [
+        "m4a1s player two",
+        "glock18 bullet queen"
+      ]
+    },
+    "requires_key": true
+  },
+  "prisma case": {
+    "formatted_name": "Prisma Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUynfWaI25G6Ijkl9iPw_SnNrjXw2oBu8cj3b2Qo4_33QbnrUdlYD37ddCLMlhpvs0XIz0/256fx256f",
+    "items": {
+      "mil-spec": [
+        "ak47 uncharted",
+        "p90 off world",
+        "p250 verdigris",
+        "galil ar akoben",
+        "mac10 whitefish",
+        "famas crypsis",
+        "mp7 mischief"
+      ],
+      "restricted": [
+        "awp atheris",
+        "desert eagle light rail",
+        "tec9 bamboozle",
+        "ump45 moonrise",
+        "mp5sd gauss"
+      ],
+      "classified": [
+        "aug momentum",
+        "xm1014 incinegator",
+        "r8 revolver skull crusher"
+      ],
+      "covert": [
+        "m4a4 the emperor",
+        "fiveseven angry mob"
+      ]
+    },
+    "requires_key": true
+  },
+  "recoil case": {
+    "formatted_name": "Recoil Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFQxnaecIT8Wv9rilYTYkfTyNuiFwmhUvpZz3-2Z9oqg0Vew80NvZzuiJdeLMlhpwFO-XdA/256fx256f",
+    "items": {
+      "mil-spec": [
+        "m4a4 poly mag",
+        "glock18 winterized",
+        "famas meow 36",
+        "negev drop me",
+        "mac10 monkeyflage",
+        "galil ar destroyer",
+        "ump45 roadblock"
+      ],
+      "restricted": [
+        "r8 revolver crazy 8",
+        "dual berettas flora carnivora",
+        "sg 553 dragon tech",
+        "m249 downtown",
+        "p90 vent rush"
+      ],
+      "classified": [
+        "ak47 ice coaled",
+        "sawedoff kisslove",
+        "p250 visions"
+      ],
+      "covert": [
+        "usps printstream",
+        "awp chromatic aberration"
+      ]
+    },
+    "requires_key": true
+  },
+  "revolution case": {
+    "formatted_name": "Revolution Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFQynaHMJT9B74-ywtjYxfOmMe_Vx28AucQj3brAoYrz3Fay_kY4MG_wdYeLMlhpLMaM-1U/256fx256f",
+    "items": {
+      "mil-spec": [
+        "mp5sd liquidation",
+        "sg 553 cyberforce",
+        "mp9 featherweight",
+        "mag7 insomnia",
+        "tec9 rebel",
+        "p250 rebuilt",
+        "scar20 fragments"
+      ],
+      "restricted": [
+        "m4a1s emphorosaurs",
+        "glock18 umbral rabbit",
+        "mac10 sakkaku",
+        "p90 neoqueen",
+        "r8 revolver banana cannon"
+      ],
+      "classified": [
+        "awp duality",
+        "ump45 wild child",
+        "p2000 wicked sick"
+      ],
+      "covert": [
+        "m4a4 temukau",
+        "ak47 head shot"
+      ]
+    },
+    "requires_key": true
+  },
+  "revolver case": {
+    "formatted_name": "Revolver Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFYwnfKfcG9HvN7iktaOkqD1auLTxD5SvZYgiLvFpo7xjVLh-kdrYWnzcoGLMlhpsyM-5vg/256fx256f",
+    "items": {
+      "mil-spec": [
+        "r8 revolver crimson web",
+        "desert eagle corinthian",
+        "p2000 imperial",
+        "aug ricochet",
+        "sawedoff yorick",
+        "scar20 outbreak"
+      ],
+      "restricted": [
+        "negev power loader",
+        "tec9 avalanche",
+        "xm1014 teclu burner",
+        "fiveseven retrobution",
+        "ppbizon fuel rod",
+        "sg 553 tiger moth"
+      ],
+      "classified": [
+        "ak47 point disarray",
+        "g3sg1 the executioner",
+        "p90 shapewood"
+      ],
+      "covert": [
+        "m4a4 royal paladin",
+        "r8 revolver fade"
+      ]
+    },
+    "requires_key": true
+  },
+  "shadow case": {
+    "formatted_name": "Shadow Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FF4u1qubIW4Su4mzxYHbzqGtZ-KGlz8EuJcg3rnE9NiijVe3_UY-Zzr2JJjVLFEEeiQRtg/256fx256f",
+    "items": {
+      "mil-spec": [
+        "glock18 wraiths",
+        "dual berettas dualing dragons",
+        "famas survivor z",
+        "xm1014 scumbria",
+        "scar20 green marine",
+        "mag7 cobalt core",
+        "mac10 rangeen"
+      ],
+      "restricted": [
+        "galil ar stone cold",
+        "m249 nebula crusader",
+        "p250 wingshot",
+        "mp7 special delivery"
+      ],
+      "classified": [
+        "ak47 frontside misty",
+        "ssg 08 big iron",
+        "g3sg1 flux"
+      ],
+      "covert": [
+        "usps kill confirmed",
+        "m4a1s golden coil"
+      ]
+    },
+    "requires_key": true
+  },
+  "shattered web case": {
+    "formatted_name": "Shattered Web Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFUznaCaJWVDvozlzdONwvKjYLiBk24IsZEl0uuYrNjw0A3n80JpZWzwIYWLMlhpLvhcskA/256fx256f",
+    "items": {
+      "mil-spec": [
+        "dual berettas balance",
+        "r8 revolver memento",
+        "mp5sd acid wash",
+        "g3sg1 black sand",
+        "m249 warbird",
+        "nova plume",
+        "scar20 torn"
+      ],
+      "restricted": [
+        "ak47 rat rod",
+        "aug arctic wolf",
+        "p2000 obsidian",
+        "ppbizon embargo",
+        "mp7 neon ply"
+      ],
+      "classified": [
+        "ssg 08 bloodshot",
+        "tec9 decimator",
+        "sg 553 colony iv"
+      ],
+      "covert": [
+        "awp containment breach",
+        "mac10 stalker"
+      ]
+    },
+    "requires_key": true
+  },
+  "snakebite case": {
+    "formatted_name": "Snakebite Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFU4naLOJzgUuYqyzIaIxa6jMOLXxGkHvcMjibmU99Sg3Qaw-hA_ZWrzLISLMlhpgJJUhGE/256fx256f",
+    "items": {
+      "mil-spec": [
+        "glock18 clear polymer",
+        "r8 revolver junk yard",
+        "cz75auto circaetus",
+        "nova windblown",
+        "sg 553 heavy metal",
+        "m249 osipr",
+        "ump45 oscillator"
+      ],
+      "restricted": [
+        "ak47 slate",
+        "desert eagle trigger discipline",
+        "negev devtexture",
+        "p250 cyber shell",
+        "mac10 button masher"
+      ],
+      "classified": [
+        "mp9 food chain",
+        "galil ar chromatic aberration",
+        "xm1014 xoxo"
+      ],
+      "covert": [
+        "usps the traitor",
+        "m4a4 in living color"
+      ]
+    },
+    "requires_key": true
+  },
+  "spectrum 2 case": {
+    "formatted_name": "Spectrum 2 Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFY4naeaJGhGtdnmx4Tek_bwY-iFlGlUsJMp3LuTot-mjFGxqUttZ2r3d4eLMlhpnZPxZK0/256fx256f",
+    "items": {
+      "mil-spec": [
+        "glock18 off world",
+        "aug triqua",
+        "tec9 cracked opal",
+        "g3sg1 hunter",
+        "mac10 oceanic",
+        "scar20 jungle slipstream",
+        "sawedoff morris"
+      ],
+      "restricted": [
+        "mp9 goo",
+        "cz75auto tacticat",
+        "xm1014 ziggy",
+        "sg 553 phantom",
+        "ump45 exposure"
+      ],
+      "classified": [
+        "m4a1s leaded glass",
+        "r8 revolver llama cannon",
+        "ppbizon high roller"
+      ],
+      "covert": [
+        "ak47 the empress",
+        "p250 see ya later"
+      ]
+    },
+    "requires_key": true
+  },
+  "spectrum case": {
+    "formatted_name": "Spectrum Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFY2nfKadD4U7Y7lwYXexaGlYb3QzjlUvZ0k0ujHptug2VbirkRrNW2md4SLMlhph09hpX0/256fx256f",
+    "items": {
+      "mil-spec": [
+        "desert eagle oxide blaze",
+        "sawedoff zander",
+        "scar20 blueprint",
+        "fiveseven capillary",
+        "p250 ripple",
+        "mp7 akoben",
+        "ppbizon jungle slipstream"
+      ],
+      "restricted": [
+        "galil ar crimson tsunami",
+        "m249 emerald poison dart",
+        "xm1014 seasons",
+        "mac10 last dive",
+        "ump45 scaffold"
+      ],
+      "classified": [
+        "m4a1s decimator",
+        "awp fever dream",
+        "cz75auto xiangliu"
+      ],
+      "covert": [
+        "ak47 bloodsport",
+        "usps neonoir"
+      ]
+    },
+    "requires_key": true
+  },
+  "winter offensive weapon case": {
+    "formatted_name": "Winter Offensive Weapon Case",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsUFJ5KBFZv668FFYu0aKfJz8a793gxNLfzvOkMunUwWgH7JIjj-qW8d7x2VXt_UBuMT3zIpjVLFEGDSGUSQ/256fx256f",
+    "items": {
+      "mil-spec": [
+        "galil ar sandstorm",
+        "fiveseven kami",
+        "ppbizon cobalt halftone",
+        "m249 magma"
+      ],
+      "restricted": [
+        "dual berettas marina",
+        "famas pulse",
+        "mp9 rose iron",
+        "nova rising skull"
+      ],
+      "classified": [
+        "awp redline",
+        "m4a1s guardian",
+        "p250 mehndi"
+      ],
+      "covert": [
+        "m4a4 asiimov",
+        "sawedoff the kraken"
+      ]
+    },
+    "requires_key": true
+  },
+  "xray p250 package": {
+    "formatted_name": "X-Ray P250 Package",
+    "image_url": "https://steamcommunity-a.akamaihd.net/economy/image/-9a81dlWLwJ2UUGcVs_nsVtzdOEdtWwKGZZLQHTxDZ7I56KU0Zwwo4NUX4oFJZEHLbXU5A1PIYQNqhpOSV-fRPasw8rsS091PDtH5O_1ZVMxgabNKDwU7YmzwoWNlPKtY-KEwm8C7Zwh37nAot_z2lC1qhJuZ23tZNjC09CZupM/256fx256f",
+    "items": {
+      "restricted": [
+        "p250 xray"
+      ]
+    },
+    "requires_key": false
+  }
+}

@@ -47,6 +47,13 @@ const pokebattlestatsCommand = require('./commands/pokebattlestats');
 const cancelbattleCommand = require('./commands/cancelbattle');
 const pokestealCommand = require('./commands/pokesteal');
 const pokeevolveformCommand = require('./commands/pokeevolveform');
+const cs2casesCommand = require('./commands/cs2cases');
+const cs2inventoryCommand = require('./commands/cs2inventory');
+const cs2leaderboardCommand = require('./commands/cs2leaderboard');
+const cs2openCommand = require('./commands/cs2open');
+const cs2statsCommand = require('./commands/cs2stats');
+const cs2sellCommand = require('./commands/cs2sell');
+const cs2tradeCommand = require('./commands/cs2trade');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 const pokeCache = require('./utils/pokeCache');
@@ -438,6 +445,32 @@ client.on('interactionCreate', async interaction => {
 		if (interaction.commandName === 'duel') {
 			return duelCommand.autocomplete(interaction);
 		}
+		
+		// Add CS2 autocomplete support
+		if (interaction.commandName === 'cs2open') {
+			const focusedValue = interaction.options.getFocused();
+			const backendUrl = process.env.BACKEND_API_URL;
+
+			try {
+				const response = await axios.get(`${backendUrl}/cs2/cases`);
+				const { cases } = response.data;
+
+				const filtered = cases
+					.filter(caseItem => caseItem.formattedName.toLowerCase().includes(focusedValue.toLowerCase()))
+					.slice(0, 25);
+
+				const choices = filtered.map(caseItem => ({
+					name: caseItem.formattedName,
+					value: caseItem.caseId
+				}));
+
+				await interaction.respond(choices);
+			} catch (error) {
+				console.error('Error in cs2open autocomplete:', error);
+				await interaction.respond([]);
+			}
+			return;
+		}
 		// --- NEW: Add autocomplete for editbet, extendbet, viewbet, betinfo ---
 		if ([
 			'editbet',
@@ -710,6 +743,162 @@ client.on('interactionCreate', async interaction => {
 			return;
 		}
 
+		// --- Handle CS2 sell buttons ---
+		if (interaction.customId.startsWith('cs2_sell_confirm_')) {
+			try {
+				const skinId = interaction.customId.replace('cs2_sell_confirm_', '');
+				const backendUrl = process.env.BACKEND_API_URL;
+				
+				// Sell the skin
+				const response = await axios.post(`${backendUrl}/cs2/skins/${skinId}/sell`, { 
+					userId: interaction.user.id 
+				}, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+
+				const { result } = response.data;
+
+				// Create success embed
+				const successEmbed = new EmbedBuilder()
+					.setColor(0x00ff00)
+					.setTitle('💰 Skin Sold Successfully!')
+					.setDescription(`You sold the skin for **${result.profit}** points`)
+					.addFields(
+						{ name: '💰 Sale Price', value: `**${result.profit}** points`, inline: true },
+						{ name: '📊 New Balance', value: `**${result.newBalance}** points`, inline: true }
+					)
+					.setFooter({ 
+						text: `Sold by ${interaction.user.username}`,
+						iconURL: interaction.user.displayAvatarURL()
+					})
+					.setTimestamp();
+
+				await interaction.update({
+					embeds: [successEmbed],
+					components: []
+				});
+
+			} catch (error) {
+				console.error('Error confirming CS2 sale:', error);
+				
+				let errorMessage = '❌ **Failed to sell skin.** Please try again later.';
+				if (error.response?.status === 400) {
+					errorMessage = `❌ **Error:** ${error.response.data.error}`;
+				} else if (error.response?.status === 404) {
+					errorMessage = '❌ **Skin not found!** The skin may have been removed from your inventory.';
+				} else if (error.response?.status === 500) {
+					errorMessage = '❌ **Server error.** Please try again later.';
+				}
+				
+				await interaction.update({
+					content: errorMessage,
+					embeds: [],
+					components: []
+				});
+			}
+			return;
+		}
+
+		if (interaction.customId === 'cs2_sell_cancel') {
+			await interaction.update({
+				content: '❌ **Sale cancelled.** The skin remains in your inventory.',
+				embeds: [],
+				components: []
+			});
+			return;
+		}
+
+		// --- Handle CS2 trade buttons ---
+		if (interaction.customId.startsWith('cs2_trade_accept_')) {
+			try {
+				const [_, skinId, fromUserId, targetUserId] = interaction.customId.split('_').slice(2);
+				
+				// Check if the user clicking the button is the intended trade partner
+				if (interaction.user.id !== targetUserId) {
+					await interaction.reply({ 
+						content: '❌ **Access Denied!** Only the selected trade partner can use these buttons.', 
+						ephemeral: true 
+					});
+					return;
+				}
+				
+				const backendUrl = process.env.BACKEND_API_URL;
+				
+				// Execute the trade
+				const response = await axios.post(`${backendUrl}/cs2/trade`, {
+					fromUserId,
+					toUserId: interaction.user.id,
+					skinId,
+					type: 'direct'
+				}, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+
+				const { result } = response.data;
+
+				// Create success embed
+				const successEmbed = new EmbedBuilder()
+					.setColor(0x00ff00)
+					.setTitle('✅ Trade Completed Successfully!')
+					.setDescription(`Trade completed!`)
+					.addFields(
+						{ name: '👤 From', value: `<@${fromUserId}>`, inline: true },
+						{ name: '👤 To', value: `<@${interaction.user.id}>`, inline: true }
+					)
+					.setFooter({ 
+						text: `Trade completed`,
+						iconURL: interaction.user.displayAvatarURL()
+					})
+					.setTimestamp();
+
+				await interaction.update({
+					embeds: [successEmbed],
+					components: []
+				});
+
+			} catch (error) {
+				console.error('Error accepting CS2 trade:', error);
+				
+				let errorMessage = '❌ **Failed to complete trade.** Please try again later.';
+				if (error.response?.status === 400) {
+					errorMessage = `❌ **Error:** ${error.response.data.error}`;
+				} else if (error.response?.status === 404) {
+					errorMessage = '❌ **Skin not found!** The skin may have been removed from inventory.';
+				} else if (error.response?.status === 500) {
+					errorMessage = '❌ **Server error.** Please try again later.';
+				}
+				
+				await interaction.update({
+					content: errorMessage,
+					embeds: [],
+					components: []
+				});
+			}
+			return;
+		}
+
+		if (interaction.customId.startsWith('cs2_trade_decline_')) {
+			const [_, skinId, fromUserId, targetUserId] = interaction.customId.split('_').slice(2);
+			
+			// Check if the user clicking the button is the intended trade partner
+			if (interaction.user.id !== targetUserId) {
+				await interaction.reply({ 
+					content: '❌ **Access Denied!** Only the selected trade partner can use these buttons.', 
+					ephemeral: true 
+				});
+				return;
+			}
+			
+			await interaction.update({
+				content: '❌ **Trade declined.**',
+				embeds: [],
+				components: []
+			});
+			return;
+		}
+
+
+
 		// --- Handle blackjack buttons ---
 		if (interaction.customId.startsWith('blackjack_')) {
 			try {
@@ -932,7 +1121,7 @@ client.on('interactionCreate', async interaction => {
 		}
 
 		// --- Handle pokebattle accept/decline buttons ---
-		if (interaction.customId.startsWith('pokebattle_accept_') || interaction.customId.startsWith('pokebattle_decline_')) {
+		if (interaction.isButton() && (interaction.customId.startsWith('pokebattle_accept_') || interaction.customId.startsWith('pokebattle_decline_'))) {
 			// Parse battleId and opponentId from customId
 			const match = interaction.customId.match(/^pokebattle_(accept|decline)_(.+)_(\d+)$/);
 			let battleId, opponentId;
@@ -1480,6 +1669,309 @@ client.on('interactionCreate', async interaction => {
 			}
 		}
 
+		// --- Handle CS2 case buttons ---
+		if (interaction.isButton() && interaction.customId.startsWith('cs2_case_')) {
+			try {
+				const caseId = interaction.customId.replace('cs2_case_', '');
+				const backendUrl = process.env.BACKEND_API_URL;
+				
+				// Get case details from backend
+				const response = await axios.get(`${backendUrl}/cs2/cases/${caseId}`);
+				const selectedCase = response.data.case;
+				
+				if (!selectedCase) {
+					await interaction.reply({ content: 'Case not found.', ephemeral: true });
+					return;
+				}
+
+				// Calculate total items manually with safety checks
+				const totalItems = Object.values(selectedCase.items || {}).reduce((total, items) => total + (items?.length || 0), 0);
+				
+				// Create detailed case embed with safety checks
+				const caseEmbed = new EmbedBuilder()
+					.setTitle(`📦 ${selectedCase.formattedName || 'Unknown Case'}`)
+					.setColor(0x00ff00)
+					.setThumbnail(selectedCase.imageUrl || 'https://via.placeholder.com/150x150?text=Case')
+									.addFields(
+					{ name: '💰 Price', value: `${selectedCase.price || 0} points`, inline: true },
+					{ name: '🔑 Key Required', value: selectedCase.requiresKey ? 'Yes' : 'No', inline: true },
+					{ name: '📊 Total Items', value: totalItems.toString(), inline: true }
+				);
+
+				// Add rarity breakdown
+				const rarityBreakdown = [];
+				Object.entries(selectedCase.items || {}).forEach(([rarity, items]) => {
+					if (items && items.length > 0) {
+						const rarityEmoji = {
+							'consumerGrade': '⚪',
+							'industrialGrade': '🔵',
+							'milSpec': '🔷',
+							'restricted': '🟣',
+							'classified': '🩷',
+							'covert': '🔴',
+							'special': '🟡'
+						}[rarity];
+
+						const rarityName = rarity.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+						rarityBreakdown.push(`${rarityEmoji} **${rarityName}**: ${items.length} items`);
+					}
+				});
+
+				if (rarityBreakdown.length > 0) {
+					caseEmbed.addFields({
+						name: '🎨 Rarity Breakdown',
+						value: rarityBreakdown.join('\n'),
+						inline: false
+					});
+				}
+
+				// Add open case button
+				const openButton = new ActionRowBuilder()
+					.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_open_${caseId}`)
+							.setLabel('Open Case')
+							.setStyle(ButtonStyle.Success)
+							.setEmoji('🎯')
+					);
+
+				await interaction.reply({
+					embeds: [caseEmbed],
+					components: [openButton],
+					ephemeral: true
+				});
+			} catch (error) {
+				console.error('Error handling CS2 case button:', error);
+				await interaction.reply({ 
+					content: '❌ Failed to load case details. Please try again later.', 
+					ephemeral: true 
+				});
+			}
+			return;
+		}
+
+		// --- Handle CS2 open case buttons ---
+		if (interaction.isButton() && interaction.customId.startsWith('cs2_open_') && !interaction.customId.startsWith('cs2_open_another_case_')) {
+			let openingMessage;
+			try {
+				const caseId = interaction.customId.replace('cs2_open_', '');
+				const backendUrl = process.env.BACKEND_API_URL;
+				
+				// Get case details from backend
+				const response = await axios.get(`${backendUrl}/cs2/cases/${caseId}`);
+				const selectedCase = response.data.case;
+				
+				if (!selectedCase) {
+					await interaction.reply({ content: 'Case not found.', ephemeral: true });
+					return;
+				}
+
+				// Check if user has enough money
+				const walletResponse = await axios.get(`${backendUrl}/users/${interaction.user.id}/wallet`, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const balance = walletResponse.data.balance;
+
+				if (balance < selectedCase.price) {
+					return interaction.reply({ 
+						content: `❌ **Insufficient funds!** You need **${selectedCase.price}** points to open this case.\nYour balance: **${balance}** points`, 
+						ephemeral: true 
+					});
+				}
+
+				// Create opening animation embed
+				const openingEmbed = new EmbedBuilder()
+					.setTitle('🎯 Opening Case...')
+					.setDescription(`Opening **${selectedCase.formattedName}**...\nPlease wait while we reveal your skin!`)
+					.setColor(0xffff00)
+					.setThumbnail(selectedCase.imageUrl || 'https://via.placeholder.com/150x150?text=Case')
+									.addFields(
+					{ name: '💰 Cost', value: `${selectedCase.price} points`, inline: true },
+					{ name: '📦 Case', value: selectedCase.formattedName, inline: true }
+				);
+
+				openingMessage = await interaction.reply({
+					embeds: [openingEmbed],
+					components: [],
+					ephemeral: true
+				});
+
+				// Simulate opening delay for suspense
+				await new Promise(resolve => setTimeout(resolve, 2000));
+
+				// Open the case
+				const openResponse = await axios.post(`${backendUrl}/cs2/cases/${caseId}/open`, { userId: interaction.user.id }, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+
+				const { result } = openResponse.data;
+
+				// Debug logging to see what skin data is received
+				console.log('🎯 Received skin data:', {
+					weapon: result.skin.weapon,
+					name: result.skin.name,
+					rarity: result.skin.rarity,
+					imageUrl: result.skin.imageUrl,
+					marketValue: result.skin.marketValue
+				});
+
+				// Create result embed
+				const resultEmbed = new EmbedBuilder()
+					.setTitle('🎉 Case Opened!')
+					.setDescription(`You opened **${selectedCase.formattedName}** and got:`)
+					.setColor(getRarityColor(result.skin.rarity));
+
+				// Set large skin image
+				if (result.skin.imageUrl) {
+					console.log('🖼️ Setting skin image to:', result.skin.imageUrl);
+					resultEmbed.setImage(result.skin.imageUrl);
+				} else {
+					console.log('⚠️ No skin image URL available');
+				}
+
+				// Add skin details
+				const skinName = result.skin.name; // Use the full formatted name directly
+				const rarityEmoji = getRarityEmoji(result.skin.rarity);
+				const wearEmoji = getWearEmoji(result.skin.wear);
+				
+				resultEmbed.addFields(
+					{ 
+						name: '🎨 Skin', 
+						value: `${rarityEmoji} **${skinName}**`, 
+						inline: false 
+					},
+					{ 
+						name: '⭐ Rarity', 
+						value: `${rarityEmoji} **${result.skin.rarity}**`, 
+						inline: true 
+					},
+					{ 
+						name: '🔍 Wear', 
+						value: `${wearEmoji} **${result.skin.wear}**`, 
+						inline: true 
+					},
+					{ 
+						name: '💰 Market Value', 
+						value: `**${result.skin.marketValue}** points`, 
+						inline: true 
+					}
+				);
+
+				// Add special properties if applicable
+				if (result.skin.isStatTrak) {
+					resultEmbed.addFields({
+						name: '📊 StatTrak',
+						value: '✅ This skin has StatTrak!',
+						inline: true
+					});
+				}
+
+				if (result.skin.isSouvenir) {
+					resultEmbed.addFields({
+						name: '🏆 Souvenir',
+						value: '✅ This is a Souvenir skin!',
+						inline: true
+					});
+				}
+
+				// Add profit/loss information
+				const profit = result.profit;
+				const profitEmoji = profit > 0 ? '🟢' : profit < 0 ? '🔴' : '⚪';
+				const profitText = profit > 0 ? `+${profit}` : profit.toString();
+				
+				resultEmbed.addFields({
+					name: '💵 Profit/Loss',
+					value: `${profitEmoji} **${profitText}** points`,
+					inline: false
+				});
+
+				// Add footer with user info
+				resultEmbed.setFooter({ 
+					text: `Opened by ${interaction.user.username}`,
+					iconURL: interaction.user.displayAvatarURL()
+				});
+
+				// Update the message with the result
+				await openingMessage.edit({
+					embeds: [resultEmbed],
+					components: []
+				});
+
+			} catch (error) {
+				console.error('Error opening CS2 case:', error);
+				
+				let errorMessage = '❌ **Failed to open case.** Please try again later.';
+				if (error.response?.status === 400) {
+					errorMessage = `❌ **Error:** ${error.response.data.error}`;
+				}
+				
+				// Use edit if we have openingMessage, otherwise reply
+				if (openingMessage) {
+					await openingMessage.edit({
+						embeds: [new EmbedBuilder()
+							.setTitle('❌ Error Opening Case')
+							.setDescription(errorMessage)
+							.setColor(0xff0000)
+							.setTimestamp()],
+						components: []
+					});
+				} else {
+					await interaction.reply({
+						content: errorMessage,
+						ephemeral: true
+					});
+				}
+			}
+			return;
+		}
+
+	}
+
+
+
+	// --- Handle CS2 select menu interactions ---
+	if (interaction.isStringSelectMenu() && interaction.customId.startsWith('cs2_case_select_')) {
+		console.log('CS2 case select menu handler triggered:', interaction.customId, interaction.user.id);
+		
+		// This is handled locally in the cs2cases command
+		// The interaction will be handled by the local collector
+		return;
+	}
+
+	// --- Handle CS2 sell buttons ---
+	if (interaction.isButton() && interaction.customId.startsWith('cs2_sell_')) {
+		console.log('CS2 sell button handler triggered:', interaction.customId, interaction.user.id);
+		
+		// This is handled locally in the cs2sell command
+		// The interaction will be handled by the local collector
+		return;
+	}
+
+	// --- Handle CS2 trade buttons ---
+	if (interaction.isButton() && interaction.customId.startsWith('cs2_trade_')) {
+		console.log('CS2 trade button handler triggered:', interaction.customId, interaction.user.id);
+		
+		// This is handled locally in the cs2trade command
+		// The interaction will be handled by the local collector
+		return;
+	}
+
+	// --- Handle CS2 sell select menus ---
+	if (interaction.isStringSelectMenu() && interaction.customId === 'cs2_sell_select') {
+		console.log('CS2 sell select menu handler triggered:', interaction.customId, interaction.user.id);
+		
+		// This is handled locally in the cs2sell command
+		// The interaction will be handled by the local collector
+		return;
+	}
+
+	// --- Handle CS2 trade select menus ---
+	if (interaction.isStringSelectMenu() && (interaction.customId === 'cs2_trade_skin_select' || interaction.customId === 'cs2_trade_user_select')) {
+		console.log('CS2 trade select menu handler triggered:', interaction.customId, interaction.user.id);
+		
+		// This is handled locally in the cs2trade command
+		// The interaction will be handled by the local collector
+		return;
 	}
 
 	// --- Handle pokebattle switch select menu ---
@@ -3776,6 +4268,7 @@ client.on('interactionCreate', async interaction => {
 						{ name: '⚔️ Duel', value: 'Use `/help section:duel`' },
 						{ name: '✨ Buffs', value: 'Use `/help section:buffs`' },
 						{ name: '🛡️ Moderation', value: 'Use `/help section:moderation`' },
+						{ name: '🎮 CS2 Gaming', value: 'Use `/help section:cs2`' },
 						{ name: '📘 Full Commands List', value: `[View All Commands](${defaultCommandsUrl})` },
 						{ name: '☕ Support the Bot', value: `[Buy Me a Coffee!](${defaultSupportUrl})` }
 					],
@@ -4109,6 +4602,36 @@ client.on('interactionCreate', async interaction => {
 							'`/doubleweekend` - (Admin) Manage double weekend events for 2x XP and Stardust\n' +
 							'`/weekend` - (Admin) Manage automatic weekend events'
 						},
+					],
+					timestamp: new Date()
+				};
+			} else if (sub === 'cs2') {
+				embed = {
+					color: 0x0099ff,
+					title: '🎮 CS2 Gaming Commands',
+					description: 'Open cases, collect skins, and trade with other players in Counter-Strike 2!',
+					fields: [
+						{ name: '📦 Case Opening', value:
+							'`/cs2open` - Open CS2 cases to get random skins with different rarities\n' +
+							'`/cs2cases` - View available CS2 cases and their prices'
+						},
+						{ name: '💼 Inventory Management', value:
+							'`/cs2inventory` - View your CS2 skin collection and statistics\n' +
+							'`/cs2stats` - View your CS2 case opening statistics and performance'
+						},
+						{ name: '💰 Trading & Selling', value:
+							'`/cs2sell` - Sell your CS2 skins for points\n' +
+							'`/cs2trade` - Trade skins with other users'
+						},
+						{ name: '🏆 Leaderboards', value:
+							'`/cs2leaderboard` - View the top CS2 players by various metrics'
+						},
+						{ name: '🛠️ Features', value:
+							'• Paginated skin selection for large inventories\n' +
+							'• Secure trading with user validation\n' +
+							'• Market value calculations\n' +
+							'• Rarity-based skin distribution'
+						}
 					],
 					timestamp: new Date()
 				};
@@ -4614,6 +5137,30 @@ client.on('interactionCreate', async interaction => {
 	else if (commandName === 'pokeevolveform') {
 		await pokeevolveformCommand.execute(interaction);
 	}
+	else if (commandName === 'cs2cases') {
+		await cs2casesCommand.execute(interaction);
+	}
+	else if (commandName === 'cs2inventory') {
+		await cs2inventoryCommand.execute(interaction);
+	}
+	else if (commandName === 'cs2leaderboard') {
+		await cs2leaderboardCommand.execute(interaction);
+	}
+	else if (commandName === 'cs2open') {
+		await cs2openCommand.execute(interaction);
+	}
+	else if (commandName === 'cs2stats') {
+		await cs2statsCommand.execute(interaction);
+	}
+	else if (commandName === 'cs2sell') {
+		await cs2sellCommand.execute(interaction);
+	}
+	else if (commandName === 'cs2trade') {
+		await cs2tradeCommand.execute(interaction);
+	}
+	
+	// Return after handling all slash commands to prevent fall-through to button/select menu handlers
+	return;
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);
 		// Use safeErrorReply to handle the error response regardless of interaction state
@@ -4997,6 +5544,44 @@ function isPokemonForm(pokemon) {
   }
   
   return false;
+}
+
+// --- CS2 Helper Functions ---
+function getRarityColor(rarity) {
+	const colors = {
+		'consumer grade': 0xCCCCCC, // White
+		'industrial grade': 0x5E98D9, // Light Blue
+		'mil-spec': 0x4B69FF, // Blue
+		'restricted': 0x8847FF, // Purple
+		'classified': 0xD32CE6, // Pink
+		'covert': 0xEB4B4B, // Red
+		'special': 0xFFD700 // Gold
+	};
+	return colors[rarity] || 0xCCCCCC;
+}
+
+function getRarityEmoji(rarity) {
+	const emojis = {
+		'consumer grade': '⚪',
+		'industrial grade': '🔵',
+		'mil-spec': '🔷',
+		'restricted': '🟣',
+		'classified': '🩷',
+		'covert': '🔴',
+		'special': '🟡'
+	};
+	return emojis[rarity] || '⚪';
+}
+
+function getWearEmoji(wear) {
+	const wearEmojis = {
+		'factory new': '✨',
+		'minimal wear': '🌟',
+		'field-tested': '⭐',
+		'well-worn': '💫',
+		'battle-scarred': '🌙'
+	};
+	return wearEmojis[wear] || '⭐';
 }
 
 // Export functions for use in other modules
