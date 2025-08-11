@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const axios = require('axios');
 
 module.exports = {
@@ -52,6 +52,15 @@ module.exports = {
           { name: '🎨 Total Skins', value: inventory.totalSkins.toString(), inline: true },
           { name: '💰 Total Spent', value: `${inventory.totalSpent} currency`, inline: true }
         );
+
+      // Add estimated total value if available
+      if (inventory.totalValue) {
+        mainEmbed.addFields({
+          name: '💎 Estimated Value',
+          value: `${inventory.totalValue} currency`,
+          inline: true
+        });
+      }
 
       // Add rarity breakdown
       const rarityBreakdown = Object.entries(inventory.rarityBreakdown)
@@ -118,35 +127,21 @@ module.exports = {
         components: [buttonRow]
       });
 
-      // Create button collector
-      const collector = message.createMessageComponentCollector({
-        filter: i => i.customId.startsWith('cs2_'),
-        time: 300000 // 5 minutes
-      });
-
-      collector.on('collect', async i => {
-        const customId = i.customId;
-        
-        if (customId.startsWith('cs2_view_skins_')) {
-          await this.showSkins(i, userId, guildId, backendUrl);
-        } else if (customId.startsWith('cs2_stats_')) {
-          await this.showStats(i, userId, guildId, backendUrl);
-        } else if (customId.startsWith('cs2_best_drops_')) {
-          await this.showBestDrops(i, userId, guildId, backendUrl);
-        } else if (customId.startsWith('cs2_rarest_drops_')) {
-          await this.showRarestDrops(i, userId, guildId, backendUrl);
+      // Note: Button and modal interactions are now handled globally in index.js
+      // No need for local collectors here
+      
+      // Set a timeout to disable buttons after 5 minutes
+      setTimeout(async () => {
+        try {
+          buttonRow.components.forEach(btn => btn.setDisabled(true));
+          await interaction.editReply({
+            embeds: [mainEmbed],
+            components: [buttonRow]
+          });
+        } catch (error) {
+          console.error('Error disabling buttons after timeout:', error);
         }
-      });
-
-      collector.on('end', () => {
-        // Disable all buttons after timeout
-        buttonRow.components.forEach(btn => btn.setDisabled(true));
-        
-        interaction.editReply({
-          embeds: [mainEmbed],
-          components: [buttonRow]
-        }).catch(console.error);
-      });
+      }, 300000); // 5 minutes
 
     } catch (error) {
       console.error('Error fetching CS2 inventory:', error);
@@ -167,26 +162,63 @@ module.exports = {
     return emojis[rarity] || '⚪';
   },
 
-  async showSkins(interaction, userId, guildId, backendUrl) {
+  async showSkins(interaction, userId, guildId, backendUrl, page = 0, searchQuery = '') {
     try {
       const response = await axios.get(`${backendUrl}/cs2/inventory/${userId}`, {
         headers: { 'x-guild-id': guildId }
       });
       
       const { inventory } = response.data;
-      const skins = inventory.skins;
+      let skins = inventory.skins;
       
       if (skins.length === 0) {
         await interaction.reply({ content: 'No skins found in inventory.', ephemeral: true });
         return;
       }
 
-      // Show first 10 skins
-      const displaySkins = skins.slice(0, 10);
+      // Apply search filter if query exists
+      if (searchQuery && searchQuery.trim() !== '') {
+        const query = searchQuery.toLowerCase().trim();
+        const originalCount = skins.length;
+        
+        skins = skins.filter(skin => 
+          skin.weapon?.toLowerCase().includes(query) ||
+          skin.skinName?.toLowerCase().includes(query) ||
+          skin.rarity?.toLowerCase().includes(query) ||
+          skin.wear?.toLowerCase().includes(query) ||
+          (skin.formattedName && skin.formattedName.toLowerCase().includes(query))
+        );
+        
+        if (skins.length === 0) {
+          await interaction.reply({ 
+            content: `🔍 No skins found matching "${searchQuery}"\n\n💡 **Search Tips:**\n• Try searching by weapon name (e.g., "AK-47")\n• Search by skin name (e.g., "Dragon Tattoo")\n• Filter by rarity (e.g., "mil-spec", "covert")\n• Search by wear condition (e.g., "factory new")`, 
+            ephemeral: true 
+          });
+          return;
+        }
+        
+        // Reset to first page when searching
+        page = 0;
+      }
+
+      const skinsPerPage = 10;
+      const totalPages = Math.ceil(skins.length / skinsPerPage);
+      const startIndex = page * skinsPerPage;
+      const endIndex = startIndex + skinsPerPage;
+      const displaySkins = skins.slice(startIndex, endIndex);
+
       const embed = new EmbedBuilder()
         .setTitle('🎨 CS2 Skins')
-        .setDescription(`Showing ${displaySkins.length} of ${skins.length} skins`)
-        .setColor(0x00ff00);
+        .setDescription(
+          searchQuery 
+            ? `🔍 Search results for "${searchQuery}"\nShowing ${displaySkins.length} of ${skins.length} matching skins\n\n💡 **Search Tips:**\n• Weapon: "AK-47", "M4A4", "Glock"\n• Skin: "Dragon Tattoo", "Asiimov"\n• Rarity: "mil-spec", "covert", "special"\n• Wear: "factory new", "battle-scarred"`
+            : `Showing ${displaySkins.length} of ${inventory.skins.length} total skins`
+        )
+        .setColor(0x00ff00)
+        .setFooter({ 
+          text: `Page ${page + 1} of ${totalPages}${searchQuery ? ` • Search: "${searchQuery}"` : ''}`,
+          iconURL: interaction.user.displayAvatarURL()
+        });
 
       displaySkins.forEach((skin, index) => {
         const rarityEmoji = this.getRarityEmoji(skin.rarity);
@@ -195,15 +227,128 @@ module.exports = {
         const souvenirIcon = skin.isSouvenir ? '🏆' : '';
         
         embed.addFields({
-          name: `${index + 1}. ${skin.weapon} | ${skin.skinName}`,
+          name: `${startIndex + index + 1}. ${skin.weapon} | ${skin.skinName}`,
           value: `${rarityEmoji} **${skin.rarity}** • ${wearEmoji} **${skin.wear}** • 💰 **${skin.marketValue}** currency ${statTrakIcon}${souvenirIcon}`,
           inline: false
         });
       });
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      // Create pagination and search buttons
+      const buttonRow = new ActionRowBuilder();
+      
+      // Navigation buttons
+      if (page > 0) {
+        buttonRow.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`cs2_skins_prev_${userId}_${page}_${encodeURIComponent(searchQuery)}`)
+            .setLabel('◀️ Previous')
+            .setStyle(ButtonStyle.Secondary)
+        );
+      }
+      
+      if (page < totalPages - 1) {
+        buttonRow.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`cs2_skins_next_${userId}_${page}_${encodeURIComponent(searchQuery)}`)
+            .setLabel('Next ▶️')
+            .setStyle(ButtonStyle.Secondary)
+        );
+      }
+
+      // Search button
+      buttonRow.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`cs2_skins_search_${userId}_${page}_${encodeURIComponent(searchQuery)}`)
+          .setLabel('🔍 Search')
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      // Clear search button (only show if there's a search query)
+      if (searchQuery) {
+        buttonRow.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`cs2_skins_clear_${userId}_0_`)
+            .setLabel('❌ Clear Search')
+            .setStyle(ButtonStyle.Danger)
+        );
+      }
+
+      // Close button
+      buttonRow.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`cs2_skins_close_${userId}`)
+          .setLabel('❌ Close')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      // Check if this is a new interaction or an update
+      let message;
+      if (interaction.replied || interaction.deferred) {
+        // Update the existing message
+        message = await interaction.editReply({ 
+          embeds: [embed], 
+          components: [buttonRow]
+        });
+      } else {
+        // Send a new reply
+        message = await interaction.reply({ 
+          embeds: [embed], 
+          components: [buttonRow],
+          ephemeral: true 
+        });
+      }
+
+      // Note: Button interactions are now handled globally in index.js
+      // No need for local collectors here
+      
+      // Set a timeout to disable buttons after 5 minutes
+      setTimeout(async () => {
+        try {
+          buttonRow.components.forEach(btn => btn.setDisabled(true));
+          if (message && message.edit) {
+            await message.edit({ components: [buttonRow] });
+          }
+        } catch (error) {
+          console.error('Error disabling skins buttons after timeout:', error);
+        }
+      }, 300000); // 5 minutes
+
     } catch (error) {
-      await interaction.reply({ content: '❌ Failed to load skins.', ephemeral: true });
+      console.error('Error showing skins:', error);
+      await interaction.reply({ 
+        content: '❌ Failed to load skins. Please try again later.', 
+        ephemeral: true 
+      });
+    }
+  },
+
+  async showSearchModal(interaction, userId, guildId, backendUrl, currentPage, currentSearch) {
+    try {
+      // Create a modal for search input
+      const modal = new ModalBuilder()
+        .setCustomId(`cs2_search_modal_${userId}_${currentPage}_${encodeURIComponent(currentSearch)}`)
+        .setTitle('🔍 Search CS2 Skins');
+
+      const searchInput = new TextInputBuilder()
+        .setCustomId('search_query')
+        .setLabel('Search skins (weapon, skin, rarity, wear)')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., AK-47, Dragon Tattoo, mil-spec, factory new')
+        .setValue(currentSearch)
+        .setRequired(false)
+        .setMaxLength(100);
+
+      const firstActionRow = new ActionRowBuilder().addComponents(searchInput);
+      modal.addComponents(firstActionRow);
+
+      await interaction.showModal(modal);
+
+    } catch (error) {
+      console.error('Error showing search modal:', error);
+      await interaction.reply({ 
+        content: '❌ Failed to show search modal. Please try again.', 
+        ephemeral: true 
+      });
     }
   },
 
@@ -227,9 +372,19 @@ module.exports = {
           { name: '🎯 Profitable Opens', value: `${stats.profitableOpenings}/${stats.totalOpenings}`, inline: true }
         );
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      // Check if this is a new interaction or an update
+      if (interaction.replied || interaction.deferred) {
+        await interaction.editReply({ embeds: [embed] });
+      } else {
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+      }
     } catch (error) {
-      await interaction.reply({ content: '❌ Failed to load stats.', ephemeral: true });
+      console.error('Error loading stats:', error);
+      if (interaction.replied || interaction.deferred) {
+        await interaction.editReply({ content: '❌ Failed to load stats.', ephemeral: true });
+      } else {
+        await interaction.reply({ content: '❌ Failed to load stats.', ephemeral: true });
+      }
     }
   },
 
@@ -242,7 +397,11 @@ module.exports = {
       const { drops } = response.data;
       
       if (drops.length === 0) {
-        await interaction.reply({ content: 'No case openings found.', ephemeral: true });
+        if (interaction.replied || interaction.deferred) {
+          await interaction.editReply({ content: 'No case openings found.', ephemeral: true });
+        } else {
+          await interaction.reply({ content: 'No case openings found.', ephemeral: true });
+        }
         return;
       }
 
@@ -262,9 +421,19 @@ module.exports = {
         });
       });
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      // Check if this is a new interaction or an update
+      if (interaction.replied || interaction.deferred) {
+        await interaction.editReply({ embeds: [embed] });
+      } else {
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+      }
     } catch (error) {
-      await interaction.reply({ content: '❌ Failed to load best drops.', ephemeral: true });
+      console.error('Error loading best drops:', error);
+      if (interaction.replied || interaction.deferred) {
+        await interaction.editReply({ content: '❌ Failed to load best drops.', ephemeral: true });
+      } else {
+        await interaction.reply({ content: '❌ Failed to load best drops.', ephemeral: true });
+      }
     }
   },
 
@@ -277,7 +446,11 @@ module.exports = {
       const { drops } = response.data;
       
       if (drops.length === 0) {
-        await interaction.reply({ content: 'No case openings found.', ephemeral: true });
+        if (interaction.replied || interaction.deferred) {
+          await interaction.editReply({ content: 'No case openings found.', ephemeral: true });
+        } else {
+          await interaction.reply({ content: 'No case openings found.', ephemeral: true });
+        }
         return;
       }
 
@@ -297,9 +470,19 @@ module.exports = {
         });
       });
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      // Check if this is a new interaction or an update
+      if (interaction.replied || interaction.deferred) {
+        await interaction.editReply({ embeds: [embed] });
+      } else {
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+      }
     } catch (error) {
-      await interaction.reply({ content: '❌ Failed to load rarest drops.', ephemeral: true });
+      console.error('Error loading rarest drops:', error);
+      if (interaction.replied || interaction.deferred) {
+        await interaction.editReply({ content: '❌ Failed to load rarest drops.', ephemeral: true });
+      } else {
+        await interaction.reply({ content: '❌ Failed to load rarest drops.', ephemeral: true });
+      }
     }
   },
 

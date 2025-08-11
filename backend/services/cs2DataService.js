@@ -497,27 +497,28 @@ class CS2DataService {
       }
     }
     
-    // Normalize probabilities to sum to 1 (100%)
-    const normalizedDistribution = {};
-    for (const [rarity, probability] of Object.entries(availableDistribution)) {
-      normalizedDistribution[rarity] = probability / totalProbability;
-    }
+    // Use the original CS:GO drop rates directly
+    // These are already the correct relative probabilities
+    const finalDistribution = availableDistribution;
     
     console.log(`📊 Case rarity distribution for ${caseData.formatted_name}:`);
-    for (const [rarity, probability] of Object.entries(normalizedDistribution)) {
+    for (const [rarity, probability] of Object.entries(finalDistribution)) {
       const percentage = (probability * 100).toFixed(3);
       const itemCount = caseData.items[rarity].length;
       console.log(`   ${rarity}: ${percentage}% (${itemCount} items)`);
     }
     
-    // Select rarity based on normalized distribution
+    // Select rarity based on absolute CS:GO drop rates
     const random = Math.random();
     let cumulativeProbability = 0;
-    let selectedRarity = Object.keys(normalizedDistribution)[0]; // Fallback to first available
+    let selectedRarity = Object.keys(finalDistribution)[0]; // Fallback to first available
     
-    for (const [rarity, probability] of Object.entries(normalizedDistribution)) {
+    // Scale the random number to match our probability range
+    const scaledRandom = random * totalProbability;
+    
+    for (const [rarity, probability] of Object.entries(finalDistribution)) {
       cumulativeProbability += probability;
-      if (random <= cumulativeProbability) {
+      if (scaledRandom <= cumulativeProbability) {
         selectedRarity = rarity;
         break;
       }
@@ -539,14 +540,33 @@ class CS2DataService {
     if (!foundSkin) {
       console.warn(`⚠️ Could not find skin: ${randomSkinName} from rarity: ${selectedRarity}`);
     } else {
+      // Override the skin's rarity with the case rarity to ensure consistency
+      // This fixes the issue where special items (knives/gloves) show as "covert"
+      // Also convert camelCase to kebab-case for Discord bot compatibility
+      const convertRarityFormat = (rarity) => {
+        const formatMap = {
+          'milSpec': 'mil-spec',
+          'consumerGrade': 'consumer-grade',
+          'industrialGrade': 'industrial-grade'
+        };
+        return formatMap[rarity] || rarity;
+      };
+      
+      const correctedSkin = {
+        ...foundSkin.toObject ? foundSkin.toObject() : foundSkin,
+        rarity: convertRarityFormat(selectedRarity)
+      };
+      
       console.log(`✅ Found skin data:`, {
-        skinId: foundSkin.skinId,
-        formattedName: foundSkin.formattedName,
-        weapon: foundSkin.weapon,
-        skinName: foundSkin.skinName,
-        rarity: foundSkin.rarity,
-        imageUrl: foundSkin.imageUrl
+        skinId: correctedSkin.skinId,
+        formattedName: correctedSkin.formattedName,
+        weapon: correctedSkin.weapon,
+        skinName: correctedSkin.skinName,
+        rarity: correctedSkin.rarity, // This will now be the case rarity (e.g., "special")
+        imageUrl: correctedSkin.imageUrl
       });
+      
+      return correctedSkin;
     }
     return foundSkin;
   }

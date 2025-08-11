@@ -319,9 +319,9 @@ module.exports = {
 
   getRarityEmoji(rarity) {
     const rarityEmojis = {
-      'consumerGrade': '⚪',
-      'industrialGrade': '🔵',
-      'milSpec': '🔷',
+      'consumer-grade': '⚪',
+      'industrial-grade': '🔵',
+      'mil-spec': '🔷',
       'restricted': '🟣',
       'classified': '🩷',
       'covert': '🔴',

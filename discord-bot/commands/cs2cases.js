@@ -166,9 +166,9 @@ module.exports = {
               .filter(([_, items]) => items && items.length > 0)
               .map(([rarity, items]) => {
                 const rarityEmoji = {
-                  'consumerGrade': '⚪',
-                  'industrialGrade': '🔵',
-                  'milSpec': '🔷',
+                                      'consumer-grade': '⚪',
+                    'industrial-grade': '🔵',
+                  'mil-spec': '🔷',
                   'restricted': '🟣',
                   'classified': '🩷',
                   'covert': '🔴',

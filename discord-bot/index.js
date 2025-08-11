@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const axios = require('axios');
 const crimeCommand = require('./commands/crime');
 const workCommand = require('./commands/work');
@@ -49,6 +49,7 @@ const pokestealCommand = require('./commands/pokesteal');
 const pokeevolveformCommand = require('./commands/pokeevolveform');
 const cs2casesCommand = require('./commands/cs2cases');
 const cs2inventoryCommand = require('./commands/cs2inventory');
+const cs2viewCommand = require('./commands/cs2view');
 const cs2leaderboardCommand = require('./commands/cs2leaderboard');
 const cs2openCommand = require('./commands/cs2open');
 const cs2statsCommand = require('./commands/cs2stats');
@@ -353,6 +354,824 @@ client.on('interactionCreate', async interaction => {
 				});
 			} catch (replyError) {
 				console.error('[pokebattle] Failed to send error reply:', replyError);
+			}
+		}
+		return;
+	}
+
+	// Global modal handler for CS2 inventory search
+	if (interaction.type === 5 && interaction.customId?.startsWith('cs2_search_modal_')) {
+		try {
+			console.log('[cs2inventory] Global modal handler received:', {
+				customId: interaction.customId,
+				type: interaction.type,
+				userId: interaction.user?.id
+			});
+			
+			const searchQuery = interaction.fields.getTextInputValue('search_query');
+			const modalParts = interaction.customId.split('_');
+			const modalUserId = modalParts[3];
+			const currentPage = parseInt(modalParts[4]);
+			const currentSearch = decodeURIComponent(modalParts[5] || '');
+			
+			console.log('[cs2inventory] Global modal search details:', { searchQuery, modalUserId, currentPage, currentSearch });
+			
+			// Execute the search using the cs2inventory command
+			await cs2inventoryCommand.showSkins(interaction, modalUserId, interaction.guildId, process.env.BACKEND_API_URL, 0, searchQuery);
+			
+		} catch (error) {
+			console.error('[cs2inventory] Global modal handler error:', error);
+			try {
+				await interaction.reply({ 
+					content: 'An error occurred while processing your search. Please try again.',
+					ephemeral: true 
+				});
+			} catch (replyError) {
+				console.error('[cs2inventory] Failed to send error reply:', replyError);
+			}
+		}
+		return;
+	}
+
+	// Global modal handler for CS2 view search
+	if (interaction.type === 5 && interaction.customId?.startsWith('cs2_view_search_modal_')) {
+		try {
+			console.log('[cs2view] Global modal handler received:', {
+				customId: interaction.customId,
+				type: interaction.type,
+				userId: interaction.user?.id
+			});
+			
+			const searchQuery = interaction.fields.getTextInputValue('search_query');
+			const modalParts = interaction.customId.split('_');
+			const modalUserId = modalParts[4]; // userId is at index 4
+			const currentPage = parseInt(modalParts[5]); // page is at index 5
+			const currentSearch = decodeURIComponent(modalParts[6] || ''); // search is at index 6
+			
+			console.log('[cs2view] Global modal search details:', { searchQuery, modalUserId, currentPage, currentSearch });
+			
+			// Fetch inventory and apply search filter
+			const response = await axios.get(`${process.env.BACKEND_API_URL}/cs2/inventory/${modalUserId}`, {
+				headers: { 'x-guild-id': interaction.guildId }
+			});
+			const skins = response.data.inventory.skins;
+			
+			// Apply search filter
+			let filteredSkins = skins;
+			if (searchQuery && searchQuery.trim() !== '') {
+				const query = searchQuery.toLowerCase().trim();
+				filteredSkins = skins.filter(skin => 
+					skin.weapon?.toLowerCase().includes(query) ||
+					skin.skinName?.toLowerCase().includes(query) ||
+					skin.rarity?.toLowerCase().includes(query) ||
+					skin.wear?.toLowerCase().includes(query) ||
+					`${skin.weapon} | ${skin.skinName}`.toLowerCase().includes(query)
+				);
+			}
+			
+			if (filteredSkins.length === 0) {
+				// No results found
+				const embed = new EmbedBuilder()
+					.setTitle('🎨 CS2 Skin Viewer')
+					.setDescription(`🔍 No skins found matching "${searchQuery}"\n\n💡 **Search Tips:**\n• Try searching by weapon name (e.g., "AK-47")\n• Search by skin name (e.g., "Dragon Tattoo")\n• Filter by rarity (e.g., "mil-spec", "covert")\n• Search by wear condition (e.g., "factory new")`)
+					.setColor(0xff0000)
+					.setFooter({ 
+						text: `Search: "${searchQuery}"`,
+						iconURL: interaction.user.displayAvatarURL()
+					});
+				
+				// Create back button
+				const buttonRow = new ActionRowBuilder()
+					.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_view_back_${modalUserId}_0_`)
+							.setLabel('◀️ Back to List')
+							.setStyle(ButtonStyle.Secondary)
+					);
+				
+				// Try to find and update the original message
+				try {
+					// Get the original message from the channel
+					const messages = await interaction.channel.messages.fetch({ limit: 10 });
+					const originalMessage = messages.find(msg => 
+						msg.author.id === interaction.client.user.id && 
+						msg.embeds.length > 0 && 
+						msg.embeds[0].title === '🎨 CS2 Skin Viewer'
+					);
+					
+					if (originalMessage) {
+						await originalMessage.edit({ 
+							embeds: [embed], 
+							components: [buttonRow]
+						});
+						await interaction.reply({ 
+							content: '✅ Search completed - no results found. Updated the original message.',
+							ephemeral: true 
+						});
+					} else {
+						// Fallback to creating new message if original not found
+						await interaction.reply({ 
+							embeds: [embed], 
+							components: [buttonRow],
+							ephemeral: false
+						});
+					}
+				} catch (error) {
+					console.error('[cs2view] Error updating original message:', error);
+					// Fallback to creating new message
+					await interaction.reply({ 
+						embeds: [embed], 
+						components: [buttonRow],
+						ephemeral: false
+					});
+				}
+				return;
+			}
+			
+			// Create the skin page components for search results
+			const skinsPerPage = 25;
+			const totalPages = Math.ceil(filteredSkins.length / skinsPerPage);
+			const startIndex = 0; // Always start from first page for search results
+			const endIndex = startIndex + skinsPerPage;
+			const displaySkins = filteredSkins.slice(startIndex, endIndex);
+			
+			// Create select menu options
+			const selectOptions = displaySkins.map((skin, index) => ({
+				label: `${skin.weapon} | ${skin.skinName}`,
+				value: `skin_${startIndex + index}_${skin.skinId || 'unknown'}`,
+				description: `${getRarityEmoji(skin.rarity)} ${skin.rarity} • ${getWearEmoji(skin.wear)} ${skin.wear} • 💰 ${skin.marketValue} currency`,
+				emoji: getRarityEmoji(skin.rarity)
+			}));
+			
+			// Create select menu
+			const selectMenu = new StringSelectMenuBuilder()
+				.setCustomId(`cs2_view_select_${modalUserId}_0_${encodeURIComponent(searchQuery)}`)
+				.setPlaceholder('Select a skin to view details...')
+				.addOptions(selectOptions);
+			
+			const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+			
+			// Create pagination and search buttons
+			const buttonRow = new ActionRowBuilder();
+			
+			// Next button (since we're on page 0)
+			if (totalPages > 1) {
+				buttonRow.addComponents(
+					new ButtonBuilder()
+						.setCustomId(`cs2_view_next_${modalUserId}_0_${encodeURIComponent(searchQuery)}`)
+						.setLabel('Next ▶️')
+						.setStyle(ButtonStyle.Secondary)
+				);
+			}
+			
+			// Search button
+			buttonRow.addComponents(
+				new ButtonBuilder()
+					.setCustomId(`cs2_view_search_${modalUserId}_0_${encodeURIComponent(searchQuery)}`)
+					.setLabel('🔍 Search')
+					.setStyle(ButtonStyle.Primary)
+			);
+			
+			// Clear search button
+			buttonRow.addComponents(
+				new ButtonBuilder()
+					.setCustomId(`cs2_view_clear_${modalUserId}_0_`)
+					.setLabel('❌ Clear Search')
+					.setStyle(ButtonStyle.Danger)
+			);
+			
+			// Close button
+			buttonRow.addComponents(
+				new ButtonBuilder()
+					.setCustomId(`cs2_view_close_${modalUserId}`)
+					.setLabel('❌ Close')
+					.setStyle(ButtonStyle.Secondary)
+			);
+			
+			const embed = new EmbedBuilder()
+				.setTitle('🎨 CS2 Skin Viewer')
+				.setDescription(getPaginationDescription(searchQuery, startIndex, endIndex, filteredSkins))
+				.setColor(0x00ff00)
+				.setFooter({ 
+					text: `Page 1 of ${totalPages} • Search: "${searchQuery}"`,
+					iconURL: interaction.user.displayAvatarURL()
+				});
+			
+			// Try to find and update the original message
+			try {
+				// Get the original message from the channel
+				const messages = await interaction.channel.messages.fetch({ limit: 10 });
+				const originalMessage = messages.find(msg => 
+					msg.author.id === interaction.client.user.id && 
+					msg.embeds.length > 0 && 
+					msg.embeds[0].title === '🎨 CS2 Skin Viewer'
+				);
+				
+				if (originalMessage) {
+					await originalMessage.edit({ 
+						embeds: [embed], 
+						components: [selectRow, buttonRow]
+					});
+					await interaction.reply({ 
+						content: '✅ Search completed successfully! Updated the original message.',
+						ephemeral: true 
+					});
+				} else {
+					// Fallback to creating new message if original not found
+					await interaction.reply({ 
+						embeds: [embed], 
+						components: [selectRow, buttonRow],
+						ephemeral: false
+					});
+				}
+			} catch (error) {
+				console.error('[cs2view] Error updating original message:', error);
+				// Fallback to creating new message
+				await interaction.reply({ 
+					embeds: [embed], 
+					components: [selectRow, buttonRow],
+					ephemeral: false
+				});
+			}
+			
+		} catch (error) {
+			console.error('[cs2view] Global modal handler error:', error);
+			try {
+				await interaction.reply({ 
+					content: 'An error occurred while processing your search. Please try again.',
+					ephemeral: true 
+				});
+			} catch (replyError) {
+				console.error('[cs2view] Failed to send error reply:', replyError);
+			}
+		}
+		return;
+	}
+
+	// Global select menu handler for CS2 view interactions
+	if (interaction.type === 3 && interaction.customId?.startsWith('cs2_view_select_')) {
+		try {
+			console.log('[cs2view] Global select menu handler received:', {
+				customId: interaction.customId,
+				type: interaction.type,
+				userId: interaction.user?.id,
+				values: interaction.values
+			});
+			
+			const customId = interaction.customId;
+			const parts = customId.split('_');
+			const userId = parts[3];
+			const page = parseInt(parts[4]);
+			const searchQuery = decodeURIComponent(parts[5] || '');
+			const selectedSkinId = interaction.values[0];
+			
+			// Show skin details
+			await cs2viewCommand.showSkinDetails(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL, selectedSkinId, page, searchQuery);
+			
+		} catch (error) {
+			console.error('[cs2view] Global select menu handler error:', error);
+			try {
+				await interaction.reply({ 
+					content: 'An error occurred while processing your selection. Please try again.',
+					ephemeral: true 
+				});
+			} catch (replyError) {
+				console.error('[cs2view] Failed to send error reply:', replyError);
+			}
+		}
+		return;
+	}
+
+	// Global button handler for CS2 inventory interactions
+	if (interaction.type === 3 && interaction.customId?.startsWith('cs2_') && !interaction.customId.startsWith('cs2_view_')) {
+		try {
+			console.log('[cs2inventory] Global button handler received:', {
+				customId: interaction.customId,
+				type: interaction.type,
+				userId: interaction.user?.id
+			});
+			
+			const customId = interaction.customId;
+			
+			// Handle main inventory buttons
+			if (customId.startsWith('cs2_view_skins_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				await cs2inventoryCommand.showSkins(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL, 0, '');
+			} else if (customId.startsWith('cs2_stats_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				await cs2inventoryCommand.showStats(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
+			} else if (customId.startsWith('cs2_best_drops_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				await cs2inventoryCommand.showBestDrops(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
+			} else if (customId.startsWith('cs2_rarest_drops_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				await cs2inventoryCommand.showRarestDrops(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
+			}
+			// Handle skins view buttons
+			else if (customId.startsWith('cs2_skins_prev_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				const newPage = parseInt(parts[4]) - 1;
+				const search = decodeURIComponent(parts[5] || '');
+				await cs2inventoryCommand.showSkins(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL, newPage, search);
+			} else if (customId.startsWith('cs2_skins_next_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				const newPage = parseInt(parts[4]) + 1;
+				const search = decodeURIComponent(parts[5] || '');
+				await cs2inventoryCommand.showSkins(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL, newPage, search);
+			} else if (customId.startsWith('cs2_skins_search_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				const page = parseInt(parts[4]);
+				const searchQuery = decodeURIComponent(parts[5] || '');
+				await cs2inventoryCommand.showSearchModal(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL, page, searchQuery);
+			} else if (customId.startsWith('cs2_skins_clear_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				await cs2inventoryCommand.showSkins(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL, 0, '');
+			} else if (customId.startsWith('cs2_skins_close_')) {
+				await interaction.update({ components: [] });
+			}
+			
+		} catch (error) {
+			console.error('[cs2inventory] Global button handler error:', error);
+			try {
+				await interaction.reply({ 
+					content: 'An error occurred while processing your button click. Please try again.',
+					ephemeral: true 
+				});
+			} catch (replyError) {
+				console.error('[cs2inventory] Failed to send error reply:', replyError);
+			}
+		}
+		return;
+	}
+
+	// Global button handler for CS2 view interactions
+	if (interaction.type === 3 && interaction.customId?.startsWith('cs2_view_')) {
+		try {
+			console.log('[cs2view] Global button handler received:', {
+				customId: interaction.customId,
+				type: interaction.type,
+				userId: interaction.user?.id
+			});
+			
+			const customId = interaction.customId;
+			
+			// Handle CS2 view command buttons
+			if (customId.startsWith('cs2_view_prev_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				const newPage = parseInt(parts[4]) - 1;
+				const search = decodeURIComponent(parts[5] || '');
+				
+				// Fetch inventory and show the previous page
+				const response = await axios.get(`${process.env.BACKEND_API_URL}/cs2/inventory/${userId}`, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const skins = response.data.inventory.skins;
+				
+				// Apply search filter if exists
+				let filteredSkins = skins;
+				if (search && search.trim() !== '') {
+					const query = search.toLowerCase().trim();
+					filteredSkins = skins.filter(skin => 
+						skin.weapon?.toLowerCase().includes(query) ||
+						skin.skinName?.toLowerCase().includes(query) ||
+						skin.rarity?.toLowerCase().includes(query) ||
+						skin.wear?.toLowerCase().includes(query) ||
+						`${skin.weapon} | ${skin.skinName}`.toLowerCase().includes(query)
+					);
+				}
+				
+				// Create the skin page components
+				const skinsPerPage = 25;
+				const totalPages = Math.ceil(filteredSkins.length / skinsPerPage);
+				const startIndex = newPage * skinsPerPage;
+				const endIndex = startIndex + skinsPerPage;
+				const displaySkins = filteredSkins.slice(startIndex, endIndex);
+				
+				// Create select menu options
+				const selectOptions = displaySkins.map((skin, index) => ({
+					label: `${skin.weapon} | ${skin.skinName}`,
+					value: `skin_${startIndex + index}_${skin.skinId || 'unknown'}`,
+					description: `${getRarityEmoji(skin.rarity)} ${skin.rarity} • ${getWearEmoji(skin.wear)} ${skin.wear} • 💰 ${skin.marketValue} currency`,
+					emoji: getRarityEmoji(skin.rarity)
+				}));
+				
+				// Create select menu
+				const selectMenu = new StringSelectMenuBuilder()
+					.setCustomId(`cs2_view_select_${userId}_${newPage}_${encodeURIComponent(search)}`)
+					.setPlaceholder('Select a skin to view details...')
+					.addOptions(selectOptions);
+				
+				const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+				
+				// Create pagination and search buttons
+				const buttonRow = new ActionRowBuilder();
+				
+				// Navigation buttons
+				if (newPage > 0) {
+					buttonRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_view_prev_${userId}_${newPage}_${encodeURIComponent(search)}`)
+							.setLabel('◀️ Previous')
+							.setStyle(ButtonStyle.Secondary)
+					);
+				}
+				
+				if (newPage < totalPages - 1) {
+					buttonRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_view_next_${userId}_${newPage}_${encodeURIComponent(search)}`)
+							.setLabel('Next ▶️')
+							.setStyle(ButtonStyle.Secondary)
+					);
+				}
+				
+				// Search button
+				buttonRow.addComponents(
+					new ButtonBuilder()
+						.setCustomId(`cs2_view_search_${userId}_${newPage}_${encodeURIComponent(search)}`)
+						.setLabel('🔍 Search')
+						.setStyle(ButtonStyle.Primary)
+				);
+				
+				// Clear search button (only show if there's a search query)
+				if (search) {
+					buttonRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_view_clear_${userId}_0_`)
+							.setLabel('❌ Clear Search')
+							.setStyle(ButtonStyle.Danger)
+					);
+				}
+				
+				// Close button
+				buttonRow.addComponents(
+					new ButtonBuilder()
+						.setCustomId(`cs2_view_close_${userId}`)
+						.setLabel('❌ Close')
+						.setStyle(ButtonStyle.Secondary)
+				);
+				
+				const embed = new EmbedBuilder()
+					.setTitle('🎨 CS2 Skin Viewer')
+					.setDescription(getPaginationDescription(search, startIndex, endIndex, filteredSkins))
+					.setColor(0x00ff00)
+					.setFooter({ 
+						text: `Page ${newPage + 1} of ${totalPages}${search ? ` • Search: "${search}"` : ''}`,
+						iconURL: interaction.user.displayAvatarURL()
+					});
+				
+				// Update the message
+				await interaction.update({ 
+					embeds: [embed], 
+					components: [selectRow, buttonRow]
+				});
+				
+			} else if (customId.startsWith('cs2_view_next_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				const newPage = parseInt(parts[4]) + 1;
+				const search = decodeURIComponent(parts[5] || '');
+				
+				// Fetch inventory and show the next page
+				const response = await axios.get(`${process.env.BACKEND_API_URL}/cs2/inventory/${userId}`, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const skins = response.data.inventory.skins;
+				
+				// Apply search filter if exists
+				let filteredSkins = skins;
+				if (search && search.trim() !== '') {
+					const query = search.toLowerCase().trim();
+					filteredSkins = skins.filter(skin => 
+						skin.weapon?.toLowerCase().includes(query) ||
+						skin.skinName?.toLowerCase().includes(query) ||
+						skin.rarity?.toLowerCase().includes(query) ||
+						skin.wear?.toLowerCase().includes(query) ||
+						`${skin.weapon} | ${skin.skinName}`.toLowerCase().includes(query)
+					);
+				}
+				
+				// Create the skin page components
+				const skinsPerPage = 25;
+				const totalPages = Math.ceil(filteredSkins.length / skinsPerPage);
+				const startIndex = newPage * skinsPerPage;
+				const endIndex = startIndex + skinsPerPage;
+				const displaySkins = filteredSkins.slice(startIndex, endIndex);
+				
+				// Create select menu options
+				const selectOptions = displaySkins.map((skin, index) => ({
+					label: `${skin.weapon} | ${skin.skinName}`,
+					value: `skin_${startIndex + index}_${skin.skinId || 'unknown'}`,
+					description: `${getRarityEmoji(skin.rarity)} ${skin.rarity} • ${getWearEmoji(skin.wear)} ${skin.wear} • 💰 ${skin.marketValue} currency`,
+					emoji: getRarityEmoji(skin.rarity)
+				}));
+				
+				// Create select menu
+				const selectMenu = new StringSelectMenuBuilder()
+					.setCustomId(`cs2_view_select_${userId}_${newPage}_${encodeURIComponent(search)}`)
+					.setPlaceholder('Select a skin to view details...')
+					.addOptions(selectOptions);
+				
+				const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+				
+				// Create pagination and search buttons
+				const buttonRow = new ActionRowBuilder();
+				
+				// Navigation buttons
+				if (newPage > 0) {
+					buttonRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_view_prev_${userId}_${newPage}_${encodeURIComponent(search)}`)
+							.setLabel('◀️ Previous')
+							.setStyle(ButtonStyle.Secondary)
+					);
+				}
+				
+				if (newPage < totalPages - 1) {
+					buttonRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_view_next_${userId}_${newPage}_${encodeURIComponent(search)}`)
+							.setLabel('Next ▶️')
+							.setStyle(ButtonStyle.Secondary)
+					);
+				}
+				
+				// Search button
+				buttonRow.addComponents(
+					new ButtonBuilder()
+						.setCustomId(`cs2_view_search_${userId}_${newPage}_${encodeURIComponent(search)}`)
+						.setLabel('🔍 Search')
+						.setStyle(ButtonStyle.Primary)
+				);
+				
+				// Clear search button (only show if there's a search query)
+				if (search) {
+					buttonRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_view_clear_${userId}_0_`)
+							.setLabel('❌ Clear Search')
+							.setStyle(ButtonStyle.Danger)
+					);
+				}
+				
+				// Close button
+				buttonRow.addComponents(
+					new ButtonBuilder()
+						.setCustomId(`cs2_view_close_${userId}`)
+						.setLabel('❌ Close')
+						.setStyle(ButtonStyle.Secondary)
+				);
+				
+				const embed = new EmbedBuilder()
+					.setTitle('🎨 CS2 Skin Viewer')
+					.setDescription(getPaginationDescription(search, startIndex, endIndex, filteredSkins))
+					.setColor(0x00ff00)
+					.setFooter({ 
+						text: `Page ${newPage + 1} of ${totalPages}${search ? ` • Search: "${search}"` : ''}`,
+						iconURL: interaction.user.displayAvatarURL()
+					});
+				
+				// Update the message
+				await interaction.update({ 
+					embeds: [embed], 
+					components: [selectRow, buttonRow]
+				});
+				
+			} else if (customId.startsWith('cs2_view_search_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				const page = parseInt(parts[4]);
+				const searchQuery = decodeURIComponent(parts[5] || '');
+				
+				// Show search modal
+				const modal = new ModalBuilder()
+					.setCustomId(`cs2_view_search_modal_${userId}_${page}_${encodeURIComponent(searchQuery)}`)
+					.setTitle('🔍 Search CS2 Skins');
+
+				const searchInput = new TextInputBuilder()
+					.setCustomId('search_query')
+					.setLabel('Search skins (weapon, skin, rarity, wear)')
+					.setStyle(TextInputStyle.Short)
+					.setPlaceholder('e.g., AK-47, Dragon Tattoo, mil-spec, factory new')
+					.setValue(searchQuery)
+					.setRequired(false)
+					.setMaxLength(100);
+
+				const firstActionRow = new ActionRowBuilder().addComponents(searchInput);
+				modal.addComponents(firstActionRow);
+
+				await interaction.showModal(modal);
+				
+			} else if (customId.startsWith('cs2_view_clear_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				
+				// Fetch inventory and show the first page without search
+				const response = await axios.get(`${process.env.BACKEND_API_URL}/cs2/inventory/${userId}`, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const skins = response.data.inventory.skins;
+				
+				// Create the skin page components
+				const skinsPerPage = 25;
+				const totalPages = Math.ceil(skins.length / skinsPerPage);
+				const startIndex = 0;
+				const endIndex = startIndex + skinsPerPage;
+				const displaySkins = skins.slice(startIndex, endIndex);
+				
+				// Create select menu options
+				const selectOptions = displaySkins.map((skin, index) => ({
+					label: `${skin.weapon} | ${skin.skinName}`,
+					value: `skin_${startIndex + index}_${skin.skinId || 'unknown'}`,
+					description: `${getRarityEmoji(skin.rarity)} ${skin.rarity} • ${getWearEmoji(skin.wear)} ${skin.wear} • 💰 ${skin.marketValue} currency`,
+					emoji: getRarityEmoji(skin.rarity)
+				}));
+				
+				// Create select menu
+				const selectMenu = new StringSelectMenuBuilder()
+					.setCustomId(`cs2_view_select_${userId}_0_`)
+					.setPlaceholder('Select a skin to view details...')
+					.addOptions(selectOptions);
+				
+				const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+				
+				// Create pagination and search buttons
+				const buttonRow = new ActionRowBuilder();
+				
+				// Next button (since we're on page 0)
+				if (totalPages > 1) {
+					buttonRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_view_next_${userId}_0_`)
+							.setLabel('Next ▶️')
+							.setStyle(ButtonStyle.Secondary)
+					);
+				}
+				
+				// Search button
+				buttonRow.addComponents(
+					new ButtonBuilder()
+						.setCustomId(`cs2_view_search_${userId}_0_`)
+						.setLabel('🔍 Search')
+						.setStyle(ButtonStyle.Primary)
+				);
+				
+				// Close button
+				buttonRow.addComponents(
+					new ButtonBuilder()
+						.setCustomId(`cs2_view_close_${userId}`)
+						.setLabel('❌ Close')
+						.setStyle(ButtonStyle.Secondary)
+				);
+				
+				const embed = new EmbedBuilder()
+					.setTitle('🎨 CS2 Skin Viewer')
+					.setDescription(`Showing ${displaySkins.length} of ${skins.length} total skins\n\nSelect a skin from the menu below to view detailed information:`)
+					.setColor(0x00ff00)
+					.setFooter({ 
+						text: `Page 1 of ${totalPages}`,
+						iconURL: interaction.user.displayAvatarURL()
+					});
+				
+				// Update the message
+				await interaction.update({ 
+					embeds: [embed], 
+					components: [selectRow, buttonRow]
+				});
+				
+			} else if (customId.startsWith('cs2_view_close_')) {
+				await interaction.update({ components: [] });
+				
+			} else if (customId.startsWith('cs2_view_back_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				const page = parseInt(parts[4]);
+				const search = decodeURIComponent(parts[5] || '');
+				
+				// Fetch inventory and show the specified page
+				const response = await axios.get(`${process.env.BACKEND_API_URL}/cs2/inventory/${userId}`, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				const skins = response.data.inventory.skins;
+				
+				// Apply search filter if exists
+				let filteredSkins = skins;
+				if (search && search.trim() !== '') {
+					const query = search.toLowerCase().trim();
+					filteredSkins = skins.filter(skin => 
+						skin.weapon?.toLowerCase().includes(query) ||
+						skin.skinName?.toLowerCase().includes(query) ||
+						skin.rarity?.toLowerCase().includes(query) ||
+						skin.wear?.toLowerCase().includes(query) ||
+						`${skin.weapon} | ${skin.skinName}`.toLowerCase().includes(query)
+					);
+				}
+				
+				// Create the skin page components
+				const skinsPerPage = 25;
+				const totalPages = Math.ceil(filteredSkins.length / skinsPerPage);
+				const startIndex = page * skinsPerPage;
+				const endIndex = startIndex + skinsPerPage;
+				const displaySkins = filteredSkins.slice(startIndex, endIndex);
+				
+				// Create select menu options
+				const selectOptions = displaySkins.map((skin, index) => ({
+					label: `${skin.weapon} | ${skin.skinName}`,
+					value: `skin_${startIndex + index}_${skin.skinId || 'unknown'}`,
+					description: `${getRarityEmoji(skin.rarity)} ${skin.rarity} • ${getWearEmoji(skin.wear)} ${skin.wear} • 💰 ${skin.marketValue} currency`,
+					emoji: getRarityEmoji(skin.rarity)
+				}));
+				
+				// Create select menu
+				const selectMenu = new StringSelectMenuBuilder()
+					.setCustomId(`cs2_view_select_${userId}_${page}_${encodeURIComponent(search)}`)
+					.setPlaceholder('Select a skin to view details...')
+					.addOptions(selectOptions);
+				
+				const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+				
+				// Create pagination and search buttons
+				const buttonRow = new ActionRowBuilder();
+				
+				// Navigation buttons
+				if (page > 0) {
+					buttonRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_view_prev_${userId}_${page}_${encodeURIComponent(search)}`)
+							.setLabel('◀️ Previous')
+							.setStyle(ButtonStyle.Secondary)
+					);
+				}
+				
+				if (page < totalPages - 1) {
+					buttonRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_view_next_${userId}_${page}_${encodeURIComponent(search)}`)
+							.setLabel('Next ▶️')
+							.setStyle(ButtonStyle.Secondary)
+					);
+				}
+				
+				// Search button
+				buttonRow.addComponents(
+					new ButtonBuilder()
+						.setCustomId(`cs2_view_search_${userId}_${page}_${encodeURIComponent(search)}`)
+						.setLabel('🔍 Search')
+						.setStyle(ButtonStyle.Primary)
+				);
+				
+				// Clear search button (only show if there's a search query)
+				if (search) {
+					buttonRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_view_clear_${userId}_0_`)
+							.setLabel('❌ Clear Search')
+							.setStyle(ButtonStyle.Danger)
+					);
+				}
+				
+				// Close button
+				buttonRow.addComponents(
+					new ButtonBuilder()
+						.setCustomId(`cs2_view_close_${userId}`)
+						.setLabel('❌ Close')
+						.setStyle(ButtonStyle.Secondary)
+				);
+				
+				const embed = new EmbedBuilder()
+					.setTitle('🎨 CS2 Skin Viewer')
+					.setDescription(getPaginationDescription(search, startIndex, endIndex, filteredSkins))
+					.setColor(0x00ff00)
+					.setFooter({ 
+						text: `Page ${page + 1} of ${totalPages}${search ? ` • Search: "${search}"` : ''}`,
+						iconURL: interaction.user.displayAvatarURL()
+					});
+				
+				// Update the message
+				await interaction.update({ 
+					embeds: [embed], 
+					components: [selectRow, buttonRow]
+				});
+			}
+			
+		} catch (error) {
+			console.error('[cs2view] Global button handler error:', error);
+			try {
+				await interaction.reply({ 
+					content: 'An error occurred while processing your button click. Please try again.',
+					ephemeral: true 
+				});
+			} catch (replyError) {
+				console.error('[cs2view] Failed to send error reply:', replyError);
 			}
 		}
 		return;
@@ -4617,7 +5436,8 @@ client.on('interactionCreate', async interaction => {
 						},
 						{ name: '💼 Inventory Management', value:
 							'`/cs2inventory` - View your CS2 skin collection and statistics\n' +
-							'`/cs2stats` - View your CS2 case opening statistics and performance'
+							'`/cs2stats` - View your CS2 case opening statistics and performance\n' +
+							'`/cs2view` - View a specific CS2 skin'
 						},
 						{ name: '💰 Trading & Selling', value:
 							'`/cs2sell` - Sell your CS2 skins for points\n' +
@@ -5143,6 +5963,9 @@ client.on('interactionCreate', async interaction => {
 	else if (commandName === 'cs2inventory') {
 		await cs2inventoryCommand.execute(interaction);
 	}
+	else if (commandName === 'cs2view') {
+		await cs2viewCommand.execute(interaction);
+	}
 	else if (commandName === 'cs2leaderboard') {
 		await cs2leaderboardCommand.execute(interaction);
 	}
@@ -5582,6 +6405,15 @@ function getWearEmoji(wear) {
 		'battle-scarred': '🌙'
 	};
 	return wearEmojis[wear] || '⭐';
+}
+
+// Helper function to generate pagination description
+function getPaginationDescription(search, startIndex, endIndex, filteredSkins) {
+	if (search && search.trim() !== '') {
+		return `🔍 Search results for "${search}"\nShowing ${startIndex + 1}-${Math.min(endIndex, filteredSkins.length)} of ${filteredSkins.length} matching skins\n\nSelect a skin from the menu below to view detailed information:`;
+	} else {
+		return `Showing ${startIndex + 1}-${Math.min(endIndex, filteredSkins.length)} of ${filteredSkins.length} total skins\n\nSelect a skin from the menu below to view detailed information:`;
+	}
 }
 
 // Export functions for use in other modules

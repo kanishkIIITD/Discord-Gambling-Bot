@@ -74,24 +74,24 @@ module.exports = {
         balance = walletResponse.data.balance;
       } catch (error) {
         if (error.response?.status === 404) {
-          return interaction.editReply(`❌ **No wallet found!** You need to have a wallet to open cases.`);
+          return interaction.editReply(`❌ **No wallet found!** <@${interaction.user.id}>, you need to have a wallet to open cases.`);
         }
         console.error('Error fetching wallet:', error);
         return interaction.editReply(`❌ **Error fetching wallet.** Please try again later.`);
       }
 
       if (balance < caseData.price) {
-        return interaction.editReply(`❌ **Insufficient funds!** You need **${caseData.price}** points to open this case.\nYour balance: **${balance}** points`);
+        return interaction.editReply(`❌ **Insufficient funds!** <@${interaction.user.id}>, you need **${caseData.price}** points to open this case.\nYour balance: **${balance}** points`);
       }
       
       if (balance < 0) {
-        return interaction.editReply(`❌ **Invalid balance!** Your wallet has a negative balance. Please contact an administrator.`);
+        return interaction.editReply(`❌ **Invalid balance!** <@${interaction.user.id}>, your wallet has a negative balance. Please contact an administrator.`);
       }
 
       // Create opening animation embed
       const openingEmbed = new EmbedBuilder()
         .setTitle('🎯 Opening Case...')
-        .setDescription(`Opening **${caseData.formattedName}**...\nPlease wait while we reveal your skin!`)
+        .setDescription(`You are opening **${caseData.formattedName}**...\nPlease wait while we reveal your skin!`)
         .setColor(0xffff00)
         .setThumbnail(caseData.imageUrl)
         .addFields(
@@ -100,6 +100,7 @@ module.exports = {
         );
 
       const openingMessage = await interaction.editReply({
+        content: `<@${interaction.user.id}>`,
         embeds: [openingEmbed],
         components: []
       });
@@ -232,8 +233,9 @@ module.exports = {
             .setEmoji('🎯')
         );
 
-      // Update the message with the result
+      // Update the message with the result and add real ping in content
       await openingMessage.edit({
+        content: `<@${interaction.user.id}>`,
         embeds: [resultEmbed],
         components: [actionRow]
       });
@@ -369,7 +371,7 @@ module.exports = {
       console.error('Error loading inventory:', error);
       let errorMessage = '❌ Failed to load inventory.';
       if (error.response?.status === 404) {
-        errorMessage = '❌ **No inventory found!** You need to open some cases first.';
+                  errorMessage = `❌ **No inventory found!** <@${interaction.user.id}>, you need to open some cases first.`;
       } else if (error.response?.status === 500) {
         errorMessage = '❌ **Server error.** Please try again later.';
       }
@@ -402,7 +404,7 @@ module.exports = {
       console.error('Error loading stats:', error);
       let errorMessage = '❌ Failed to load stats.';
       if (error.response?.status === 404) {
-        errorMessage = '❌ **No stats found!** You need to open some cases first.';
+                  errorMessage = `❌ **No stats found!** <@${interaction.user.id}>, you need to open some cases first.`;
       } else if (error.response?.status === 500) {
         errorMessage = '❌ **Server error.** Please try again later.';
       }
@@ -459,7 +461,7 @@ module.exports = {
       } catch (error) {
         if (error.response?.status === 404) {
           await interaction.reply({ 
-            content: '❌ **No wallet found!** You need to have a wallet to open cases.',
+            content: `❌ **No wallet found!** <@${interaction.user.id}>, you need to have a wallet to open cases.`,
             ephemeral: true 
           });
           return;
@@ -474,7 +476,7 @@ module.exports = {
 
       if (balance < caseData.price) {
         await interaction.reply({ 
-          content: `❌ **Insufficient funds!** You need **${caseData.price}** points to open another case.\nYour balance: **${balance}** points`,
+          content: `❌ **Insufficient funds!** <@${interaction.user.id}>, you need **${caseData.price}** points to open another case.\nYour balance: **${balance}** points`,
           ephemeral: true 
         });
         return;
@@ -637,8 +639,9 @@ module.exports = {
         console.error('Error disabling previous message buttons:', error);
       }
 
-      // Send a new public message with the result
+      // Send a new public message with the result and add real ping in content
       const newMessage = await interaction.channel.send({
+        content: `<@${interaction.user.id}>`,
         embeds: [resultEmbed],
         components: [actionRow]
       });
