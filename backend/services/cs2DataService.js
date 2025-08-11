@@ -69,9 +69,10 @@ class CS2DataService {
           requiresKey: caseData.requires_key || false,
           price: this.calculateCasePrice(caseData),
           items: {
-            consumerGrade: caseData.items['consumer grade'] || [],
-            industrialGrade: caseData.items['industrial grade'] || [],
-            milSpec: caseData.items['mil-spec'] || [],
+            // Map the actual keys from raw data (they're already in camelCase)
+            consumerGrade: caseData.items['consumerGrade'] || [],
+            industrialGrade: caseData.items['industrialGrade'] || [],
+            milSpec: caseData.items['milSpec'] || [],
             restricted: caseData.items['restricted'] || [],
             classified: caseData.items['classified'] || [],
             covert: caseData.items['covert'] || [],
@@ -107,7 +108,15 @@ class CS2DataService {
         
         const weapon = this.extractWeapon(skinData.formatted_name);
         const skinName = this.extractSkinName(skinData.formatted_name);
-        const inferredRarity = this.inferSkinRarity(weapon, skinName);
+        
+        // Use actual quality from data if available, otherwise infer
+        const actualQuality = skinData.quality || null;
+        const inferredRarity = this.inferSkinRarity(weapon, skinName, actualQuality);
+        
+        // Log quality mapping for debugging
+        if (actualQuality && actualQuality !== inferredRarity) {
+          console.log(`🔄 Quality mapping: ${skinData.formatted_name} - ${actualQuality} → ${inferredRarity}`);
+        }
         
         // Find the first non-empty image URL
         let imageUrl = 'https://via.placeholder.com/300x200?text=No+Image';
@@ -146,6 +155,9 @@ class CS2DataService {
       }
       
       console.log(`🎨 Loaded ${this.skins.size} skins`);
+      
+      // After loading skins, validate case categorization
+      this.validateCaseCategorization();
     } catch (error) {
       console.error('❌ Failed to load skins data:', error);
       throw error;
@@ -205,9 +217,14 @@ class CS2DataService {
       basePrice += 2500; // Key cost
     }
     
-    // Adjust price based on number of items
-    const totalItems = Object.values(caseData.items).reduce((sum, items) => sum + items.length, 0);
-    basePrice += totalItems * 250; // 250 points per item
+    // Adjust price based on number of items (EXCLUDING special items to prevent inflation)
+    const regularItems = Object.entries(caseData.items)
+      .filter(([rarity, items]) => rarity !== 'special') // Exclude special items from count
+      .reduce((sum, [_, items]) => sum + items.length, 0);
+    
+    const specialItems = caseData.items.special ? caseData.items.special.length : 0;
+    
+    basePrice += regularItems * 250; // 250 points per regular item
     
     // Adjust price based on rarity of items
     if (caseData.items.covert && caseData.items.covert.length > 0) {
@@ -220,7 +237,19 @@ class CS2DataService {
       basePrice += 15000; // 15,000 points bonus for special items (knives, gloves)
     }
     
-    return Math.round(basePrice / 1000) * 1000; // Round to nearest 1,000 points
+    const finalPrice = Math.round(basePrice / 1000) * 1000; // Round to nearest 1,000 points
+    
+    // Log price calculation details
+    console.log(`💰 Case price calculation for ${caseData.formatted_name}:`);
+    console.log(`   Base price: 5,000 points`);
+    console.log(`   Key cost: ${caseData.requires_key ? '2,500' : '0'} points`);
+    console.log(`   Regular items (${regularItems}): +${regularItems * 250} points`);
+    console.log(`   Special items (${specialItems}): excluded from count, +15,000 bonus`);
+    console.log(`   Covert bonus: ${caseData.items.covert ? '+10,000' : '+0'} points`);
+    console.log(`   Classified bonus: ${caseData.items.classified ? '+5,000' : '+0'} points`);
+    console.log(`   Final price: ${finalPrice.toLocaleString()} points`);
+    
+    return finalPrice;
   }
 
   extractWeapon(formattedName) {
@@ -273,7 +302,15 @@ class CS2DataService {
     return Math.round(baseValue * randomFactor);
   }
 
-  inferSkinRarity(weapon, skinName) {
+  inferSkinRarity(weapon, skinName, actualQuality = null) {
+    // If we have actual quality data from the raw skins data, use it
+    if (actualQuality) {
+      // Map invalid quality values to valid rarity values
+      const mappedQuality = this.mapQualityToRarity(actualQuality);
+      console.log(`🎯 Using mapped quality for ${weapon} | ${skinName}: ${actualQuality} → ${mappedQuality}`);
+      return mappedQuality;
+    }
+    
     // Infer rarity based on weapon type and skin characteristics
     const weaponLower = weapon.toLowerCase();
     const skinNameLower = skinName.toLowerCase();
@@ -299,8 +336,82 @@ class CS2DataService {
       return 'covert';
     }
     
-    // Default to mil-spec for most skins
+    // Default to mil-spec for most skins when no actual quality data is available
+    console.log(`🎯 Inferring rarity for ${weapon} | ${skinName}: defaulting to mil-spec`);
     return 'mil-spec';
+  }
+
+  /**
+   * Maps invalid quality values from raw data to valid rarity values
+   * @param {string} quality - The quality value from raw data
+   * @returns {string} - The mapped rarity value
+   */
+  mapQualityToRarity(quality) {
+    const qualityMapping = {
+      'extraordinary': 'special',        // Map extraordinary to special (gold tier)
+      'consumer grade': 'consumer grade',
+      'industrial grade': 'industrial grade',
+      'mil-spec': 'mil-spec',
+      'restricted': 'restricted',
+      'classified': 'classified',
+      'covert': 'covert',
+      'special': 'special'
+    };
+    
+    const mappedRarity = qualityMapping[quality.toLowerCase()];
+    if (!mappedRarity) {
+      console.warn(`⚠️ Unknown quality value: ${quality}, defaulting to mil-spec`);
+      return 'mil-spec';
+    }
+    
+    return mappedRarity;
+  }
+
+  validateCaseCategorization() {
+    console.log('🔍 Validating case categorization...');
+    let totalMismatches = 0;
+    let totalSkins = 0;
+    
+    for (const [caseId, caseData] of this.cases) {
+      let caseMismatches = 0;
+      
+      // Check each rarity tier in the case
+      for (const [rarityKey, skinNames] of Object.entries(caseData.items)) {
+        for (const skinName of skinNames) {
+          totalSkins++;
+          const foundSkin = this.findSkinByName(skinName);
+          
+          if (foundSkin) {
+            // Convert rarity key to standard format for comparison
+            const caseRarity = rarityKey
+              .replace(/([A-Z])/g, ' $1')  // Add space before capitals
+              .replace(/^./, (str) => str.toLowerCase())  // First character to lowercase
+              .replace(/\s+/g, ' ')  // Normalize spaces
+              .trim();
+            
+            if (foundSkin.rarity !== caseRarity) {
+              caseMismatches++;
+              totalMismatches++;
+              console.log(`⚠️ Case categorization mismatch in ${caseData.formattedName}:`);
+              console.log(`   Skin: ${skinName}`);
+              console.log(`   Case has: ${caseRarity}`);
+              console.log(`   Actual quality: ${foundSkin.rarity}`);
+            }
+          }
+        }
+      }
+      
+      if (caseMismatches > 0) {
+        console.log(`⚠️ Case "${caseData.formattedName}" has ${caseMismatches} categorization mismatches`);
+      }
+    }
+    
+    if (totalMismatches > 0) {
+      console.log(`⚠️ Found ${totalMismatches} categorization mismatches out of ${totalSkins} total skins`);
+      console.log('💡 Consider updating case data to match actual skin qualities');
+    } else {
+      console.log('✅ All case categorizations match skin qualities');
+    }
   }
 
   // Get all cases
@@ -354,60 +465,79 @@ class CS2DataService {
       throw new Error('Case not found');
     }
 
-    // Use CS2 rarity distribution
-    const rarityDistribution = {
-      'consumer grade': 0.7992,
-      'industrial grade': 0.1598,
-      'mil-spec': 0.032,
-      'restricted': 0.0064,
-      'classified': 0.00128,
-      'covert': 0.000256,
-      'special': 0.00064
+    // Get available rarity tiers for this specific case (only those with items)
+    const availableRarities = Object.entries(caseData.items)
+      .filter(([rarity, items]) => items && items.length > 0) // Only include rarities with items
+      .map(([rarity]) => rarity);
+    
+    console.log(`🎯 Available rarities in ${caseData.formatted_name}:`, availableRarities);
+    
+    if (availableRarities.length === 0) {
+      throw new Error('No items available in this case');
+    }
+    
+    // Define case-specific rarity distributions based on CS:GO drop rates
+    // These are the ACTUAL drop rates for each rarity tier
+    const caseRarityDistribution = {
+      'milSpec': 0.032,        // 3.2% - mil-spec grade
+      'restricted': 0.0064,    // 0.64% - restricted
+      'classified': 0.00128,   // 0.128% - classified
+      'covert': 0.000256,      // 0.0256% - covert
+      'special': 0.00064       // 0.064% - special (knives/gloves)
     };
-
+    
+    // Filter to only include rarities available in this case
+    const availableDistribution = {};
+    let totalProbability = 0;
+    
+    for (const [rarity, probability] of Object.entries(caseRarityDistribution)) {
+      if (availableRarities.includes(rarity)) {
+        availableDistribution[rarity] = probability;
+        totalProbability += probability;
+      }
+    }
+    
+    // Normalize probabilities to sum to 1 (100%)
+    const normalizedDistribution = {};
+    for (const [rarity, probability] of Object.entries(availableDistribution)) {
+      normalizedDistribution[rarity] = probability / totalProbability;
+    }
+    
+    console.log(`📊 Case rarity distribution for ${caseData.formatted_name}:`);
+    for (const [rarity, probability] of Object.entries(normalizedDistribution)) {
+      const percentage = (probability * 100).toFixed(3);
+      const itemCount = caseData.items[rarity].length;
+      console.log(`   ${rarity}: ${percentage}% (${itemCount} items)`);
+    }
+    
+    // Select rarity based on normalized distribution
     const random = Math.random();
     let cumulativeProbability = 0;
-    let selectedRarity = 'consumer grade';
-
-    for (const [rarity, probability] of Object.entries(rarityDistribution)) {
+    let selectedRarity = Object.keys(normalizedDistribution)[0]; // Fallback to first available
+    
+    for (const [rarity, probability] of Object.entries(normalizedDistribution)) {
       cumulativeProbability += probability;
       if (random <= cumulativeProbability) {
         selectedRarity = rarity;
         break;
       }
     }
-
-    // Get available skins for this rarity in this case
-    // Convert rarity to camelCase to match the transformed keys
-    const rarityKey = selectedRarity
-      .replace(/\s+/g, '')  // Remove spaces
-      .replace(/^./, (str) => str.toLowerCase())  // First character to lowercase
-      .replace(/-([a-z])/g, (g) => g[1].toUpperCase());  // Convert kebab-case to camelCase
     
-    const availableSkins = caseData.items[rarityKey] || [];
+    const availableSkins = caseData.items[selectedRarity] || [];
+    console.log(`🎯 Selected rarity: ${selectedRarity}, available skins: ${availableSkins.length}`);
 
     if (availableSkins.length === 0) {
-      // Fallback to any available rarity
-      for (const rarity of Object.keys(caseData.items)) {
-        if (caseData.items[rarity].length > 0) {
-          const randomSkin = caseData.items[rarity][Math.floor(Math.random() * caseData.items[rarity].length)];
-          const foundSkin = this.findSkinByName(randomSkin);
-          if (!foundSkin) {
-            console.warn(`⚠️ Could not find skin: ${randomSkin} from rarity: ${rarity}`);
-          }
-          return foundSkin;
-        }
-      }
+      console.warn(`⚠️ No skins available for rarity ${selectedRarity}`);
       throw new Error('No skins available in this case');
     }
 
     // Select random skin from the selected rarity
     const randomSkinName = availableSkins[Math.floor(Math.random() * availableSkins.length)];
-    console.log(`🎯 Selected random skin name: "${randomSkinName}" from rarity: ${selectedRarity}`);
+    console.log(`🎯 Selected random skin: "${randomSkinName}" from rarity: ${selectedRarity}`);
     
     const foundSkin = this.findSkinByName(randomSkinName);
     if (!foundSkin) {
-      console.warn(`⚠️ Could not find skin: ${randomSkinName} from rarity: ${selectedRarity} (key: ${rarityKey})`);
+      console.warn(`⚠️ Could not find skin: ${randomSkinName} from rarity: ${selectedRarity}`);
     } else {
       console.log(`✅ Found skin data:`, {
         skinId: foundSkin.skinId,

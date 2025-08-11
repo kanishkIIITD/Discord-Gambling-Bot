@@ -145,6 +145,13 @@ module.exports = {
       const rarityEmoji = this.getRarityEmoji(result.skin.rarity || 'consumer grade');
       const wearEmoji = this.getWearEmoji(result.skin.wear || 'field-tested');
       
+      // Debug logging for rarity verification
+      console.log(`🎯 Case opened - Skin rarity debug:`);
+      console.log(`   Skin: ${skinName}`);
+      console.log(`   Rarity from backend: ${result.skin.rarity}`);
+      console.log(`   Rarity emoji: ${rarityEmoji}`);
+      console.log(`   Wear: ${result.skin.wear}`);
+      
       resultEmbed.addFields(
         { 
           name: '🎨 Skin', 

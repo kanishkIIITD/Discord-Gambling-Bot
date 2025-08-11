@@ -280,11 +280,11 @@ module.exports = {
       if (data.isDuplicate) embed.addFields({ name: 'Duplicate', value: 'Yes', inline: true });
       if (data.newLevel) embed.addFields({ name: 'Level Up!', value: `Level ${data.newLevel}`, inline: true });
       if (data.newlyUnlocked && data.newlyUnlocked.length > 0) embed.addFields({ name: 'Unlocked', value: data.newlyUnlocked.join(', '), inline: false });
-      // Set description to mention the user who caught it
+      // Set description to mention the user who attempted/caught it
       if (data.success) {
         embed.setDescription(`<@${interaction.user.id}> caught the wild Pokémon!`);
       } else {
-        embed.setDescription(data.embedData?.description || 'Better luck next time!');
+        embed.setDescription(`<@${interaction.user.id}> tried to catch the wild Pokémon, but it broke free!`);
       }
       // Mark as caught if successful
       if (data.success) {
