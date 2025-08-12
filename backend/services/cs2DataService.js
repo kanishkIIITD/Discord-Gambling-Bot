@@ -11,10 +11,56 @@ class CS2DataService {
     this.lastSync = null;
   }
 
-  async initialize(skipDatabaseSync = false) {
-    if (this.isInitialized) {
+  /**
+   * Calculate adjusted odds for different container types using the ratio rule
+   * Based on official CS2 odds: each rarer tier is about 1/5 as likely as the previous one
+   * @param {string[]} presentRarities - Array of rarities present in the container
+   * @returns {Object} Normalized percentages for each rarity
+   */
+  calculateAdjustedOdds(presentRarities = ['milSpec', 'restricted', 'classified', 'covert', 'special']) {
+    // Raw weights based on the ratio rule (geometric progression)
+    // Consumer Grade and Industrial Grade are included for souvenir packages
+    const RATIO = {
+      'consumerGrade': 25,    // Consumer Grade (White) - most common in souvenir packages
+      'industrialGrade': 5,   // Industrial Grade (Light Blue) - 1/5 as likely as Consumer
+      'milSpec': 1,           // Mil-Spec (Blue) - 1/5 as likely as Industrial
+      'restricted': 1/5,      // Restricted (Purple) - 1/5 as likely as Mil-Spec
+      'classified': 1/25,     // Classified (Pink) - 1/5 as likely as Restricted
+      'covert': 1/125,        // Covert (Red) - 1/5 as likely as Classified
+      'special': 1/625        // Special (Gold) - 1/5 as likely as Covert
+    };
+
+    // Calculate raw weights for present rarities
+    const raw = {};
+    let sum = 0;
+    
+    for (const rarity of presentRarities) {
+      if (RATIO.hasOwnProperty(rarity)) {
+        raw[rarity] = RATIO[rarity];
+        sum += raw[rarity];
+      }
+    }
+
+    // Normalize to get percentages
+    const out = {};
+    for (const rarity of presentRarities) {
+      out[rarity] = (raw[rarity] / sum) * 100; // Convert to percentage
+    }
+
+    return out;
+  }
+
+  async initialize(skipDatabaseSync = false, forceReload = false) {
+    if (this.isInitialized && !forceReload) {
       console.log('📊 CS2 data service already initialized, skipping...');
       return;
+    }
+    
+    if (forceReload) {
+      console.log('🔄 Force reload requested, clearing existing data...');
+      this.cases.clear();
+      this.skins.clear();
+      this.isInitialized = false;
     }
 
     try {
@@ -30,12 +76,25 @@ class CS2DataService {
       const existingCases = await CS2Case.countDocuments();
       const existingSkins = await CS2Skin.countDocuments();
       
-      // Only sync with database if explicitly requested or if no data exists
-      if (!skipDatabaseSync && (existingCases === 0 || existingSkins === 0)) {
-        console.log('📊 Database appears empty, syncing CS2 data...');
-        await this.syncWithDatabase();
-      } else if (!skipDatabaseSync) {
-        console.log('📊 CS2 data already exists in database, skipping sync');
+      // Force reload from raw data if requested
+      if (forceReload) {
+        console.log('🔄 Force reload requested, loading from raw data...');
+        await this.loadCasesData();
+        await this.loadSkinsData();
+        
+        // After force reload, always sync to database to ensure data persistence
+        if (!skipDatabaseSync) {
+          console.log('🔄 Syncing force-reloaded data to database...');
+          await this.syncWithDatabase();
+        }
+      } else {
+        // Only sync with database if explicitly requested or if no data exists
+        if (!skipDatabaseSync && (existingCases === 0 || existingSkins === 0)) {
+          console.log('📊 Database appears empty, syncing CS2 data...');
+          await this.syncWithDatabase();
+        } else if (!skipDatabaseSync) {
+          console.log('📊 CS2 data already exists in database, skipping sync');
+        }
       }
       
       this.isInitialized = true;
@@ -54,22 +113,79 @@ class CS2DataService {
       // Clear existing cases
       this.cases.clear();
       
-      // Process only items with type "Case"
+      // Process items with type "Case" or specific souvenir packages
       let caseCount = 0;
+      
+      // Define the specific souvenir package IDs to include
+      const allowedSouvenirIds = [
+        '232', // Boston 2018 Cobblestone Souvenir Package
+        '45',  // ESL One Katowice 2015 Cobblestone Souvenir Package
+        '137', // MLG Columbus 2016 Cobblestone Souvenir Package
+        '77',  // ESL One Cologne 2015 Cobblestone Souvenir Package
+        '105', // DreamHack Cluj-Napoca 2015 Cobblestone Souvenir Package
+        '203', // Atlanta 2017 Cobblestone Souvenir Package
+        '329', // Stockholm 2021 Mirage Souvenir Package
+        '342'  // Antwerp 2022 Mirage Souvenir Package
+      ];
+      
+      // Debug: Check what souvenir packages exist in the raw data
+      const foundSouvenirs = Object.entries(casesData).filter(([id, data]) => 
+        data.type === 'Souvenir' && allowedSouvenirIds.includes(id)
+      );
+      console.log(`🔍 Found ${foundSouvenirs.length} allowed souvenir packages in raw data:`);
+      foundSouvenirs.forEach(([id, data]) => {
+        console.log(`   • ${id}: ${data.name} (type: ${data.type})`);
+        console.log(`     - Has contains: ${!!data.contains}`);
+        console.log(`     - Contains length: ${data.contains ? data.contains.length : 'N/A'}`);
+        console.log(`     - Has image: ${!!data.image}`);
+      });
+      
+      // Also check all souvenir packages to see what we're missing
+      const allSouvenirs = Object.entries(casesData).filter(([id, data]) => data.type === 'Souvenir');
+      console.log(`🔍 Total souvenir packages in raw data: ${allSouvenirs.length}`);
+      if (allSouvenirs.length > 0) {
+        console.log(`   First few souvenir packages:`);
+        allSouvenirs.slice(0, 5).forEach(([id, data]) => {
+          console.log(`   • ${id}: ${data.name}`);
+        });
+      }
+      
       for (const [itemId, itemData] of Object.entries(casesData)) {
-        // Only process items that are actually cases
-        if (itemData.type !== 'Case') {
+        // Debug: Log what we're checking
+        if (itemData.type === 'Souvenir' && allowedSouvenirIds.includes(itemId)) {
+          console.log(`🔍 Found allowed souvenir package: ${itemId} - ${itemData.name}`);
+        }
+        
+        // Only process items that are actually cases or the specific souvenir packages
+        if (itemData.type !== 'Case' && (itemData.type !== 'Souvenir' || !allowedSouvenirIds.includes(itemId))) {
           continue;
         }
         
         // Skip cases with invalid data - check for new structure
-        if (!itemData.name || !itemData.image) {
-          console.warn(`⚠️ Skipping case ${itemId}: missing name or image`);
+        if (!itemData.name) {
+          console.warn(`⚠️ Skipping ${itemData.type} ${itemId}: missing name`);
           continue;
         }
         
-        // Convert the new contains structure to the expected items format
-        console.log(`🔍 Processing case: ${itemData.name}`);
+        // For souvenir packages, we need to handle them differently since they might not have contains field
+        if (itemData.type === 'Souvenir') {
+          console.log(`🔍 Processing souvenir package: ${itemData.name} (${itemId})`);
+          
+          // Check if souvenir package has contains field, if not, skip it
+          if (!itemData.contains || itemData.contains.length === 0) {
+            console.warn(`⚠️ Skipping souvenir package ${itemId}: no contains field or empty contains`);
+            continue;
+          }
+        } else {
+          console.log(`🔍 Processing case: ${itemData.name}`);
+          
+          // Regular cases need both name and image
+          if (!itemData.image) {
+            console.warn(`⚠️ Skipping case ${itemId}: missing image`);
+            continue;
+          }
+        }
+        
         console.log(`   Contains: ${(itemData.contains || []).length} items`);
         console.log(`   Contains rare: ${(itemData.contains_rare || []).length} items`);
         
@@ -82,17 +198,30 @@ class CS2DataService {
         const processedCase = {
           caseId: itemId.toLowerCase().replace(/\s+/g, '-'),
           formattedName: itemData.name.trim(),
-          imageUrl: itemData.image.trim(),
+          imageUrl: itemData.image ? itemData.image.trim() : '', // Handle souvenir packages without images
           requiresKey: itemData.requires_key || false,
           price: this.calculateCasePrice({ items }),
-          items: items
+          items: items,
+          type: itemData.type // Store the type for filtering
         };
         
         this.cases.set(processedCase.caseId, processedCase);
         caseCount++;
       }
       
-      console.log(`📦 Loaded ${caseCount} cases (filtered from ${Object.keys(casesData).length} total items)`);
+      // Show which souvenir packages were loaded
+      const souvenirPackages = Array.from(this.cases.values()).filter(c => c.type === 'Souvenir');
+      if (souvenirPackages.length > 0) {
+        console.log(`\n🎁 Souvenir packages loaded:`);
+        souvenirPackages.forEach(pkg => {
+          console.log(`   • ${pkg.formattedName} (${pkg.caseId})`);
+        });
+      } else {
+        console.log(`\n⚠️ No souvenir packages were loaded!`);
+        console.log(`   This might indicate an issue with the filtering logic or data structure.`);
+      }
+      
+      console.log(`📦 Loaded ${caseCount} cases and 8 specific souvenir packages (filtered from ${Object.keys(casesData).length} total items)`);
     } catch (error) {
       console.error('❌ Failed to load cases data:', error);
       throw error;
@@ -318,39 +447,38 @@ class CS2DataService {
     // Check if the item is a knife or glove (special items)
     const lowerName = itemName.toLowerCase();
     
-    // Knives start with ★ or contain "knife", "dagger", "karambit", etc.
+    // Knives start with ★ or contain specific knife names
     const isKnife = itemName.includes('★') || 
-                   lowerName.includes('knife') || 
-                   lowerName.includes('dagger') ||
-                   lowerName.includes('karambit') ||
-                   lowerName.includes('bayonet') ||
-                   lowerName.includes('butterfly') ||
-                   lowerName.includes('falchion') ||
-                   lowerName.includes('flip') ||
-                   lowerName.includes('gut') ||
-                   lowerName.includes('huntsman') ||
-                   lowerName.includes('shadow') ||
-                   lowerName.includes('ursus') ||
-                   lowerName.includes('widowmaker') ||
-                   lowerName.includes('nomad') ||
-                   lowerName.includes('stiletto') ||
-                   lowerName.includes('talon') ||
-                   lowerName.includes('navaja') ||
-                   lowerName.includes('classic') ||
-                   lowerName.includes('paracord') ||
-                   lowerName.includes('survival') ||
-                   lowerName.includes('canis') ||
-                   lowerName.includes('cord') ||
-                   lowerName.includes('skeleton') ||
-                   lowerName.includes('outdoor') ||
-                   lowerName.includes('daggers') ||
-                   lowerName.includes('bowie') ||
-                   lowerName.includes('push') ||
-                   lowerName.includes('tiger') ||
-                   lowerName.includes('rust') ||
-                   lowerName.includes('switch') ||
-                   lowerName.includes('ursus') ||
-                   lowerName.includes('widowmaker');
+                   lowerName.includes('★') ||
+                   // Only check for actual knife names, not generic words that might appear in skin names
+                   lowerName.includes('★ knife') ||
+                   lowerName.includes('★ dagger') ||
+                   lowerName.includes('★ karambit') ||
+                   lowerName.includes('★ bayonet') ||
+                   lowerName.includes('★ butterfly') ||
+                   lowerName.includes('★ falchion') ||
+                   lowerName.includes('★ flip') ||
+                   lowerName.includes('★ gut') ||
+                   lowerName.includes('★ huntsman') ||
+                   lowerName.includes('★ shadow') ||
+                   lowerName.includes('★ ursus') ||
+                   lowerName.includes('★ widowmaker') ||
+                   lowerName.includes('★ nomad') ||
+                   lowerName.includes('★ stiletto') ||
+                   lowerName.includes('★ talon') ||
+                   lowerName.includes('★ navaja') ||
+                   lowerName.includes('★ classic') ||
+                   lowerName.includes('★ paracord') ||
+                   lowerName.includes('★ survival') ||
+                   lowerName.includes('★ canis') ||
+                   lowerName.includes('★ cord') ||
+                   lowerName.includes('★ skeleton') ||
+                   lowerName.includes('★ outdoor') ||
+                   lowerName.includes('★ daggers') ||
+                   lowerName.includes('★ bowie') ||
+                   lowerName.includes('★ push') ||
+                   lowerName.includes('★ tiger') ||
+                   lowerName.includes('★ switch');
     
     // Gloves contain various glove-related terms
     const isGlove = lowerName.includes('glove') || 
@@ -863,6 +991,7 @@ class CS2DataService {
     const wearData = this.getRandomWear(baseSkin.minFloat, baseSkin.maxFloat);
     
     // Determine if this skin should be StatTrak or Souvenir
+    // StatTrak: independent 10% chance after rarity selection (official CS2 odds)
     const isStatTrak = Math.random() < 0.1; // 10% chance
     const isSouvenir = Math.random() < 0.05; // 5% chance
     
@@ -932,50 +1061,122 @@ class CS2DataService {
       throw new Error('No items available in this case');
     }
     
-    // Define case-specific rarity distributions based on CS:GO drop rates
-    // These are the ACTUAL drop rates for each rarity tier
-    const caseRarityDistribution = {
-      'milSpec': 0.032,        // 3.2% - mil-spec grade
-      'restricted': 0.0064,    // 0.64% - restricted
-      'classified': 0.00128,   // 0.128% - classified
-      'covert': 0.000256,      // 0.0256% - covert
-      'special': 0.00064       // 0.064% - special (knives/gloves)
-    };
+    // Calculate odds based on container type
+    let finalDistribution;
+    let totalProbability = 0; // Define totalProbability for both paths
     
-    // Filter to only include rarities available in this case
-    const availableDistribution = {};
-    let totalProbability = 0;
-    
-    for (const [rarity, probability] of Object.entries(caseRarityDistribution)) {
-      if (availableRarities.includes(rarity)) {
-        availableDistribution[rarity] = probability;
-        totalProbability += probability;
+    if (caseData.type === 'Souvenir') {
+      // Souvenir packages have different odds - they include Consumer/Industrial grades
+      // and renormalize, making Covert items rarer
+      console.log(`🎁 Souvenir package detected: ${caseData.formattedName}`);
+      
+      // For souvenir packages, we need to check if Consumer/Industrial grades are present
+      // and use the full ratio system including these grades
+      const souvenirRarities = availableRarities.filter(rarity => 
+        ['consumerGrade', 'industrialGrade', 'milSpec', 'restricted', 'classified', 'covert'].includes(rarity)
+      );
+      
+      console.log(`🎁 Souvenir package rarities: ${souvenirRarities.join(', ')}`);
+      
+      // Check if Consumer/Industrial grades are present
+      const hasConsumerGrade = souvenirRarities.includes('consumerGrade');
+      const hasIndustrialGrade = souvenirRarities.includes('industrialGrade');
+      
+      if (hasConsumerGrade || hasIndustrialGrade) {
+        console.log(`🎁 Souvenir package includes additional rarities:`);
+        if (hasConsumerGrade) console.log(`   • Consumer Grade (White) - most common`);
+        if (hasIndustrialGrade) console.log(`   • Industrial Grade (Light Blue) - 1/5 as likely as Consumer`);
+        console.log(`   • This makes Covert items significantly rarer than in standard cases`);
+      }
+      
+      // Get odds from the ratio system and convert percentages to probabilities
+      const souvenirOdds = this.calculateAdjustedOdds(souvenirRarities);
+      finalDistribution = {};
+      let totalProbability = 0;
+      
+      console.log(`🎁 Converting souvenir odds from percentages to probabilities:`);
+      
+      // Convert percentages to probabilities (0-1) and calculate total
+      for (const [rarity, percentage] of Object.entries(souvenirOdds)) {
+        finalDistribution[rarity] = percentage / 100; // Convert percentage to probability
+        totalProbability += finalDistribution[rarity];
+        console.log(`   ${rarity}: ${percentage.toFixed(2)}% → ${finalDistribution[rarity].toFixed(6)}`);
+      }
+      
+      console.log(`   Total probability before normalization: ${totalProbability.toFixed(6)}`);
+      
+      // Normalize to ensure probabilities sum to 1
+      for (const [rarity, probability] of Object.entries(finalDistribution)) {
+        finalDistribution[rarity] = probability / totalProbability;
+      }
+      
+      console.log(`   Probabilities normalized to sum to 1.000000`);
+    } else {
+      // Standard weapon cases use official CS2 odds
+      // Using the ratio rule: each rarer tier is about 1/5 as likely as the previous one
+      // Special is set to exactly 0.01% and covert adjusted to 0.99%
+      const caseRarityDistribution = {
+        'consumerGrade': 0,      // 0% - Consumer Grade (not in normal weapon cases)
+        'industrialGrade': 0,    // 0% - Industrial Grade (not in normal weapon cases)
+        'milSpec': 0.7992,       // 79.92% - Mil-Spec (Blue)
+        'restricted': 0.1598,    // 15.98% - Restricted (Purple)
+        'classified': 0.0320,    // 3.20% - Classified (Pink)
+        'covert': 0.0099,        // 0.99% - Covert (Red) - adjusted from 0.64%
+        'special': 0.0001        // 0.01% - Rare Special (Gold - Knives & Gloves) - exactly as requested
+      };
+      
+      // Filter to only include rarities available in this case
+      const availableDistribution = {};
+      let totalProbability = 0;
+      
+      for (const [rarity, probability] of Object.entries(caseRarityDistribution)) {
+        if (availableRarities.includes(rarity)) {
+          availableDistribution[rarity] = probability;
+          totalProbability += probability;
+        }
+      }
+      
+      // Normalize probabilities to ensure they sum to 1 (100%)
+      finalDistribution = {};
+      for (const [rarity, probability] of Object.entries(availableDistribution)) {
+        finalDistribution[rarity] = probability / totalProbability;
       }
     }
     
-    // Use the original CS:GO drop rates directly
-    // These are already the correct relative probabilities
-    const finalDistribution = availableDistribution;
-    
     console.log(`📊 Case rarity distribution for ${caseData.formattedName}:`);
+    let totalProbabilityCheck = 0;
     for (const [rarity, probability] of Object.entries(finalDistribution)) {
       const percentage = (probability * 100).toFixed(3);
       const itemCount = caseData.items[rarity].length;
       console.log(`   ${rarity}: ${percentage}% (${itemCount} items)`);
+      totalProbabilityCheck += probability;
     }
+    console.log(`   Total probability: ${totalProbabilityCheck.toFixed(6)} (should be 1.000000)`);
     
-    // Select rarity based on absolute CS:GO drop rates
+    // Note: StatTrak has independent 10% chance after rarity selection
+    console.log(`📊 Note: StatTrak odds are 10% independent of rarity (official CS2 odds)`);
+    
+    // Display the exact odds for this case
+    console.log(`📊 Final odds for ${caseData.formattedName}:`);
+    Object.entries(finalDistribution).forEach(([rarity, probability]) => {
+      const percentage = (probability * 100).toFixed(4);
+      console.log(`   ${rarity}: ${percentage}%`);
+    });
+    
+    // Select rarity based on normalized probabilities (already sum to 1)
     const random = Math.random();
     let cumulativeProbability = 0;
     let selectedRarity = Object.keys(finalDistribution)[0]; // Fallback to first available
     
-    // Scale the random number to match our probability range
-    const scaledRandom = random * totalProbability;
+    console.log(`🎲 Random selection process (random=${random.toFixed(4)}):`);
     
+    // Since probabilities are already normalized to sum to 1, we can use random directly
     for (const [rarity, probability] of Object.entries(finalDistribution)) {
       cumulativeProbability += probability;
-      if (scaledRandom <= cumulativeProbability) {
+      console.log(`   ${rarity}: cumulative=${cumulativeProbability.toFixed(4)} (${(probability * 100).toFixed(2)}%)`);
+      if (random <= cumulativeProbability) {
         selectedRarity = rarity;
+        console.log(`   ✅ Selected: ${rarity} (random ${random.toFixed(4)} ≤ ${cumulativeProbability.toFixed(4)})`);
         break;
       }
     }

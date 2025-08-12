@@ -643,7 +643,8 @@ client.on('interactionCreate', async interaction => {
 	}
 
 	// Global button handler for CS2 inventory interactions
-	if (interaction.isButton() && interaction.customId?.startsWith('cs2_') && !interaction.customId.startsWith('cs2_view_') && !interaction.customId.startsWith('cs2_open_') && !interaction.customId.startsWith('cs2_inventory_') && !interaction.customId.startsWith('cs2_stats_')) {
+	if (interaction.isButton() && interaction.customId?.startsWith('cs2_') && !interaction.customId.startsWith('cs2_view_') && !interaction.customId.startsWith('cs2_open_') && !interaction.customId.startsWith('cs2_inventory_') && !interaction.customId.startsWith('cs2_stats_') && !interaction.customId.startsWith('cs2_cases_')) {
+		console.log('📦 CS2 inventory global handler processing:', interaction.customId);
 		try {
 			console.log('[cs2inventory] Global button handler received:', {
 				customId: interaction.customId,
@@ -2898,8 +2899,14 @@ client.on('interactionCreate', async interaction => {
 
 	// --- Handle CS2 case button interactions ---
 	if (interaction.isButton() && (interaction.customId.startsWith('cs2_cases_page_') || interaction.customId.startsWith('cs2_cases_back_to_list_'))) {
+		console.log('🎯 CS2 case button handler MATCHED:', interaction.customId, interaction.user.id);
+		// Skip the page info button as it's disabled
+		if (interaction.customId === 'cs2_cases_page_info') {
+			console.log('🎯 Skipping page info button (disabled)');
+			return;
+		}
 		try {
-			console.log('CS2 case button handler triggered:', interaction.customId, interaction.user.id);
+			console.log('🎯 CS2 case button handler processing:', interaction.customId, interaction.user.id);
 			
 			if (interaction.customId.startsWith('cs2_cases_page_')) {
 				// Handle pagination
@@ -3012,14 +3019,20 @@ client.on('interactionCreate', async interaction => {
 						return row;
 					};
 
-					await interaction.update({
-						embeds: [createCaseEmbed(newPage)],
-						components: [
-							createCaseSelectMenu(newPage),
-							createPaginationRow(newPage)
-						]
-					});
-				}
+									await interaction.update({
+					embeds: [createCaseEmbed(newPage)],
+					components: [
+						createCaseSelectMenu(newPage),
+						createPaginationRow(newPage)
+					]
+				});
+			} else {
+				// Invalid page number
+				await interaction.reply({ 
+					content: `❌ Invalid page number. Please use a page between 0 and ${totalPages - 1}.`, 
+					ephemeral: true 
+				});
+			}
 			} else if (interaction.customId.startsWith('cs2_cases_back_to_list_')) {
 				// Return to case list
 				const page = parseInt(interaction.customId.replace('cs2_cases_back_to_list_', ''));

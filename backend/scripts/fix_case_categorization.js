@@ -30,14 +30,27 @@ class CaseCategorizationFixer {
       const casesPath = path.join(__dirname, '../data/raw_cases.json');
       this.casesData = JSON.parse(await fs.readFile(casesPath, 'utf8'));
       
-      // Filter to only actual cases
+      // Filter to only actual cases and specific souvenir packages
+      const allowedSouvenirIds = [
+        '232', // Boston 2018 Cobblestone Souvenir Package
+        '45',  // ESL One Katowice 2015 Cobblestone Souvenir Package
+        '137', // MLG Columbus 2016 Cobblestone Souvenir Package
+        '77',  // ESL One Cologne 2015 Cobblestone Souvenir Package
+        '105', // DreamHack Cluj-Napoca 2015 Cobblestone Souvenir Package
+        '203', // Atlanta 2017 Cobblestone Souvenir Package
+        '329', // Stockholm 2021 Mirage Souvenir Package
+        '342'  // Antwerp 2022 Mirage Souvenir Package
+      ];
+      
       const totalItems = Object.keys(this.casesData).length;
       const actualCases = Object.fromEntries(
-        Object.entries(this.casesData).filter(([id, data]) => data.type === 'Case')
+        Object.entries(this.casesData).filter(([id, data]) => 
+          data.type === 'Case' || (data.type === 'Souvenir' && allowedSouvenirIds.includes(id))
+        )
       );
       this.casesData = actualCases;
       
-      console.log(`✅ Loaded ${Object.keys(this.casesData).length} cases (filtered from ${totalItems} total items)`);
+      console.log(`✅ Loaded ${Object.keys(this.casesData).length} cases and 8 specific souvenir packages (filtered from ${totalItems} total items)`);
     } catch (error) {
       console.error('❌ Failed to load data:', error);
       throw error;

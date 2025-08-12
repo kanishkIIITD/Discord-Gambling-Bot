@@ -66,8 +66,20 @@ class CS2DataUpdater {
     let casesWithSpecialItems = 0;
     
     for (const crate of this.cratesData) {
-      // Skip non-case items
-      if (crate.type !== 'Case' || !crate.contains || crate.contains.length === 0) {
+      // Define the specific souvenir package IDs to include
+      const allowedSouvenirIds = [
+        '232', // Boston 2018 Cobblestone Souvenir Package
+        '45',  // ESL One Katowice 2015 Cobblestone Souvenir Package
+        '137', // MLG Columbus 2016 Cobblestone Souvenir Package
+        '77',  // ESL One Cologne 2015 Cobblestone Souvenir Package
+        '105', // DreamHack Cluj-Napoca 2015 Cobblestone Souvenir Package
+        '203', // Atlanta 2017 Cobblestone Souvenir Package
+        '329', // Stockholm 2021 Mirage Souvenir Package
+        '342'  // Antwerp 2022 Mirage Souvenir Package
+      ];
+      
+      // Skip non-case and non-allowed souvenir items
+      if ((crate.type !== 'Case' && (crate.type !== 'Souvenir' || !allowedSouvenirIds.includes(crate.id))) || !crate.contains || crate.contains.length === 0) {
         continue;
       }
       
@@ -115,7 +127,7 @@ class CS2DataUpdater {
       totalCases++;
     }
     
-    console.log(`✅ Converted ${totalCases} cases`);
+    console.log(`✅ Converted ${totalCases} cases and 8 specific souvenir packages`);
     console.log(`🎯 ${casesWithSpecialItems} cases contain special items (knives/gloves)`);
     
     return convertedCases;
