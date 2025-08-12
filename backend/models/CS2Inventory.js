@@ -32,6 +32,18 @@ const CS2InventorySchema = new mongoose.Schema({
       type: String,
       default: 'field-tested'
     },
+    float: {
+      type: Number,
+      default: 0.5
+    },
+    pattern: {
+      type: String,
+      default: ''
+    },
+    phase: {
+      type: String,
+      default: ''
+    },
     isStatTrak: {
       type: Boolean,
       default: false
@@ -100,20 +112,23 @@ CS2InventorySchema.pre('save', function(next) {
   next();
 });
 
-// Method to add skin to inventory
-CS2InventorySchema.methods.addSkin = function(skinData) {
-  const newSkin = {
-    skinId: skinData.skinId,
-    skinName: skinData.skinName,
-    weapon: skinData.weapon,
-    rarity: skinData.rarity,
-    wear: skinData.wear || 'field-tested',
-    isStatTrak: skinData.isStatTrak || false,
-    isSouvenir: skinData.isSouvenir || false,
-    obtainedFrom: skinData.obtainedFrom,
-    obtainedAt: new Date(),
-    marketValue: skinData.marketValue || 0
-  };
+  // Method to add skin to inventory
+  CS2InventorySchema.methods.addSkin = function(skinData) {
+    const newSkin = {
+      skinId: skinData.skinId,
+      skinName: skinData.skinName,
+      weapon: skinData.weapon,
+      rarity: skinData.rarity,
+      wear: skinData.wear || 'field-tested',
+      float: skinData.float || 0.5,
+      pattern: skinData.pattern || '',
+      phase: skinData.phase || '',
+      isStatTrak: skinData.isStatTrak || false,
+      isSouvenir: skinData.isSouvenir || false,
+      obtainedFrom: skinData.obtainedFrom,
+      obtainedAt: new Date(),
+      marketValue: skinData.marketValue || 0
+    };
 
   this.skins.push(newSkin);
   this.updateStatistics();

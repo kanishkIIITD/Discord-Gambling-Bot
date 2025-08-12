@@ -54,36 +54,45 @@ class CS2DataService {
       // Clear existing cases
       this.cases.clear();
       
-      // Process each case
-      for (const [caseId, caseData] of Object.entries(casesData)) {
-        // Skip cases with invalid data
-        if (!caseData.formatted_name || !caseData.image_url) {
-          console.warn(`⚠️ Skipping case ${caseId}: missing formatted_name or image_url`);
+      // Process only items with type "Case"
+      let caseCount = 0;
+      for (const [itemId, itemData] of Object.entries(casesData)) {
+        // Only process items that are actually cases
+        if (itemData.type !== 'Case') {
           continue;
         }
         
+        // Skip cases with invalid data - check for new structure
+        if (!itemData.name || !itemData.image) {
+          console.warn(`⚠️ Skipping case ${itemId}: missing name or image`);
+          continue;
+        }
+        
+        // Convert the new contains structure to the expected items format
+        console.log(`🔍 Processing case: ${itemData.name}`);
+        console.log(`   Contains: ${(itemData.contains || []).length} items`);
+        console.log(`   Contains rare: ${(itemData.contains_rare || []).length} items`);
+        
+        if (itemData.contains_rare && itemData.contains_rare.length > 0) {
+          console.log(`   Rare items: ${itemData.contains_rare.map(item => item.name).join(', ')}`);
+        }
+        
+        const items = this.convertCaseItems(itemData.contains || [], itemData.contains_rare || []);
+        
         const processedCase = {
-          caseId: caseId.toLowerCase().replace(/\s+/g, '-'),
-          formattedName: caseData.formatted_name.trim(),
-          imageUrl: caseData.image_url.trim(),
-          requiresKey: caseData.requires_key || false,
-          price: this.calculateCasePrice(caseData),
-          items: {
-            // Map the actual keys from raw data (they're already in camelCase)
-            consumerGrade: caseData.items['consumerGrade'] || [],
-            industrialGrade: caseData.items['industrialGrade'] || [],
-            milSpec: caseData.items['milSpec'] || [],
-            restricted: caseData.items['restricted'] || [],
-            classified: caseData.items['classified'] || [],
-            covert: caseData.items['covert'] || [],
-            special: caseData.items['special'] || []
-          }
+          caseId: itemId.toLowerCase().replace(/\s+/g, '-'),
+          formattedName: itemData.name.trim(),
+          imageUrl: itemData.image.trim(),
+          requiresKey: itemData.requires_key || false,
+          price: this.calculateCasePrice({ items }),
+          items: items
         };
         
         this.cases.set(processedCase.caseId, processedCase);
+        caseCount++;
       }
       
-      console.log(`📦 Loaded ${this.cases.size} cases`);
+      console.log(`📦 Loaded ${caseCount} cases (filtered from ${Object.keys(casesData).length} total items)`);
     } catch (error) {
       console.error('❌ Failed to load cases data:', error);
       throw error;
@@ -99,62 +108,103 @@ class CS2DataService {
       this.skins.clear();
       
       // Process each skin
-      for (const [skinId, skinData] of Object.entries(skinsData)) {
-        // Skip skins with invalid data
-        if (!skinData.formatted_name) {
-          console.warn(`⚠️ Skipping skin ${skinId}: missing formatted_name`);
+      let skinCount = 0;
+      for (const [itemId, itemData] of Object.entries(skinsData)) {
+        // Skip skins with invalid data - check for new structure
+        if (!itemData.name) {
+          console.warn(`⚠️ Skipping skin ${itemId}: missing name`);
           continue;
         }
         
-        const weapon = this.extractWeapon(skinData.formatted_name);
-        const skinName = this.extractSkinName(skinData.formatted_name);
+        // Extract weapon and skin name from new structure
+        const weapon = itemData.weapon?.name || 'Unknown Weapon';
+        const skinName = itemData.pattern?.name || 'Unknown Skin';
         
-        // Use actual quality from data if available, otherwise infer
-        const actualQuality = skinData.quality || null;
+        // Use actual quality from new rarity structure
+        const actualQuality = itemData.rarity?.name || null;
         const inferredRarity = this.inferSkinRarity(weapon, skinName, actualQuality);
         
         // Log quality mapping for debugging
         if (actualQuality && actualQuality !== inferredRarity) {
-          console.log(`🔄 Quality mapping: ${skinData.formatted_name} - ${actualQuality} → ${inferredRarity}`);
+          console.log(`🔄 Quality mapping: ${itemData.name} - ${actualQuality} → ${inferredRarity}`);
         }
         
-        // Find the first non-empty image URL
-        let imageUrl = 'https://via.placeholder.com/300x200?text=No+Image';
-        if (skinData.image_urls && skinData.image_urls.length > 0) {
-          const validImageUrl = skinData.image_urls.find(url => url && url.trim() !== '');
+        // Extract image URL - prioritize actual image URLs over placeholders
+        let imageUrl = null;
+        
+        // First try the main image field (which is what the raw data has)
+        if (itemData.image && itemData.image.trim() !== '' && !itemData.image.includes('placeholder')) {
+          imageUrl = itemData.image.trim();
+        }
+        
+        // Fallback to image_urls array if main image field is not available
+        if (!imageUrl && itemData.image_urls && itemData.image_urls.length > 0) {
+          const validImageUrl = itemData.image_urls.find(url => url && url.trim() !== '' && !url.includes('placeholder'));
           if (validImageUrl) {
-            imageUrl = validImageUrl;
+            imageUrl = validImageUrl.trim();
           }
         }
         
+        // Extract pattern and phase information
+        const pattern = itemData.pattern?.name || itemData.pattern || '';
+        const phase = itemData.phase || '';
+        
+        // Extract float range (default to full range if not specified)
+        const minFloat = itemData.min_float || 0.0;
+        const maxFloat = itemData.max_float || 1.0;
+        
         const processedSkin = {
-          skinId: skinId.toLowerCase().replace(/\s+/g, '-').replace(/\|/g, '-'),
-          formattedName: skinData.formatted_name.trim(),
+          skinId: itemId.toLowerCase().replace(/\s+/g, '-').replace(/\|/g, '-'),
+          formattedName: itemData.name.trim(),
           weapon: weapon,
           skinName: skinName,
           rarity: inferredRarity,
           imageUrl: imageUrl,
-          wear: this.getRandomWear(),
-          isStatTrak: Math.random() < 0.1, // 10% chance for StatTrak
-          isSouvenir: Math.random() < 0.05, // 5% chance for Souvenir
-          marketValue: this.calculateSkinValue(inferredRarity)
+          minFloat: minFloat,
+          maxFloat: maxFloat,
+          pattern: pattern,
+          phase: phase,
+          isStatTrak: itemData.stattrak || false,
+          isSouvenir: itemData.souvenir || false
         };
         
-        // Debug logging for image processing
-        if (skinData.image_urls && skinData.image_urls.length > 0) {
-          const emptyUrls = skinData.image_urls.filter(url => !url || url.trim() === '').length;
-          const totalUrls = skinData.image_urls.length;
-          if (emptyUrls > 0) {
-            console.log(`🔍 Skin "${skinData.formatted_name}": ${emptyUrls}/${totalUrls} empty URLs, using: ${imageUrl}`);
+        // Debug logging for image processing (only log first few for brevity)
+        if (skinCount <= 5) {
+          if (imageUrl) {
+            console.log(`✅ Skin "${itemData.name}" has image: ${imageUrl}`);
+          } else {
+            console.log(`⚠️ Skin "${itemData.name}" has no valid image URL`);
+            // Log what's available for debugging
+            if (itemData.image) {
+              console.log(`   Available image: ${itemData.image}`);
+            }
+            if (itemData.image_urls) {
+              console.log(`   Available image_urls: ${JSON.stringify(itemData.image_urls)}`);
+            }
           }
-        } else {
-          console.log(`⚠️ Skin "${skinData.formatted_name}" has no image URLs`);
         }
         
         this.skins.set(processedSkin.skinId, processedSkin);
+        skinCount++;
       }
       
-      console.log(`🎨 Loaded ${this.skins.size} skins`);
+      console.log(`🎨 Loaded ${skinCount} skins (filtered from ${Object.keys(skinsData).length} total items)`);
+      
+      // Count skins with and without images
+      const skinsWithImages = Array.from(this.skins.values()).filter(skin => skin.imageUrl);
+      const skinsWithoutImages = Array.from(this.skins.values()).filter(skin => !skin.imageUrl);
+      
+      console.log(`📊 Image URL Statistics:`);
+      console.log(`   Skins with images: ${skinsWithImages.length}`);
+      console.log(`   Skins without images: ${skinsWithoutImages.length}`);
+      console.log(`   Image coverage: ${((skinsWithImages.length / skinCount) * 100).toFixed(1)}%`);
+      
+      if (skinsWithoutImages.length > 0) {
+        console.log(`⚠️ Sample skins without images:`);
+        skinsWithoutImages.slice(0, 3).forEach(skin => {
+          console.log(`   - ${skin.formattedName}`);
+        });
+      }
       
       // After loading skins, validate case categorization
       this.validateCaseCategorization();
@@ -206,6 +256,159 @@ class CS2DataService {
       console.error('❌ Failed to sync with database:', error);
       throw error;
     }
+  }
+
+  convertCaseItems(contains, containsRare = []) {
+    // The new structure has a flat array of items, we need to categorize them by rarity
+    const items = {
+      consumerGrade: [],
+      industrialGrade: [],
+      milSpec: [],
+      restricted: [],
+      classified: [],
+      covert: [],
+      special: []
+    };
+    
+    // Process each item in the contains array (regular items)
+    for (const item of contains) {
+      if (item && item.name && item.rarity && item.rarity.name) {
+        // Check if this is a special item (knife or glove) first
+        if (this.isSpecialItem(item.name)) {
+          items.special.push(item.name);
+          console.log(`🔍 Found special item in contains: "${item.name}" with rarity "${item.rarity.name}"`);
+          continue;
+        }
+        
+        // Map the rarity name to the expected key for non-special items
+        const rarityKey = this.mapRarityNameToKey(item.rarity.name);
+        if (rarityKey && items[rarityKey]) {
+          items[rarityKey].push(item.name);
+        } else {
+          // Debug logging for unmapped rarities
+          console.log(`⚠️ Unmapped rarity in case: "${item.rarity.name}" for item "${item.name}"`);
+        }
+      }
+    }
+    
+    // Process each item in the contains_rare array (special items like knives/gloves)
+    for (const item of containsRare) {
+      if (item && item.name) {
+        // These are typically special items, so add them to special array
+        items.special.push(item.name);
+        console.log(`🔍 Found special item in contains_rare: "${item.name}"`);
+      }
+    }
+    
+    // Log summary of items found
+    console.log(`📦 Case items summary:`);
+    for (const [rarity, itemList] of Object.entries(items)) {
+      if (itemList.length > 0) {
+        console.log(`   ${rarity}: ${itemList.length} items`);
+        if (rarity === 'special' && itemList.length > 0) {
+          console.log(`     Special items: ${itemList.join(', ')}`);
+        }
+      }
+    }
+    
+    return items;
+  }
+
+  isSpecialItem(itemName) {
+    // Check if the item is a knife or glove (special items)
+    const lowerName = itemName.toLowerCase();
+    
+    // Knives start with ★ or contain "knife", "dagger", "karambit", etc.
+    const isKnife = itemName.includes('★') || 
+                   lowerName.includes('knife') || 
+                   lowerName.includes('dagger') ||
+                   lowerName.includes('karambit') ||
+                   lowerName.includes('bayonet') ||
+                   lowerName.includes('butterfly') ||
+                   lowerName.includes('falchion') ||
+                   lowerName.includes('flip') ||
+                   lowerName.includes('gut') ||
+                   lowerName.includes('huntsman') ||
+                   lowerName.includes('shadow') ||
+                   lowerName.includes('ursus') ||
+                   lowerName.includes('widowmaker') ||
+                   lowerName.includes('nomad') ||
+                   lowerName.includes('stiletto') ||
+                   lowerName.includes('talon') ||
+                   lowerName.includes('navaja') ||
+                   lowerName.includes('classic') ||
+                   lowerName.includes('paracord') ||
+                   lowerName.includes('survival') ||
+                   lowerName.includes('canis') ||
+                   lowerName.includes('cord') ||
+                   lowerName.includes('skeleton') ||
+                   lowerName.includes('outdoor') ||
+                   lowerName.includes('daggers') ||
+                   lowerName.includes('bowie') ||
+                   lowerName.includes('push') ||
+                   lowerName.includes('tiger') ||
+                   lowerName.includes('rust') ||
+                   lowerName.includes('switch') ||
+                   lowerName.includes('ursus') ||
+                   lowerName.includes('widowmaker');
+    
+    // Gloves contain various glove-related terms
+    const isGlove = lowerName.includes('glove') || 
+                   lowerName.includes('hand wrap') ||
+                   lowerName.includes('sport glove') ||
+                   lowerName.includes('driver glove') ||
+                   lowerName.includes('moto glove') ||
+                   lowerName.includes('specialist glove') ||
+                   lowerName.includes('bloodhound glove') ||
+                   lowerName.includes('wraps') ||
+                   lowerName.includes('mitts') ||
+                   lowerName.includes('gauntlets');
+    
+    const isSpecial = isKnife || isGlove;
+    
+    if (isSpecial) {
+      console.log(`🔍 Detected special item: "${itemName}" (Knife: ${isKnife}, Glove: ${isGlove})`);
+    }
+    
+    return isSpecial;
+  }
+
+  mapRarityNameToKey(rarityName) {
+    // Map the rarity names from the new data structure to the expected keys
+    const rarityMap = {
+      'Consumer Grade': 'consumerGrade',
+      'Industrial Grade': 'industrialGrade',
+      'Mil-Spec Grade': 'milSpec',
+      'Restricted': 'restricted',
+      'Classified': 'classified',
+      'Covert': 'covert'
+      // Note: Special items (knives/gloves) are handled separately by isSpecialItem()
+    };
+    
+    // Try exact match first
+    if (rarityMap[rarityName]) {
+      return rarityMap[rarityName];
+    }
+    
+    // Try normalized match (remove spaces, hyphens, etc.)
+    const normalizedRarity = rarityName.toLowerCase()
+      .replace(/[\s\-]/g, '')
+      .replace(/grade/g, '');
+    
+    for (const [key, value] of Object.entries(rarityMap)) {
+      const normalizedKey = key.toLowerCase()
+        .replace(/[\s\-]/g, '')
+        .replace(/grade/g, '');
+      
+      if (normalizedKey === normalizedRarity) {
+        return value;
+      }
+    }
+    
+    // Debug logging for unmapped rarities
+    console.log(`⚠️ Unmapped rarity: "${rarityName}" - consider adding to rarityMap`);
+    
+    return null;
   }
 
   calculateCasePrice(caseData) {
@@ -264,24 +467,57 @@ class CS2DataService {
     return parts[1] || 'Default';
   }
 
-  getRandomWear() {
-    const wears = ['factory new', 'minimal wear', 'field-tested', 'well-worn', 'battle-scarred'];
-    const weights = [0.05, 0.15, 0.40, 0.25, 0.15]; // Probability distribution
-    
-    const random = Math.random();
-    let cumulativeWeight = 0;
-    
-    for (let i = 0; i < wears.length; i++) {
-      cumulativeWeight += weights[i];
-      if (random <= cumulativeWeight) {
-        return wears[i];
-      }
-    }
-    
-    return 'field-tested'; // Default fallback
+  /**
+   * Calculate wear condition based on float value
+   * @param {number} float - Float value between 0.0 and 1.0
+   * @returns {string} - Wear condition
+   */
+  calculateWearFromFloat(float) {
+    if (float <= 0.07) return 'factory new';
+    if (float <= 0.15) return 'minimal wear';
+    if (float <= 0.38) return 'field-tested';
+    if (float <= 0.45) return 'well-worn';
+    return 'battle-scarred';
   }
 
-  calculateSkinValue(rarity) {
+  /**
+   * Generate a random float value within the skin's range
+   * @param {number} minFloat - Minimum float value
+   * @param {number} maxFloat - Maximum float value
+   * @returns {number} - Random float value
+   */
+  generateRandomFloat(minFloat = 0.0, maxFloat = 1.0) {
+    return Math.random() * (maxFloat - minFloat) + minFloat;
+  }
+
+  /**
+   * Get random wear condition for a skin
+   * @param {number} minFloat - Minimum float value
+   * @param {number} maxFloat - Maximum float value
+   * @returns {object} - Object containing wear and float
+   */
+  getRandomWear(minFloat = 0.0, maxFloat = 1.0) {
+    const float = this.generateRandomFloat(minFloat, maxFloat);
+    const wear = this.calculateWearFromFloat(float);
+    
+    return {
+      wear,
+      float: parseFloat(float.toFixed(6))
+    };
+  }
+
+  /**
+   * Calculate skin market value using continuous exponential decay model
+   * @param {string} rarity - Skin rarity
+   * @param {number} float - Float value (0.0 to 1.0)
+   * @param {string} weapon - Weapon type
+   * @param {string} skinName - Skin name
+   * @param {boolean} isStatTrak - Whether skin is StatTrak
+   * @param {boolean} isSouvenir - Whether skin is Souvenir
+   * @param {string} phase - Phase of the skin (if applicable)
+   * @returns {number} - Market value in points
+   */
+  calculateSkinValue(rarity, float, weapon, skinName, isStatTrak = false, isSouvenir = false, phase = null) {
     // Base values for each rarity tier in points system
     const baseValues = {
       'consumer grade': 1000,      // 1,000 points
@@ -293,13 +529,159 @@ class CS2DataService {
       'special': 250000            // 250,000 points
     };
     
-    const baseValue = baseValues[rarity] || 1000;
+    let baseValue = baseValues[rarity] || 1000;
     
-    // Add some randomness to make it more realistic
-    const variation = 0.3; // ±30% variation
+    // Adjust value based on weapon popularity
+    const weaponMultipliers = {
+      'ak-47': 1.2,
+      'm4a4': 1.2,
+      'm4a1s': 1.2,
+      'awp': 1.5,
+      'glock-18': 1.1,
+      'usp-s': 1.1,
+      'desert eagle': 1.3
+    };
+    
+    const weaponLower = weapon.toLowerCase();
+    for (const [weaponType, multiplier] of Object.entries(weaponMultipliers)) {
+      if (weaponLower.includes(weaponType)) {
+        baseValue *= multiplier;
+        break;
+      }
+    }
+    
+    // Adjust value for special skins
+    const specialSkinMultipliers = {
+      'dragon lore': 3.0,
+      'howl': 2.5,
+      'fire serpent': 2.0,
+      'asiimov': 1.8,
+      'fade': 1.6,
+      'doppler': 1.7,
+      'marble fade': 1.9,
+      'tiger tooth': 1.5,
+      'damascus steel': 1.4,
+      'ultraviolet': 1.3,
+      'rust coat': 0.8
+    };
+    
+    const skinNameLower = skinName.toLowerCase();
+    for (const [pattern, multiplier] of Object.entries(specialSkinMultipliers)) {
+      if (skinNameLower.includes(pattern)) {
+        baseValue *= multiplier;
+        break;
+      }
+    }
+    
+    // Apply phase-specific multipliers (CS2 market reality)
+    if (phase) {
+      const phaseMultipliers = this.getPhaseMultipliers(skinName, phase);
+      baseValue *= phaseMultipliers;
+      console.log(`🎨 Applied phase multiplier for ${skinName} Phase ${phase}: ${phaseMultipliers.toFixed(2)}x`);
+    }
+    
+    // Apply continuous exponential decay pricing based on float
+    const price = this.estimatePriceContinuous(baseValue, float);
+    
+    // Apply StatTrak and Souvenir multipliers
+    let finalPrice = price;
+    if (isStatTrak) finalPrice *= 1.4; // 40% increase for StatTrak
+    if (isSouvenir) finalPrice *= 1.5; // 50% increase for Souvenir
+    
+    // Add some randomness to make it more realistic (±15% variation)
+    const variation = 0.15;
     const randomFactor = 1 + (Math.random() - 0.5) * variation * 2;
     
-    return Math.round(baseValue * randomFactor);
+    return Math.round(finalPrice * randomFactor);
+  }
+
+  /**
+   * Get phase-specific multipliers for different skin types
+   * @param {string} skinName - Name of the skin
+   * @param {string} phase - Phase number
+   * @returns {number} - Multiplier for the phase
+   */
+  getPhaseMultipliers(skinName, phase) {
+    const skinNameLower = skinName.toLowerCase();
+    
+    // Doppler phases (most popular phase system)
+    if (skinNameLower.includes('doppler')) {
+      const dopplerMultipliers = {
+        '1': 0.8,   // Phase 1: Blue dominant, less popular
+        '2': 1.0,   // Phase 2: Pink dominant, popular
+        '3': 0.9,   // Phase 3: Purple dominant, moderately popular
+        '4': 1.3,   // Phase 4: Blue dominant but with pink, very popular
+        'ruby': 2.5, // Ruby: Red dominant, extremely rare and valuable
+        'sapphire': 3.0, // Sapphire: Blue dominant, extremely rare and valuable
+        'black pearl': 2.8 // Black Pearl: Black with rainbow, extremely rare
+      };
+      return dopplerMultipliers[phase.toLowerCase()] || 1.0;
+    }
+    
+    // Marble Fade phases
+    if (skinNameLower.includes('marble fade')) {
+      const marbleFadeMultipliers = {
+        '1': 1.0,   // Phase 1: Standard
+        '2': 1.1,   // Phase 2: Slightly more colorful
+        '3': 1.2,   // Phase 3: More vibrant
+        '4': 1.3,   // Phase 4: Most colorful
+        '5': 1.4    // Phase 5: Extremely colorful
+      };
+      return marbleFadeMultipliers[phase] || 1.0;
+    }
+    
+    // Fade phases
+    if (skinNameLower.includes('fade')) {
+      const fadeMultipliers = {
+        '1': 0.9,   // Phase 1: Less fade
+        '2': 1.0,   // Phase 2: Standard fade
+        '3': 1.1,   // Phase 3: More fade
+        '4': 1.2,   // Phase 4: Maximum fade
+        '5': 1.3    // Phase 5: Extreme fade
+      };
+      return fadeMultipliers[phase] || 1.0;
+    }
+    
+    // Tiger Tooth phases
+    if (skinNameLower.includes('tiger tooth')) {
+      const tigerToothMultipliers = {
+        '1': 1.0,   // Phase 1: Standard
+        '2': 1.1,   // Phase 2: Slightly different pattern
+        '3': 1.2    // Phase 3: Most defined pattern
+      };
+      return tigerToothMultipliers[phase] || 1.0;
+    }
+    
+    // Damascus Steel phases
+    if (skinNameLower.includes('damascus steel')) {
+      const damascusMultipliers = {
+        '1': 1.0,   // Phase 1: Standard
+        '2': 1.1,   // Phase 2: Slightly different pattern
+        '3': 1.2    // Phase 3: Most defined pattern
+      };
+      return damascusMultipliers[phase] || 1.0;
+    }
+    
+    // Default: no phase multiplier
+    return 1.0;
+  }
+
+  /**
+   * Continuous pricing model using exponential decay
+   * @param {number} basePrice - Base price for the skin
+   * @param {number} floatVal - Float value (0.0 to 1.0)
+   * @returns {number} - Price adjusted for float
+   */
+  estimatePriceContinuous(basePrice, floatVal) {
+    // Parameters for the exponential decay model
+    const A = 0.30;  // Floor as float → 1.0 (minimum 30% of base price)
+    const B = 0.70;  // So at float=0 price ≈ basePrice*(1.0)
+    const k = 12;    // Controls steepness — larger k = stronger premium for low floats
+    
+    // Calculate multiplier using exponential decay
+    const multiplier = A + B * Math.exp(-k * floatVal);
+    
+    return basePrice * multiplier;
   }
 
   inferSkinRarity(weapon, skinName, actualQuality = null) {
@@ -371,9 +753,11 @@ class CS2DataService {
     console.log('🔍 Validating case categorization...');
     let totalMismatches = 0;
     let totalSkins = 0;
+    let totalMissingSkins = 0;
     
     for (const [caseId, caseData] of this.cases) {
       let caseMismatches = 0;
+      let caseMissingSkins = 0;
       
       // Check each rarity tier in the case
       for (const [rarityKey, skinNames] of Object.entries(caseData.items)) {
@@ -397,18 +781,29 @@ class CS2DataService {
               console.log(`   Case has: ${caseRarity}`);
               console.log(`   Actual quality: ${foundSkin.rarity}`);
             }
+          } else {
+            caseMissingSkins++;
+            totalMissingSkins++;
+            console.log(`❌ Missing skin in case ${caseData.formattedName}:`);
+            console.log(`   Skin: ${skinName}`);
+            console.log(`   Rarity tier: ${rarityKey}`);
           }
         }
       }
       
-      if (caseMismatches > 0) {
-        console.log(`⚠️ Case "${caseData.formattedName}" has ${caseMismatches} categorization mismatches`);
+      if (caseMismatches > 0 || caseMissingSkins > 0) {
+        console.log(`⚠️ Case "${caseData.formattedName}" has ${caseMismatches} categorization mismatches and ${caseMissingSkins} missing skins`);
       }
     }
     
-    if (totalMismatches > 0) {
-      console.log(`⚠️ Found ${totalMismatches} categorization mismatches out of ${totalSkins} total skins`);
+    if (totalMismatches > 0 || totalMissingSkins > 0) {
+      console.log(`⚠️ Found ${totalMismatches} categorization mismatches and ${totalMissingSkins} missing skins out of ${totalSkins} total skins`);
       console.log('💡 Consider updating case data to match actual skin qualities');
+      
+      if (totalMissingSkins > 0) {
+        console.log('🚨 CRITICAL: Missing skins will cause case opening failures!');
+        console.log('   This needs immediate attention to fix the case data.');
+      }
     } else {
       console.log('✅ All case categorizations match skin qualities');
     }
@@ -458,6 +853,67 @@ class CS2DataService {
     );
   }
 
+  /**
+   * Generate a complete skin instance when a case is opened
+   * @param {object} baseSkin - Base skin data from database
+   * @returns {object} - Complete skin instance with wear, float, and market value
+   */
+  generateSkinInstance(baseSkin) {
+    // Generate random wear and float
+    const wearData = this.getRandomWear(baseSkin.minFloat, baseSkin.maxFloat);
+    
+    // Determine if this skin should be StatTrak or Souvenir
+    const isStatTrak = Math.random() < 0.1; // 10% chance
+    const isSouvenir = Math.random() < 0.05; // 5% chance
+    
+    // Calculate market value based on all factors
+    const marketValue = this.calculateSkinValue(
+      baseSkin.rarity,
+      wearData.float,
+      baseSkin.weapon,
+      baseSkin.skinName,
+      isStatTrak,
+      isSouvenir,
+      baseSkin.phase
+    );
+    
+    // Create the complete skin instance with all necessary fields
+    const skinInstance = {
+      ...baseSkin,
+      wear: wearData.wear,
+      float: wearData.float,
+      isStatTrak,
+      isSouvenir,
+      marketValue,
+      generatedAt: new Date()
+    };
+    
+    // Ensure pattern and phase are explicitly included (they should come from baseSkin)
+    // This is important for Discord bot display
+    if (baseSkin.pattern !== undefined) {
+      skinInstance.pattern = baseSkin.pattern;
+    }
+    if (baseSkin.phase !== undefined) {
+      skinInstance.phase = baseSkin.phase;
+    }
+    
+    // Debug logging to verify all fields are present
+    console.log(`🎨 Generated skin instance for ${baseSkin.formattedName}:`, {
+      weapon: skinInstance.weapon,
+      skinName: skinInstance.skinName,
+      rarity: skinInstance.rarity,
+      wear: skinInstance.wear,
+      float: skinInstance.float,
+      pattern: skinInstance.pattern,
+      phase: skinInstance.phase,
+      isStatTrak: skinInstance.isStatTrak,
+      isSouvenir: skinInstance.isSouvenir,
+      marketValue: skinInstance.marketValue
+    });
+    
+    return skinInstance;
+  }
+
   // Get random skin from case
   getRandomSkinFromCase(caseId) {
     const caseData = this.getCase(caseId);
@@ -470,7 +926,7 @@ class CS2DataService {
       .filter(([rarity, items]) => items && items.length > 0) // Only include rarities with items
       .map(([rarity]) => rarity);
     
-    console.log(`🎯 Available rarities in ${caseData.formatted_name}:`, availableRarities);
+    console.log(`🎯 Available rarities in ${caseData.formattedName}:`, availableRarities);
     
     if (availableRarities.length === 0) {
       throw new Error('No items available in this case');
@@ -501,7 +957,7 @@ class CS2DataService {
     // These are already the correct relative probabilities
     const finalDistribution = availableDistribution;
     
-    console.log(`📊 Case rarity distribution for ${caseData.formatted_name}:`);
+    console.log(`📊 Case rarity distribution for ${caseData.formattedName}:`);
     for (const [rarity, probability] of Object.entries(finalDistribution)) {
       const percentage = (probability * 100).toFixed(3);
       const itemCount = caseData.items[rarity].length;
@@ -536,103 +992,194 @@ class CS2DataService {
     const randomSkinName = availableSkins[Math.floor(Math.random() * availableSkins.length)];
     console.log(`🎯 Selected random skin: "${randomSkinName}" from rarity: ${selectedRarity}`);
     
-    const foundSkin = this.findSkinByName(randomSkinName);
-    if (!foundSkin) {
-      console.warn(`⚠️ Could not find skin: ${randomSkinName} from rarity: ${selectedRarity}`);
-    } else {
-      // Override the skin's rarity with the case rarity to ensure consistency
-      // This fixes the issue where special items (knives/gloves) show as "covert"
-      // Also convert camelCase to kebab-case for Discord bot compatibility
-      const convertRarityFormat = (rarity) => {
-        const formatMap = {
-          'milSpec': 'mil-spec',
-          'consumerGrade': 'consumer-grade',
-          'industrialGrade': 'industrial-grade'
+    // Find all variants of this skin (including different phases)
+    const skinVariants = this.findSkinVariants(randomSkinName);
+    console.log(`🔍 Found ${skinVariants.length} variants for "${randomSkinName}"`);
+    
+    if (skinVariants.length === 0) {
+      console.warn(`⚠️ Could not find skin: "${randomSkinName}" from rarity: ${selectedRarity}`);
+      
+      // Try alternative search strategies
+      console.log(`🔄 Attempting alternative search strategies...`);
+      
+      // Strategy 1: Try exact name match
+      const exactMatch = Array.from(this.skins.values()).find(skin => 
+        skin.formattedName.toLowerCase() === randomSkinName.toLowerCase()
+      );
+      
+      if (exactMatch) {
+        console.log(`✅ Found exact match: ${exactMatch.formattedName}`);
+        const correctedSkin = {
+          ...exactMatch.toObject ? exactMatch.toObject() : exactMatch,
+          rarity: convertRarityFormat(selectedRarity)
         };
-        return formatMap[rarity] || rarity;
-      };
+        return this.generateSkinInstance(correctedSkin);
+      }
       
-      const correctedSkin = {
-        ...foundSkin.toObject ? foundSkin.toObject() : foundSkin,
-        rarity: convertRarityFormat(selectedRarity)
-      };
+      // Strategy 2: Try partial weapon match
+      const weaponMatch = Array.from(this.skins.values()).find(skin => 
+        skin.weapon.toLowerCase().includes(randomSkinName.toLowerCase()) ||
+        randomSkinName.toLowerCase().includes(skin.weapon.toLowerCase())
+      );
       
-      console.log(`✅ Found skin data:`, {
-        skinId: correctedSkin.skinId,
-        formattedName: correctedSkin.formattedName,
-        weapon: correctedSkin.weapon,
-        skinName: correctedSkin.skinName,
-        rarity: correctedSkin.rarity, // This will now be the case rarity (e.g., "special")
-        imageUrl: correctedSkin.imageUrl
+      if (weaponMatch) {
+        console.log(`✅ Found weapon match: ${weaponMatch.formattedName}`);
+        const correctedSkin = {
+          ...weaponMatch.toObject ? weaponMatch.toObject() : weaponMatch,
+          rarity: convertRarityFormat(selectedRarity)
+        };
+        return this.generateSkinInstance(correctedSkin);
+      }
+      
+      // Strategy 3: Try to find any skin from the same rarity
+      const sameRaritySkins = Array.from(this.skins.values()).filter(skin => {
+        const skinRarity = skin.rarity.replace(/\s+/g, '').replace(/^./, str => str.toLowerCase());
+        return skinRarity === selectedRarity;
       });
       
-      return correctedSkin;
+      if (sameRaritySkins.length > 0) {
+        const fallbackSkin = sameRaritySkins[Math.floor(Math.random() * sameRaritySkins.length)];
+        console.log(`✅ Using fallback skin from same rarity: ${fallbackSkin.formattedName}`);
+        const correctedSkin = {
+          ...fallbackSkin.toObject ? fallbackSkin.toObject() : fallbackSkin,
+          rarity: convertRarityFormat(selectedRarity)
+        };
+        return this.generateSkinInstance(correctedSkin);
+      }
+      
+      console.error(`❌ All search strategies failed for: "${randomSkinName}"`);
+      console.error(`   Case rarity: ${selectedRarity}`);
+      console.error(`   Available skins in database: ${this.skins.size}`);
+      console.error(`   Sample available skins:`, Array.from(this.skins.values()).slice(0, 3).map(s => s.formattedName));
+      
+      throw new Error(`Failed to find skin "${randomSkinName}" in database. This may indicate a data mismatch between cases and skins.`);
     }
-    return foundSkin;
+    
+    // Randomly select one of the variants (this handles phase selection)
+    const selectedVariant = skinVariants[Math.floor(Math.random() * skinVariants.length)];
+    console.log(`🎯 Selected variant: "${selectedVariant.formattedName}" (Phase: ${selectedVariant.phase || 'None'})`);
+    
+    // Override the skin's rarity with the case rarity to ensure consistency
+    // This fixes the issue where special items (knives/gloves) show as "covert"
+    // Also convert camelCase to kebab-case for Discord bot compatibility
+    const convertRarityFormat = (rarity) => {
+      const formatMap = {
+        'milSpec': 'mil-spec',
+        'consumerGrade': 'consumer-grade',
+        'industrialGrade': 'industrial-grade'
+      };
+      return formatMap[rarity] || rarity;
+    };
+    
+    const correctedSkin = {
+      ...selectedVariant.toObject ? selectedVariant.toObject() : selectedVariant,
+      rarity: convertRarityFormat(selectedRarity)
+    };
+    
+    console.log(`✅ Found skin data:`, {
+      skinId: correctedSkin.skinId,
+      formattedName: correctedSkin.formattedName,
+      weapon: correctedSkin.weapon,
+      skinName: correctedSkin.skinName,
+      rarity: correctedSkin.rarity, // This will now be the case rarity (e.g., "special")
+      imageUrl: correctedSkin.imageUrl,
+      pattern: correctedSkin.pattern || 'None',
+      phase: correctedSkin.phase || 'None',
+      minFloat: correctedSkin.minFloat,
+      maxFloat: correctedSkin.maxFloat
+    });
+    
+    // Generate a complete skin instance with wear, float, and market value
+    return this.generateSkinInstance(correctedSkin);
   }
 
-  // Find skin by name
-  findSkinByName(skinName) {
+  /**
+   * Find all variants of a skin (including different phases)
+   * @param {string} skinName - The base skin name to search for
+   * @returns {Array} - Array of skin variants
+   */
+  findSkinVariants(skinName) {
     // Normalize the search name for better matching
     const normalizedSearchName = skinName.toLowerCase()
       .replace(/[^a-z0-9\s]/g, '')  // Remove special characters
       .replace(/\s+/g, ' ')          // Normalize spaces
       .trim();
     
-    console.log(`🔍 Searching for skin: "${skinName}" (normalized: "${normalizedSearchName}")`);
+    console.log(`🔍 Searching for skin variants: "${skinName}" (normalized: "${normalizedSearchName}")`);
     
-    // First try exact match
-    let foundSkin = Array.from(this.skins.values()).find(skin => {
-      const normalizedSkinName = skin.formattedName.toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')  // Remove special characters
-        .replace(/\s+/g, ' ')          // Normalize spaces
-        .trim();
-      
-      return normalizedSkinName === normalizedSearchName;
-    });
+    // Strategy 1: Try exact formatted name match first
+    const exactMatches = Array.from(this.skins.values()).filter(skin => 
+      skin.formattedName.toLowerCase() === skinName.toLowerCase()
+    );
     
-    // If no exact match, try partial matching
-    if (!foundSkin) {
-      console.log('🔍 No exact match, trying partial matching...');
-      foundSkin = Array.from(this.skins.values()).find(skin => {
-        const normalizedSkinName = skin.formattedName.toLowerCase()
-          .replace(/[^a-z0-9\s]/g, '')  // Remove special characters
-          .replace(/\s+/g, ' ')          // Normalize spaces
-          .trim();
-        
-        // Check if the search name is contained within the skin name
-        return normalizedSkinName.includes(normalizedSearchName) || 
-               normalizedSearchName.includes(normalizedSkinName);
-      });
+    if (exactMatches.length > 0) {
+      console.log(`✅ Found ${exactMatches.length} exact matches for "${skinName}"`);
+      return exactMatches;
     }
     
-    // If still no match, try matching weapon and skin name separately
-    if (!foundSkin) {
-      console.log('🔍 No partial match, trying weapon/skin name matching...');
-      const searchParts = normalizedSearchName.split(' ');
-      if (searchParts.length >= 2) {
-        const searchWeapon = searchParts[0];
-        const searchSkinName = searchParts.slice(1).join(' ');
+    // Strategy 2: Try weapon + skin name combination
+    const searchParts = normalizedSearchName.split(' ');
+    if (searchParts.length >= 2) {
+      const searchWeapon = searchParts[0];
+      const searchSkinName = searchParts.slice(1).join(' ');
+      
+      const weaponSkinMatches = Array.from(this.skins.values()).filter(skin => {
+        const skinWeapon = skin.weapon.toLowerCase();
+        const skinSkinName = skin.skinName.toLowerCase();
         
-        foundSkin = Array.from(this.skins.values()).find(skin => {
-          const skinWeapon = skin.weapon.toLowerCase();
-          const skinSkinName = skin.skinName.toLowerCase();
-          
-          return skinWeapon.includes(searchWeapon) && skinSkinName.includes(searchSkinName);
-        });
+        // Check if weapon matches
+        const weaponMatch = skinWeapon.includes(searchWeapon) || searchWeapon.includes(skinWeapon);
+        
+        // Check if skin name matches (ignoring phase information)
+        const baseSkinName = skinSkinName.replace(/\s*phase\s*\d+/i, '').trim();
+        const searchBaseName = searchSkinName.replace(/\s*phase\s*\d+/i, '').trim();
+        
+        const skinNameMatch = baseSkinName.includes(searchBaseName) || searchBaseName.includes(baseSkinName);
+        
+        return weaponMatch && skinNameMatch;
+      });
+      
+      if (weaponSkinMatches.length > 0) {
+        console.log(`✅ Found ${weaponSkinMatches.length} weapon+skin matches for "${skinName}"`);
+        return weaponSkinMatches;
       }
     }
     
-    if (foundSkin) {
-      console.log(`✅ Found skin: "${foundSkin.formattedName}" (ID: ${foundSkin.skinId})`);
-    } else {
-      console.log(`❌ No skin found for: "${skinName}"`);
-      // Log some available skins for debugging
-      const availableSkins = Array.from(this.skins.values()).slice(0, 5);
-      console.log('🔍 Available skins sample:', availableSkins.map(s => s.formattedName));
+    // Strategy 3: Try partial name matching
+    const partialMatches = Array.from(this.skins.values()).filter(skin => 
+      skin.formattedName.toLowerCase().includes(skinName.toLowerCase()) ||
+      skinName.toLowerCase().includes(skin.formattedName.toLowerCase())
+    );
+    
+    if (partialMatches.length > 0) {
+      console.log(`✅ Found ${partialMatches.length} partial matches for "${skinName}"`);
+      return partialMatches;
     }
     
-    return foundSkin;
+    // Strategy 4: Try weapon-only matching
+    const weaponMatches = Array.from(this.skins.values()).filter(skin => 
+      skin.weapon.toLowerCase().includes(skinName.toLowerCase()) ||
+      skinName.toLowerCase().includes(skin.weapon.toLowerCase())
+    );
+    
+    if (weaponMatches.length > 0) {
+      console.log(`✅ Found ${weaponMatches.length} weapon-only matches for "${skinName}"`);
+      return weaponMatches;
+    }
+    
+    // If we get here, no matches were found
+    console.log(`❌ No variants found for: "${skinName}"`);
+    // Log some available skins for debugging
+    const availableSkins = Array.from(this.skins.values()).slice(0, 5);
+    console.log('🔍 Available skins sample:', availableSkins.map(s => s.formattedName));
+    
+    return [];
+  }
+
+  // Find skin by name (kept for backward compatibility)
+  findSkinByName(skinName) {
+    const variants = this.findSkinVariants(skinName);
+    return variants.length > 0 ? variants[0] : null;
   }
 
   // Check if service needs initialization

@@ -211,7 +211,7 @@ module.exports = {
         .setTitle('🎨 CS2 Skins')
         .setDescription(
           searchQuery 
-            ? `🔍 Search results for "${searchQuery}"\nShowing ${displaySkins.length} of ${skins.length} matching skins\n\n💡 **Search Tips:**\n• Weapon: "AK-47", "M4A4", "Glock"\n• Skin: "Dragon Tattoo", "Asiimov"\n• Rarity: "mil-spec", "covert", "special"\n• Wear: "factory new", "battle-scarred"`
+            ? `🔍 Search results for "${searchQuery}"\nShowing ${displaySkins.length} of ${skins.length} matching skins\n\n💡 **Search Tips:**\n• Weapon: "AK-47", "M4A4", "Glock"\n• Skin: "Dragon Tattoo", "Asiimov"\n• Rarity: "mil-spec", "covert", "special"\n• Wear: "factory new", "battle-scarred"\n• Pattern: "Doppler", "Marble Fade", "Fade"\n• Phase: "Phase 1", "Ruby", "Sapphire"`
             : `Showing ${displaySkins.length} of ${inventory.skins.length} total skins`
         )
         .setColor(0x00ff00)
@@ -226,9 +226,23 @@ module.exports = {
         const statTrakIcon = skin.isStatTrak ? '📊' : '';
         const souvenirIcon = skin.isSouvenir ? '🏆' : '';
         
+        // Build additional info string for float, pattern, and phase
+        let additionalInfo = [];
+        if (skin.float !== undefined && skin.float !== null) {
+          additionalInfo.push(`📊 **${skin.float.toFixed(6)}**`);
+        }
+        if (skin.pattern && skin.pattern.trim() !== '') {
+          additionalInfo.push(`🎭 **${skin.pattern}**`);
+        }
+        if (skin.phase && skin.phase.trim() !== '') {
+          additionalInfo.push(`🌈 **${skin.phase}**`);
+        }
+        
+        const additionalInfoText = additionalInfo.length > 0 ? `\n${additionalInfo.join(' • ')}` : '';
+        
         embed.addFields({
           name: `${startIndex + index + 1}. ${skin.weapon} | ${skin.skinName}`,
-          value: `${rarityEmoji} **${skin.rarity}** • ${wearEmoji} **${skin.wear}** • 💰 **${skin.marketValue}** currency ${statTrakIcon}${souvenirIcon}`,
+          value: `${rarityEmoji} **${skin.rarity}** • ${wearEmoji} **${skin.wear}** • 💰 **${skin.marketValue}** currency ${statTrakIcon}${souvenirIcon}${additionalInfoText}`,
           inline: false
         });
       });
@@ -331,9 +345,9 @@ module.exports = {
 
       const searchInput = new TextInputBuilder()
         .setCustomId('search_query')
-        .setLabel('Search skins (weapon, skin, rarity, wear)')
+        .setLabel('Search skins (weapon, skin, rarity, wear, pattern, phase)')
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder('e.g., AK-47, Dragon Tattoo, mil-spec, factory new')
+        .setPlaceholder('e.g., AK-47, Doppler, Phase 4, Ruby, mil-spec, factory new')
         .setValue(currentSearch)
         .setRequired(false)
         .setMaxLength(100);

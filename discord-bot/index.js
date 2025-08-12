@@ -2774,7 +2774,7 @@ client.on('interactionCreate', async interaction => {
 			// Create case details embed
 			const caseEmbed = new EmbedBuilder()
 				.setTitle(`📦 ${selectedCase.formattedName}`)
-				.setDescription(`Case details and contents`)
+				.setDescription(`Case details and contents\n\n💡 **Phase System**: Some skins (like Doppler, Marble Fade, Fade) have multiple phases with different values!`)
 				.setColor(0x00ff00)
 				.setThumbnail(selectedCase.imageUrl || 'https://via.placeholder.com/150x150?text=Case');
 
@@ -2787,7 +2787,7 @@ client.on('interactionCreate', async interaction => {
 				{ name: '🔑 Requires Key', value: selectedCase.requiresKey ? 'Yes' : 'No', inline: true }
 			);
 
-			// Add rarity breakdown
+			// Add rarity breakdown with sample items
 			if (selectedCase.items) {
 				const rarityBreakdown = Object.entries(selectedCase.items)
 					.filter(([_, items]) => items && items.length > 0)
@@ -2803,13 +2803,32 @@ client.on('interactionCreate', async interaction => {
 						}[rarity] || '🔶';
 						
 						const rarityName = rarity.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-						return `${rarityEmoji} **${rarityName}**: ${items.length} items`;
+						
+						// Show sample items for each rarity (limit to 3 to avoid clutter)
+						const sampleItems = items.slice(0, 3);
+						const sampleText = sampleItems.map(item => {
+							// Check if item might have phases (common phase skins)
+							const hasPhases = item.toLowerCase().includes('doppler') || 
+											item.toLowerCase().includes('marble fade') || 
+											item.toLowerCase().includes('fade') ||
+											item.toLowerCase().includes('tiger tooth') ||
+											item.toLowerCase().includes('damascus steel');
+							
+							if (hasPhases) {
+								return `• ${item} (Multiple phases available)`;
+							}
+							return `• ${item}`;
+						}).join('\n');
+						
+						const remainingText = items.length > 3 ? `\n... and ${items.length - 3} more items` : '';
+						
+						return `${rarityEmoji} **${rarityName}**: ${items.length} items\n${sampleText}${remainingText}`;
 					})
-					.join('\n');
+					.join('\n\n');
 
 				if (rarityBreakdown) {
 					caseEmbed.addFields({
-						name: '🎨 Rarity Breakdown',
+						name: '🎨 Rarity Breakdown & Sample Items',
 						value: rarityBreakdown,
 						inline: false
 					});

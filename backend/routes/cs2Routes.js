@@ -49,6 +49,10 @@ router.post('/cases/:caseId/open', async (req, res) => {
       weapon: result.skin.weapon,
       name: result.skin.formattedName,
       rarity: result.skin.rarity,
+      wear: result.skin.wear,
+      float: result.skin.float,
+      pattern: result.skin.pattern,
+      phase: result.skin.phase,
       imageUrl: result.skin.imageUrl,
       marketValue: result.skin.marketValue
     });
@@ -67,6 +71,9 @@ router.post('/cases/:caseId/open', async (req, res) => {
           weapon: result.skin.weapon,
           rarity: result.skin.rarity,
           wear: result.skin.wear,
+          float: result.skin.float,
+          pattern: result.skin.pattern,
+          phase: result.skin.phase,
           isStatTrak: result.skin.isStatTrak,
           isSouvenir: result.skin.isSouvenir,
           marketValue: result.skin.marketValue,
@@ -174,6 +181,9 @@ router.get('/openings/:userId', async (req, res) => {
           name: opening.result.weapon + ' | ' + opening.result.skinName,
           rarity: opening.result.rarity,
           wear: opening.result.wear,
+          float: opening.result.float,
+          pattern: opening.result.pattern,
+          phase: opening.result.phase,
           isStatTrak: opening.result.isStatTrak,
           isSouvenir: opening.result.isSouvenir,
           marketValue: opening.result.marketValue
@@ -207,6 +217,9 @@ router.get('/skins/search', async (req, res) => {
         weapon: skin.weapon,
         rarity: skin.rarity,
         wear: skin.wear,
+        float: skin.float,
+        pattern: skin.pattern,
+        phase: skin.phase,
         isStatTrak: skin.isStatTrak,
         isSouvenir: skin.isSouvenir,
         marketValue: skin.marketValue
@@ -234,6 +247,9 @@ router.get('/skins/rarity/:rarity', async (req, res) => {
         weapon: skin.weapon,
         rarity: skin.rarity,
         wear: skin.wear,
+        float: skin.float,
+        pattern: skin.pattern,
+        phase: skin.phase,
         isStatTrak: skin.isStatTrak,
         isSouvenir: skin.isSouvenir,
         marketValue: skin.marketValue
@@ -261,6 +277,9 @@ router.get('/skins/weapon/:weapon', async (req, res) => {
         weapon: skin.weapon,
         rarity: skin.rarity,
         wear: skin.wear,
+        float: skin.float,
+        pattern: skin.pattern,
+        phase: skin.phase,
         isStatTrak: skin.isStatTrak,
         isSouvenir: skin.isSouvenir,
         marketValue: skin.marketValue

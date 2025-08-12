@@ -152,6 +152,9 @@ module.exports = {
       console.log(`   Rarity from backend: ${result.skin.rarity}`);
       console.log(`   Rarity emoji: ${rarityEmoji}`);
       console.log(`   Wear: ${result.skin.wear}`);
+      console.log(`   Float: ${result.skin.float}`);
+      console.log(`   Pattern: ${result.skin.pattern}`);
+      console.log(`   Phase: ${result.skin.phase}`);
       
       resultEmbed.addFields(
         { 
@@ -175,6 +178,31 @@ module.exports = {
           inline: true 
         }
       );
+
+      // Add float, pattern, and phase information if available
+      if (result.skin.float !== undefined && result.skin.float !== null) {
+        resultEmbed.addFields({
+          name: '📊 Float',
+          value: `**${result.skin.float.toFixed(6)}**`,
+          inline: true
+        });
+      }
+
+      if (result.skin.pattern && result.skin.pattern.trim() !== '') {
+        resultEmbed.addFields({
+          name: '🎭 Pattern',
+          value: `**${result.skin.pattern}**`,
+          inline: true
+        });
+      }
+
+      if (result.skin.phase && result.skin.phase.trim() !== '') {
+        resultEmbed.addFields({
+          name: '🌈 Phase',
+          value: `**${result.skin.phase}**`,
+          inline: true
+        });
+      }
 
       // Add special properties if applicable
       if (result.skin.isStatTrak === true) {
@@ -494,7 +522,7 @@ module.exports = {
       // Create result embed
       const resultEmbed = new EmbedBuilder()
         .setTitle('🎉 Another Case Opened!')
-        .setDescription(`You opened **${caseData.formattedName}** again and got:\n\n*🆕 This is your most recent case opening*`)
+        .setDescription(`You opened **${caseData.formattedName}** again and got:`)
         .setColor(this.getRarityColor(result.skin.rarity))
         .setTimestamp(); // Add timestamp to show this is the most recent
 
@@ -530,6 +558,31 @@ module.exports = {
           inline: true 
         }
       );
+
+      // Add float, pattern, and phase information if available
+      if (result.skin.float !== undefined && result.skin.float !== null) {
+        resultEmbed.addFields({
+          name: '📊 Float',
+          value: `**${result.skin.float.toFixed(6)}**`,
+          inline: true
+        });
+      }
+
+      if (result.skin.pattern && result.skin.pattern.trim() !== '') {
+        resultEmbed.addFields({
+          name: '🎭 Pattern',
+          value: `**${result.skin.pattern}**`,
+          inline: true
+        });
+      }
+
+      if (result.skin.phase && result.skin.phase.trim() !== '') {
+        resultEmbed.addFields({
+          name: '🌈 Phase',
+          value: `**${result.skin.phase}**`,
+          inline: true
+        });
+      }
 
       // Add special properties if applicable
       if (result.skin.isStatTrak === true) {

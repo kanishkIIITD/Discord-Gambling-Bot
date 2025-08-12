@@ -127,9 +127,26 @@ class CS2Service {
     await wallet.save();
 
     // Get random skin from case
-    const skinData = cs2DataService.getRandomSkinFromCase(caseId);
+    let skinData;
+    try {
+      skinData = cs2DataService.getRandomSkinFromCase(caseId);
+    } catch (error) {
+      console.error(`❌ Error getting skin from case ${caseId}:`, error.message);
+      console.error(`   Case data:`, caseData);
+      console.error(`   Available skins in database:`, cs2DataService.getAllSkins().length);
+      
+      // Provide more specific error message
+      if (error.message.includes('Failed to find skin')) {
+        throw new Error(`Case opening failed: ${error.message}. Please contact an administrator to fix the case data.`);
+      } else if (error.message.includes('No skins available')) {
+        throw new Error(`Case opening failed: This case appears to be empty or misconfigured. Please contact an administrator.`);
+      } else {
+        throw new Error(`Case opening failed: ${error.message}`);
+      }
+    }
+    
     if (!skinData) {
-      throw new Error('Failed to get skin from case');
+      throw new Error('Failed to get skin from case: No skin data returned');
     }
 
     // Create case opening record
@@ -145,6 +162,9 @@ class CS2Service {
         weapon: skinData.weapon,
         rarity: skinData.rarity,
         wear: skinData.wear,
+        float: skinData.float,
+        pattern: skinData.pattern,
+        phase: skinData.phase,
         isStatTrak: skinData.isStatTrak,
         isSouvenir: skinData.isSouvenir,
         marketValue: skinData.marketValue
@@ -161,6 +181,9 @@ class CS2Service {
       weapon: skinData.weapon,
       rarity: skinData.rarity,
       wear: skinData.wear,
+      float: skinData.float,
+      pattern: skinData.pattern,
+      phase: skinData.phase,
       isStatTrak: skinData.isStatTrak,
       isSouvenir: skinData.isSouvenir,
       obtainedFrom: {

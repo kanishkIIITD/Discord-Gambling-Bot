@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const axios = require('axios');
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 
 module.exports = {
@@ -83,6 +83,8 @@ module.exports = {
           skin.skinName?.toLowerCase().includes(query) ||
           skin.rarity?.toLowerCase().includes(query) ||
           skin.wear?.toLowerCase().includes(query) ||
+          skin.pattern?.toLowerCase().includes(query) ||
+          skin.phase?.toLowerCase().includes(query) ||
           `${skin.weapon} | ${skin.skinName}`.toLowerCase().includes(query)
         );
         
@@ -95,7 +97,7 @@ module.exports = {
           }
           
           await interaction.editReply({ 
-            content: `🔍 No skins found matching "${searchQuery}"\n\n💡 **Search Tips:**\n• Try searching by weapon name (e.g., "AK-47")\n• Search by skin name (e.g., "Dragon Tattoo")\n• Filter by rarity (e.g., "mil-spec", "covert")\n• Search by wear condition (e.g., "factory new")`, 
+            content: `🔍 No skins found matching "${searchQuery}"\n\n💡 **Search Tips:**\n• Try searching by weapon name (e.g., "AK-47")\n• Search by skin name (e.g., "Dragon Tattoo")\n• Filter by rarity (e.g., "mil-spec", "covert")\n• Search by wear condition (e.g., "factory new")\n• Search by pattern (e.g., "Doppler", "Marble Fade")\n• Search by phase (e.g., "Phase 4", "Ruby", "Sapphire")`, 
             embeds: [],
             components: []
           });
@@ -270,7 +272,7 @@ module.exports = {
       }
 
       // Get skin image from raw data
-      const skinImage = this.getSkinImage(skin);
+      const skinImage = await this.getSkinImage(skin);
 
       // Create detailed skin embed
       const embed = new EmbedBuilder()
@@ -292,18 +294,47 @@ module.exports = {
             name: '💰 Market Value', 
             value: `**${skin.marketValue}** currency`, 
             inline: true 
-          },
-          { 
-            name: '📊 StatTrak', 
-            value: skin.isStatTrak ? '✅ Enabled' : '❌ Disabled', 
-            inline: true 
-          },
-          { 
-            name: '🏆 Souvenir', 
-            value: skin.isSouvenir ? '✅ Yes' : '❌ No', 
-            inline: true 
           }
         );
+
+      // Add float, pattern, and phase information if available and meaningful
+      if (skin.float !== undefined && skin.float !== null && skin.float !== 0.5) {
+        embed.addFields({
+          name: '📊 Float',
+          value: `**${skin.float.toFixed(6)}**`,
+          inline: true
+        });
+      }
+
+      if (skin.pattern && skin.pattern.trim() !== '' && skin.pattern.trim() !== 'None') {
+        embed.addFields({
+          name: '🎭 Pattern',
+          value: `**${skin.pattern}**`,
+          inline: true
+        });
+      }
+
+      if (skin.phase && skin.phase.trim() !== '' && skin.phase.trim() !== 'None') {
+        embed.addFields({
+          name: '🌈 Phase',
+          value: `**${skin.phase}**`,
+          inline: true
+        });
+      }
+
+      // Add StatTrak and Souvenir information
+      embed.addFields(
+        { 
+          name: '📊 StatTrak', 
+          value: skin.isStatTrak ? '✅ Enabled' : '❌ Disabled', 
+          inline: true 
+        },
+        { 
+          name: '🏆 Souvenir', 
+          value: skin.isSouvenir ? '✅ Yes' : '❌ No', 
+          inline: true 
+        }
+      );
 
       // Add navigation buttons
       const buttonRow = new ActionRowBuilder()
@@ -342,9 +373,9 @@ module.exports = {
 
       const searchInput = new TextInputBuilder()
         .setCustomId('search_query')
-        .setLabel('Search skins (weapon, skin, rarity, wear)')
+        .setLabel('Search skins (weapon, skin, rarity, wear, pattern, phase)')
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder('e.g., AK-47, Dragon Tattoo, mil-spec, factory new')
+        .setPlaceholder('e.g., AK-47, Doppler, Phase 4, Ruby, mil-spec, factory new')
         .setValue(currentSearch)
         .setRequired(false)
         .setMaxLength(100);
@@ -401,30 +432,126 @@ module.exports = {
     return wearEmojis[wear] || '⭐';
   },
 
-  getSkinImage(skin) {
+  async getSkinImage(skin) {
     try {
-      // Load raw skins data
-      const rawSkinsPath = path.join(__dirname, '..', 'data', 'raw_skins.json');
-      const rawSkinsData = JSON.parse(fs.readFileSync(rawSkinsPath, 'utf8'));
+      console.log(`🔍 [getSkinImage] Looking for skin: ${skin.weapon} | ${skin.skinName}`);
+      console.log(`   Pattern: "${skin.pattern}"`);
+      console.log(`   Phase: "${skin.phase}"`);
       
-      // Construct the formatted name from weapon and skinName
-      const weaponSkinName = `${skin.weapon} | ${skin.skinName}`;
+      // Look up the skin image from raw skins data
+      const rawSkinsPath = path.join(__dirname, '../data/raw_skins.json');
       
-      // Try to find matching skin by formatted name
-      const matchingSkin = Object.values(rawSkinsData).find(rawSkin => 
-        rawSkin.formatted_name === weaponSkinName
-      );
-      
-      if (matchingSkin && matchingSkin.image_urls && matchingSkin.image_urls.length > 0) {
-        return matchingSkin.image_urls[0]; // Return first image URL
+      try {
+        const rawSkinsData = JSON.parse(await fs.readFile(rawSkinsPath, 'utf8'));
+        
+        // Try to find the skin by matching weapon and pattern/phase
+        for (const [itemId, itemData] of Object.entries(rawSkinsData)) {
+          // Handle both weapon object structure and string structure
+          let weaponName = '';
+          if (typeof itemData.weapon === 'string') {
+            weaponName = itemData.weapon;
+          } else if (itemData.weapon?.name) {
+            weaponName = itemData.weapon.name;
+          }
+          
+          // Check if weapon matches
+          const weaponMatch = weaponName === skin.weapon;
+          
+          if (weaponMatch) {
+            // Handle both pattern object structure and string structure
+            let patternName = '';
+            if (typeof itemData.pattern === 'string') {
+              patternName = itemData.pattern;
+            } else if (itemData.pattern?.name) {
+              patternName = itemData.pattern.name;
+            }
+            
+            // Check if pattern matches
+            const patternMatch = patternName === skin.pattern;
+            
+            // Check if phase matches (if skin has a phase)
+            const phaseMatch = !skin.phase || skin.phase.trim() === '' || 
+                              itemData.phase === skin.phase;
+            
+            if (patternMatch && phaseMatch) {
+              console.log(`✅ [getSkinImage] Found exact match: ${itemData.name}`);
+              console.log(`   Image: ${itemData.image || 'No main image'}`);
+              console.log(`   Image URLs: ${itemData.image_urls ? itemData.image_urls.length : 0} available`);
+              
+              // Found matching skin, return the image URL
+              if (itemData.image && itemData.image.trim() !== '' && !itemData.image.includes('placeholder')) {
+                return itemData.image.trim();
+              }
+              
+              // Fallback to image_urls array if main image field is not available
+              if (itemData.image_urls && itemData.image_urls.length > 0) {
+                const validImageUrl = itemData.image_urls.find(url => 
+                  url && url.trim() !== '' && !url.includes('placeholder')
+                );
+                if (validImageUrl) {
+                  return validImageUrl.trim();
+                }
+              }
+            }
+          }
+        }
+        
+        // If no exact match found, try partial matching
+        for (const [itemId, itemData] of Object.entries(rawSkinsData)) {
+          // Handle both weapon object structure and string structure
+          let weaponName = '';
+          if (typeof itemData.weapon === 'string') {
+            weaponName = itemData.weapon;
+          } else if (itemData.weapon?.name) {
+            weaponName = itemData.weapon.name;
+          }
+          
+          if (weaponName && typeof weaponName === 'string') {
+            const weaponMatch = weaponName.toLowerCase().includes(skin.weapon.toLowerCase()) ||
+                               skin.weapon.toLowerCase().includes(weaponName.toLowerCase());
+            
+            if (weaponMatch) {
+              // Handle both pattern object structure and string structure
+              let patternName = '';
+              if (typeof itemData.pattern === 'string') {
+                patternName = itemData.pattern;
+              } else if (itemData.pattern?.name) {
+                patternName = itemData.pattern.name;
+              }
+              
+              if (patternName && typeof patternName === 'string') {
+                const patternMatch = patternName.toLowerCase().includes(skin.pattern.toLowerCase()) ||
+                                   skin.pattern.toLowerCase().includes(patternName.toLowerCase());
+                
+                if (patternMatch) {
+                  if (itemData.image && itemData.image.trim() !== '' && !itemData.image.includes('placeholder')) {
+                    return itemData.image.trim();
+                  }
+                  
+                  if (itemData.image_urls && itemData.image_urls.length > 0) {
+                    const validImageUrl = itemData.image_urls.find(url => 
+                      url && url.trim() !== '' && !url.includes('placeholder')
+                    );
+                    if (validImageUrl) {
+                      return validImageUrl.trim();
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+      } catch (fileError) {
+        console.error('Error reading raw skins file:', fileError);
       }
       
-      // If no match found, return placeholder
-      return 'https://via.placeholder.com/150x150/2f3136/ffffff?text=No+Image';
+      // If no image found, return a placeholder
+      return 'https://via.placeholder.com/150x150/2f3136/ffffff?text=CS2+Skin';
       
     } catch (error) {
-      console.error('Error loading skin image:', error);
-      return 'https://via.placeholder.com/150x150/2f3136/ffffff?text=No+Image';
+      console.error('Error getting skin image:', error);
+      return 'https://via.placeholder.com/150x150/2f3136/ffffff?text=Error';
     }
   }
 };

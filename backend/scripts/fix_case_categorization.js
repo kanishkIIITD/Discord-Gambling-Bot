@@ -24,12 +24,20 @@ class CaseCategorizationFixer {
       console.log('📂 Loading raw skins data...');
       const skinsPath = path.join(__dirname, '../data/raw_skins.json');
       this.skinsData = JSON.parse(await fs.readFile(skinsPath, 'utf8'));
-      console.log(`✅ Loaded ${Object.keys(this.skinsData).length} skins`);
+      console.log(`✅ Loaded ${Object.keys(this.skinsData).length} total items`);
 
       console.log('📂 Loading raw cases data...');
       const casesPath = path.join(__dirname, '../data/raw_cases.json');
       this.casesData = JSON.parse(await fs.readFile(casesPath, 'utf8'));
-      console.log(`✅ Loaded ${Object.keys(this.casesData).length} cases`);
+      
+      // Filter to only actual cases
+      const totalItems = Object.keys(this.casesData).length;
+      const actualCases = Object.fromEntries(
+        Object.entries(this.casesData).filter(([id, data]) => data.type === 'Case')
+      );
+      this.casesData = actualCases;
+      
+      console.log(`✅ Loaded ${Object.keys(this.casesData).length} cases (filtered from ${totalItems} total items)`);
     } catch (error) {
       console.error('❌ Failed to load data:', error);
       throw error;
@@ -44,27 +52,27 @@ class CaseCategorizationFixer {
       .trim();
     
     // First try exact match
-    for (const [skinId, skinData] of Object.entries(this.skinsData)) {
-      const normalizedSkinName = skinData.formatted_name.toLowerCase()
+    for (const [itemId, itemData] of Object.entries(this.skinsData)) {
+      const normalizedSkinName = itemData.name.toLowerCase()
         .replace(/[^a-z0-9\s]/g, '')  // Remove special characters
         .replace(/\s+/g, ' ')          // Normalize spaces
         .trim();
       
       if (normalizedSkinName === normalizedSearchName) {
-        return skinData;
+        return itemData;
       }
     }
     
     // If no exact match, try partial matching
-    for (const [skinId, skinData] of Object.entries(this.skinsData)) {
-      const normalizedSkinName = skinData.formatted_name.toLowerCase()
+    for (const [itemId, itemData] of Object.entries(this.skinsData)) {
+      const normalizedSkinName = itemData.name.toLowerCase()
         .replace(/[^a-z0-9\s]/g, '')  // Remove special characters
         .replace(/\s+/g, ' ')          // Normalize spaces
         .trim();
       
       if (normalizedSkinName.includes(normalizedSearchName) || 
-          normalizedSearchName.includes(normalizedSkinName)) {
-        return skinData;
+          normalizedSkinName.includes(normalizedSearchName)) {
+        return itemData;
       }
     }
     
@@ -76,58 +84,58 @@ class CaseCategorizationFixer {
     let totalMismatches = 0;
     let totalSkins = 0;
     
-    for (const [caseId, caseData] of Object.entries(this.casesData)) {
+    for (const [itemId, itemData] of Object.entries(this.casesData)) {
       let caseMismatches = 0;
       const caseFixes = [];
       
       // Check each rarity tier in the case
-      for (const [rarityKey, skinNames] of Object.entries(caseData.items)) {
+      for (const [rarityKey, skinNames] of Object.entries(itemData.items)) {
         for (const skinName of skinNames) {
           totalSkins++;
           const foundSkin = this.findSkinByName(skinName);
           
-          if (foundSkin && foundSkin.quality) {
-            // Convert rarity key to standard format for comparison
+          if (foundSkin && foundSkin.rarity?.name) {
+            // Convert rarity key to standard format for comparison (same as CS2 data service)
             const caseRarity = rarityKey
-              .replace(/([A-Z])/g, ' $1')  // Add space before capitals
+              .replace(/([A-Z])/g, '-$1')  // Add hyphen before capitals
               .replace(/^./, (str) => str.toLowerCase())  // First character to lowercase
-              .replace(/\s+/g, ' ')  // Normalize spaces
+              .replace(/^-/, '')  // Remove leading hyphen
               .trim();
             
-            if (foundSkin.quality !== caseRarity) {
+            if (foundSkin.rarity.name !== caseRarity) {
               caseMismatches++;
               totalMismatches++;
               
               const fix = {
-                caseId,
-                caseName: caseData.formatted_name,
+                caseId: itemId,
+                caseName: itemData.name,
                 skinName,
                 currentRarity: caseRarity,
-                actualQuality: foundSkin.quality,
+                actualQuality: foundSkin.rarity.name,
                 action: 'move'
               };
               
               caseFixes.push(fix);
               this.fixes.push(fix);
               
-              console.log(`⚠️ Mismatch in ${caseData.formatted_name}:`);
+              console.log(`⚠️ Mismatch in ${itemData.name}:`);
               console.log(`   Skin: ${skinName}`);
               console.log(`   Case has: ${caseRarity}`);
-              console.log(`   Actual quality: ${foundSkin.quality}`);
+              console.log(`   Actual quality: ${foundSkin.rarity.name}`);
             }
           }
         }
       }
       
       if (caseMismatches > 0) {
-        console.log(`⚠️ Case "${caseData.formatted_name}" has ${caseMismatches} categorization mismatches`);
+        console.log(`⚠️ Case "${itemData.name}" has ${caseMismatches} categorization mismatches`);
       }
     }
     
     console.log(`\n📊 Analysis Results:`);
+    console.log(`   Total cases analyzed: ${Object.keys(this.casesData).length}`);
     console.log(`   Total skins analyzed: ${totalSkins}`);
     console.log(`   Total mismatches found: ${totalMismatches}`);
-    console.log(`   Cases with issues: ${new Set(this.fixes.map(f => f.caseId)).size}`);
     
     return totalMismatches;
   }
@@ -151,26 +159,26 @@ class CaseCategorizationFixer {
     
     // Apply fixes to each case
     for (const [caseId, caseFixes] of Object.entries(fixesByCase)) {
-      const caseData = this.casesData[caseId];
-      console.log(`\n🔧 Fixing case: ${caseData.formatted_name}`);
+      const itemData = this.casesData[caseId];
+      console.log(`\n🔧 Fixing case: ${itemData.name}`);
       
       for (const fix of caseFixes) {
         // Remove skin from current rarity tier
         const currentRarityKey = fix.currentRarity.replace(/\s+/g, '').replace(/^./, str => str.toLowerCase());
-        if (caseData.items[currentRarityKey]) {
-          const index = caseData.items[currentRarityKey].indexOf(fix.skinName);
+        if (itemData.items[currentRarityKey]) {
+          const index = itemData.items[currentRarityKey].indexOf(fix.skinName);
           if (index > -1) {
-            caseData.items[currentRarityKey].splice(index, 1);
+            itemData.items[currentRarityKey].splice(index, 1);
             console.log(`   ➖ Removed "${fix.skinName}" from ${fix.currentRarity}`);
           }
         }
         
         // Add skin to correct rarity tier
         const correctRarityKey = fix.actualQuality.replace(/\s+/g, '').replace(/^./, str => str.toLowerCase());
-        if (!caseData.items[correctRarityKey]) {
-          caseData.items[correctRarityKey] = [];
+        if (!itemData.items[correctRarityKey]) {
+          itemData.items[correctRarityKey] = [];
         }
-        caseData.items[correctRarityKey].push(fix.skinName);
+        itemData.items[correctRarityKey].push(fix.skinName);
         console.log(`   ➕ Added "${fix.skinName}" to ${fix.actualQuality}`);
       }
     }

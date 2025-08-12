@@ -28,10 +28,21 @@ const CS2SkinSchema = new mongoose.Schema({
   imageUrl: {
     type: String
   },
-  wear: {
+  minFloat: {
+    type: Number,
+    default: 0.0
+  },
+  maxFloat: {
+    type: Number,
+    default: 1.0
+  },
+  pattern: {
     type: String,
-    enum: ['factory new', 'minimal wear', 'field-tested', 'well-worn', 'battle-scarred'],
-    default: 'field-tested'
+    default: ''
+  },
+  phase: {
+    type: String,
+    default: ''
   },
   isStatTrak: {
     type: Boolean,
@@ -40,10 +51,6 @@ const CS2SkinSchema = new mongoose.Schema({
   isSouvenir: {
     type: Boolean,
     default: false
-  },
-  marketValue: {
-    type: Number,
-    default: 0
   },
   isActive: {
     type: Boolean,

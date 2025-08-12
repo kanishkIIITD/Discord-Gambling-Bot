@@ -50,6 +50,18 @@ const CS2CaseOpeningSchema = new mongoose.Schema({
       type: String,
       default: 'field-tested'
     },
+    float: {
+      type: Number,
+      default: 0.5
+    },
+    pattern: {
+      type: String,
+      default: ''
+    },
+    phase: {
+      type: String,
+      default: ''
+    },
     isStatTrak: {
       type: Boolean,
       default: false
