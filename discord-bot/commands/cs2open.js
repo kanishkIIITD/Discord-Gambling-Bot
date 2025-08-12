@@ -240,48 +240,8 @@ module.exports = {
         components: [actionRow]
       });
 
-      // Create button collector for the action buttons
-      const collector = openingMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId,
-        time: 300000 // 5 minutes
-      });
-
-      collector.on('collect', async i => {
-        try {
-          const customId = i.customId;
-          
-          if (customId.startsWith('cs2_inventory_')) {
-            await this.showInventory(i, userId, guildId, backendUrl);
-          } else if (customId.startsWith('cs2_stats_')) {
-            await this.showStats(i, userId, guildId, backendUrl);
-          } else if (customId.startsWith('cs2_open_another_case_')) {
-            const anotherCaseId = customId.replace('cs2_open_another_case_', '');
-            await this.openAnotherCase(i, anotherCaseId, userId, guildId, backendUrl);
-          }
-        } catch (error) {
-          console.error('Error handling button interaction:', error);
-          await i.reply({ 
-            content: '❌ **Error processing button.** Please try again later.',
-            ephemeral: true 
-          });
-        }
-      });
-
-      collector.on('end', () => {
-        // Disable all buttons when collector expires
-        try {
-          const disabledRow = new ActionRowBuilder()
-            .addComponents(
-              actionRow.components.map(button => 
-                ButtonBuilder.from(button).setDisabled(true)
-              )
-            );
-          
-          openingMessage.edit({ components: [disabledRow] }).catch(console.error);
-        } catch (error) {
-          console.error('Error disabling buttons:', error);
-        }
-      });
+      // Buttons are now handled globally in index.js
+      // No need for local collector
 
     } catch (error) {
       console.error('Error opening CS2 case:', error);
@@ -640,54 +600,14 @@ module.exports = {
       }
 
       // Send a new public message with the result and add real ping in content
-      const newMessage = await interaction.channel.send({
+      await interaction.channel.send({
         content: `<@${interaction.user.id}>`,
         embeds: [resultEmbed],
         components: [actionRow]
       });
 
-      // Create button collector for the new action buttons
-      const collector = newMessage.createMessageComponentCollector({
-        filter: i => i.user.id === userId,
-        time: 300000 // 5 minutes
-      });
-
-      collector.on('collect', async i => {
-        try {
-          const customId = i.customId;
-          
-          if (customId.startsWith('cs2_inventory_')) {
-            await this.showInventory(i, userId, guildId, backendUrl);
-          } else if (customId.startsWith('cs2_stats_')) {
-            await this.showStats(i, userId, guildId, backendUrl);
-          } else if (customId.startsWith('cs2_open_another_case_')) {
-            const anotherCaseId = customId.replace('cs2_open_another_case_', '');
-            await this.openAnotherCase(i, anotherCaseId, userId, guildId, backendUrl);
-          }
-        } catch (error) {
-          console.error('Error handling button interaction:', error);
-          await i.reply({ 
-            content: '❌ **Error processing button.** Please try again later.',
-            ephemeral: true 
-          });
-        }
-      });
-
-      collector.on('end', () => {
-        // Disable all buttons when collector expires
-        try {
-          const disabledRow = new ActionRowBuilder()
-            .addComponents(
-              actionRow.components.map(button => 
-                ButtonBuilder.from(button).setDisabled(true)
-              )
-            );
-          
-          newMessage.edit({ components: [disabledRow] }).catch(console.error);
-        } catch (error) {
-          console.error('Error disabling buttons:', error);
-        }
-      });
+      // Buttons are now handled globally in index.js
+      // No need for local collector
 
     } catch (error) {
       console.error('Error in openAnotherCase:', error);

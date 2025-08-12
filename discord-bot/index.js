@@ -609,7 +609,7 @@ client.on('interactionCreate', async interaction => {
 	}
 
 	// Global select menu handler for CS2 view interactions
-	if (interaction.type === 3 && interaction.customId?.startsWith('cs2_view_select_')) {
+	if (interaction.isStringSelectMenu() && interaction.customId?.startsWith('cs2_view_select_')) {
 		try {
 			console.log('[cs2view] Global select menu handler received:', {
 				customId: interaction.customId,
@@ -643,7 +643,7 @@ client.on('interactionCreate', async interaction => {
 	}
 
 	// Global button handler for CS2 inventory interactions
-	if (interaction.type === 3 && interaction.customId?.startsWith('cs2_') && !interaction.customId.startsWith('cs2_view_')) {
+	if (interaction.isButton() && interaction.customId?.startsWith('cs2_') && !interaction.customId.startsWith('cs2_view_') && !interaction.customId.startsWith('cs2_open_') && !interaction.customId.startsWith('cs2_inventory_') && !interaction.customId.startsWith('cs2_stats_')) {
 		try {
 			console.log('[cs2inventory] Global button handler received:', {
 				customId: interaction.customId,
@@ -713,7 +713,7 @@ client.on('interactionCreate', async interaction => {
 	}
 
 	// Global button handler for CS2 view interactions
-	if (interaction.type === 3 && interaction.customId?.startsWith('cs2_view_')) {
+	if (interaction.isButton() && interaction.customId?.startsWith('cs2_view_')) {
 		try {
 			console.log('[cs2view] Global button handler received:', {
 				customId: interaction.customId,
@@ -2604,10 +2604,10 @@ client.on('interactionCreate', async interaction => {
 					.setDescription(`Opening **${selectedCase.formattedName}**...\nPlease wait while we reveal your skin!`)
 					.setColor(0xffff00)
 					.setThumbnail(selectedCase.imageUrl || 'https://via.placeholder.com/150x150?text=Case')
-									.addFields(
-					{ name: '💰 Cost', value: `${selectedCase.price} points`, inline: true },
-					{ name: '📦 Case', value: selectedCase.formattedName, inline: true }
-				);
+					.addFields(
+						{ name: '💰 Cost', value: `${selectedCase.price} points`, inline: true },
+						{ name: '📦 Case', value: selectedCase.formattedName, inline: true }
+					);
 
 				openingMessage = await interaction.reply({
 					embeds: [openingEmbed],
@@ -2748,12 +2748,382 @@ client.on('interactionCreate', async interaction => {
 
 
 
-	// --- Handle CS2 select menu interactions ---
+	// --- Handle CS2 case select menu interactions ---
 	if (interaction.isStringSelectMenu() && interaction.customId.startsWith('cs2_case_select_')) {
-		console.log('CS2 case select menu handler triggered:', interaction.customId, interaction.user.id);
-		
-		// This is handled locally in the cs2cases command
-		// The interaction will be handled by the local collector
+		try {
+			console.log('CS2 case select menu handler triggered:', interaction.customId, interaction.user.id);
+			
+			const page = parseInt(interaction.customId.replace('cs2_case_select_', ''));
+			const selectedCaseId = interaction.values[0];
+			
+			// Fetch cases data
+			const response = await axios.get(`${process.env.BACKEND_API_URL}/cs2/cases`);
+			const { cases } = response.data;
+			
+			if (!cases || cases.length === 0) {
+				await interaction.reply({ content: '❌ No CS2 cases available.', ephemeral: true });
+				return;
+			}
+			
+			const selectedCase = cases.find(c => c.caseId === selectedCaseId);
+			if (!selectedCase) {
+				await interaction.reply({ content: '❌ Case not found.', ephemeral: true });
+				return;
+			}
+
+			// Create case details embed
+			const caseEmbed = new EmbedBuilder()
+				.setTitle(`📦 ${selectedCase.formattedName}`)
+				.setDescription(`Case details and contents`)
+				.setColor(0x00ff00)
+				.setThumbnail(selectedCase.imageUrl || 'https://via.placeholder.com/150x150?text=Case');
+
+			// Calculate total items from the items object
+			const totalItems = selectedCase.items ? Object.values(selectedCase.items).reduce((sum, items) => sum + (items ? items.length : 0), 0) : 0;
+
+			caseEmbed.addFields(
+				{ name: '💰 Price', value: `${selectedCase.price ? selectedCase.price.toLocaleString() : 'Not set'} points`, inline: true },
+				{ name: '📦 Total Items', value: totalItems.toString(), inline: true },
+				{ name: '🔑 Requires Key', value: selectedCase.requiresKey ? 'Yes' : 'No', inline: true }
+			);
+
+			// Add rarity breakdown
+			if (selectedCase.items) {
+				const rarityBreakdown = Object.entries(selectedCase.items)
+					.filter(([_, items]) => items && items.length > 0)
+					.map(([rarity, items]) => {
+						const rarityEmoji = {
+							'consumer-grade': '⚪',
+							'industrial-grade': '🔵',
+							'mil-spec': '🔷',
+							'restricted': '🟣',
+							'classified': '🩷',
+							'covert': '🔴',
+							'special': '🟡'
+						}[rarity] || '🔶';
+						
+						const rarityName = rarity.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+						return `${rarityEmoji} **${rarityName}**: ${items.length} items`;
+					})
+					.join('\n');
+
+				if (rarityBreakdown) {
+					caseEmbed.addFields({
+						name: '🎨 Rarity Breakdown',
+						value: rarityBreakdown,
+						inline: false
+					});
+				}
+			}
+
+			// Add open case button
+			const openButton = new ButtonBuilder()
+				.setCustomId(`cs2_open_${selectedCase.caseId}`)
+				.setLabel('🎯 Open Case')
+				.setStyle(ButtonStyle.Success)
+				.setEmoji('🎯');
+
+			const backButton = new ButtonBuilder()
+				.setCustomId(`cs2_cases_back_to_list_${page}`)
+				.setLabel('← Back to Cases')
+				.setStyle(ButtonStyle.Secondary);
+
+			const actionRow = new ActionRowBuilder().addComponents(openButton, backButton);
+
+			await interaction.update({
+				embeds: [caseEmbed],
+				components: [actionRow]
+			});
+			
+		} catch (error) {
+			console.error('Error handling CS2 case selection:', error);
+			await interaction.reply({ content: '❌ An error occurred while processing your selection.', ephemeral: true });
+		}
+		return;
+	}
+
+	// --- Handle CS2 open command button interactions ---
+	if (interaction.isButton() && (interaction.customId.startsWith('cs2_inventory_') || interaction.customId.startsWith('cs2_stats_') || interaction.customId.startsWith('cs2_open_another_case_'))) {
+		try {
+			console.log('CS2 open command button handler triggered:', interaction.customId, interaction.user.id);
+			
+			const customId = interaction.customId;
+			
+			if (customId.startsWith('cs2_inventory_')) {
+				const userId = customId.replace('cs2_inventory_', '');
+				// Call the showInventory method from cs2open command
+				const cs2openCommand = require('./commands/cs2open.js');
+				await cs2openCommand.showInventory(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
+			} else if (customId.startsWith('cs2_stats_')) {
+				const userId = customId.replace('cs2_stats_', '');
+				// Call the showStats method from cs2open command
+				const cs2openCommand = require('./commands/cs2open.js');
+				await cs2openCommand.showStats(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
+			} else if (customId.startsWith('cs2_open_another_case_')) {
+				const caseId = customId.replace('cs2_open_another_case_', '');
+				const userId = interaction.user.id;
+				// Call the openAnotherCase method from cs2open command
+				const cs2openCommand = require('./commands/cs2open.js');
+				await cs2openCommand.openAnotherCase(interaction, caseId, userId, interaction.guildId, process.env.BACKEND_API_URL);
+			}
+			
+		} catch (error) {
+			console.error('Error handling CS2 open command button:', error);
+			await interaction.reply({ 
+				content: '❌ An error occurred while processing your button click. Please try again.',
+				ephemeral: true 
+			});
+		}
+		return;
+	}
+
+	// --- Handle CS2 case button interactions ---
+	if (interaction.isButton() && (interaction.customId.startsWith('cs2_cases_page_') || interaction.customId.startsWith('cs2_cases_back_to_list_'))) {
+		try {
+			console.log('CS2 case button handler triggered:', interaction.customId, interaction.user.id);
+			
+			if (interaction.customId.startsWith('cs2_cases_page_')) {
+				// Handle pagination
+				const newPage = parseInt(interaction.customId.replace('cs2_cases_page_', ''));
+				
+				// Fetch cases data
+				const response = await axios.get(`${process.env.BACKEND_API_URL}/cs2/cases`);
+				const { cases } = response.data;
+				
+				if (!cases || cases.length === 0) {
+					await interaction.reply({ content: '❌ No CS2 cases available.', ephemeral: true });
+					return;
+				}
+				
+				// Pagination settings
+				const casesPerPage = 25;
+				const totalPages = Math.ceil(cases.length / casesPerPage);
+				
+				if (newPage >= 0 && newPage < totalPages) {
+					// Function to create case selection embed
+					const createCaseEmbed = (page) => {
+						const startIndex = page * casesPerPage;
+						const endIndex = Math.min(startIndex + casesPerPage, cases.length);
+						const pageCases = cases.slice(startIndex, endIndex);
+
+						const embed = new EmbedBuilder()
+							.setTitle('📦 Available CS2 Cases')
+							.setDescription(`There are **${cases.length}** cases available to open!\nPage **${page + 1}** of **${totalPages}**`)
+							.setColor(0x00ff00)
+							.setThumbnail('https://cdn.discordapp.com/emojis/1234567890.png')
+							.setFooter({ text: `Page ${page + 1} of ${totalPages} • Select a case to view details and open it!` });
+
+						// Add case information
+						pageCases.forEach((caseData, index) => {
+							const globalIndex = startIndex + index + 1;
+							const price = caseData.price ? `${caseData.price.toLocaleString()} points` : 'Price not set';
+							
+							// Calculate total items from the items object
+							const totalItems = caseData.items ? Object.values(caseData.items).reduce((sum, items) => sum + (items ? items.length : 0), 0) : 0;
+							
+							embed.addFields({
+								name: `${globalIndex}. ${caseData.formattedName}`,
+								value: `💰 **${price}** • 📦 **${totalItems}** items`,
+								inline: false
+							});
+						});
+
+						return embed;
+					};
+
+					// Create select menu for case selection
+					const createCaseSelectMenu = (page) => {
+						const startIndex = page * casesPerPage;
+						const endIndex = Math.min(startIndex + casesPerPage, cases.length);
+						const pageCases = cases.slice(startIndex, endIndex);
+
+						const selectMenu = new StringSelectMenuBuilder()
+							.setCustomId(`cs2_case_select_${page}`)
+							.setPlaceholder('Select a case to view details...')
+							.addOptions(
+								pageCases.map((caseData, index) => {
+									// Calculate total items from the items object
+									const totalItems = caseData.items ? Object.values(caseData.items).reduce((sum, items) => sum + (items ? items.length : 0), 0) : 0;
+									
+									return {
+										label: caseData.formattedName.length > 50 ? caseData.formattedName.substring(0, 47) + '...' : caseData.formattedName,
+										description: `${caseData.price ? caseData.price.toLocaleString() + ' points' : 'Price not set'} • ${totalItems} items`,
+										value: caseData.caseId,
+										emoji: '📦'
+									};
+								})
+							);
+
+						return new ActionRowBuilder().addComponents(selectMenu);
+					};
+
+					// Create pagination buttons
+					const createPaginationRow = (page) => {
+						const row = new ActionRowBuilder();
+						
+						// Previous page button
+						if (page > 0) {
+							row.addComponents(
+								new ButtonBuilder()
+									.setCustomId(`cs2_cases_page_${page - 1}`)
+									.setLabel('◀️ Previous')
+									.setStyle(ButtonStyle.Secondary)
+							);
+						}
+						
+						// Page indicator
+						row.addComponents(
+							new ButtonBuilder()
+								.setCustomId('cs2_cases_page_info')
+								.setLabel(`Page ${page + 1} of ${totalPages}`)
+								.setStyle(ButtonStyle.Primary)
+								.setDisabled(true)
+						);
+						
+						// Next page button
+						if (page < totalPages - 1) {
+							row.addComponents(
+								new ButtonBuilder()
+									.setCustomId(`cs2_cases_page_${page + 1}`)
+									.setStyle(ButtonStyle.Secondary)
+									.setLabel('Next ▶️')
+							);
+						}
+						
+						return row;
+					};
+
+					await interaction.update({
+						embeds: [createCaseEmbed(newPage)],
+						components: [
+							createCaseSelectMenu(newPage),
+							createPaginationRow(newPage)
+						]
+					});
+				}
+			} else if (interaction.customId.startsWith('cs2_cases_back_to_list_')) {
+				// Return to case list
+				const page = parseInt(interaction.customId.replace('cs2_cases_back_to_list_', ''));
+				
+				// Fetch cases data
+				const response = await axios.get(`${process.env.BACKEND_API_URL}/cs2/cases`);
+				const { cases } = response.data;
+				
+				if (!cases || cases.length === 0) {
+					await interaction.reply({ content: '❌ No CS2 cases available.', ephemeral: true });
+					return;
+				}
+				
+				// Pagination settings
+				const casesPerPage = 25;
+				const totalPages = Math.ceil(cases.length / casesPerPage);
+				
+				// Function to create case selection embed
+				const createCaseEmbed = (page) => {
+					const startIndex = page * casesPerPage;
+					const endIndex = Math.min(startIndex + casesPerPage, cases.length);
+					const pageCases = cases.slice(startIndex, endIndex);
+
+					const embed = new EmbedBuilder()
+						.setTitle('📦 Available CS2 Cases')
+						.setDescription(`There are **${cases.length}** cases available to open!\nPage **${page + 1}** of **${totalPages}**`)
+						.setColor(0x00ff00)
+						.setThumbnail('https://cdn.discordapp.com/emojis/1234567890.png')
+						.setFooter({ text: `Page ${page + 1} of ${totalPages} • Select a case to view details and open it!` });
+
+					// Add case information
+					pageCases.forEach((caseData, index) => {
+						const globalIndex = startIndex + index + 1;
+						const price = caseData.price ? `${caseData.price.toLocaleString()} points` : 'Price not set';
+						
+						// Calculate total items from the items object
+						const totalItems = caseData.items ? Object.values(caseData.items).reduce((sum, items) => sum + (items ? items.length : 0), 0) : 0;
+						
+						embed.addFields({
+							name: `${globalIndex}. ${caseData.formattedName}`,
+							value: `💰 **${price}** • 📦 **${totalItems}** items`,
+							inline: false
+						});
+					});
+
+					return embed;
+				};
+
+				// Create select menu for case selection
+				const createCaseSelectMenu = (page) => {
+					const startIndex = page * casesPerPage;
+					const endIndex = Math.min(startIndex + casesPerPage, cases.length);
+					const pageCases = cases.slice(startIndex, endIndex);
+
+					const selectMenu = new StringSelectMenuBuilder()
+						.setCustomId(`cs2_case_select_${page}`)
+						.setPlaceholder('Select a case to view details...')
+						.addOptions(
+							pageCases.map((caseData, index) => {
+								// Calculate total items from the items object
+								const totalItems = caseData.items ? Object.values(caseData.items).reduce((sum, items) => sum + (items ? items.length : 0), 0) : 0;
+								
+								return {
+									label: caseData.formattedName.length > 50 ? caseData.formattedName.substring(0, 47) + '...' : caseData.formattedName,
+									description: `${caseData.price ? caseData.price.toLocaleString() + ' points' : 'Price not set'} • ${totalItems} items`,
+										value: caseData.caseId,
+										emoji: '📦'
+									};
+								})
+							);
+
+					return new ActionRowBuilder().addComponents(selectMenu);
+				};
+
+				// Create pagination buttons
+				const createPaginationRow = (page) => {
+					const row = new ActionRowBuilder();
+					
+					// Previous page button
+					if (page > 0) {
+						row.addComponents(
+							new ButtonBuilder()
+								.setCustomId(`cs2_cases_page_${page - 1}`)
+								.setLabel('◀️ Previous')
+								.setStyle(ButtonStyle.Secondary)
+						);
+					}
+					
+					// Page indicator
+					row.addComponents(
+						new ButtonBuilder()
+							.setCustomId('cs2_cases_page_info')
+							.setLabel(`Page ${page + 1} of ${totalPages}`)
+							.setStyle(ButtonStyle.Primary)
+							.setDisabled(true)
+						);
+					
+					// Next page button
+					if (page < totalPages - 1) {
+						row.addComponents(
+							new ButtonBuilder()
+								.setCustomId(`cs2_cases_page_${page + 1}`)
+								.setStyle(ButtonStyle.Secondary)
+								.setLabel('Next ▶️')
+						);
+					}
+					
+					return row;
+				};
+
+				await interaction.update({
+					embeds: [createCaseEmbed(page)],
+					components: [
+						createCaseSelectMenu(page),
+						createPaginationRow(page)
+					]
+				});
+			}
+			
+		} catch (error) {
+			console.error('Error handling CS2 case button:', error);
+			await interaction.reply({ content: '❌ An error occurred while processing your button click.', ephemeral: true });
+		}
 		return;
 	}
 
