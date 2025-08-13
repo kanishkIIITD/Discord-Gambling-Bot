@@ -309,8 +309,21 @@ function parseAmount(input) {
 
 // Add an interaction listener
 client.on('interactionCreate', async interaction => {
-	// Track interactions for timeout management
+	// For slash commands, defer immediately to prevent timeout
 	if (interaction.isCommand()) {
+		try {
+			// Defer immediately to extend the response window from 3 seconds to 15 minutes
+			await interaction.deferReply();
+			console.log(`[${interaction.commandName}] Deferred reply immediately to prevent timeout`);
+		} catch (err) {
+			if (err.code === 10062) {
+				console.log(`[${interaction.commandName}] Interaction expired during immediate defer`);
+			} else {
+				console.error(`[${interaction.commandName}] Failed to defer reply immediately:`, err);
+			}
+		}
+		
+		// Track interactions for timeout management
 		const interactionId = interaction.id;
 		activeInteractions.set(interactionId, {
 			timestamp: Date.now(),

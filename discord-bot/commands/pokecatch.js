@@ -48,10 +48,8 @@ module.exports = {
 
   async execute(interaction) {
     await executeWithTimeoutWarning(interaction, 'pokecatch', async () => {
-      // Defer the reply to extend the response timeout from 3 seconds to 15 minutes
-      // Make it ephemeral so the ball selection is private
-      const deferSuccess = await safeDeferReply(interaction, { ephemeral: true });
-      if (!deferSuccess) return;
+      // The interaction is already deferred by the main handler
+      // No need to call safeDeferReply again
       
       if (!pokeCache.isKantoCacheReady()) {
         const success = await safeInteractionResponse(

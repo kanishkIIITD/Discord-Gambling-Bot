@@ -60,9 +60,8 @@ module.exports = {
 
   async execute(interaction) {
     await executeWithTimeoutWarning(interaction, 'pokespawn', async () => {
-      // Defer the reply to extend the response timeout from 3 seconds to 15 minutes
-      const deferSuccess = await safeDeferReply(interaction);
-      if (!deferSuccess) return;
+      // The interaction is already deferred by the main handler
+      // No need to call safeDeferReply again
       
       // Check if current generation cache is ready
       const currentGen = getCurrentGenInfo().number;

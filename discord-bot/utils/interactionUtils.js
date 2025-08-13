@@ -25,16 +25,13 @@ async function safeInteractionResponse(interaction, content, options = {}) {
       return false;
     }
     
+    // Since the main handler defers immediately, we should always use editReply
     if (interaction.deferred && !interaction.replied) {
       await interaction.editReply({ content, ...options });
       console.log('[InteractionUtils] Successfully sent response via editReply');
       return true;
-    } else if (isInteractionValid(interaction)) {
-      await interaction.reply({ content, ...options });
-      console.log('[InteractionUtils] Successfully sent response via reply');
-      return true;
     } else {
-      console.log('[InteractionUtils] Interaction not in valid state for response');
+      console.log('[InteractionUtils] Interaction not deferred, cannot send response');
       return false;
     }
   } catch (err) {
@@ -53,12 +50,14 @@ function setupTimeoutWarning(interaction, commandName) {
   if (isProduction) {
     // Set timeout warning at 2 seconds for production
     const timeout = setTimeout(async () => {
+      // Since the main handler defers immediately, we can always show the timeout warning
       if (interaction.deferred && !interaction.replied) {
         try {
           await interaction.editReply({ 
             content: '⏰ Command is taking longer than expected. Please wait...',
             ephemeral: true 
           });
+          console.log(`[${commandName}] Timeout warning sent successfully`);
         } catch (err) {
           if (err.code === 10062) {
             console.log(`[${commandName}] Interaction expired during timeout warning`);
@@ -88,13 +87,14 @@ async function executeWithTimeoutWarning(interaction, commandName, executionFunc
   } catch (error) {
     console.error(`[${commandName}] Error during command execution:`, error);
     
-    // Try to send error message if interaction is still valid
+    // Try to send error message if interaction is still valid and deferred
     if (interaction.deferred && !interaction.replied) {
       try {
         await interaction.editReply({
           content: '❌ An error occurred while processing your command. Please try again.',
           ephemeral: true
         });
+        console.log(`[${commandName}] Error message sent successfully`);
       } catch (err) {
         if (err.code === 10062) {
           console.log(`[${commandName}] Interaction expired before error message could be sent`);
