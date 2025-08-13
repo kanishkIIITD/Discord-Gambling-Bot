@@ -91,6 +91,12 @@ const activeBlackjackMessages = new Map(); // key: `${guildId}_${userId}` => { c
 // --- Giveaway: Track active giveaways ---
 global.activeGiveaways = new Map(); // key: messageId => giveaway data
 
+// --- Interaction Tracking for Timeout Management ---
+const activeInteractions = new Map(); // key: interactionId => { timestamp, commandName, userId, guildId }
+
+// --- Environment Detection ---
+const isProduction = process.env.NODE_ENV === 'production';
+
 (async () => {
   try {
     console.log('[PokéCache] Building Kanto Pokémon cache...');
@@ -201,6 +207,13 @@ client.once('ready', () => {
 			console.error('Error in closed-unnotified bets poller:', err);
 		}
 	}, 20000);
+
+	// --- Log interaction statistics every 30 seconds in production ---
+	if (isProduction) {
+		setInterval(() => {
+			logInteractionStats();
+		}, 30000);
+	}
 });
 
 // Send a welcome embed when the bot is added to a new server
@@ -296,6 +309,21 @@ function parseAmount(input) {
 
 // Add an interaction listener
 client.on('interactionCreate', async interaction => {
+	// Track interactions for timeout management
+	if (interaction.isCommand()) {
+		const interactionId = interaction.id;
+		activeInteractions.set(interactionId, {
+			timestamp: Date.now(),
+			commandName: interaction.commandName,
+			userId: interaction.user.id,
+			guildId: interaction.guildId
+		});
+		
+		// Clean up after 10 seconds (Discord gives 3 seconds, we give buffer)
+		setTimeout(() => {
+			activeInteractions.delete(interactionId);
+		}, 10000);
+	}
 	// Global modal handler for battle search
 	if (interaction.type === 5 && interaction.customId?.startsWith('pokebattle_search_modal_')) {
 		try {
@@ -3553,6 +3581,16 @@ client.on('interactionCreate', async interaction => {
 		// For now, we'll proceed but errors might occur in subsequent backend calls
 	}
 
+	// Set up timeout warning for slow commands in production
+	let timeoutWarning = null;
+	if (isProduction) {
+		timeoutWarning = setupTimeoutWarning(interaction, commandName);
+		console.log(`[${commandName}] Set up timeout warning for production environment`);
+	}
+	
+	// Log command start for debugging
+	console.log(`[${commandName}] Command execution started for user ${userId} in guild ${interaction.guildId}`);
+
 	if (commandName === 'balance') {
 		try {
 			await interaction.deferReply();
@@ -6409,18 +6447,48 @@ client.on('interactionCreate', async interaction => {
 		await cs2tradeCommand.execute(interaction);
 	}
 	
+	// Clean up timeout warning and interaction tracking when command is handled
+	if (timeoutWarning) {
+		clearTimeout(timeoutWarning);
+		console.log(`[${commandName}] Cleared timeout warning`);
+	}
+	if (interaction.isCommand()) {
+		activeInteractions.delete(interaction.id);
+		console.log(`[${commandName}] Command completed successfully, cleaned up interaction tracking`);
+	}
+	
 	// Return after handling all slash commands to prevent fall-through to button/select menu handlers
 	return;
 	} catch (error) {
 		console.error('Unhandled error in interaction handler:', error);
+		
+		// Log interaction details for debugging
+		if (interaction) {
+			console.log(`[Error Handler] Command: ${interaction.commandName}, User: ${interaction.user?.id}, Guild: ${interaction.guildId}`);
+			console.log(`[Error Handler] Interaction status:`, getInteractionStatus(interaction));
+			
+			// Log specific error details
+			if (error.code === 10062) {
+				console.log(`[Error Handler] Interaction expired (code 10062) - this is expected for slow commands`);
+			} else if (error.code === 50001) {
+				console.log(`[Error Handler] Missing access to channel`);
+			} else if (error.code === 50013) {
+				console.log(`[Error Handler] Missing permissions`);
+			}
+		}
+		
 		// Use safeErrorReply to handle the error response regardless of interaction state
 		if (interaction && interaction.isCommand()) {
-			await safeErrorReply(interaction, new EmbedBuilder()
-				.setColor(0xff7675)
-				.setTitle('❌ Unexpected Error')
-				.setDescription('An unexpected error occurred while processing your command.')
-				.setTimestamp()
-			);
+			try {
+				await safeErrorReply(interaction, new EmbedBuilder()
+					.setColor(0xff7675)
+					.setTitle('❌ Unexpected Error')
+					.setDescription('An unexpected error occurred while processing your command.')
+					.setTimestamp()
+				);
+			} catch (replyError) {
+				console.error('Failed to send error response:', replyError);
+			}
 		}
 	}
 });
@@ -6434,6 +6502,71 @@ process.on('unhandledRejection', error => {
 	console.error('Unhandled promise rejection:', error);
 }); 
 
+// Helper for timeout warnings in production
+function setupTimeoutWarning(interaction, commandName) {
+	if (isProduction) {
+		// Set timeout warning at 2 seconds for production
+		const timeout = setTimeout(async () => {
+			if (interaction.deferred && !interaction.replied) {
+				try {
+					await interaction.editReply({ 
+						content: '⏰ Command is taking longer than expected. Please wait...',
+						ephemeral: true 
+					});
+				} catch (err) {
+					if (err.code === 10062) {
+						console.log(`[${commandName}] Interaction expired during timeout warning`);
+					} else {
+						console.error(`[${commandName}] Failed to send timeout warning:`, err);
+					}
+				}
+			}
+		}, 2000);
+		
+		return timeout;
+	}
+	return null;
+}
+
+// Helper to check if interaction is still valid
+function isInteractionValid(interaction) {
+	return interaction && 
+		   interaction.isRepliable && 
+		   !interaction.replied && 
+		   !interaction.deferred;
+}
+
+// Helper to get interaction status for debugging
+function getInteractionStatus(interaction) {
+	if (!interaction) return 'null';
+	return {
+		isRepliable: interaction.isRepliable,
+		replied: interaction.replied,
+		deferred: interaction.deferred,
+		expired: !interaction.isRepliable
+	};
+}
+
+// Helper to log interaction statistics
+function logInteractionStats() {
+	const now = Date.now();
+	const activeCount = activeInteractions.size;
+	const expiredCount = Array.from(activeInteractions.values()).filter(
+		interaction => (now - interaction.timestamp) > 10000
+	).length;
+	
+	console.log(`[Interaction Stats] Active: ${activeCount}, Expired: ${expiredCount}`);
+	
+	// Clean up expired interactions
+	if (expiredCount > 0) {
+		for (const [id, interaction] of activeInteractions.entries()) {
+			if ((now - interaction.timestamp) > 10000) {
+				activeInteractions.delete(id);
+			}
+		}
+	}
+}
+
 // Helper for safe error reply
 async function safeErrorReply(interaction, embed) {
     try {
@@ -6443,20 +6576,27 @@ async function safeErrorReply(interaction, embed) {
             return;
         }
 
-        // Handle different interaction states
-        if (interaction.deferred && !interaction.replied) {
-            await interaction.editReply({ embeds: [embed] });
-        } else if (!interaction.replied && interaction.reply) {
-            // If not replied and can reply directly
+        // Log interaction status for debugging
+        const status = getInteractionStatus(interaction);
+        console.log(`[safeErrorReply] Interaction status:`, status);
+
+        // Check if interaction is still valid (not expired)
+        if (isInteractionValid(interaction)) {
             await interaction.reply({ embeds: [embed], ephemeral: true });
+        } else if (interaction.deferred && !interaction.replied) {
+            await interaction.editReply({ embeds: [embed] });
         } else if (interaction.followUp) {
-            // Last resort - try followUp if the method exists
             await interaction.followUp({ embeds: [embed], ephemeral: true });
         } else {
-            console.error('Could not respond to interaction - no valid response method available');
+            console.error('Could not respond to interaction - interaction may have expired');
         }
     } catch (err) {
-        console.error('Failed to send error reply:', err);
+        // If it's an "Unknown interaction" error, just log it
+        if (err.code === 10062) {
+            console.log('Interaction expired before response could be sent');
+        } else {
+            console.error('Failed to send error reply:', err);
+        }
     }
 } 
 

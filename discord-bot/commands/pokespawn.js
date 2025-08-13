@@ -60,26 +60,57 @@ module.exports = {
     // Check if current generation cache is ready
     const currentGen = getCurrentGenInfo().number;
     if (currentGen === 1 && !pokeCache.isKantoCacheReady()) {
-      return interaction.editReply({
-        content: 'Current generation Pokémon data is still loading. Please try again in a few seconds!',
-        ephemeral: true
-      });
+      try {
+        if (interaction.deferred && !interaction.replied) {
+          return await interaction.editReply({
+            content: 'Current generation Pokémon data is still loading. Please try again in a few seconds!',
+            ephemeral: true
+          });
+        }
+      } catch (err) {
+        console.error('Failed to send loading message:', err);
+        return;
+      }
     } else if (currentGen === 2 && !pokeCache.isGen2CacheReady()) {
-      return interaction.editReply({
-        content: 'Current generation Pokémon data is still loading. Please try again in a few seconds!',
-        ephemeral: true
-      });
+      try {
+        if (interaction.deferred && !interaction.replied) {
+          return await interaction.editReply({
+            content: 'Current generation Pokémon data is still loading. Please try again in a few seconds!',
+            ephemeral: true
+          });
+        }
+      } catch (err) {
+        console.error('Failed to send loading message:', err);
+        return;
+      }
     }
+    
     if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-      return interaction.editReply({ content: 'Only admins can use this command.', ephemeral: true });
+      try {
+        if (interaction.deferred && !interaction.replied) {
+          return await interaction.editReply({ content: 'Only admins can use this command.', ephemeral: true });
+        }
+      } catch (err) {
+        console.error('Failed to send permission error:', err);
+        return;
+      }
     }
+    
     const guildId = interaction.guildId;
     const now = Date.now();
     const lastUsed = pokespawnCooldowns.get(guildId) || 0;
     if (now - lastUsed < COOLDOWN_MS) {
       const minutesLeft = Math.ceil((COOLDOWN_MS - (now - lastUsed)) / 60000);
-      return interaction.editReply({ content: `You can only use /pokespawn once every 1 hour per server. Please wait ${minutesLeft} more minute(s).`, ephemeral: true });
+      try {
+        if (interaction.deferred && !interaction.replied) {
+          return await interaction.editReply({ content: `You can only use /pokespawn once every 1 hour per server. Please wait ${minutesLeft} more minute(s).`, ephemeral: true });
+        }
+      } catch (err) {
+        console.error('Failed to send cooldown error:', err);
+        return;
+      }
     }
+    
     pokespawnCooldowns.set(guildId, now);
     const channelId = interaction.channelId;
     
@@ -91,8 +122,16 @@ module.exports = {
       activeSpawns.delete(channelId);
       console.log(`[PokeSpawn][DELETE] Deleted stale spawn for channel ${channelId} before new spawn.`);
     }
+    
     if (activeSpawns.has(channelId)) {
-      return interaction.editReply({ content: 'A wild Pokémon is already present in this channel! Use /pokecatch to try catching it.', ephemeral: true });
+      try {
+        if (interaction.deferred && !interaction.replied) {
+          return await interaction.editReply({ content: 'A wild Pokémon is already present in this channel! Use /pokecatch to try catching it.', ephemeral: true });
+        }
+      } catch (err) {
+        console.error('Failed to send duplicate spawn error:', err);
+        return;
+      }
     }
     
     // Spawn current generation Pokémon
@@ -164,7 +203,19 @@ module.exports = {
     }
 
     // Use editReply since we deferred the interaction
-    const sentMsg = await interaction.editReply({ embeds: [embed], fetchReply: true });
+    let sentMsg;
+    try {
+      if (interaction.deferred && !interaction.replied) {
+        sentMsg = await interaction.editReply({ embeds: [embed], fetchReply: true });
+      } else {
+        console.error('Interaction not in correct state for editReply');
+        return;
+      }
+    } catch (err) {
+      console.error('Failed to send spawn message:', err);
+      return;
+    }
+    
     activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: sentMsg.id, attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
     console.log(`[PokeSpawn][SPAWN] Created spawn in channel ${channelId}: messageId=${sentMsg.id}, pokemonId=${pokemonId}, spawnedAt=${Date.now()}`);
     const DESPAWN_TIME = 60 * 1000; // 1 minute
@@ -249,4 +300,4 @@ module.exports.spawnCustomPokemonCommand = {
   }
 };
 
-module.exports.customDespawnTimers = customDespawnTimers; 
+module.exports.customDespawnTimers = customDespawnTimers;
