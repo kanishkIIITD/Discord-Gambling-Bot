@@ -233,7 +233,7 @@ module.exports = {
         console.error(`[PokeSpawn] ERROR: Spawn was not stored in activeSpawns for channel ${channelId}`);
       }
       
-      const DESPAWN_TIME = 60 * 1000; // 1 minute
+      const DESPAWN_TIME = 90 * 1000; // 1 minute and 30 seconds
       const timeout = setTimeout(async () => {
         const spawn = activeSpawns.get(channelId);
         console.log(`[PokeSpawn][TIMER] Timer fired for channel ${channelId}. Timer messageId: ${sentMsg.id}, activeSpawns messageId: ${spawn ? spawn.messageId : 'none'}`);

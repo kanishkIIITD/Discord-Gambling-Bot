@@ -332,7 +332,13 @@ client.on('interactionCreate', async interaction => {
 				'setpokechannel', 'setlogchannel', 'timeout', 'mysterybox', 'refund',
 				
 				// Other personal commands
-				'giveawaypokemon', 'redeemGoldenTicket', 'goldenTickets', 'quests', 'buffs', 'bail', 'beg'
+				'giveawaypokemon', 'redeemGoldenTicket', 'goldenTickets', 'quests', 'buffs', 'bail', 'beg',
+				
+				// Commands that were originally designed to be private (using ephemeral: true)
+				'cancelbattle', 'cs2open', 'cs2leaderboard', 'giveaway', 'pokebattle',
+				
+				// Additional commands found using ephemeral: true or flags: 64
+				'duel', 'doubleweekend',   'pokespawn',   
 			];
 			const isPrivateCommand = privateCommands.includes(interaction.commandName);
 			await interaction.deferReply({ ephemeral: isPrivateCommand });

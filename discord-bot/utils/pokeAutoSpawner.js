@@ -36,7 +36,7 @@ function capitalizeFirst(str) {
 }
 
 // const SPAWN_INTERVAL = 10 * 60 * 1000; // 10 minutes
-const DESPAWN_TIME = 60 * 1000; // 1 minute
+const DESPAWN_TIME = 90 * 1000; // 1 minute and 30 seconds
 
 async function fetchSpawnChannels(backendUrl) {
   try {
@@ -188,7 +188,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, gen
           const goneEmbed = new EmbedBuilder()
             .setColor(0x636e72)
             .setTitle(`${getEmojiString('pokeball')} The wild #${dexNum.toString().padStart(3, '0')} ${name} ran away!`)
-            .setDescription(`The wild Pokémon ran away after 1 minute.`)
+            .setDescription(`The wild Pokémon ran away after 1 minute and 30 seconds.`)
             .setImage(artwork);
           const msg = await channel.messages.fetch(message.id);
           await msg.edit({ embeds: [goneEmbed] });
