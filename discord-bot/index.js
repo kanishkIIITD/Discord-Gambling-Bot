@@ -314,7 +314,26 @@ client.on('interactionCreate', async interaction => {
 		try {
 			// Defer immediately to extend the response window from 3 seconds to 15 minutes
 			// Make certain commands private by default, others public
-			const privateCommands = ['pokecatch', 'cs2sell', 'cs2trade', 'giveawaypokemon', 'pokestats', 'pokebattlestats'];
+			const privateCommands = [
+				// Personal information and stats
+				'pokecatch', 'pokestats', 'pokebattlestats', 'cooldowns', 'collection', 'collectionList', 
+				'pokecollection', 'pokedex', 'balance', 'transactionHistory',
+				
+				// Shop and inventory
+				'shop', 'pokeshopdaily', 'cs2inventory', 'cs2stats', 'cs2view', 'pokeshop',
+				
+				// Trading and selling
+				'cs2sell', 'cs2trade', 'poketrade', 'pokesteal', 'sell', 'trade',
+				
+				// Personal actions
+				'pokeevolve', 'pokeevolveform', 'pokeopen', 'pokepacks', 'pokesellduplicates',
+				
+				// Administrative
+				'setpokechannel', 'setlogchannel', 'timeout', 'mysterybox', 'refund',
+				
+				// Other personal commands
+				'giveawaypokemon', 'redeemGoldenTicket', 'goldenTickets', 'quests', 'buffs', 'bail', 'beg'
+			];
 			const isPrivateCommand = privateCommands.includes(interaction.commandName);
 			await interaction.deferReply({ ephemeral: isPrivateCommand });
 			console.log(`[${interaction.commandName}] Deferred reply immediately to prevent timeout (${isPrivateCommand ? 'private' : 'public'})`);
