@@ -3581,12 +3581,7 @@ client.on('interactionCreate', async interaction => {
 		// For now, we'll proceed but errors might occur in subsequent backend calls
 	}
 
-	// Set up timeout warning for slow commands in production
-	let timeoutWarning = null;
-	if (isProduction) {
-		timeoutWarning = setupTimeoutWarning(interaction, commandName);
-		console.log(`[${commandName}] Set up timeout warning for production environment`);
-	}
+	// Timeout warnings are now handled by individual commands using interactionUtils
 	
 	// Log command start for debugging
 	console.log(`[${commandName}] Command execution started for user ${userId} in guild ${interaction.guildId}`);
@@ -6502,39 +6497,7 @@ process.on('unhandledRejection', error => {
 	console.error('Unhandled promise rejection:', error);
 }); 
 
-// Helper for timeout warnings in production
-function setupTimeoutWarning(interaction, commandName) {
-	if (isProduction) {
-		// Set timeout warning at 2 seconds for production
-		const timeout = setTimeout(async () => {
-			if (interaction.deferred && !interaction.replied) {
-				try {
-					await interaction.editReply({ 
-						content: '⏰ Command is taking longer than expected. Please wait...',
-						ephemeral: true 
-					});
-				} catch (err) {
-					if (err.code === 10062) {
-						console.log(`[${commandName}] Interaction expired during timeout warning`);
-					} else {
-						console.error(`[${commandName}] Failed to send timeout warning:`, err);
-					}
-				}
-			}
-		}, 2000);
-		
-		return timeout;
-	}
-	return null;
-}
-
-// Helper to check if interaction is still valid
-function isInteractionValid(interaction) {
-	return interaction && 
-		   interaction.isRepliable && 
-		   !interaction.replied && 
-		   !interaction.deferred;
-}
+// Helper functions moved to utils/interactionUtils.js for better organization
 
 // Helper to get interaction status for debugging
 function getInteractionStatus(interaction) {
