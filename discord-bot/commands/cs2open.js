@@ -159,7 +159,7 @@ module.exports = {
       resultEmbed.addFields(
         { 
           name: '🎨 Skin', 
-          value: `${rarityEmoji} **${skinName}**`, 
+          value: `**${skinName}**`, 
           inline: false 
         },
         { 

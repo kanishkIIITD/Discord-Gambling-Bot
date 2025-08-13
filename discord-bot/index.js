@@ -2657,7 +2657,7 @@ client.on('interactionCreate', async interaction => {
 				resultEmbed.addFields(
 					{ 
 						name: '🎨 Skin', 
-						value: `${rarityEmoji} **${skinName}**`, 
+						value: `**${skinName}**`, 
 						inline: false 
 					},
 					{ 
@@ -2676,6 +2676,31 @@ client.on('interactionCreate', async interaction => {
 						inline: true 
 					}
 				);
+
+				// Add float, pattern, and phase information if available
+				if (result.skin.float !== undefined && result.skin.float !== null) {
+					resultEmbed.addFields({
+					  name: '📊 Float',
+					  value: `**${result.skin.float.toFixed(6)}**`,
+					  inline: true
+					});
+				  }
+			
+				  if (result.skin.pattern && result.skin.pattern.trim() !== '') {
+					resultEmbed.addFields({
+					  name: '🎭 Pattern',
+					  value: `**${result.skin.pattern}**`,
+					  inline: true
+					});
+				  }
+			
+				  if (result.skin.phase && result.skin.phase.trim() !== '') {
+					resultEmbed.addFields({
+					  name: '🌈 Phase',
+					  value: `**${result.skin.phase}**`,
+					  inline: true
+					});
+				  }
 
 				// Add special properties if applicable
 				if (result.skin.isStatTrak) {
@@ -2794,9 +2819,9 @@ client.on('interactionCreate', async interaction => {
 					.filter(([_, items]) => items && items.length > 0)
 					.map(([rarity, items]) => {
 						const rarityEmoji = {
-							'consumer-grade': '⚪',
-							'industrial-grade': '🔵',
-							'mil-spec': '🔷',
+							'consumerGrade': '⚪',
+							'industrialGrade': '🔵',
+							'milSpec': '🔷',
 							'restricted': '🟣',
 							'classified': '🩷',
 							'covert': '🔴',

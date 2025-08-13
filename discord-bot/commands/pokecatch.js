@@ -42,8 +42,12 @@ module.exports = {
     .setDescription('Try to catch the wild Pokémon in this channel!'),
 
   async execute(interaction) {
+    // Defer the reply to extend the response timeout from 3 seconds to 15 minutes
+    // Make it ephemeral so the ball selection is private
+    await interaction.deferReply({ ephemeral: true });
+    
     if (!pokeCache.isKantoCacheReady()) {
-      return interaction.reply({
+      return interaction.editReply({
         content: 'Pokémon data is still loading. Please try again in a few seconds!',
         ephemeral: true
       });
@@ -51,7 +55,7 @@ module.exports = {
     const channelId = interaction.channelId;
     let spawn = activeSpawns.get(channelId);
     if (!spawn) {
-      return interaction.reply({ content: 'There is no wild Pokémon to catch in this channel. Ask an admin to use /pokespawn!', ephemeral: true });
+      return interaction.editReply({ content: 'There is no wild Pokémon to catch in this channel. Ask an admin to use /pokespawn!', ephemeral: true });
     }
     // ATOMICITY: re-fetch spawn from activeSpawns after any async operation
     // (No need to check spawn.caughtBy for single-catch logic anymore)
@@ -59,11 +63,11 @@ module.exports = {
     if (!spawn.attemptedBy) spawn.attemptedBy = [];
     if (!spawn.caughtBy) spawn.caughtBy = [];
     if (spawn.attemptedBy.includes(interaction.user.id)) {
-      return interaction.reply({ content: 'You have already tried to catch this Pokémon. Wait for the next spawn!', ephemeral: true });
+      return interaction.editReply({ content: 'You have already tried to catch this Pokémon. Wait for the next spawn!', ephemeral: true });
     }
     // If despawned (should not happen, but just in case)
     if (!activeSpawns.has(channelId)) {
-      return interaction.reply({ content: 'The Pokémon has already run away!', ephemeral: true });
+      return interaction.editReply({ content: 'The Pokémon has already run away!', ephemeral: true });
     }
     const pokemonId = spawn.pokemonId;
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
@@ -74,7 +78,7 @@ module.exports = {
       const userRes = await axios.get(`${backendUrl}/users/${interaction.user.id}`, { headers: { 'x-guild-id': interaction.guildId } });
       user = userRes.data.user || userRes.data;
     } catch (e) {
-      return interaction.reply({ content: 'Failed to fetch your Poké Ball inventory. Please try again later.', ephemeral: true });
+      return interaction.editReply({ content: 'Failed to fetch your Poké Ball inventory. Please try again later.', ephemeral: true });
     }
     // Build Poké Ball selection buttons
     const buttons = [];
@@ -117,16 +121,38 @@ module.exports = {
       .setTitle(`${getEmojiString('pokeball')} A wild ${displayName} appeared!`)
       .setImage(artwork)
       .setDescription('Which Poké Ball would you like to use?');
-    await interaction.reply({ embeds: [promptEmbed], components: [row], ephemeral: true });
+    
+    // Send the ball selection privately to the user
+    await interaction.editReply({ embeds: [promptEmbed], components: [row], ephemeral: true });
+    
     // Wait for button interaction
     const filter = i => i.user.id === interaction.user.id && i.customId.startsWith('pokecatch_');
+    
+    // Set up a timeout to notify the user if no ball is selected
+    const timeoutId = setTimeout(async () => {
+      try {
+        await interaction.followUp({ 
+          content: '⏰ Time expired! You didn\'t select a Poké Ball in time. The catch attempt was cancelled.', 
+          ephemeral: true 
+        });
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }, 20000);
+    
     try {
       const buttonInt = await interaction.channel.awaitMessageComponent({ filter, time: 20000, componentType: ComponentType.Button });
+      
+      // Clear the timeout since a ball was selected
+      clearTimeout(timeoutId);
+      
       await buttonInt.deferUpdate();
+      
       // --- FIX: Re-check if the Pokémon is still present after button selection ---
       if (!activeSpawns.has(channelId)) {
         return interaction.followUp({ content: 'The Pokémon has already run away!', ephemeral: true });
       }
+      
       // Mark as attempted
       spawn.attemptedBy.push(interaction.user.id);
       spawn.attempts = (spawn.attempts || 0) + 1;
@@ -296,7 +322,51 @@ module.exports = {
       } else {
         activeSpawns.set(channelId, spawn);
       }
-      await interaction.followUp({ embeds: [embed], ephemeral: false });
+      
+      // Update the public message with the final result
+      const finalPublicEmbed = new EmbedBuilder()
+        .setColor(data.success ? 0x2ecc71 : 0xe74c3c)
+        .setTitle(data.success ? 
+          `${getAnimatedEmojiString('pokeball_success')} ${data.embedData?.title || 'Pokémon Caught!'}` : 
+          `${getAnimatedEmojiString('pokeball_shake')} ${data.embedData?.title || 'Catch Failed'}`
+        )
+        .setImage(resultArtwork)
+        .setDescription(data.success ? 
+          `<@${interaction.user.id}> caught the wild ${displayName}!` : 
+          `<@${interaction.user.id}> tried to catch the wild ${displayName}, but it broke free!`
+        )
+        .addFields(
+          { name: 'Type', value: types, inline: true },
+          { name: 'Region', value: region, inline: true },
+          { name: 'Ball Used', value: data.ballUsed || ballType, inline: true },
+          { name: 'Catch Chance', value: data.embedData?.catchChance || '?', inline: true },
+          { name: 'Shiny', value: data.embedData?.isShiny ? 'Yes ✨' : 'No', inline: true },
+          { name: 'Form', value: data.embedData?.formName ? `${data.embedData.formName} 🔮` : 'Base Form', inline: true }
+        )
+        .setFooter({ text: 'Gotta catch \'em all!' });
+      
+      // Add evolution stage field if available
+      if (evolutionStageText) {
+        finalPublicEmbed.addFields({ name: 'Evolution', value: evolutionStageText, inline: true });
+      }
+      // Add extra fields if present
+      if (data.xpAward) finalPublicEmbed.addFields({ name: 'XP Gained', value: `${data.xpAward}`, inline: true });
+      if (data.dustAward) finalPublicEmbed.addFields({ name: 'Dust Gained', value: `${data.dustAward}`, inline: true });
+      if (data.xpBoosterUsed) finalPublicEmbed.addFields({ name: 'XP Booster', value: '2x XP!', inline: true });
+      
+      // Check for double weekend event
+      if (data.doubleWeekendActive) {
+        finalPublicEmbed.addFields({ name: '🎉 Double Weekend', value: `${data.doubleWeekendMultiplier}x Rewards!`, inline: true });
+      }
+      if (data.isDuplicate) finalPublicEmbed.addFields({ name: 'Duplicate', value: 'Yes', inline: true });
+      if (data.newLevel) finalPublicEmbed.addFields({ name: 'Level Up!', value: `Level ${data.newLevel}`, inline: true });
+      if (data.newlyUnlocked && data.newlyUnlocked.length > 0) finalPublicEmbed.addFields({ name: 'Unlocked', value: data.newlyUnlocked.join(', '), inline: false });
+      
+      await interaction.followUp({ embeds: [finalPublicEmbed] });
+      
+      // No need to send a private confirmation since the public message shows all details
+      // The user can see their catch result in the channel
+      
     } catch (e) {
       return interaction.followUp({ content: 'No Poké Ball selected or time expired. Try again!', ephemeral: true });
     }
