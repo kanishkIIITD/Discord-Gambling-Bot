@@ -28,7 +28,7 @@ module.exports = {
     .setDescription('View and buy special progression items (Poké Balls, XP Booster, Evolver\'s Ring)!'),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    // The interaction is already deferred as PRIVATE by the main handler
     const userId = interaction.user.id;
     const guildId = interaction.guildId;
     const backendUrl = process.env.BACKEND_API_URL;

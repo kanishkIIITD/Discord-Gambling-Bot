@@ -7,7 +7,7 @@ module.exports = {
     .setDescription('Sell a CS2 skin from your inventory'),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    // The interaction is already deferred as PRIVATE by the main handler
     const userId = interaction.user.id;
     const guildId = interaction.guildId;
     const backendUrl = process.env.BACKEND_API_URL;
@@ -263,7 +263,7 @@ module.exports = {
           .setStyle(ButtonStyle.Danger)
       );
 
-    await interaction.reply({
+    await interaction.editReply({
       embeds: [confirmationEmbed],
       components: [actionRow],
       ephemeral: true

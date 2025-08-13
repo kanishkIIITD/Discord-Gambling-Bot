@@ -60,7 +60,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      await interaction.deferReply();
+      // The interaction is already deferred by the main handler
       const backendUrl = process.env.BACKEND_API_URL;
       const response = await axios.get(`${backendUrl}/users/collection-list`);
       const { fish, animals, items } = response.data;

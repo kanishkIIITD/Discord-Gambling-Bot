@@ -14,7 +14,7 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: false });
+    // The interaction is already deferred as PUBLIC by the main handler
     const guildId = interaction.guildId;
     const limit = interaction.options.getInteger('limit') || 10;
     const backendUrl = process.env.BACKEND_API_URL;

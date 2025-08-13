@@ -29,7 +29,7 @@ module.exports = {
       // Allow specific user ID or admin permissions
       const allowedUserId = '294497956348821505';
       if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== allowedUserId) {
-        return interaction.reply({ content: 'Only admins or authorized users can use this command.', ephemeral: true });
+        return interaction.editReply({ content: 'Only admins or authorized users can use this command.', ephemeral: true });
       }
     }
     const backendUrl = process.env.BACKEND_API_URL;
@@ -74,7 +74,7 @@ module.exports = {
         }
 
         embed.setTimestamp();
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
 
       } else if (subcommand === 'start') {
         const response = await axios.post(`${backendUrl}/events/weekend/start`, {}, {
@@ -91,7 +91,7 @@ module.exports = {
           )
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
 
         // Send announcement to all spawn channels
         await sendWeekendAnnouncement(interaction.client, 'start');
@@ -107,7 +107,7 @@ module.exports = {
           .setDescription('Automatic weekend event has been manually stopped.')
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
 
         // Send announcement to all spawn channels
         await sendWeekendAnnouncement(interaction.client, 'end');
@@ -116,7 +116,7 @@ module.exports = {
     } catch (error) {
       console.error('Error in weekend command:', error);
       const errorMessage = error.response?.data?.message || 'An error occurred while processing the command.';
-      await interaction.reply({ content: `❌ ${errorMessage}`, ephemeral: true });
+      await interaction.editReply({ content: `❌ ${errorMessage}`, ephemeral: true });
     }
   }
 };

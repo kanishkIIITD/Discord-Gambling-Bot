@@ -33,7 +33,7 @@ module.exports = {
 
     // Prevent user from battling themselves
     if (challengerId === opponentId) {
-      await interaction.reply({
+      await interaction.editReply({
         content: '❌ You cannot battle yourself!',
         ephemeral: true
       });
@@ -41,7 +41,7 @@ module.exports = {
     }
 
     if (count < 1 || count > 5) {
-      await interaction.reply({
+      await interaction.editReply({
         content: '❌ Number of Pokémon must be between 1 and 5.',
         ephemeral: true
       });
@@ -67,12 +67,12 @@ module.exports = {
       ]);
     } catch (err) {
       if (err.message === 'timeout') {
-        await interaction.deferReply();
+        // The interaction is already deferred by the main handler
         replied = true;
         response = await apiPromise;
       } else {
         const errorMsg = err.response?.data?.error || err.message || 'Failed to create battle session.';
-        await interaction.reply({
+        await interaction.editReply({
           content: `❌ Could not start battle: ${errorMsg}`,
           ephemeral: true
         });
@@ -137,7 +137,7 @@ module.exports = {
         }
       }, 120000);
     } else {
-      const sentMsg = await interaction.reply({
+      const sentMsg = await interaction.editReply({
         content: `<@${opponentId}>, you have been challenged by <@${challengerId}> to a Pokémon battle! (Pokémon per side: ${count})`,
         components: [row],
         allowedMentions: { users: [opponentId] },

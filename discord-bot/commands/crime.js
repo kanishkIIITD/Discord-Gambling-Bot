@@ -20,7 +20,7 @@ module.exports = {
     const sub = interaction.options.getSubcommand();
     if (sub === 'stats') {
       try {
-        await interaction.deferReply();
+        // The interaction is already deferred by the main handler
         const userId = interaction.user.id;
         const backendUrl = process.env.BACKEND_API_URL;
         const guildId = interaction.guildId;
@@ -47,7 +47,7 @@ module.exports = {
     }
     // Default: attempt a crime
     try {
-      await interaction.deferReply();
+      // The interaction is already deferred by the main handler
       const userId = interaction.user.id;
       const backendUrl = process.env.BACKEND_API_URL;
       const guildId = interaction.guildId;

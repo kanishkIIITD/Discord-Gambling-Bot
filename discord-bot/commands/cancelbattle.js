@@ -20,7 +20,7 @@ module.exports = {
       const activeBattle = response.data;
       
       if (!activeBattle) {
-        await interaction.reply({
+        await interaction.editReply({
           content: '❌ You don\'t have any active battles to cancel.',
           ephemeral: true
         });
@@ -35,14 +35,14 @@ module.exports = {
         headers: { 'x-guild-id': guildId }
       });
 
-      await interaction.reply({
+      await interaction.editReply({
         content: '✅ Your active battle has been cancelled successfully.',
         ephemeral: true
       });
 
     } catch (error) {
       const errorMessage = error.response?.data?.error || error.message || 'Failed to cancel battle.';
-      await interaction.reply({
+      await interaction.editReply({
         content: `❌ Could not cancel battle: ${errorMessage}`,
         ephemeral: true
       });

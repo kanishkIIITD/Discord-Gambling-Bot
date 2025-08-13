@@ -20,7 +20,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      await interaction.deferReply();
+      // The interaction is already deferred by the main handler
       const userId = interaction.user.id;
       const target = interaction.options.getUser('user');
       const bailAll = interaction.options.getBoolean('all') || false;

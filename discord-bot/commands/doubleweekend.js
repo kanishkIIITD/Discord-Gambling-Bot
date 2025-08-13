@@ -41,7 +41,7 @@ module.exports = {
       // Allow specific user ID or admin permissions
       const allowedUserId = '294497956348821505';
       if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator) && interaction.user.id !== allowedUserId) {
-        return interaction.reply({ content: 'Only admins or authorized users can use this command.', ephemeral: true });
+        return interaction.editReply({ content: 'Only admins or authorized users can use this command.', ephemeral: true });
       }
     }
     const backendUrl = process.env.BACKEND_API_URL;
@@ -71,7 +71,7 @@ module.exports = {
           )
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
 
         // Send announcement to all spawn channels
         await sendDoubleWeekendAnnouncement(interaction.client, 'start', event);
@@ -93,7 +93,7 @@ module.exports = {
           )
           .setTimestamp();
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
 
         // Send announcement to all spawn channels
         await sendDoubleWeekendAnnouncement(interaction.client, 'end', event);
@@ -116,7 +116,7 @@ module.exports = {
             )
             .setTimestamp();
           
-          await interaction.reply({ embeds: [embed] });
+          await interaction.editReply({ embeds: [embed] });
         } else {
           const embed = new EmbedBuilder()
             .setColor(0x808080)
@@ -124,13 +124,13 @@ module.exports = {
             .setDescription('No double weekend event is currently active.')
             .setTimestamp();
           
-          await interaction.reply({ embeds: [embed] });
+          await interaction.editReply({ embeds: [embed] });
         }
       }
     } catch (error) {
       console.error('Error in doubleweekend command:', error);
       const errorMessage = error.response?.data?.message || 'An error occurred while processing the command.';
-      await interaction.reply({ content: `❌ ${errorMessage}`, ephemeral: true });
+      await interaction.editReply({ content: `❌ ${errorMessage}`, ephemeral: true });
     }
   }
 };

@@ -7,7 +7,7 @@ module.exports = {
     .setDescription('View all currently jailed users in this server'),
 
   async execute(interaction) {
-    await interaction.deferReply();
+    // The interaction is already deferred by the main handler
     try {
       const backendUrl = process.env.BACKEND_API_URL;
       const guildId = interaction.guildId;

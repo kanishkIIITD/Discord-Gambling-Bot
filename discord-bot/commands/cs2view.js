@@ -14,7 +14,7 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: false });
+    // The interaction is already deferred as PUBLIC by the main handler
     const targetUser = interaction.options.getUser('user') || interaction.user;
     const userId = targetUser.id;
     const guildId = interaction.guildId;
@@ -51,7 +51,7 @@ module.exports = {
     try {
       // Defer the interaction if it hasn't been replied to yet
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.deferReply({ ephemeral: false });
+        // The interaction is already deferred as PUBLIC by the main handler
       }
       
       let skins = allSkins;
@@ -93,7 +93,7 @@ module.exports = {
         if (skins.length === 0) {
           // Defer if needed before editing
           if (!interaction.replied && !interaction.deferred) {
-            await interaction.deferReply({ ephemeral: false });
+            // The interaction is already deferred as PUBLIC by the main handler
           }
           
           await interaction.editReply({ 
@@ -198,7 +198,7 @@ module.exports = {
           components: [selectRow, buttonRow]
         });
       } else {
-        await interaction.reply({ 
+        await interaction.editReply({ 
           embeds: [embed], 
           components: [selectRow, buttonRow],
           ephemeral: false 
@@ -226,7 +226,7 @@ module.exports = {
       
       // Defer if needed before editing
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.deferReply({ ephemeral: false });
+        // The interaction is already deferred as PUBLIC by the main handler
       }
       
       await interaction.editReply({ 
@@ -241,7 +241,7 @@ module.exports = {
     try {
       // Defer the interaction if it hasn't been replied to yet
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.deferReply({ ephemeral: false });
+        // The interaction is already deferred as PUBLIC by the main handler
       }
       
       // Get user's CS2 inventory to find the specific skin

@@ -77,7 +77,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      // The interaction is already deferred as PRIVATE by the main handler
       
       const userId = interaction.user.id;
       const guildId = interaction.guildId;

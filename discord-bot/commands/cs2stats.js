@@ -12,7 +12,7 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: false });
+    // The interaction is already deferred as PUBLIC by the main handler
     const targetUser = interaction.options.getUser('user') || interaction.user;
     const userId = targetUser.id;
     const guildId = interaction.guildId;
@@ -187,7 +187,7 @@ module.exports = {
       const { openings } = response.data;
       
       if (openings.length === 0) {
-        await interaction.reply({ content: 'No case openings found.', ephemeral: true });
+        await interaction.editReply({ content: 'No case openings found.', ephemeral: true });
         return;
       }
 
@@ -208,9 +208,9 @@ module.exports = {
         });
       });
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.editReply({ embeds: [embed], ephemeral: true });
     } catch (error) {
-      await interaction.reply({ content: '❌ Failed to load recent openings.', ephemeral: true });
+      await interaction.editReply({ content: '❌ Failed to load recent openings.', ephemeral: true });
     }
   },
 
@@ -223,7 +223,7 @@ module.exports = {
       const { drops } = response.data;
       
       if (drops.length === 0) {
-        await interaction.reply({ content: 'No case openings found.', ephemeral: true });
+        await interaction.editReply({ content: 'No case openings found.', ephemeral: true });
         return;
       }
 
@@ -243,9 +243,9 @@ module.exports = {
         });
       });
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.editReply({ embeds: [embed], ephemeral: true });
     } catch (error) {
-      await interaction.reply({ content: '❌ Failed to load best drops.', ephemeral: true });
+      await interaction.editReply({ content: '❌ Failed to load best drops.', ephemeral: true });
     }
   },
 
@@ -258,7 +258,7 @@ module.exports = {
       const { drops } = response.data;
       
       if (drops.length === 0) {
-        await interaction.reply({ content: 'No case openings found.', ephemeral: true });
+        await interaction.editReply({ content: 'No case openings found.', ephemeral: true });
         return;
       }
 
@@ -278,9 +278,9 @@ module.exports = {
         });
       });
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.editReply({ embeds: [embed], ephemeral: true });
     } catch (error) {
-      await interaction.reply({ content: '❌ Failed to load rarest drops.', ephemeral: true });
+      await interaction.editReply({ content: '❌ Failed to load rarest drops.', ephemeral: true });
     }
   },
 
@@ -315,9 +315,9 @@ module.exports = {
         });
       }
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.editReply({ embeds: [embed], ephemeral: true });
     } catch (error) {
-      await interaction.reply({ content: '❌ Failed to load inventory.', ephemeral: true });
+      await interaction.editReply({ content: '❌ Failed to load inventory.', ephemeral: true });
     }
   },
 

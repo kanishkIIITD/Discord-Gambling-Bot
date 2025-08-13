@@ -20,7 +20,7 @@ async function safeErrorReply(interaction, embed) {
             await interaction.editReply({ embeds: [embed] });
         } else if (!interaction.replied && interaction.reply) {
             // If not replied and can reply directly
-            await interaction.reply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] });
         } else if (interaction.followUp) {
             // Last resort - try followUp if the method exists
             await interaction.followUp({ embeds: [embed] });
@@ -163,7 +163,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      await interaction.deferReply();
+      // The interaction is already deferred by the main handler
       const userId = interaction.user.id;
       const guildId = interaction.guildId;
       const now = Date.now();

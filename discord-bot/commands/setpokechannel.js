@@ -19,7 +19,7 @@ module.exports = {
 
   async execute(interaction) {
     if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-      return interaction.reply({ content: 'Only admins can use this command.', ephemeral: true });
+      return interaction.editReply({ content: 'Only admins can use this command.', ephemeral: true });
     }
     
     const generation = interaction.options.getString('generation');
@@ -34,13 +34,13 @@ module.exports = {
       const genName = generation === 'current' 
         ? `Current Generation (${getCurrentGenInfo().description})` 
         : `Previous Generation (${getPreviousGenInfo().description})`;
-      await interaction.reply({ 
+      await interaction.editReply({ 
         content: `This channel is now set as the ${genName} Pokémon spawn channel!`, 
         ephemeral: true 
       });
     } catch (err) {
       console.error('Failed to set Pokémon spawn channel:', err);
-      await interaction.reply({ content: 'Failed to set the Pokémon spawn channel. Please try again later.', ephemeral: true });
+      await interaction.editReply({ content: 'Failed to set the Pokémon spawn channel. Please try again later.', ephemeral: true });
     }
   },
 }; 

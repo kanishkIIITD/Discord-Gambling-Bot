@@ -42,7 +42,7 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    await interaction.deferReply();
+    // The interaction is already deferred by the main handler
     const backendUrl = process.env.BACKEND_API_URL;
     try {
       const res = await axios.get(`${backendUrl}/users/${interaction.user.id}/pokedex`, {
@@ -204,7 +204,7 @@ module.exports = {
           .setRequired(false)
       ),
     async execute(interaction) {
-      await interaction.deferReply({ ephemeral: true });
+      // The interaction is already deferred as PRIVATE by the main handler
       const backendUrl = process.env.BACKEND_API_URL;
       // Fetch user's pokedex
       let pokedex = [];

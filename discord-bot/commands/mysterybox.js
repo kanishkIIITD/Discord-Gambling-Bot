@@ -28,7 +28,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      await interaction.deferReply();
+      // The interaction is already deferred by the main handler
 
       const boxType = interaction.options.getString('type');
       let count = interaction.options.getInteger('count') || 1;
@@ -223,7 +223,7 @@ module.exports = {
           .setTimestamp();
 
         if (!interaction.replied && !interaction.deferred) {
-          await interaction.reply({ embeds: [errorEmbed], flags: 64 }); // 64 is the flag for ephemeral
+          await interaction.editReply({ embeds: [errorEmbed], flags: 64 }); // 64 is the flag for ephemeral
         } else {
           await interaction.editReply({ embeds: [errorEmbed] });
         }

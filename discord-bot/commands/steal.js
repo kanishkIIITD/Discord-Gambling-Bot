@@ -172,12 +172,8 @@ module.exports = {
                 embed.addFields({ name: 'Active Punishments', value: punishmentsText, inline: false });
             }
 
-            if (duration < 2500) {
-                await interaction.reply({ embeds: [embed] });
-            } else {
-                await interaction.deferReply();
-                await interaction.editReply({ embeds: [embed] });
-            }
+            // The interaction is already deferred by the main handler
+            await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
             const errorEmbed = createErrorEmbed('Command Error');
@@ -188,11 +184,8 @@ module.exports = {
                 errorEmbed.setDescription('❌ An unexpected error occurred while fetching steal statistics.');
             }
 
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ embeds: [errorEmbed] });
-            } else {
-                await interaction.editReply({ embeds: [errorEmbed] });
-            }
+            // The interaction is already deferred by the main handler
+            await interaction.editReply({ embeds: [errorEmbed] });
         }
     },
 
@@ -266,19 +259,12 @@ module.exports = {
                     allowedMentions: { users: [targetUser.id] }
                 };
 
-                if (duration < 2500) {
-                    await interaction.reply({
-                        content: `<@${targetUser.id}>`,
-                        ...messageData
-                    });
-                } else {
-                    await interaction.deferReply();
-                    await interaction.editReply(messageData);
-                    await interaction.followUp({
-                        content: `<@${targetUser.id}>`,
-                        allowedMentions: { users: [targetUser.id] }
-                    });
-                }
+                // The interaction is already deferred by the main handler
+                await interaction.editReply(messageData);
+                await interaction.followUp({
+                    content: `<@${targetUser.id}>`,
+                    allowedMentions: { users: [targetUser.id] }
+                });
             } else {
                 const embed = createErrorEmbed(`${punishmentEmojis[punishment?.type] || '🚔'} Steal Failed!`)
                     .setColor(0xffa500)
@@ -331,19 +317,12 @@ module.exports = {
                     allowedMentions: { users: [targetUser.id] }
                 };
 
-                if (duration < 2500) {
-                    await interaction.reply({
-                        content: `<@${targetUser.id}>`,
-                        ...messageData
-                    });
-                } else {
-                    await interaction.deferReply();
-                    await interaction.editReply(messageData);
-                    await interaction.followUp({
-                        content: `<@${targetUser.id}>`,
-                        allowedMentions: { users: [targetUser.id] }
-                    });
-                }
+                // The interaction is already deferred by the main handler
+                await interaction.editReply(messageData);
+                await interaction.followUp({
+                    content: `<@${targetUser.id}>`,
+                    allowedMentions: { users: [targetUser.id] }
+                });
             }
 
         } catch (error) {
@@ -373,11 +352,8 @@ module.exports = {
                 errorEmbed.setDescription('❌ An unexpected error occurred while processing the steal command.');
             }
 
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ embeds: [errorEmbed] });
-            } else {
-                await interaction.editReply({ embeds: [errorEmbed] });
-            }
+            // The interaction is already deferred by the main handler
+            await interaction.editReply({ embeds: [errorEmbed] });
         }
     }
 }; 

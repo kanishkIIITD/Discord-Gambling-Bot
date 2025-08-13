@@ -37,7 +37,7 @@ module.exports = {
   },
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: false });
+    // The interaction is already deferred as PUBLIC by the main handler
     const userId = interaction.user.id;
     const guildId = interaction.guildId;
     const caseId = interaction.options.getString('case');
@@ -354,7 +354,7 @@ module.exports = {
         });
       }
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.editReply({ embeds: [embed], ephemeral: true });
     } catch (error) {
       console.error('Error loading inventory:', error);
       let errorMessage = '❌ Failed to load inventory.';
@@ -363,7 +363,7 @@ module.exports = {
       } else if (error.response?.status === 500) {
         errorMessage = '❌ **Server error.** Please try again later.';
       }
-      await interaction.reply({ content: errorMessage, ephemeral: true });
+      await interaction.editReply({ content: errorMessage, ephemeral: true });
     }
   },
 
@@ -387,7 +387,7 @@ module.exports = {
           { name: '🎯 Profitable Opens', value: `${stats.profitableOpenings}/${stats.totalOpenings}`, inline: true }
         );
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.editReply({ embeds: [embed], ephemeral: true });
     } catch (error) {
       console.error('Error loading stats:', error);
       let errorMessage = '❌ Failed to load stats.';
@@ -396,7 +396,7 @@ module.exports = {
       } else if (error.response?.status === 500) {
         errorMessage = '❌ **Server error.** Please try again later.';
       }
-      await interaction.reply({ content: errorMessage, ephemeral: true });
+      await interaction.editReply({ content: errorMessage, ephemeral: true });
     }
   },
 
@@ -409,7 +409,7 @@ module.exports = {
         caseData = caseResponse.data.case;
         
         if (!caseData) {
-          await interaction.reply({ 
+          await interaction.editReply({ 
             content: '❌ **Case not found!** The specified case could not be found.',
             ephemeral: true 
           });
@@ -417,7 +417,7 @@ module.exports = {
         }
         
         if (!caseData.price || caseData.price <= 0) {
-          await interaction.reply({ 
+          await interaction.editReply({ 
             content: '❌ **Invalid case!** This case has no price set.',
             ephemeral: true 
           });
@@ -425,14 +425,14 @@ module.exports = {
         }
       } catch (error) {
         if (error.response?.status === 404) {
-          await interaction.reply({ 
+          await interaction.editReply({ 
             content: '❌ **Case not found!** The specified case could not be found.',
             ephemeral: true 
           });
           return;
         }
         console.error('Error fetching case data:', error);
-        await interaction.reply({ 
+        await interaction.editReply({ 
           content: '❌ **Error fetching case data.** Please try again later.',
           ephemeral: true 
         });
@@ -448,14 +448,14 @@ module.exports = {
         balance = walletResponse.data.balance;
       } catch (error) {
         if (error.response?.status === 404) {
-          await interaction.reply({ 
+          await interaction.editReply({ 
             content: `❌ **No wallet found!** <@${interaction.user.id}>, you need to have a wallet to open cases.`,
             ephemeral: true 
           });
           return;
         }
         console.error('Error fetching wallet:', error);
-        await interaction.reply({ 
+        await interaction.editReply({ 
           content: '❌ **Error fetching wallet.** Please try again later.',
           ephemeral: true 
         });
@@ -463,7 +463,7 @@ module.exports = {
       }
 
       if (balance < caseData.price) {
-        await interaction.reply({ 
+        await interaction.editReply({ 
           content: `❌ **Insufficient funds!** <@${interaction.user.id}>, you need **${caseData.price}** points to open another case.\nYour balance: **${balance}** points`,
           ephemeral: true 
         });
@@ -471,7 +471,7 @@ module.exports = {
       }
       
       if (balance < 0) {
-        await interaction.reply({ 
+        await interaction.editReply({ 
           content: '❌ **Invalid balance!** Your wallet has a negative balance. Please contact an administrator.',
           ephemeral: true 
         });

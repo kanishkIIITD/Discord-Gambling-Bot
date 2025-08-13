@@ -59,7 +59,7 @@ module.exports = {
           // --- Always show a clear error message to the user ---
           const msg = error.response?.data?.message || error.message || 'An error occurred while creating the duel.';
           if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({ content: `❌ ${msg}`, ephemeral: true });
+            await interaction.editReply({ content: `❌ ${msg}`, ephemeral: true });
           } else {
             await interaction.followUp({ content: `❌ ${msg}`, ephemeral: true });
           }
@@ -95,14 +95,14 @@ module.exports = {
   
         let sentMessage;
         if (duration < 2500) {
-          sentMessage = await interaction.reply({
+          sentMessage = await interaction.editReply({
             content: pingContent,
             embeds: [embed],
             components: [row],
             allowedMentions: { users: [userId, opponent.id] }
           }).then(() => interaction.fetchReply());
         } else {
-          await interaction.deferReply();
+          // The interaction is already deferred by the main handler
           sentMessage = await interaction.editReply({ embeds: [embed], components: [row] }).then(() => interaction.fetchReply());
           await interaction.followUp({
             content: pingContent,
@@ -167,7 +167,7 @@ module.exports = {
         // This catch is now only for unexpected errors
         logger.error('Error in /duel challenge:', error);
         if (!interaction.replied && !interaction.deferred) {
-          await interaction.reply({ content: '❌ An unexpected error occurred while creating the duel.', ephemeral: true });
+          await interaction.editReply({ content: '❌ An unexpected error occurred while creating the duel.', ephemeral: true });
         } else {
           await interaction.followUp({ content: '❌ An unexpected error occurred while creating the duel.', ephemeral: true });
         }
@@ -195,9 +195,9 @@ module.exports = {
         };
   
         if (duration < 2500) {
-          await interaction.reply({ embeds: [embed] });
+          await interaction.editReply({ embeds: [embed] });
         } else {
-          await interaction.deferReply();
+          // The interaction is already deferred by the main handler
           await interaction.editReply({ embeds: [embed] });
         }
   

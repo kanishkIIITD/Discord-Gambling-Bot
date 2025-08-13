@@ -116,7 +116,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      await interaction.deferReply();
+      // The interaction is already deferred by the main handler
       const userId = interaction.user.id;
       const guildId = interaction.guildId;
       const backendUrl = process.env.BACKEND_API_URL;

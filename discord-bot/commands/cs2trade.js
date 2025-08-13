@@ -7,7 +7,7 @@ module.exports = {
     .setDescription('Trade a CS2 skin with another user'),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    // The interaction is already deferred as PRIVATE by the main handler
     const userId = interaction.user.id;
     const guildId = interaction.guildId;
     const backendUrl = process.env.BACKEND_API_URL;
@@ -239,7 +239,7 @@ module.exports = {
 
     const actionRow = new ActionRowBuilder().addComponents(userSelectMenu);
 
-    await interaction.reply({
+    await interaction.editReply({
       embeds: [userSelectEmbed],
       components: [actionRow],
       ephemeral: true
@@ -309,7 +309,7 @@ module.exports = {
           .setStyle(ButtonStyle.Danger)
       );
 
-    await interaction.reply({
+    await interaction.editReply({
       content: `<@${targetUserId}> **New Trade Proposal!**`,
       embeds: [tradeEmbed],
       components: [actionRow],

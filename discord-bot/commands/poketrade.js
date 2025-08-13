@@ -57,7 +57,7 @@ module.exports = {
         .setRequired(true)
     ),
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    // The interaction is already deferred as PRIVATE by the main handler
     const initiatorId = interaction.user.id;
     const recipient = interaction.options.getUser('user');
     const recipientId = recipient.id;

@@ -14,7 +14,7 @@ module.exports = {
     .setDescription('Sell your duplicate Pokémon for stardust!'),
 
   async execute(interaction) {
-    await interaction.deferReply();
+    // The interaction is already deferred by the main handler
     const backendUrl = process.env.BACKEND_API_URL;
     
     try {

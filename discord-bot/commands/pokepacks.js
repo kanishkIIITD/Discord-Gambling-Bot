@@ -7,7 +7,7 @@ module.exports = {
     .setDescription('Browse available Pokémon TCG card packs!'),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    // The interaction is already deferred as PRIVATE by the main handler
     const userId = interaction.user.id;
     const guildId = interaction.guildId;
     const backendUrl = process.env.BACKEND_API_URL;

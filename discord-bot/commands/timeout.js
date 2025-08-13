@@ -23,7 +23,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
     async execute(interaction) {
-        await interaction.deferReply();
+        // The interaction is already deferred by the main handler
 
         const targetUser = interaction.options.getUser('user');
         const duration = interaction.options.getInteger('duration');

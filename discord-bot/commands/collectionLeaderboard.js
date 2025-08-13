@@ -15,7 +15,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      await interaction.deferReply();
+      // The interaction is already deferred by the main handler
       const backendUrl = process.env.BACKEND_API_URL;
       const limit = interaction.options.getInteger('limit') || 5;
       const guildId = interaction.guildId;

@@ -145,7 +145,7 @@ module.exports = {
     .setDescription('View today\'s rotating Gen 1 Pokémon shop featuring Pokémon from different rarities!'),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    // The interaction is already deferred as PRIVATE by the main handler
     const userId = interaction.user.id;
     const guildId = interaction.guildId;
     const backendUrl = process.env.BACKEND_API_URL;

@@ -106,6 +106,8 @@ module.exports = {
       pokespawnCooldowns.set(guildId, now);
       const channelId = interaction.channelId;
       
+      console.log(`[PokeSpawn] Preparing to spawn in channel ${channelId}`);
+      
       // Clear any existing despawn timers before spawning
       clearAllDespawnTimers(channelId);
       
@@ -115,14 +117,19 @@ module.exports = {
         console.log(`[PokeSpawn][DELETE] Deleted stale spawn for channel ${channelId} before new spawn.`);
       }
       
+      // Double-check that the channel is clear
       if (activeSpawns.has(channelId)) {
+        console.log(`[PokeSpawn] Channel ${channelId} still has active spawn after cleanup`);
         const success = await safeInteractionResponse(
           interaction, 
           'A wild Pokémon is already present in this channel! Use /pokecatch to try catching it.',
           { ephemeral: true }
         );
         if (!success) return;
+        return; // Exit early if spawn still exists
       }
+      
+      console.log(`[PokeSpawn] Channel ${channelId} is clear, proceeding with spawn`);
       
       // Spawn current generation Pokémon
       const pokemonId = pokeCache.getRandomPokemonIdByGeneration(currentGen);
@@ -218,6 +225,14 @@ module.exports = {
       activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: sentMsg.id, attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
       console.log(`[PokeSpawn][SPAWN] Created spawn in channel ${channelId}: messageId=${sentMsg.id}, pokemonId=${pokemonId}, spawnedAt=${Date.now()}`);
       
+      // Verify the spawn was stored correctly
+      const storedSpawn = activeSpawns.get(channelId);
+      if (storedSpawn) {
+        console.log(`[PokeSpawn] Verified spawn stored in activeSpawns: ${storedSpawn.pokemonId} for channel ${channelId}`);
+      } else {
+        console.error(`[PokeSpawn] ERROR: Spawn was not stored in activeSpawns for channel ${channelId}`);
+      }
+      
       const DESPAWN_TIME = 60 * 1000; // 1 minute
       const timeout = setTimeout(async () => {
         const spawn = activeSpawns.get(channelId);
@@ -277,7 +292,7 @@ module.exports.spawnCustomPokemonCommand = {
     ),
   async execute(interaction) {
     if (interaction.user.id !== ALLOWED_DISCORD_ID) {
-      return interaction.reply({ content: 'You are not authorized to use this command.', ephemeral: true });
+      return interaction.editReply({ content: 'You are not authorized to use this command.', ephemeral: true });
     }
     const userObj = interaction.options.getUser('user');
     const targetDiscordId = userObj.id;
@@ -294,13 +309,13 @@ module.exports.spawnCustomPokemonCommand = {
         { headers: { 'x-admin-secret': process.env.ADMIN_GIVE_POKEMON_SECRET } }
       );
       const msg = response.data.message || 'Pokémon given.';
-      return interaction.reply({ content: msg, ephemeral: true });
+      return interaction.editReply({ content: msg, ephemeral: true });
     } catch (error) {
       let errMsg = 'Failed to give Pokémon.';
       if (error.response && error.response.data && error.response.data.message) {
         errMsg = error.response.data.message;
       }
-      return interaction.reply({ content: errMsg, ephemeral: true });
+      return interaction.editReply({ content: errMsg, ephemeral: true });
     }
   }
 };

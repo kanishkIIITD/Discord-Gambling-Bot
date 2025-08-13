@@ -7,7 +7,7 @@ module.exports = {
     .setDescription('View available CS2 cases and their contents!'),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: false });
+    // The interaction is already deferred as PUBLIC by the main handler
     const guildId = interaction.guildId;
     const backendUrl = process.env.BACKEND_API_URL;
 

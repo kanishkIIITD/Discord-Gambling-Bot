@@ -12,7 +12,7 @@ module.exports = {
     logger.info('[BUFFS] Command started');
     try {
       logger.info('[BUFFS] Deferring reply');
-      await interaction.deferReply();
+      // The interaction is already deferred by the main handler
       
       const userId = interaction.user.id;
       const guildId = interaction.guildId;

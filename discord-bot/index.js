@@ -313,8 +313,11 @@ client.on('interactionCreate', async interaction => {
 	if (interaction.isCommand()) {
 		try {
 			// Defer immediately to extend the response window from 3 seconds to 15 minutes
-			await interaction.deferReply();
-			console.log(`[${interaction.commandName}] Deferred reply immediately to prevent timeout`);
+			// Make certain commands private by default, others public
+			const privateCommands = ['pokecatch', 'cs2sell', 'cs2trade', 'giveawaypokemon', 'pokestats', 'pokebattlestats'];
+			const isPrivateCommand = privateCommands.includes(interaction.commandName);
+			await interaction.deferReply({ ephemeral: isPrivateCommand });
+			console.log(`[${interaction.commandName}] Deferred reply immediately to prevent timeout (${isPrivateCommand ? 'private' : 'public'})`);
 		} catch (err) {
 			if (err.code === 10062) {
 				console.log(`[${interaction.commandName}] Interaction expired during immediate defer`);
@@ -1773,7 +1776,7 @@ client.on('interactionCreate', async interaction => {
 				}
 
 				// Defer the reply to acknowledge the interaction
-				await interaction.deferReply();
+				// The interaction is already deferred by the main handler
 
 				// Immediately disable the buttons on the message that was clicked
 				const originalMessage = interaction.message;
@@ -3563,7 +3566,7 @@ client.on('interactionCreate', async interaction => {
 					.setDescription('You cannot use this command while jailed. Ask a friend to `/bail` you out or wait until your sentence is over.')
 					.addFields({ name: 'Jailed Until', value: jailedUntil ? `<t:${Math.floor(new Date(jailedUntil).getTime()/1000)}:R>` : 'Unknown', inline: false })
 					.setTimestamp();
-				await interaction.reply({ embeds: [embed]});
+				await interaction.editReply({ embeds: [embed]});
 				return;
 			}
 		} catch (err) {
@@ -3601,7 +3604,7 @@ client.on('interactionCreate', async interaction => {
 
 	if (commandName === 'balance') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const response = await axios.get(`${backendApiUrl}/users/${userId}/wallet`, {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
@@ -3624,7 +3627,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'listbets') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const response = await axios.get(`${backendApiUrl}/bets/open`, {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
@@ -3669,7 +3672,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'viewbet') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const betId = interaction.options.getString('bet_id');
 			const response = await axios.get(`${backendApiUrl}/bets/${betId}`, {
 				params: { guildId: interaction.guildId },
@@ -3728,7 +3731,7 @@ client.on('interactionCreate', async interaction => {
 					.setTitle('⚠️ Invalid Options')
 					.setDescription('Please provide at least two comma-separated options for the bet.')
 					.setTimestamp();
-				await interaction.reply({ embeds: [embed], ephemeral: true });
+				await interaction.editReply({ embeds: [embed] });
 				return;
 			}
 
@@ -3774,34 +3777,20 @@ client.on('interactionCreate', async interaction => {
 				}
 			}
 
-			// Decide response method
-			if (duration < 2500) {
-				// Fast enough — reply directly with ping
-				const sentMessage = await interaction.reply({
-					content: `${content}`,
-					embeds: [embed],
-					allowedMentions: gamblersRole ? { roles: [gamblersRole.id] } : undefined
-				}).then(() => interaction.fetchReply());
+			// The interaction is already deferred by the main handler, so always use editReply
+			const sentMessage = await interaction.editReply({
+				embeds: [embed]
+			}).then(() => interaction.fetchReply());
 
-				// Track message
-				betMessageMap[newBet._id] = { messageId: sentMessage.id, channelId: sentMessage.channelId || sentMessage.channel.id };
-			} else {
-				// Took too long — use defer and follow-up
-				await interaction.deferReply();
+			// Track message
+			betMessageMap[newBet._id] = { messageId: sentMessage.id, channelId: sentMessage.channelId || sentMessage.channel.id };
 
-				const sentMessage = await interaction.editReply({ 
-					embeds: [embed]
-				}).then(() => interaction.fetchReply());
-
-				// Track message
-				betMessageMap[newBet._id] = { messageId: sentMessage.id, channelId: sentMessage.channelId || sentMessage.channel.id };
-
-				if (gamblersRole) {
-					await interaction.followUp({
-						content: `${content} A new bet **${newBet.description}** has been created!`,
-						allowedMentions: { roles: [gamblersRole.id] }
-					});
-				}
+			// Send ping as follow-up if there's a gamblers role
+			if (gamblersRole) {
+				await interaction.followUp({
+					content: `${content} A new bet **${newBet.description}** has been created!`,
+					allowedMentions: { roles: [gamblersRole.id] }
+				});
 			}
 
 			await saveBetMessageMap();
@@ -3819,7 +3808,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'placebet') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const betId = interaction.options.getString('bet_id');
 			const option = interaction.options.getString('option');
 			let rawAmount = interaction.options.getString('amount');
@@ -4051,7 +4040,7 @@ client.on('interactionCreate', async interaction => {
 					allowedMentions
 				}).then(() => interaction.fetchReply());
 			} else {
-				await interaction.deferReply();
+				// The interaction is already deferred by the main handler
 
 				await interaction.editReply({
 					embeds: [embed]
@@ -4077,7 +4066,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'closebet') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const betId = interaction.options.getString('bet_id');
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/close`, {
 				guildId: interaction.guildId,
@@ -4109,7 +4098,7 @@ client.on('interactionCreate', async interaction => {
 				throw new Error('Backend URL is not configured');
 			}
 			
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const limit = interaction.options.getInteger('limit') || 5;
 			const userId = interaction.user.id;
 			const username = interaction.user.username;
@@ -4172,7 +4161,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'stats') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const response = await axios.get(`${backendApiUrl}/users/${userId}/stats`, {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
@@ -4222,7 +4211,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'profile') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const targetUser = interaction.options.getUser('user') || interaction.user;
 			const response = await axios.get(`${backendApiUrl}/users/${targetUser.id}/profile`, {
 				params: { guildId: interaction.guildId },
@@ -4297,7 +4286,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'coinflip') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const choice = interaction.options.getString('choice');
 			let rawAmount = interaction.options.getString('amount');
 			if (rawAmount === null || rawAmount === undefined) {
@@ -4435,7 +4424,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'dice') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const betType = interaction.options.getString('bet_type');
 			const number = interaction.options.getInteger('number');
 			let rawAmount = interaction.options.getString('amount');
@@ -4575,7 +4564,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'slots') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			let rawAmount = interaction.options.getString('amount');
 			if (rawAmount === null || rawAmount === undefined) {
 				const intAmount = interaction.options.getInteger('amount');
@@ -4722,7 +4711,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'blackjack') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			let rawAmount = interaction.options.getString('amount');
 			if (rawAmount === null || rawAmount === undefined) {
 				const intAmount = interaction.options.getInteger('amount');
@@ -5091,7 +5080,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'roulette') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const betType = interaction.options.getString('bet_type');
 			const number = interaction.options.getInteger('number');
 			let rawAmount = interaction.options.getString('amount');
@@ -5239,7 +5228,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'jackpot') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const action = interaction.options.getString('action');
 			const amount = interaction.options.getInteger('amount');
 			if (action === 'view') {
@@ -5293,7 +5282,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'transactions') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const userId = interaction.user.id;
 			const limit = interaction.options.getInteger('limit') || 5;
 			const type = interaction.options.getString('type') || 'all';
@@ -5340,7 +5329,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'unresolvedbets') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const response = await axios.get(`${backendApiUrl}/bets/unresolved`, {
 				params: { guildId: interaction.guildId },
 				headers: { 'x-guild-id': interaction.guildId }
@@ -5385,7 +5374,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'meowbark') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const amount = interaction.options.getInteger('amount');
 			const userId = interaction.user.id;
 			const now = Date.now();
@@ -5504,7 +5493,7 @@ client.on('interactionCreate', async interaction => {
 		await mysteryboxCommand.execute(interaction);
 	} else if (commandName === 'resetcooldowns') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			
 			const response = await axios.post(`${process.env.BACKEND_API_URL}/users/${interaction.user.id}/reset-cooldowns`, {}, {
 				headers: { 'x-guild-id': interaction.guildId }
@@ -5540,7 +5529,7 @@ client.on('interactionCreate', async interaction => {
 		await redeemGoldenTicketCommand.execute(interaction);
 	} else if (commandName === 'help') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const sub = interaction.options.getString('section');
 			let embed;
 
@@ -5968,7 +5957,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'cancelbet') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const betId = interaction.options.getString('bet_id');
 			await axios.delete(`${backendApiUrl}/bets/${betId}`, {
 				data: { 
@@ -5996,7 +5985,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'editbet') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const betId = interaction.options.getString('bet_id');
 			const description = interaction.options.getString('description');
 			const optionsString = interaction.options.getString('options');
@@ -6042,7 +6031,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'extendbet') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const betId = interaction.options.getString('bet_id');
 			const additionalMinutes = interaction.options.getInteger('additional_minutes');
 			const response = await axios.put(`${backendApiUrl}/bets/${betId}/extend`, {
@@ -6075,7 +6064,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'betinfo') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const betId = interaction.options.getString('bet_id');
 			const betResponse = await axios.get(`${backendApiUrl}/bets/${betId}`, {
 				params: { guildId: interaction.guildId },
@@ -6120,7 +6109,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'daily') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const response = await axios.post(`${backendApiUrl}/users/${userId}/daily`, { guildId: interaction.guildId }, { headers: { 'x-guild-id': interaction.guildId } });
 			const { amount, streak, nextClaimTime } = response.data;
 			const embed = new EmbedBuilder()
@@ -6165,7 +6154,7 @@ client.on('interactionCreate', async interaction => {
 		}
 	} else if (commandName === 'gift') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const recipient = interaction.options.getUser('user');
 			let rawAmount = interaction.options.getString('amount');
 			if (rawAmount === null || rawAmount === undefined) {
@@ -6309,7 +6298,7 @@ client.on('interactionCreate', async interaction => {
 		await setlogchannelCommand.execute(interaction);
 	} else if (commandName === 'changerole') {
 		try {
-			await interaction.deferReply();
+			// The interaction is already deferred by the main handler
 			const targetUser = interaction.options.getUser('user');
 			const newRole = interaction.options.getString('role');
 			const userId = interaction.user.id;

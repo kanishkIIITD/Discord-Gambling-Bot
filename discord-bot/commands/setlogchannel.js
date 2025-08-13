@@ -17,10 +17,10 @@ module.exports = {
         if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
             const errorEmbed = createErrorEmbed('Permission Error')
                 .setDescription('You need Administrator permission to use this command.');
-            return interaction.reply({ embeds: [errorEmbed]});
+            return interaction.editReply({ embeds: [errorEmbed]});
         }
 
-        await interaction.deferReply();
+        // The interaction is already deferred by the main handler
 
         const channel = interaction.options.getChannel('channel');
 

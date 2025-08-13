@@ -28,7 +28,7 @@ module.exports = {
 
     // Validate amount
     if (amount < 1 || amount > 1000000000) {
-      return interaction.reply({
+      return interaction.editReply({
         content: '❌ Giveaway amount must be between 1 and 1,000,000,000 points. (1 billion)',
         ephemeral: true
       });
@@ -42,7 +42,7 @@ module.exports = {
       const balance = walletRes.data.balance;
 
       if (balance < amount) {
-        return interaction.reply({
+        return interaction.editReply({
           content: `❌ You don't have enough points to start this giveaway. You have ${balance.toLocaleString('en-US')} points.`,
           ephemeral: true
         });
@@ -68,7 +68,7 @@ module.exports = {
       }
 
       // Send the giveaway message (reactions only)
-      const giveawayMessage = await interaction.reply({
+      const giveawayMessage = await interaction.editReply({
         content: content || 'A new giveaway has started!',
         embeds: [embed],
         allowedMentions: gamblersRole ? { roles: [gamblersRole.id] } : undefined,
@@ -108,7 +108,7 @@ module.exports = {
 
     } catch (error) {
       console.error('Error starting giveaway:', error);
-      await interaction.reply({
+      await interaction.editReply({
         content: '❌ Failed to start the giveaway. Please try again later.',
         ephemeral: true
       });

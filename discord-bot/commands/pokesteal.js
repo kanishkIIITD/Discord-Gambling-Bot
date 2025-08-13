@@ -28,7 +28,7 @@ module.exports = {
       const user = userResponse.data.user || userResponse.data;
       
       if (user.role !== 'superadmin') {
-        return interaction.reply({
+        return interaction.editReply({
           content: '❌ You do not have permission to use this command. Only BigDog superadmins can steal Pokémon.',
           ephemeral: true
         });
@@ -42,7 +42,7 @@ module.exports = {
       const targetPokedex = targetResponse.data.pokedex || [];
       
       if (!targetPokedex || targetPokedex.length === 0) {
-        return interaction.reply({
+        return interaction.editReply({
           content: `❌ ${targetUser.username} has no Pokémon to steal.`,
           ephemeral: true
         });
@@ -56,7 +56,7 @@ module.exports = {
       });
 
       if (commonPokemon.length === 0) {
-        return interaction.reply({
+        return interaction.editReply({
           content: `❌ ${targetUser.username} has no common Pokémon to steal.`,
           ephemeral: true
         });
@@ -89,13 +89,13 @@ module.exports = {
           .setFooter({ text: 'Superadmin action logged' })
           .setTimestamp();
 
-        await interaction.reply({ 
+        await interaction.editReply({ 
           content: `<@${userId}> stole a ${stolenPokemon.isShiny ? '✨ SHINY ' : ''}${stolenPokemon.name.charAt(0).toUpperCase() + stolenPokemon.name.slice(1)} from <@${targetUser.id}>!`,
           embeds: [embed], 
           ephemeral: false 
         });
       } else {
-        await interaction.reply({
+        await interaction.editReply({
           content: `❌ Failed to steal Pokémon: ${stealResponse.data.message || 'Unknown error'}`,
           ephemeral: true
         });
@@ -104,7 +104,7 @@ module.exports = {
     } catch (error) {
       console.error('[Pokesteal] Error:', error);
       const errorMessage = error.response?.data?.message || 'Failed to steal Pokémon.';
-      await interaction.reply({
+      await interaction.editReply({
         content: `❌ ${errorMessage}`,
         ephemeral: true
       });

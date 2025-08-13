@@ -138,7 +138,7 @@ module.exports = {
 
     try {
       // Defer reply immediately to prevent timeout
-      await interaction.deferReply({ ephemeral: true });
+      // The interaction is already deferred as PRIVATE by the main handler
     } catch (error) {
       console.error('[Pokemon Giveaway] Error deferring reply:', error);
       return;

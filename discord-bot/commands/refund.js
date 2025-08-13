@@ -43,7 +43,7 @@ module.exports = {
   },
 
   async execute(interaction) {
-    await interaction.deferReply();
+    // The interaction is already deferred by the main handler
     const userId = interaction.user.id;
     const betId = interaction.options.getString('bet_id');
     const backendUrl = process.env.BACKEND_API_URL;
