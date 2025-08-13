@@ -14,22 +14,35 @@ function isInteractionValid(interaction) {
 // Helper function to safely respond to interaction
 async function safeInteractionResponse(interaction, content, options = {}) {
   try {
-    if (!interaction) return false;
+    if (!interaction) {
+      console.log('[InteractionUtils] No interaction provided to safeInteractionResponse');
+      return false;
+    }
+    
+    // Check if interaction has expired
+    if (!interaction.isRepliable) {
+      console.log('[InteractionUtils] Interaction expired during safeInteractionResponse');
+      return false;
+    }
     
     if (interaction.deferred && !interaction.replied) {
       await interaction.editReply({ content, ...options });
+      console.log('[InteractionUtils] Successfully sent response via editReply');
       return true;
     } else if (isInteractionValid(interaction)) {
       await interaction.reply({ content, ...options });
+      console.log('[InteractionUtils] Successfully sent response via reply');
       return true;
+    } else {
+      console.log('[InteractionUtils] Interaction not in valid state for response');
+      return false;
     }
-    return false;
   } catch (err) {
     if (err.code === 10062) {
       console.log('[InteractionUtils] Interaction expired during response');
-      return false;
+    } else {
+      console.error('[InteractionUtils] Failed to send response:', err);
     }
-    console.error('[InteractionUtils] Failed to send response:', err);
     return false;
   }
 }
@@ -68,7 +81,10 @@ async function executeWithTimeoutWarning(interaction, commandName, executionFunc
   
   try {
     // Execute the command function
-    await executionFunction();
+    const result = await executionFunction();
+    
+    // If the function returns a value, pass it through
+    return result;
   } catch (error) {
     console.error(`[${commandName}] Error during command execution:`, error);
     
@@ -87,10 +103,14 @@ async function executeWithTimeoutWarning(interaction, commandName, executionFunc
         }
       }
     }
+    
+    // Re-throw the error so the caller can handle it if needed
+    throw error;
   } finally {
-    // Clear timeout warning if it was set
+    // Always clear timeout warning if it was set, regardless of how the function exits
     if (timeoutWarning) {
       clearTimeout(timeoutWarning);
+      console.log(`[${commandName}] Cleared timeout warning`);
     }
   }
 }
@@ -114,14 +134,26 @@ function hasInteractionExpired(interaction) {
 // Helper function to safely defer reply with error handling
 async function safeDeferReply(interaction, options = {}) {
   try {
+    // Check if interaction is already in an invalid state
+    if (!interaction || !interaction.isRepliable) {
+      console.log('[InteractionUtils] Interaction not repliable during deferReply');
+      return false;
+    }
+    
+    if (interaction.replied || interaction.deferred) {
+      console.log('[InteractionUtils] Interaction already replied or deferred');
+      return false;
+    }
+    
     await interaction.deferReply(options);
+    console.log('[InteractionUtils] Successfully deferred reply');
     return true;
   } catch (err) {
     if (err.code === 10062) {
       console.log('[InteractionUtils] Interaction expired during deferReply');
-      return false;
+    } else {
+      console.error('[InteractionUtils] Failed to defer reply:', err);
     }
-    console.error('[InteractionUtils] Failed to defer reply:', err);
     return false;
   }
 }

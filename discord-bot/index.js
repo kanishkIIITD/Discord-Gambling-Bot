@@ -6442,11 +6442,7 @@ client.on('interactionCreate', async interaction => {
 		await cs2tradeCommand.execute(interaction);
 	}
 	
-	// Clean up timeout warning and interaction tracking when command is handled
-	if (timeoutWarning) {
-		clearTimeout(timeoutWarning);
-		console.log(`[${commandName}] Cleared timeout warning`);
-	}
+	// Clean up interaction tracking when command is handled
 	if (interaction.isCommand()) {
 		activeInteractions.delete(interaction.id);
 		console.log(`[${commandName}] Command completed successfully, cleaned up interaction tracking`);
@@ -6544,7 +6540,7 @@ async function safeErrorReply(interaction, embed) {
         console.log(`[safeErrorReply] Interaction status:`, status);
 
         // Check if interaction is still valid (not expired)
-        if (isInteractionValid(interaction)) {
+        if (interaction && interaction.isRepliable && !interaction.replied && !interaction.deferred) {
             await interaction.reply({ embeds: [embed], ephemeral: true });
         } else if (interaction.deferred && !interaction.replied) {
             await interaction.editReply({ embeds: [embed] });
