@@ -78,21 +78,73 @@ module.exports = {
         components: navigationRow ? [actionRow, navigationRow] : [actionRow]
       });
 
-      // Set up collector for the select menu
-      const filter = i => i.customId === 'cs2_sell_select' && i.user.id === userId;
+      // Set up collector for the select menu and related buttons
+      const filter = i => (i.customId === 'cs2_sell_select' || 
+                          i.customId.startsWith('cs2_sell_confirm_') || 
+                          i.customId === 'cs2_sell_cancel' ||
+                          i.customId.startsWith('cs2_sell_prev_') ||
+                          i.customId.startsWith('cs2_sell_next_')) && 
+                          i.user.id === userId;
       const collector = interaction.channel.createMessageComponentCollector({ filter, time: 300000 }); // 5 minutes
 
       collector.on('collect', async (i) => {
-        const selectedSkinId = i.values[0];
-        const selectedSkin = skins.find(skin => skin.skinId === selectedSkinId);
-        
-        if (!selectedSkin) {
-          await i.reply({ content: '❌ Skin not found. Please try again.', ephemeral: true });
-          return;
-        }
+        if (i.customId === 'cs2_sell_select') {
+          const selectedSkinId = i.values[0];
+          const selectedSkin = skins.find(skin => skin.skinId === selectedSkinId);
+          
+          if (!selectedSkin) {
+            await i.reply({ content: '❌ Skin not found. Please try again.', ephemeral: true });
+            return;
+          }
 
-        // Show confirmation
-        await this.showSaleConfirmation(i, selectedSkin, userId, guildId, backendUrl);
+          // Show confirmation
+          await this.showSaleConfirmation(i, selectedSkin, userId, guildId, backendUrl);
+        } else if (i.customId.startsWith('cs2_sell_confirm_')) {
+          // Disable the buttons immediately to prevent abuse
+          const disabledRow = new ActionRowBuilder()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId(`cs2_sell_confirm_${i.customId.replace('cs2_sell_confirm_', '')}`)
+                .setLabel('✅ Processing...')
+                .setStyle(ButtonStyle.Success)
+                .setDisabled(true),
+              new ButtonBuilder()
+                .setCustomId('cs2_sell_cancel')
+                .setLabel('❌ Processing...')
+                .setStyle(ButtonStyle.Danger)
+                .setDisabled(true)
+            );
+
+          // Update the message to disable buttons
+          await i.update({ components: [disabledRow] });
+
+          // Handle confirm sale
+          await this.handleSaleConfirmation(i, i.customId.replace('cs2_sell_confirm_', ''), userId, guildId, backendUrl);
+        } else if (i.customId === 'cs2_sell_cancel') {
+          // Disable the buttons immediately to prevent abuse
+          const disabledRow = new ActionRowBuilder()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId(`cs2_sell_confirm_placeholder`)
+                .setLabel('✅ Processing...')
+                .setStyle(ButtonStyle.Success)
+                .setDisabled(true),
+              new ButtonBuilder()
+                .setCustomId('cs2_sell_cancel')
+                .setLabel('❌ Processing...')
+                .setStyle(ButtonStyle.Danger)
+                .setDisabled(true)
+            );
+
+          // Update the message to disable buttons
+          await i.update({ components: [disabledRow] });
+
+          // Handle cancel sale
+          await this.handleSaleCancellation(i);
+        } else if (i.customId.startsWith('cs2_sell_prev_') || i.customId.startsWith('cs2_sell_next_')) {
+          // Handle pagination locally
+          await this.handlePagination(i, skins, userId, guildId, backendUrl);
+        }
       });
 
       collector.on('end', () => {
@@ -232,42 +284,196 @@ module.exports = {
   },
 
   async showSaleConfirmation(interaction, skin, userId, guildId, backendUrl) {
-    // Create a readable name from skinId if formattedName is not available
-    const displayName = skin.formattedName || skin.name || this.formatSkinId(skin.skinId);
-    
-    const confirmationEmbed = new EmbedBuilder()
-      .setTitle('💰 Confirm Sale')
-      .setDescription(`Are you sure you want to sell this skin?`)
-      .setColor(0xffaa00)
-      .setThumbnail(skin.imageUrl || 'https://via.placeholder.com/150x150?text=Skin')
-      .addFields(
-        { name: '🎨 Skin', value: displayName, inline: false },
-        { name: '⭐ Rarity', value: this.getRarityEmoji(skin.rarity) + ' ' + skin.rarity, inline: true },
-        { name: '🔍 Wear', value: this.getWearEmoji(skin.wear) + ' ' + skin.wear, inline: true },
-        { name: '💰 Market Value', value: `**${skin.marketValue}** points`, inline: true }
-      )
-      .setFooter({ 
-        text: `Selling will give you ${skin.marketValue} points`,
-        iconURL: interaction.user.displayAvatarURL()
+    try {
+      // Defer the interaction if it hasn't been replied to yet
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.deferReply({ ephemeral: true });
+      }
+
+      // Create a readable name from skinId if formattedName is not available
+      const displayName = skin.formattedName || skin.name || this.formatSkinId(skin.skinId);
+      
+      const confirmationEmbed = new EmbedBuilder()
+        .setTitle('💰 Confirm Sale')
+        .setDescription(`Are you sure you want to sell this skin?`)
+        .setColor(0xffaa00)
+        .setThumbnail(skin.imageUrl || 'https://via.placeholder.com/150x150?text=Skin')
+        .addFields(
+          { name: '🎨 Skin', value: displayName, inline: false },
+          { name: '⭐ Rarity', value: this.getRarityEmoji(skin.rarity) + ' ' + skin.rarity, inline: true },
+          { name: '🔍 Wear', value: this.getWearEmoji(skin.wear) + ' ' + skin.wear, inline: true },
+          { name: '💰 Market Value', value: `**${skin.marketValue}** points`, inline: true }
+        )
+        .setFooter({ 
+          text: `Selling will give you ${skin.marketValue} points`,
+          iconURL: interaction.user.displayAvatarURL()
+        });
+
+      const actionRow = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`cs2_sell_confirm_${skin.skinId}`)
+            .setLabel('✅ Confirm Sale')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId('cs2_sell_cancel')
+            .setLabel('❌ Cancel')
+            .setStyle(ButtonStyle.Danger)
+        );
+
+      await interaction.editReply({
+        embeds: [confirmationEmbed],
+        components: [actionRow],
+        ephemeral: true
+      });
+    } catch (error) {
+      console.error('Error showing sale confirmation:', error);
+      try {
+        await interaction.reply({ 
+          content: '❌ Failed to show sale confirmation. Please try again.',
+          ephemeral: true
+        });
+      } catch (replyError) {
+        console.error('Failed to send error reply for sale confirmation:', replyError);
+      }
+    }
+  },
+
+  async handleSaleConfirmation(interaction, skinId, userId, guildId, backendUrl) {
+    try {
+      // Defer the interaction if it hasn't been replied to yet
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.deferReply({ ephemeral: true });
+      }
+
+      // Sell the skin
+      const response = await axios.post(`${backendUrl}/cs2/skins/${skinId}/sell`, { 
+        userId: userId 
+      }, {
+        headers: { 'x-guild-id': guildId }
       });
 
-    const actionRow = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`cs2_sell_confirm_${skin.skinId}`)
-          .setLabel('✅ Confirm Sale')
-          .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-          .setCustomId('cs2_sell_cancel')
-          .setLabel('❌ Cancel')
-          .setStyle(ButtonStyle.Danger)
-      );
+      const { result } = response.data;
 
-    await interaction.editReply({
-      embeds: [confirmationEmbed],
-      components: [actionRow],
-      ephemeral: true
-    });
+      // Create success embed
+      const successEmbed = new EmbedBuilder()
+        .setColor(0x00ff00)
+        .setTitle('💰 Skin Sold Successfully!')
+        .setDescription(`You sold the skin for **${result.profit}** points`)
+        .addFields(
+          { name: '💰 Sale Price', value: `**${result.profit}** points`, inline: true },
+          { name: '📊 New Balance', value: `**${result.newBalance}** points`, inline: true }
+        )
+        .setFooter({ 
+          text: `Sold by ${interaction.user.username}`,
+          iconURL: interaction.user.displayAvatarURL()
+        })
+        .setTimestamp();
+
+      // Update the original confirmation message with success and no buttons
+      await interaction.editReply({
+        embeds: [successEmbed],
+        components: []
+      });
+
+    } catch (error) {
+      console.error('Error confirming CS2 sale:', error);
+      
+      let errorMessage = '❌ **Failed to sell skin.** Please try again later.';
+      if (error.response?.status === 400) {
+        errorMessage = `❌ **Error:** ${error.response.data.error}`;
+      } else if (error.response?.status === 404) {
+        errorMessage = '❌ **Skin not found!** The skin may have been removed from your inventory.';
+      } else if (error.response?.status === 500) {
+        errorMessage = '❌ **Server error.** Please try again later.';
+      }
+      
+      // Update the original confirmation message with error and no buttons
+      await interaction.editReply({
+        content: errorMessage,
+        embeds: [],
+        components: []
+      });
+    }
+  },
+
+  async handleSaleCancellation(interaction) {
+    try {
+      // Defer the interaction if it hasn't been replied to yet
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.deferReply({ ephemeral: true });
+      }
+
+      // Update the original confirmation message with cancellation message and no buttons
+      await interaction.editReply({
+        content: '❌ **Sale cancelled.** The skin remains in your inventory.',
+        embeds: [],
+        components: []
+      });
+    } catch (error) {
+      console.error('Error cancelling CS2 sale:', error);
+      try {
+        await interaction.reply({ 
+          content: '❌ Failed to cancel sale. Please try again.',
+          ephemeral: true
+        });
+      } catch (replyError) {
+        console.error('Failed to send error reply for sale cancellation:', replyError);
+      }
+    }
+  },
+
+  async handlePagination(interaction, skins, userId, guildId, backendUrl) {
+    try {
+      // Extract current page from button customId
+      const currentPage = parseInt(interaction.customId.split('_').pop());
+      const isNext = interaction.customId.startsWith('cs2_sell_next_');
+      const newPage = isNext ? currentPage + 1 : currentPage - 1;
+      
+      // Calculate page boundaries
+      const totalPages = Math.ceil(skins.length / 25);
+      const startIndex = newPage * 25;
+      const endIndex = Math.min(startIndex + 25, skins.length);
+      const pageSkins = skins.slice(startIndex, endIndex);
+      
+      // Create updated embed
+      const embed = new EmbedBuilder()
+        .setTitle('💰 Sell CS2 Skin')
+        .setDescription(`Select a skin to sell from your inventory (${skins.length} total skins)`)
+        .setColor(0x00ff00)
+        .setFooter({ 
+          text: `Page ${newPage + 1} of ${totalPages} • Use the menu below to select a skin`,
+          iconURL: interaction.user.displayAvatarURL()
+        });
+
+      // Create updated select menu
+      const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('cs2_sell_select')
+        .setPlaceholder('Choose a skin to sell...')
+        .addOptions(this.createSkinOptions(pageSkins, startIndex));
+
+      const actionRow = new ActionRowBuilder().addComponents(selectMenu);
+
+      // Create updated navigation row
+      const navigationRow = this.createNavigationRow(skins.length, newPage);
+
+      // Update the message
+      await interaction.update({
+        embeds: [embed],
+        components: navigationRow ? [actionRow, navigationRow] : [actionRow]
+      });
+
+    } catch (error) {
+      console.error('Error handling pagination:', error);
+      try {
+        await interaction.reply({ 
+          content: '❌ Failed to change page. Please try again.',
+          ephemeral: true
+        });
+      } catch (replyError) {
+        console.error('Failed to send error reply for pagination:', replyError);
+      }
+    }
   },
 
   getRarityEmoji(rarity) {

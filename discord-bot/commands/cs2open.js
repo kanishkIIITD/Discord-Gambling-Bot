@@ -99,11 +99,18 @@ module.exports = {
           { name: '📦 Case', value: caseData.formattedName, inline: true }
         );
 
-      const openingMessage = await interaction.editReply({
-        content: `<@${interaction.user.id}>`,
-        embeds: [openingEmbed],
-        components: []
-      });
+      let openingMessage;
+      try {
+        openingMessage = await interaction.editReply({
+          content: `<@${interaction.user.id}>`,
+          embeds: [openingEmbed],
+          components: []
+        });
+      } catch (replyError) {
+        console.error('Failed to create opening message:', replyError);
+        // If we can't create the opening message, just proceed without it
+        openingMessage = null;
+      }
 
       // Simulate opening delay for suspense
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -244,16 +251,16 @@ module.exports = {
       // Create action buttons
       const actionRow = new ActionRowBuilder()
         .addComponents(
-          new ButtonBuilder()
-            .setCustomId(`cs2_inventory_${userId}`)
-            .setLabel('View Inventory')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('🎒'),
-          new ButtonBuilder()
-            .setCustomId(`cs2_stats_${userId}`)
-            .setLabel('View Stats')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('📊'),
+          // new ButtonBuilder()
+          //   .setCustomId(`cs2_inventory_${userId}`)
+          //   .setLabel('View Inventory')
+          //   .setStyle(ButtonStyle.Primary)
+          //   .setEmoji('🎒'),
+          // new ButtonBuilder()
+          //   .setCustomId(`cs2_stats_${userId}`)
+          //   .setLabel('View Stats')
+          //   .setStyle(ButtonStyle.Secondary)
+          //   .setEmoji('📊'),
           new ButtonBuilder()
             .setCustomId(`cs2_open_another_case_${caseId}`)
             .setLabel('Open Another')
@@ -262,11 +269,40 @@ module.exports = {
         );
 
       // Update the message with the result and add real ping in content
-      await openingMessage.edit({
-        content: `<@${interaction.user.id}>`,
-        embeds: [resultEmbed],
-        components: [actionRow]
-      });
+      if (openingMessage) {
+        try {
+          await openingMessage.edit({
+            content: `<@${interaction.user.id}>`,
+            embeds: [resultEmbed],
+            components: [actionRow]
+          });
+        } catch (editError) {
+          console.error('Failed to edit opening message:', editError);
+          // Fallback: try to send a new message instead
+          try {
+            await interaction.followUp({
+              content: `<@${interaction.user.id}>`,
+              embeds: [resultEmbed],
+              components: [actionRow]
+            });
+          } catch (followUpError) {
+            console.error('Failed to send follow-up message:', followUpError);
+            // Last resort: just edit the original interaction
+            await interaction.editReply({
+              content: `<@${interaction.user.id}>`,
+              embeds: [resultEmbed],
+              components: [actionRow]
+            });
+          }
+        }
+      } else {
+        // If we don't have an opening message, just edit the original interaction
+        await interaction.editReply({
+          content: `<@${interaction.user.id}>`,
+          embeds: [resultEmbed],
+          components: [actionRow]
+        });
+      }
 
       // Buttons are now handled globally in index.js
       // No need for local collector
@@ -326,6 +362,11 @@ module.exports = {
 
   async showInventory(interaction, userId, guildId, backendUrl) {
     try {
+      // Defer the interaction if it hasn't been handled yet
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.deferReply({ ephemeral: false });
+      }
+
       const response = await axios.get(`${backendUrl}/cs2/inventory/${userId}`, {
         headers: { 'x-guild-id': guildId }
       });
@@ -354,7 +395,7 @@ module.exports = {
         });
       }
 
-      await interaction.editReply({ embeds: [embed], ephemeral: true });
+      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error('Error loading inventory:', error);
       let errorMessage = '❌ Failed to load inventory.';
@@ -369,6 +410,11 @@ module.exports = {
 
   async showStats(interaction, userId, guildId, backendUrl) {
     try {
+      // Defer the interaction if it hasn't been handled yet
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.deferReply({ ephemeral: false });
+      }
+
       const response = await axios.get(`${backendUrl}/cs2/stats/${userId}`, {
         headers: { 'x-guild-id': guildId }
       });
@@ -387,7 +433,7 @@ module.exports = {
           { name: '🎯 Profitable Opens', value: `${stats.profitableOpenings}/${stats.totalOpenings}`, inline: true }
         );
 
-      await interaction.editReply({ embeds: [embed], ephemeral: true });
+      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error('Error loading stats:', error);
       let errorMessage = '❌ Failed to load stats.';
@@ -621,16 +667,16 @@ module.exports = {
       // Create action buttons for the new result
       const actionRow = new ActionRowBuilder()
         .addComponents(
-          new ButtonBuilder()
-            .setCustomId(`cs2_inventory_${userId}`)
-            .setLabel('View Inventory')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('🎒'),
-          new ButtonBuilder()
-            .setCustomId(`cs2_stats_${userId}`)
-            .setLabel('View Stats')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('📊'),
+          // new ButtonBuilder()
+          //   .setCustomId(`cs2_inventory_${userId}`)
+          //   .setLabel('View Inventory')
+          //   .setStyle(ButtonStyle.Secondary)
+          //   .setEmoji('🎒'),
+          // new ButtonBuilder()
+          //   .setCustomId(`cs2_stats_${userId}`)
+          //   .setLabel('View Stats')
+          //   .setStyle(ButtonStyle.Secondary)
+          //   .setEmoji('📊'),
           new ButtonBuilder()
             .setCustomId(`cs2_open_another_case_${caseId}`)
             .setLabel('Open Another')
@@ -638,25 +684,15 @@ module.exports = {
             .setEmoji('🎯')
         );
 
-      // Disable buttons on the previous message (the one that was clicked)
-      try {
-        const disabledRow = new ActionRowBuilder()
-          .addComponents(
-            interaction.message.components[0].components.map(button => 
-              ButtonBuilder.from(button).setDisabled(true)
-            )
-          );
-        
-        await interaction.message.edit({ components: [disabledRow] });
-      } catch (error) {
-        console.error('Error disabling previous message buttons:', error);
-      }
+      // Note: We don't disable buttons on the previous message as it may not be accessible
+      // The "Open Another" button creates a new private message each time
 
-      // Send a new public message with the result and add real ping in content
-      await interaction.channel.send({
+      // Send a new private message with the result
+      await interaction.followUp({
         content: `<@${interaction.user.id}>`,
         embeds: [resultEmbed],
-        components: [actionRow]
+        components: [actionRow],
+        ephemeral: true
       });
 
       // Buttons are now handled globally in index.js

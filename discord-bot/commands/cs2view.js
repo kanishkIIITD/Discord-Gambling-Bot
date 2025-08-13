@@ -14,7 +14,11 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    // The interaction is already deferred as PUBLIC by the main handler
+    // Defer the interaction as PUBLIC for the main command
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.deferReply({ ephemeral: false });
+    }
+    
     const targetUser = interaction.options.getUser('user') || interaction.user;
     const userId = targetUser.id;
     const guildId = interaction.guildId;
@@ -49,9 +53,9 @@ module.exports = {
 
   async showSkinPage(interaction, userId, guildId, backendUrl, allSkins = null, page = 0, searchQuery = '') {
     try {
-      // Defer the interaction if it hasn't been replied to yet
+      // Ensure the interaction is deferred as PUBLIC for the main skin page
       if (!interaction.replied && !interaction.deferred) {
-        // The interaction is already deferred as PUBLIC by the main handler
+        await interaction.deferReply({ ephemeral: false });
       }
       
       let skins = allSkins;
@@ -224,16 +228,15 @@ module.exports = {
     } catch (error) {
       console.error('Error showing skin page:', error);
       
-      // Defer if needed before editing
-      if (!interaction.replied && !interaction.deferred) {
-        // The interaction is already deferred as PUBLIC by the main handler
+      try {
+        await interaction.editReply({ 
+          content: '❌ Failed to load skins. Please try again later.', 
+          embeds: [],
+          components: []
+        });
+      } catch (replyError) {
+        console.error('Failed to send error reply for skin page:', replyError);
       }
-      
-      await interaction.editReply({ 
-        content: '❌ Failed to load skins. Please try again later.', 
-        embeds: [],
-        components: []
-      });
     }
   },
 
@@ -241,7 +244,7 @@ module.exports = {
     try {
       // Defer the interaction if it hasn't been replied to yet
       if (!interaction.replied && !interaction.deferred) {
-        // The interaction is already deferred as PUBLIC by the main handler
+        await interaction.deferReply({ ephemeral: false });
       }
       
       // Get user's CS2 inventory to find the specific skin
@@ -274,12 +277,27 @@ module.exports = {
       // Get skin image from raw data
       const skinImage = await this.getSkinImage(skin);
 
+      // Get the user object to display owner information
+      let ownerUsername = 'Unknown User';
+      try {
+        const ownerUser = await interaction.client.users.fetch(userId);
+        ownerUsername = ownerUser.username;
+      } catch (error) {
+        console.error('Error fetching owner user:', error);
+        ownerUsername = `User ID: ${userId}`;
+      }
+
       // Create detailed skin embed
       const embed = new EmbedBuilder()
         .setTitle(`🎨 ${skin.weapon} | ${skin.skinName}`)
         .setColor(this.getRarityColor(skin.rarity))
         .setImage(skinImage)
         .addFields(
+          { 
+            name: '👤 Owner', 
+            value: `**${ownerUsername}**`, 
+            inline: true 
+          },
           { 
             name: '⭐ Rarity', 
             value: `${this.getRarityEmoji(skin.rarity)} **${skin.rarity}**`, 
@@ -387,11 +405,14 @@ module.exports = {
 
     } catch (error) {
       console.error('Error showing search modal:', error);
-      await interaction.editReply({ 
-        content: '❌ Failed to show search modal. Please try again.',
-        embeds: [],
-        components: []
-      });
+      try {
+        await interaction.reply({ 
+          content: '❌ Failed to show search modal. Please try again.',
+          ephemeral: true
+        });
+      } catch (replyError) {
+        console.error('Failed to send error reply for search modal:', replyError);
+      }
     }
   },
 

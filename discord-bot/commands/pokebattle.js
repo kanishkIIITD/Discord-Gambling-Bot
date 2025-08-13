@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const axios = require('axios');
 
 const backendApiUrl = process.env.BACKEND_API_URL;
@@ -92,94 +92,74 @@ module.exports = {
         .setStyle(ButtonStyle.Danger)
     );
 
-    if (replied) {
-      const sentMsg = await interaction.editReply({
-        content: `<@${opponentId}>, you have been challenged by <@${challengerId}> to a Pokémon battle! (Pokémon per side: ${count})`,
-        components: [row],
-        allowedMentions: { users: [opponentId] },
-        fetchReply: true,
-      });
-      // --- Auto-expiry logic ---
-      setTimeout(async () => {
-        try {
-          // Check battle status from backend
-          const statusRes = await axios.get(`${backendApiUrl}/battles/${battleId}`);
-          if (statusRes.data.session?.status === 'pending') {
-            // Disable buttons
-            const disabledRow = new ActionRowBuilder().addComponents(
-              new ButtonBuilder()
-                .setCustomId(`pokebattle_accept_${battleId}_${opponentId}`)
-                .setLabel('Accept')
-                .setStyle(ButtonStyle.Success)
-                .setDisabled(true),
-              new ButtonBuilder()
-                .setCustomId(`pokebattle_decline_${battleId}_${opponentId}`)
-                .setLabel('Decline')
-                .setStyle(ButtonStyle.Danger)
-                .setDisabled(true)
-            );
-            await sentMsg.edit({
-              content: '⏰ Battle request expired. Please challenge again.',
-              components: [disabledRow],
-              allowedMentions: { users: [] },
-            });
-            // Cancel battle in backend
-            await axios.post(`${backendApiUrl}/battles/${battleId}/respond`, {
-              accept: false,
-              userId: opponentId,
-              expired: true,
-            }, {
-              headers: { 'x-guild-id': guildId }
-            });
-          }
-        } catch (err) {
-          // Ignore errors (message deleted, already handled, etc.)
+    // Send a confirmation message to the challenger (ephemeral)
+    await interaction.editReply({
+      content: `✅ Battle challenge sent to <@${opponentId}>! Waiting for their response...`,
+      ephemeral: true
+    });
+
+    // Send the public battle challenge message in the channel
+    const battleType = isFriendly ? 'Friendly' : 'Competitive';
+    const battleDescription = isFriendly 
+      ? 'Friendly battle - no Pokémon will be lost'
+      : 'Competitive battle - winner gets 2x rewards, loser loses all Pokémon to winner';
+    
+    // Create battle challenge embed
+    const challengeEmbed = new EmbedBuilder()
+      .setTitle('⚔️ Pokémon Battle Challenge!')
+      .setDescription(`<@${opponentId}>, you have been challenged by <@${challengerId}> to a **${battleType}** Pokémon battle!`)
+      .setColor(isFriendly ? 0x00ff00 : 0xff0000) // Green for friendly, red for competitive
+      .addFields(
+        { name: '🎯 Pokémon per side', value: `${count}`, inline: true },
+        { name: '⚔️ Battle type', value: battleType, inline: true },
+        { name: '📋 Rules', value: battleDescription, inline: false }
+      )
+      .setTimestamp()
+      .setFooter({ text: 'Click Accept or Decline to respond' });
+    
+    const sentMsg = await interaction.channel.send({
+      content: `<@${opponentId}>`,
+      embeds: [challengeEmbed],
+      components: [row],
+      allowedMentions: { users: [opponentId] },
+    });
+
+    // --- Auto-expiry logic ---
+    setTimeout(async () => {
+      try {
+        // Check battle status from backend
+        const statusRes = await axios.get(`${backendApiUrl}/battles/${battleId}`);
+        if (statusRes.data.session?.status === 'pending') {
+          // Disable buttons
+          const disabledRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`pokebattle_accept_${battleId}_${opponentId}`)
+              .setLabel('Accept')
+              .setStyle(ButtonStyle.Success)
+              .setDisabled(true),
+            new ButtonBuilder()
+              .setCustomId(`pokebattle_decline_${battleId}_${opponentId}`)
+              .setLabel('Decline')
+              .setStyle(ButtonStyle.Danger)
+              .setDisabled(true)
+          );
+          await sentMsg.edit({
+            content: '⏰ Battle request expired. Please challenge again.',
+            components: [disabledRow],
+            allowedMentions: { users: [] },
+          });
+          // Cancel battle in backend
+          await axios.post(`${backendApiUrl}/battles/${battleId}/respond`, {
+            accept: false,
+            userId: opponentId,
+            expired: true,
+          }, {
+            headers: { 'x-guild-id': guildId }
+          });
         }
-      }, 120000);
-    } else {
-      const sentMsg = await interaction.editReply({
-        content: `<@${opponentId}>, you have been challenged by <@${challengerId}> to a Pokémon battle! (Pokémon per side: ${count})`,
-        components: [row],
-        allowedMentions: { users: [opponentId] },
-        fetchReply: true,
-      });
-      // --- Auto-expiry logic ---
-      setTimeout(async () => {
-        try {
-          // Check battle status from backend
-          const statusRes = await axios.get(`${backendApiUrl}/battles/${battleId}`);
-          if (statusRes.data.session?.status === 'pending') {
-            // Disable buttons
-            const disabledRow = new ActionRowBuilder().addComponents(
-              new ButtonBuilder()
-                .setCustomId(`pokebattle_accept_${battleId}_${opponentId}`)
-                .setLabel('Accept')
-                .setStyle(ButtonStyle.Success)
-                .setDisabled(true),
-              new ButtonBuilder()
-                .setCustomId(`pokebattle_decline_${battleId}_${opponentId}`)
-                .setLabel('Decline')
-                .setStyle(ButtonStyle.Danger)
-                .setDisabled(true)
-            );
-            await sentMsg.edit({
-              content: '⏰ Battle request expired. Please challenge again.',
-              components: [disabledRow],
-              allowedMentions: { users: [] },
-            });
-            // Cancel battle in backend
-            await axios.post(`${backendApiUrl}/battles/${battleId}/respond`, {
-              accept: false,
-              userId: opponentId,
-              expired: true,
-            }, {
-              headers: { 'x-guild-id': guildId }
-            });
-          }
-        } catch (err) {
-          // Ignore errors (message deleted, already handled, etc.)
-        }
-      }, 120000);
-    }
+      } catch (err) {
+        // Ignore errors (message deleted, already handled, etc.)
+      }
+    }, 120000);
   },
 }; 

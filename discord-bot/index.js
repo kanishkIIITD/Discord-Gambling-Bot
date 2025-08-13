@@ -316,8 +316,7 @@ client.on('interactionCreate', async interaction => {
 			// Make certain commands private by default, others public
 			const privateCommands = [
 				// Personal information and stats
-				'pokecatch', 'pokestats', 'pokebattlestats', 'cooldowns', 'collection', 'collectionList', 
-				'pokecollection', 'pokedex', 'balance', 'transactionHistory',
+				'pokecatch', 'pokestats', 'pokebattlestats', 'cooldowns', 'transactionHistory',
 				
 				// Shop and inventory
 				'shop', 'pokeshopdaily', 'cs2inventory', 'cs2stats', 'cs2view', 'pokeshop',
@@ -329,16 +328,16 @@ client.on('interactionCreate', async interaction => {
 				'pokeevolve', 'pokeevolveform', 'pokeopen', 'pokepacks', 'pokesellduplicates',
 				
 				// Administrative
-				'setpokechannel', 'setlogchannel', 'timeout', 'mysterybox', 'refund',
+				'setpokechannel', 'setlogchannel',
 				
 				// Other personal commands
-				'giveawaypokemon', 'redeemGoldenTicket', 'goldenTickets', 'quests', 'buffs', 'bail', 'beg',
+				'giveawaypokemon', 'redeemGoldenTicket', 'goldenTickets', 'pokequests',
 				
 				// Commands that were originally designed to be private (using ephemeral: true)
-				'cancelbattle', 'cs2open', 'cs2leaderboard', 'giveaway', 'pokebattle',
+				'cancelbattle', 'pokebattle',
 				
 				// Additional commands found using ephemeral: true or flags: 64
-				'duel', 'doubleweekend',   'pokespawn',   
+				'spawncustompokemon'
 			];
 			const isPrivateCommand = privateCommands.includes(interaction.commandName);
 			await interaction.deferReply({ ephemeral: isPrivateCommand });
@@ -445,8 +444,9 @@ client.on('interactionCreate', async interaction => {
 			
 			console.log('[cs2inventory] Global modal search details:', { searchQuery, modalUserId, currentPage, currentSearch });
 			
-			// Execute the search using the cs2inventory command
-			await cs2inventoryCommand.showSkins(interaction, modalUserId, interaction.guildId, process.env.BACKEND_API_URL, 0, searchQuery);
+			// For search results, we need to create a new message since modal interactions can't update existing ones
+			// We'll create a new message with the search results
+			await cs2inventoryCommand.createSearchResultsMessage(interaction, modalUserId, interaction.guildId, process.env.BACKEND_API_URL, searchQuery);
 			
 		} catch (error) {
 			console.error('[cs2inventory] Global modal handler error:', error);
@@ -518,42 +518,12 @@ client.on('interactionCreate', async interaction => {
 							.setStyle(ButtonStyle.Secondary)
 					);
 				
-				// Try to find and update the original message
-				try {
-					// Get the original message from the channel
-					const messages = await interaction.channel.messages.fetch({ limit: 10 });
-					const originalMessage = messages.find(msg => 
-						msg.author.id === interaction.client.user.id && 
-						msg.embeds.length > 0 && 
-						msg.embeds[0].title === '🎨 CS2 Skin Viewer'
-					);
-					
-					if (originalMessage) {
-						await originalMessage.edit({ 
-							embeds: [embed], 
-							components: [buttonRow]
-						});
-						await interaction.reply({ 
-							content: '✅ Search completed - no results found. Updated the original message.',
-							ephemeral: true 
-						});
-					} else {
-						// Fallback to creating new message if original not found
+				// Create a new private message for no results
 						await interaction.reply({ 
 							embeds: [embed], 
 							components: [buttonRow],
-							ephemeral: false
-						});
-					}
-				} catch (error) {
-					console.error('[cs2view] Error updating original message:', error);
-					// Fallback to creating new message
-					await interaction.reply({ 
-						embeds: [embed], 
-						components: [buttonRow],
-						ephemeral: false
-					});
-				}
+					ephemeral: true
+				});
 				return;
 			}
 			
@@ -626,42 +596,12 @@ client.on('interactionCreate', async interaction => {
 					iconURL: interaction.user.displayAvatarURL()
 				});
 			
-			// Try to find and update the original message
-			try {
-				// Get the original message from the channel
-				const messages = await interaction.channel.messages.fetch({ limit: 10 });
-				const originalMessage = messages.find(msg => 
-					msg.author.id === interaction.client.user.id && 
-					msg.embeds.length > 0 && 
-					msg.embeds[0].title === '🎨 CS2 Skin Viewer'
-				);
-				
-				if (originalMessage) {
-					await originalMessage.edit({ 
-						embeds: [embed], 
-						components: [selectRow, buttonRow]
-					});
-					await interaction.reply({ 
-						content: '✅ Search completed successfully! Updated the original message.',
-						ephemeral: true 
-					});
-				} else {
-					// Fallback to creating new message if original not found
+			// Create a new private message for search results
 					await interaction.reply({ 
 						embeds: [embed], 
 						components: [selectRow, buttonRow],
-						ephemeral: false
-					});
-				}
-			} catch (error) {
-				console.error('[cs2view] Error updating original message:', error);
-				// Fallback to creating new message
-				await interaction.reply({ 
-					embeds: [embed], 
-					components: [selectRow, buttonRow],
-					ephemeral: false
-				});
-			}
+				ephemeral: true
+			});
 			
 		} catch (error) {
 			console.error('[cs2view] Global modal handler error:', error);
@@ -711,8 +651,8 @@ client.on('interactionCreate', async interaction => {
 		return;
 	}
 
-	// Global button handler for CS2 inventory interactions
-	if (interaction.isButton() && interaction.customId?.startsWith('cs2_') && !interaction.customId.startsWith('cs2_view_') && !interaction.customId.startsWith('cs2_open_') && !interaction.customId.startsWith('cs2_inventory_') && !interaction.customId.startsWith('cs2_stats_') && !interaction.customId.startsWith('cs2_cases_')) {
+	// Global button handler for CS2 inventory interactions (excluding specific prefixes)
+	if (interaction.isButton() && interaction.customId?.startsWith('cs2_') && !interaction.customId.startsWith('cs2_view_') && !interaction.customId.startsWith('cs2_open_') && !interaction.customId.startsWith('cs2_inventory_') && !interaction.customId.startsWith('cs2_stats_') && !interaction.customId.startsWith('cs2_cases_') && !interaction.customId.startsWith('cs2_sell_') && !interaction.customId.startsWith('cs2_trade_')) {
 		console.log('📦 CS2 inventory global handler processing:', interaction.customId);
 		try {
 			console.log('[cs2inventory] Global button handler received:', {
@@ -724,22 +664,18 @@ client.on('interactionCreate', async interaction => {
 			const customId = interaction.customId;
 			
 			// Handle main inventory buttons
-			if (customId.startsWith('cs2_view_skins_')) {
+			if (customId.startsWith('cs2_inventory_view_skins_')) {
 				const parts = customId.split('_');
-				const userId = parts[3];
-				await cs2inventoryCommand.showSkins(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL, 0, '');
+				const userId = parts[4];
+				await cs2inventoryCommand.createViewSkinsMessage(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
 			} else if (customId.startsWith('cs2_stats_')) {
 				const parts = customId.split('_');
 				const userId = parts[3];
-				await cs2inventoryCommand.showStats(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
+				await cs2inventoryCommand.createStatsMessage(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
 			} else if (customId.startsWith('cs2_best_drops_')) {
 				const parts = customId.split('_');
 				const userId = parts[3];
-				await cs2inventoryCommand.showBestDrops(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
-			} else if (customId.startsWith('cs2_rarest_drops_')) {
-				const parts = customId.split('_');
-				const userId = parts[3];
-				await cs2inventoryCommand.showRarestDrops(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
+				await cs2inventoryCommand.createBestDropsMessage(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
 			}
 			// Handle skins view buttons
 			else if (customId.startsWith('cs2_skins_prev_')) {
@@ -782,8 +718,74 @@ client.on('interactionCreate', async interaction => {
 		return;
 	}
 
+	// Global button handler for CS2 inventory specific interactions
+	if (interaction.isButton() && interaction.customId?.startsWith('cs2_inventory_')) {
+		try {
+			console.log('[cs2inventory] CS2 inventory specific handler received:', {
+				customId: interaction.customId,
+				type: interaction.type,
+				userId: interaction.user?.id
+			});
+			
+			const customId = interaction.customId;
+			
+			// Handle main inventory buttons
+			if (customId.startsWith('cs2_inventory_view_skins_')) {
+				const parts = customId.split('_');
+				const userId = parts[4];
+				await cs2inventoryCommand.createViewSkinsMessage(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
+			} else if (customId.startsWith('cs2_stats_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				await cs2inventoryCommand.createStatsMessage(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
+			} else if (customId.startsWith('cs2_best_drops_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				await cs2inventoryCommand.createBestDropsMessage(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL);
+			}
+			// Handle skins view buttons
+			else if (customId.startsWith('cs2_skins_prev_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				const newPage = parseInt(parts[4]) - 1;
+				const search = decodeURIComponent(parts[5] || '');
+				await cs2inventoryCommand.showSkins(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL, newPage, search);
+			} else if (customId.startsWith('cs2_skins_next_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				const newPage = parseInt(parts[4]) + 1;
+				const search = decodeURIComponent(parts[5] || '');
+				await cs2inventoryCommand.showSkins(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL, newPage, search);
+			} else if (customId.startsWith('cs2_skins_search_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				const page = parseInt(parts[4]);
+				const searchQuery = decodeURIComponent(parts[5] || '');
+				await cs2inventoryCommand.showSearchModal(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL, page, searchQuery);
+			} else if (customId.startsWith('cs2_skins_clear_')) {
+				const parts = customId.split('_');
+				const userId = parts[3];
+				await cs2inventoryCommand.showSkins(interaction, userId, interaction.guildId, process.env.BACKEND_API_URL, 0, '');
+			} else if (customId.startsWith('cs2_skins_close_')) {
+				await interaction.update({ components: [] });
+			}
+			
+		} catch (error) {
+			console.error('[cs2inventory] CS2 inventory specific handler error:', error);
+			try {
+				await interaction.reply({ 
+					content: 'An error occurred while processing your button click. Please try again.',
+					ephemeral: true 
+				});
+			} catch (replyError) {
+				console.error('[cs2inventory] Failed to send error reply:', replyError);
+			}
+		}
+		return;
+	}
+
 	// Global button handler for CS2 view interactions
-	if (interaction.isButton() && interaction.customId?.startsWith('cs2_view_')) {
+	if (interaction.isButton() && interaction.customId?.startsWith('cs2_view_') && !interaction.customId.startsWith('cs2_inventory_view_')) {
 		try {
 			console.log('[cs2view] Global button handler received:', {
 				customId: interaction.customId,
@@ -1633,6 +1635,9 @@ client.on('interactionCreate', async interaction => {
 		}
 
 		// --- Handle CS2 sell buttons ---
+		// Note: cs2_sell_confirm_ and cs2_sell_cancel are now handled locally in the cs2sell command
+		// These global handlers have been removed to prevent conflicts with local collectors
+		/*
 		if (interaction.customId.startsWith('cs2_sell_confirm_')) {
 			try {
 				const skinId = interaction.customId.replace('cs2_sell_confirm_', '');
@@ -1662,10 +1667,18 @@ client.on('interactionCreate', async interaction => {
 					})
 					.setTimestamp();
 
+				// For ephemeral messages, we need to use editReply instead of update
+				if (interaction.message.flags?.has(64)) { // 64 is the ephemeral flag
+					await interaction.editReply({
+						embeds: [successEmbed],
+						components: []
+					});
+				} else {
 				await interaction.update({
 					embeds: [successEmbed],
 					components: []
 				});
+				}
 
 			} catch (error) {
 				console.error('Error confirming CS2 sale:', error);
@@ -1679,25 +1692,47 @@ client.on('interactionCreate', async interaction => {
 					errorMessage = '❌ **Server error.** Please try again later.';
 				}
 				
+				// For ephemeral messages, we need to use editReply instead of update
+				if (interaction.message.flags?.has(64)) { // 64 is the ephemeral flag
+					await interaction.editReply({
+						content: errorMessage,
+						embeds: [],
+						components: []
+					});
+				} else {
 				await interaction.update({
 					content: errorMessage,
 					embeds: [],
 					components: []
 				});
+				}
 			}
 			return;
 		}
 
 		if (interaction.customId === 'cs2_sell_cancel') {
+			// For ephemeral messages, we need to use editReply instead of update
+			if (interaction.message.flags?.has(64)) { // 64 is the ephemeral flag
+				await interaction.editReply({
+					content: '❌ **Sale cancelled.** The skin remains in your inventory.',
+					embeds: [],
+					components: []
+				});
+			} else {
 			await interaction.update({
 				content: '❌ **Sale cancelled.** The skin remains in your inventory.',
 				embeds: [],
 				components: []
 			});
+			}
 			return;
 		}
+		*/
 
 		// --- Handle CS2 trade buttons ---
+		// Note: cs2_trade_accept_ and cs2_trade_decline_ are now handled locally in the cs2trade command
+		// These global handlers have been removed to prevent conflicts with local collectors
+		/*
 		if (interaction.customId.startsWith('cs2_trade_accept_')) {
 			try {
 				const [_, skinId, fromUserId, targetUserId] = interaction.customId.split('_').slice(2);
@@ -1785,6 +1820,7 @@ client.on('interactionCreate', async interaction => {
 			});
 			return;
 		}
+		*/
 
 
 
@@ -2641,7 +2677,6 @@ client.on('interactionCreate', async interaction => {
 
 		// --- Handle CS2 open case buttons ---
 		if (interaction.isButton() && interaction.customId.startsWith('cs2_open_') && !interaction.customId.startsWith('cs2_open_another_case_')) {
-			let openingMessage;
 			try {
 				const caseId = interaction.customId.replace('cs2_open_', '');
 				const backendUrl = process.env.BACKEND_API_URL;
@@ -2679,10 +2714,12 @@ client.on('interactionCreate', async interaction => {
 						{ name: '📦 Case', value: selectedCase.formattedName, inline: true }
 					);
 
-				openingMessage = await interaction.reply({
+				// Defer the reply first to ensure we can edit it
+				await interaction.deferReply({ ephemeral: true });
+				
+				await interaction.editReply({
 					embeds: [openingEmbed],
-					components: [],
-					ephemeral: true
+					components: []
 				});
 
 				// Simulate opening delay for suspense
@@ -2805,10 +2842,30 @@ client.on('interactionCreate', async interaction => {
 					iconURL: interaction.user.displayAvatarURL()
 				});
 
-				// Update the message with the result
-				await openingMessage.edit({
+				// Create action buttons for the result
+				const actionRow = new ActionRowBuilder()
+					.addComponents(
+						// new ButtonBuilder()
+						// 	.setCustomId(`cs2_inventory_${interaction.user.id}`)
+						// 	.setLabel('View Inventory')
+						// 	.setStyle(ButtonStyle.Secondary)
+						// 	.setEmoji('🎒'),
+						// new ButtonBuilder()
+						// 	.setCustomId(`cs2_stats_${interaction.user.id}`)
+						// 	.setLabel('View Stats')
+						// 	.setStyle(ButtonStyle.Secondary)
+						// 	.setEmoji('📊'),
+						new ButtonBuilder()
+							.setCustomId(`cs2_open_another_case_private_${caseId}`)
+							.setLabel('Open Another')
+							.setStyle(ButtonStyle.Success)
+							.setEmoji('🎯')
+					);
+
+				// Update the message with the result and buttons
+				await interaction.editReply({
 					embeds: [resultEmbed],
-					components: []
+					components: [actionRow]
 				});
 
 			} catch (error) {
@@ -2819,9 +2876,8 @@ client.on('interactionCreate', async interaction => {
 					errorMessage = `❌ **Error:** ${error.response.data.error}`;
 				}
 				
-				// Use edit if we have openingMessage, otherwise reply
-				if (openingMessage) {
-					await openingMessage.edit({
+				// Use editReply since we already deferred
+				await interaction.editReply({
 						embeds: [new EmbedBuilder()
 							.setTitle('❌ Error Opening Case')
 							.setDescription(errorMessage)
@@ -2829,12 +2885,6 @@ client.on('interactionCreate', async interaction => {
 							.setTimestamp()],
 						components: []
 					});
-				} else {
-					await interaction.reply({
-						content: errorMessage,
-						ephemeral: true
-					});
-				}
 			}
 			return;
 		}
@@ -2957,7 +3007,7 @@ client.on('interactionCreate', async interaction => {
 	}
 
 	// --- Handle CS2 open command button interactions ---
-	if (interaction.isButton() && (interaction.customId.startsWith('cs2_inventory_') || interaction.customId.startsWith('cs2_stats_') || interaction.customId.startsWith('cs2_open_another_case_'))) {
+	if (interaction.isButton() && (interaction.customId.startsWith('cs2_inventory_') || interaction.customId.startsWith('cs2_stats_') || (interaction.customId.startsWith('cs2_open_another_case_') && !interaction.customId.startsWith('cs2_open_another_case_private_')))) {
 		try {
 			console.log('CS2 open command button handler triggered:', interaction.customId, interaction.user.id);
 			
@@ -2983,6 +3033,28 @@ client.on('interactionCreate', async interaction => {
 			
 		} catch (error) {
 			console.error('Error handling CS2 open command button:', error);
+			await interaction.reply({ 
+				content: '❌ An error occurred while processing your button click. Please try again.',
+				ephemeral: true 
+			});
+		}
+		return;
+	}
+
+	// --- Handle CS2 case private "Open Another" button interactions ---
+	if (interaction.isButton() && interaction.customId.startsWith('cs2_open_another_case_private_')) {
+		try {
+			console.log('🎯 CS2 case private "Open Another" button handler triggered:', interaction.customId, interaction.user.id);
+			
+			const caseId = interaction.customId.replace('cs2_open_another_case_private_', '');
+			const userId = interaction.user.id;
+			
+			// Call the openAnotherCasePrivate method from cs2cases command
+			const cs2casesCommand = require('./commands/cs2cases.js');
+			await cs2casesCommand.openAnotherCasePrivate(interaction, caseId, userId, interaction.guildId, process.env.BACKEND_API_URL);
+			
+		} catch (error) {
+			console.error('Error handling CS2 case private "Open Another" button:', error);
 			await interaction.reply({ 
 				content: '❌ An error occurred while processing your button click. Please try again.',
 				ephemeral: true 
@@ -3254,13 +3326,145 @@ client.on('interactionCreate', async interaction => {
 	}
 
 	// --- Handle CS2 sell buttons ---
+	// Note: All CS2 sell interactions are now handled locally in the cs2sell command
+	// These global handlers have been removed to prevent conflicts with local collectors
+	/*
 	if (interaction.isButton() && interaction.customId.startsWith('cs2_sell_')) {
 		console.log('CS2 sell button handler triggered:', interaction.customId, interaction.user.id);
 		
-		// This is handled locally in the cs2sell command
-		// The interaction will be handled by the local collector
+		// Handle pagination buttons
+		if (interaction.customId.startsWith('cs2_sell_prev_') || interaction.customId.startsWith('cs2_sell_next_')) {
+			try {
+				const currentPage = parseInt(interaction.customId.split('_')[3]);
+				const newPage = interaction.customId.startsWith('cs2_sell_prev_') ? currentPage - 1 : currentPage + 1;
+				
+				// Fetch inventory for the new page
+				const response = await axios.get(`${process.env.BACKEND_API_URL}/cs2/inventory/${interaction.user.id}`, {
+					headers: { 'x-guild-id': interaction.guildId }
+				});
+				
+				const skins = response.data.inventory.skins || [];
+				
+				// Check if there are any skins
+				if (skins.length === 0) {
+					await interaction.reply({ 
+						content: '❌ No skins found in your inventory.',
+						ephemeral: true 
+					});
 		return;
 	}
+				
+				const skinsPerPage = 25;
+				const totalPages = Math.ceil(skins.length / skinsPerPage);
+				
+				// Validate page number
+				if (newPage < 0 || newPage >= totalPages) {
+					await interaction.reply({ 
+						content: `❌ Invalid page number. Available pages: 1-${totalPages}`,
+						ephemeral: true 
+					});
+					return;
+				}
+				
+				const startIndex = newPage * skinsPerPage;
+				const endIndex = startIndex + skinsPerPage;
+				const displaySkins = skins.slice(startIndex, endIndex);
+				
+				// Helper function to get rarity emoji
+				const getRarityEmoji = (rarity) => {
+					const rarityEmojis = {
+						'consumer-grade': '⚪',
+						'industrial-grade': '🔵',
+						'mil-spec': '🔷',
+						'restricted': '🟣',
+						'classified': '🩷',
+						'covert': '🔴',
+						'special': '🟡'
+					};
+					return rarityEmojis[rarity] || '⚪';
+				};
+
+				// Create select menu options
+				const selectOptions = displaySkins.map((skin, index) => ({
+					label: `${skin.weapon || 'Unknown'} | ${skin.skinName || 'Unknown'}`,
+					value: skin.skinId,
+					description: `${skin.rarity || 'Unknown'} • ${skin.wear || 'Unknown'} • 💰 ${skin.marketValue || 0} points`,
+					emoji: getRarityEmoji(skin.rarity)
+				}));
+				
+				// Create select menu
+				const selectMenu = new StringSelectMenuBuilder()
+					.setCustomId('cs2_sell_select')
+					.setPlaceholder('Select a skin to sell...')
+					.addOptions(selectOptions);
+				
+				const actionRow = new ActionRowBuilder().addComponents(selectMenu);
+				
+				// Create navigation row
+				const navigationRow = new ActionRowBuilder();
+				
+				// Previous page button
+				if (newPage > 0) {
+					navigationRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_sell_prev_${newPage}`)
+							.setLabel('◀️ Previous')
+							.setStyle(ButtonStyle.Secondary)
+					);
+				}
+				
+				// Page indicator
+				navigationRow.addComponents(
+					new ButtonBuilder()
+						.setCustomId('cs2_sell_page_info')
+						.setLabel(`Page ${newPage + 1} of ${totalPages}`)
+						.setStyle(ButtonStyle.Secondary)
+						.setDisabled(true)
+					);
+				
+				// Next page button
+				if (newPage < totalPages - 1) {
+					navigationRow.addComponents(
+						new ButtonBuilder()
+							.setCustomId(`cs2_sell_next_${newPage}`)
+							.setStyle(ButtonStyle.Secondary)
+							.setLabel('Next ▶️')
+					);
+				}
+				
+				// Create a basic embed if none exists
+				const embed = interaction.message.embeds[0] || new EmbedBuilder()
+					.setTitle('💰 CS2 Sell Inventory')
+					.setDescription(`Showing page ${newPage + 1} of ${totalPages} (${displaySkins.length} skins)`);
+
+				// Update the message - for ephemeral messages use editReply, otherwise use update
+				if (interaction.message.flags?.has(64)) { // 64 is the ephemeral flag
+					await interaction.editReply({
+						embeds: [embed],
+						components: [actionRow, navigationRow]
+					});
+				} else {
+					await interaction.update({
+						embeds: [embed],
+						components: [actionRow, navigationRow]
+					});
+				}
+				
+			} catch (error) {
+				console.error('Error handling CS2 sell pagination:', error);
+				await interaction.reply({ 
+					content: '❌ Failed to load page. Please try again.',
+					ephemeral: true 
+				});
+			}
+			return;
+		}
+		
+		// Handle other CS2 sell buttons (confirm, cancel, etc.)
+		// These are handled by the local collector in the cs2sell command
+		return;
+	}
+	*/
 
 	// --- Handle CS2 trade buttons ---
 	if (interaction.isButton() && interaction.customId.startsWith('cs2_trade_')) {
@@ -3272,6 +3476,9 @@ client.on('interactionCreate', async interaction => {
 	}
 
 	// --- Handle CS2 sell select menus ---
+	// Note: CS2 sell select menus are now handled locally in the cs2sell command
+	// This global handler has been removed to prevent conflicts with local collectors
+	/*
 	if (interaction.isStringSelectMenu() && interaction.customId === 'cs2_sell_select') {
 		console.log('CS2 sell select menu handler triggered:', interaction.customId, interaction.user.id);
 		
@@ -3279,6 +3486,7 @@ client.on('interactionCreate', async interaction => {
 		// The interaction will be handled by the local collector
 		return;
 	}
+	*/
 
 	// --- Handle CS2 trade select menus ---
 	if (interaction.isStringSelectMenu() && (interaction.customId === 'cs2_trade_skin_select' || interaction.customId === 'cs2_trade_user_select')) {
