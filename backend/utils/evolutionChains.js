@@ -7,7 +7,8 @@ const speciesCache = new Map();
 // Generation ranges
 const GENERATION_RANGES = {
   1: { start: 1, end: 151, name: 'Kanto' },
-  2: { start: 152, end: 251, name: 'Johto' }
+  2: { start: 152, end: 251, name: 'Johto' },
+  3: { start: 252, end: 386, name: 'Hoenn' }
 };
 
 /**

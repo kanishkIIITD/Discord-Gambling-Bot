@@ -4,7 +4,41 @@ const customSpawnRates = require('../data/customSpawnRates.json');
 const pokeCache = require('../utils/pokeCache');
 const { getPreviousGenInfo } = require('../config/generationConfig');
 
-// Group Pokémon by rarity (Gen 1 only)
+// --- Seeded RNG utilities for fair, consistent half-day randomness per user ---
+function xfnv1a(str) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return () => {
+    h += h << 13; h ^= h >>> 7;
+    h += h << 3;  h ^= h >>> 17;
+    h += h << 5;
+    return h >>> 0;
+  };
+}
+
+function mulberry32(a) {
+  return function() {
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function createUserPeriodRng(userId, periodKey) {
+  const seedFunc = xfnv1a(`${userId}-${periodKey}`);
+  const seed = seedFunc();
+  return mulberry32(seed);
+}
+
+function rngInt(rng, max) {
+  return Math.floor(rng() * max);
+}
+
+// Group Pokémon by rarity (Previous Gen only)
 const pokemonByRarity = {
   common: [],
   uncommon: [],
@@ -12,36 +46,25 @@ const pokemonByRarity = {
   legendary: []
 };
 
-// Populate the rarity groups with only Gen 1 Pokémon (IDs 1-151)
-Object.entries(customSpawnRates).forEach(([name, data]) => {
-  // Only include Gen 1 Pokémon (IDs 1-151)
-  if (data.gen === 1 && pokemonByRarity[data.rarity]) {
-    pokemonByRarity[data.rarity].push({ name, ...data });
-  }
-});
+// Populate the rarity groups with only Previous Gen Pokémon
+(function populatePreviousGenPools() {
+  const prevGen = getPreviousGenInfo().number;
+  Object.entries(customSpawnRates).forEach(([name, data]) => {
+    if (data.gen === prevGen && pokemonByRarity[data.rarity]) {
+      pokemonByRarity[data.rarity].push({ name, ...data });
+    }
+  });
+})();
 
-function getDailyPokemon(userId, guildId) {
-  const today = new Date();
-  const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
-  
-  // Use day of year + user ID + guild ID as seed for user AND guild-specific daily rotation
-  const userSeed = parseInt(userId.slice(-3), 16); // Use last 3 characters of user ID
-  const guildSeed = parseInt(guildId.slice(-3), 16); // Use last 3 characters of guild ID
-  const seed = dayOfYear + userSeed + guildSeed;
-  
+function getDailyPokemon(userId, guildId, halfDayKey) {
+  // Use a user-level RNG per half-day so each user sees their own rotation
+  const rng = createUserPeriodRng(userId, halfDayKey);
+
   // Helper function to check if a Pokémon should be shiny (1% chance)
-  const isShiny = (baseSeed, rarity) => {
-    const shinySeed = baseSeed + rarity.charCodeAt(0); // Different seed for each rarity
-    const randomValue = (shinySeed * 9301 + 49297) % 233280;
-    return (randomValue % 100) < 1; // 1% chance
-  };
+  const isShiny = () => rng() < 0.01;
 
   // Helper function to check if a Pokémon should be a form (5% chance)
-  const isForm = (baseSeed, rarity) => {
-    const formSeed = baseSeed + rarity.charCodeAt(0) + 1000; // Different seed for forms
-    const randomValue = (formSeed * 9301 + 49297) % 233280;
-    return (randomValue % 100) < 5; // 5% chance
-  };
+  const isFormChance = () => rng() < 0.05;
 
   // Helper function to get a random form for a Pokémon
   const getRandomForm = (pokemonName, baseSeed) => {
@@ -49,20 +72,14 @@ function getDailyPokemon(userId, guildId) {
       const pokemonForms = require('../data/pokemonForms.json');
       const forms = pokemonForms[pokemonName]?.forms || [];
       if (forms.length > 0) {
-        // Weight forms by their spawn rate
+        // Weight forms by spawnRate, pick with RNG
         const totalWeight = forms.reduce((sum, form) => sum + form.spawnRate, 0);
-        let random = (baseSeed * 9301 + 49297) % 233280;
-        random = random % totalWeight;
-        
+        let pick = rng() * totalWeight;
         for (const form of forms) {
-          random -= form.spawnRate;
-          if (random <= 0) {
-            return form;
-          }
+          pick -= form.spawnRate;
+          if (pick <= 0) return form;
         }
-        
-        // Fallback to first form if no form was selected
-        return forms[0];
+        return forms[forms.length - 1];
       }
     } catch (error) {
       console.error('Error loading forms data:', error);
@@ -70,44 +87,36 @@ function getDailyPokemon(userId, guildId) {
     return null;
   };
   
-  // Select one Pokémon from each rarity using the seed
-  const commonBase = pokemonByRarity.common[seed % pokemonByRarity.common.length];
-  const uncommonBase = pokemonByRarity.uncommon[seed % pokemonByRarity.uncommon.length];
-  
-  // Add a small chance (5%) for the rare slot to be replaced by a legendary
-  const randomValue = (seed * 9301 + 49297) % 233280; // Simple PRNG using the seed
-  const isLegendary = (randomValue % 100) < 5; // 5% chance
-  
-  let rareBase;
-  if (isLegendary && pokemonByRarity.legendary.length > 0) {
-    // Select a legendary Pokémon
-    rareBase = pokemonByRarity.legendary[seed % pokemonByRarity.legendary.length];
-  } else {
-    // Select a rare Pokémon (default behavior)
-    rareBase = pokemonByRarity.rare[seed % pokemonByRarity.rare.length];
-  }
+  // Select one Pokémon from each rarity using RNG (uniform within rarity)
+  const commonBase = pokemonByRarity.common[rngInt(rng, pokemonByRarity.common.length)];
+  const uncommonBase = pokemonByRarity.uncommon[rngInt(rng, pokemonByRarity.uncommon.length)];
+  // 5% chance to upgrade rare slot to legendary
+  const pickLegendary = rng() < 0.05 && pokemonByRarity.legendary.length > 0;
+  const rareBase = pickLegendary
+    ? pokemonByRarity.legendary[rngInt(rng, pokemonByRarity.legendary.length)]
+    : pokemonByRarity.rare[rngInt(rng, pokemonByRarity.rare.length)];
 
   // Add form and shiny properties
-  const commonFormData = isForm(seed, 'common') ? getRandomForm(commonBase.name, seed) : null;
+  const commonFormData = isFormChance() ? getRandomForm(commonBase.name) : null;
   const commonPokemon = { 
     ...commonBase, 
-    isShiny: isShiny(seed, 'common'),
+    isShiny: isShiny(),
     isForm: !!commonFormData, // Only true if form data exists
     formData: commonFormData
   };
   
-  const uncommonFormData = isForm(seed, 'uncommon') ? getRandomForm(uncommonBase.name, seed) : null;
+  const uncommonFormData = isFormChance() ? getRandomForm(uncommonBase.name) : null;
   const uncommonPokemon = { 
     ...uncommonBase, 
-    isShiny: isShiny(seed, 'uncommon'),
+    isShiny: isShiny(),
     isForm: !!uncommonFormData, // Only true if form data exists
     formData: uncommonFormData
   };
   
-  const rareFormData = isForm(seed, 'rare') ? getRandomForm(rareBase.name, seed) : null;
+  const rareFormData = isFormChance() ? getRandomForm(rareBase.name) : null;
   const rarePokemon = { 
     ...rareBase, 
-    isShiny: isShiny(seed, 'rare'),
+    isShiny: isShiny(),
     isForm: !!rareFormData, // Only true if form data exists
     formData: rareFormData
   };
@@ -142,7 +151,7 @@ function getRarityEmoji(rarity) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('pokeshopdaily')
-    .setDescription('View today\'s rotating Gen 1 Pokémon shop featuring Pokémon from different rarities!'),
+    .setDescription('View today\'s rotating Previous Generation Pokémon shop featuring Pokémon from different rarities!'),
 
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
@@ -163,26 +172,38 @@ module.exports = {
     if (!pokeCache.isKantoCacheReady()) {
       await pokeCache.buildKantoCache();
     }
-    
-    const dailyPokemon = getDailyPokemon(userId, guildId);
-    
-    // Check daily shop purchases
+    // Build half-day key consistent with purchases to sync rotation windows
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayKey = today.toISOString().split('T')[0];
+    // Half-day key: YYYY-MM-DD-0 for 00:00-11:59, -1 for 12:00-23:59
+    const baseDateKey = today.toISOString().split('T')[0];
+    const nowForKey = new Date();
+    const halfDaySlot = nowForKey.getHours() < 12 ? '0' : '1';
+    const todayKey = `${baseDateKey}-${halfDaySlot}`;
+    const purchaseDateKey = baseDateKey; // backend expects YYYY-MM-DD only
+    const halfDayKey = todayKey;
+    // Seed with userId + guildId + half-day for per-user-per-guild variety
+    const dailyPokemon = getDailyPokemon(`${userId}-${guildId}`, guildId, halfDayKey);
     
-    // Calculate time until next reset (midnight)
+    // Check daily shop purchases
+    
+    // Calculate time until next reset (every 12 hours)
     const now = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const timeUntilReset = tomorrow - now;
+    const nextReset = new Date(now);
+    if (now.getHours() < 12) {
+      nextReset.setHours(12, 0, 0, 0);
+    } else {
+      nextReset.setDate(nextReset.getDate() + 1);
+      nextReset.setHours(0, 0, 0, 0);
+    }
+    const timeUntilReset = nextReset - now;
     const hours = Math.floor(timeUntilReset / (1000 * 60 * 60));
     const minutes = Math.floor((timeUntilReset % (1000 * 60 * 60)) / (1000 * 60));
     
     // Fetch today's purchases from the backend
     let todayPurchases = {};
     try {
-      const purchasesRes = await axios.get(`${backendUrl}/users/${userId}/pokemon/daily-purchases/${todayKey}`, { 
+      const purchasesRes = await axios.get(`${backendUrl}/users/${userId}/pokemon/daily-purchases/${purchaseDateKey}`, { 
         headers: { 'x-guild-id': guildId } 
       });
       const purchases = purchasesRes.data.purchases || [];
@@ -195,9 +216,10 @@ module.exports = {
     }
 
     // Build main shop embed
+    const prevGenInfo = getPreviousGenInfo();
     const mainEmbed = new EmbedBuilder()
-      .setTitle('🛒 Daily Gen 1 Pokémon Shop')
-      .setDescription(`Today's rotating Gen 1 Pokémon selection!`)
+      .setTitle(`🛒 Daily Gen ${prevGenInfo.number} (${prevGenInfo.name}) Pokémon Shop`)
+      .setDescription(`Today's rotating Gen ${prevGenInfo.number} (${prevGenInfo.name}) Pokémon selection!`)
       .setColor(0x3498db)
       .addFields(
         { name: 'Your Stardust', value: String(user.poke_stardust || 0), inline: true },
@@ -228,19 +250,19 @@ module.exports = {
         displayName = pokemon.formData.name;
         formName = pokemon.formData.name;
       } else {
-        // Use base Pokemon ID
-        if (pokeCache.kantoSpecies && pokeCache.kantoSpecies.length > 0) {
-          // Try exact match first, then case-insensitive
-          let species = pokeCache.kantoSpecies.find(s => s.name === pokemon.name.toLowerCase());
+        // Use base Pokemon ID from the previous generation species cache
+        const prevGenNum = getPreviousGenInfo().number;
+        const speciesList = prevGenNum === 1 ? pokeCache.kantoSpecies : (prevGenNum === 2 ? pokeCache.gen2Species : []);
+        if (speciesList && speciesList.length > 0) {
+          let species = speciesList.find(s => s.name === pokemon.name.toLowerCase());
           if (!species) {
-            species = pokeCache.kantoSpecies.find(s => s.name.toLowerCase() === pokemon.name.toLowerCase());
+            species = speciesList.find(s => s.name.toLowerCase() === pokemon.name.toLowerCase());
           }
           if (species) {
             pokemonId = species.id;
-          } else {
           }
         } else {
-          // Fallback: Direct mapping for common Kanto Pokémon
+          // Fallback: Direct mapping for common Kanto Pokémon (only applies if prevGen is 1)
           const pokemonIdMap = {
             'bulbasaur': 1, 'ivysaur': 2, 'venusaur': 3, 'charmander': 4, 'charmeleon': 5, 'charizard': 6,
             'squirtle': 7, 'wartortle': 8, 'blastoise': 9, 'caterpie': 10, 'metapod': 11, 'butterfree': 12,
@@ -269,10 +291,11 @@ module.exports = {
             'dragonair': 148, 'dragonite': 149, 'mewtwo': 150, 'mew': 151
           };
           
-          const mappedId = pokemonIdMap[pokemon.name.toLowerCase()];
-          if (mappedId) {
-            pokemonId = mappedId;
-          } else {
+          if (prevGenNum === 1) {
+            const mappedId = pokemonIdMap[pokemon.name.toLowerCase()];
+            if (mappedId) {
+              pokemonId = mappedId;
+            }
           }
         }
       }
@@ -400,7 +423,7 @@ module.exports = {
         // Update buttons based on new stardust and purchase status
         let updatedTodayPurchases = {};
         try {
-          const updatedPurchasesRes = await axios.get(`${backendUrl}/users/${userId}/pokemon/daily-purchases/${todayKey}`, { 
+          const updatedPurchasesRes = await axios.get(`${backendUrl}/users/${userId}/pokemon/daily-purchases/${purchaseDateKey}`, { 
             headers: { 'x-guild-id': guildId } 
           });
           const updatedPurchases = updatedPurchasesRes.data.purchases || [];

@@ -30,13 +30,19 @@ module.exports = {
         .setDescription('Show only duplicate Pokémon (count > 1)')
         .setRequired(false)
     )
+    .addBooleanOption(option =>
+      option.setName('forms')
+        .setDescription('Show only form variants (ID ≥ 10001)')
+        .setRequired(false)
+    )
     .addIntegerOption(option =>
       option.setName('gen')
-        .setDescription('Filter by generation (1 for Kanto, 2 for Johto)')
+        .setDescription('Filter by generation (1: Kanto, 2: Johto, 3: Hoenn)')
         .addChoices(
           { name: 'All Generations', value: 0 },
           { name: 'Gen 1 - Kanto', value: 1 },
-          { name: 'Gen 2 - Johto', value: 2 }
+          { name: 'Gen 2 - Johto', value: 2 },
+          { name: 'Gen 3 - Hoenn', value: 3 }
         )
         .setRequired(false)
     ),
@@ -53,22 +59,31 @@ module.exports = {
         return await interaction.editReply('You have not caught any Pokémon yet!');
       }
       
-      // --- Generation filter ---
+      // --- Forms or Generation filter ---
+      const showFormsOnly = interaction.options.getBoolean('forms') || false;
       const selectedGen = interaction.options.getInteger('gen') || 0; // Default to 0 (all generations)
-      if (selectedGen > 0) {
-        // Filter by generation based on Pokémon ID ranges
-        const genRanges = {
-          1: { start: 1, end: 151 },   // Gen 1: Kanto
-          2: { start: 152, end: 251 }  // Gen 2: Johto
-        };
-        
-        if (genRanges[selectedGen]) {
-          const range = genRanges[selectedGen];
-          pokedex = pokedex.filter(mon => mon.pokemonId >= range.start && mon.pokemonId <= range.end);
+      if (showFormsOnly) {
+        pokedex = pokedex.filter(mon => mon.pokemonId >= 10001);
+        if (pokedex.length === 0) {
+          return await interaction.editReply('You have not caught any Pokémon forms yet!');
+        }
+      } else {
+        if (selectedGen > 0) {
+          // Filter by generation based on Pokémon ID ranges
+          const genRanges = {
+            1: { start: 1, end: 151 },      // Gen 1: Kanto
+            2: { start: 152, end: 251 },    // Gen 2: Johto
+            3: { start: 252, end: 386 }     // Gen 3: Hoenn
+          };
           
-          if (pokedex.length === 0) {
-            const genName = selectedGen === 1 ? 'Kanto' : 'Johto';
-            return await interaction.editReply(`You have not caught any Gen ${selectedGen} (${genName}) Pokémon yet!`);
+          if (genRanges[selectedGen]) {
+            const range = genRanges[selectedGen];
+            pokedex = pokedex.filter(mon => mon.pokemonId >= range.start && mon.pokemonId <= range.end);
+            
+            if (pokedex.length === 0) {
+              const genName = selectedGen === 1 ? 'Kanto' : (selectedGen === 2 ? 'Johto' : 'Hoenn');
+              return await interaction.editReply(`You have not caught any Gen ${selectedGen} (${genName}) Pokémon yet!`);
+            }
           }
         }
       }
@@ -122,10 +137,14 @@ module.exports = {
         } catch {}
         // Get generation display text
         let genDisplayText = '';
-        if (selectedGen === 1) {
+        if (showFormsOnly) {
+          genDisplayText = ' — Forms';
+        } else if (selectedGen === 1) {
           genDisplayText = ' — Gen 1 (Kanto)';
         } else if (selectedGen === 2) {
           genDisplayText = ' — Gen 2 (Johto)';
+        } else if (selectedGen === 3) {
+          genDisplayText = ' — Gen 3 (Hoenn)';
         } else if (selectedGen === 0) {
           genDisplayText = ' — All Generations';
         }
@@ -195,12 +214,18 @@ module.exports = {
       .setDescription('Choose which Pokémon to display in your Pokédex!')
       .addIntegerOption(option =>
         option.setName('gen')
-          .setDescription('Filter by generation (1 for Kanto, 2 for Johto)')
+          .setDescription('Filter by generation (1: Kanto, 2: Johto, 3: Hoenn)')
           .addChoices(
             { name: 'All Generations', value: 0 },
             { name: 'Gen 1 - Kanto', value: 1 },
-            { name: 'Gen 2 - Johto', value: 2 }
+            { name: 'Gen 2 - Johto', value: 2 },
+            { name: 'Gen 3 - Hoenn', value: 3 }
           )
+          .setRequired(false)
+      )
+      .addBooleanOption(option =>
+        option.setName('forms')
+          .setDescription('Show only form variants (ID ≥ 10001)')
           .setRequired(false)
       ),
     async execute(interaction) {
@@ -220,22 +245,31 @@ module.exports = {
         return await interaction.editReply('You have not caught any Pokémon yet!');
       }
       
-      // --- Generation filter ---
-      const selectedGen = interaction.options.getInteger('gen') || 0; // Default to 0 (all generations)
-      if (selectedGen > 0) {
-        // Filter by generation based on Pokémon ID ranges
-        const genRanges = {
-          1: { start: 1, end: 151 },   // Gen 1: Kanto
-          2: { start: 152, end: 251 }  // Gen 2: Johto
-        };
-        
-        if (genRanges[selectedGen]) {
-          const range = genRanges[selectedGen];
-          pokedex = pokedex.filter(mon => mon.pokemonId >= range.start && mon.pokemonId <= range.end);
+      // --- Forms or Generation filter ---
+      const showFormsOnlySub = interaction.options.getBoolean('forms') || false;
+      if (showFormsOnlySub) {
+        pokedex = pokedex.filter(mon => mon.pokemonId >= 10001);
+        if (pokedex.length === 0) {
+          return await interaction.editReply('You have not caught any Pokémon forms yet!');
+        }
+      } else {
+        const selectedGen = interaction.options.getInteger('gen') || 0; // Default to 0 (all generations)
+        if (selectedGen > 0) {
+          // Filter by generation based on Pokémon ID ranges
+          const genRanges = {
+            1: { start: 1, end: 151 },      // Gen 1: Kanto
+            2: { start: 152, end: 251 },    // Gen 2: Johto
+            3: { start: 252, end: 386 }     // Gen 3: Hoenn
+          };
           
-          if (pokedex.length === 0) {
-            const genName = selectedGen === 1 ? 'Kanto' : 'Johto';
-            return await interaction.editReply(`You have not caught any Gen ${selectedGen} (${genName}) Pokémon yet!`);
+          if (genRanges[selectedGen]) {
+            const range = genRanges[selectedGen];
+            pokedex = pokedex.filter(mon => mon.pokemonId >= range.start && mon.pokemonId <= range.end);
+            
+            if (pokedex.length === 0) {
+              const genName = selectedGen === 1 ? 'Kanto' : (selectedGen === 2 ? 'Johto' : 'Hoenn');
+              return await interaction.editReply(`You have not caught any Gen ${selectedGen} (${genName}) Pokémon yet!`);
+            }
           }
         }
       }

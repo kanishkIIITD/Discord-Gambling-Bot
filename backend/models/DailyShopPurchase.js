@@ -17,7 +17,7 @@ const dailyShopPurchaseSchema = new mongoose.Schema({
   date: { 
     type: String, 
     required: true 
-  }, // YYYY-MM-DD format
+  }, // YYYY-MM-DD or YYYY-MM-DD-0/1 (half-day)
   rarity: { 
     type: String, 
     enum: ['common', 'uncommon', 'rare', 'legendary'], 
@@ -41,7 +41,7 @@ const dailyShopPurchaseSchema = new mongoose.Schema({
   }
 });
 
-// Compound index to ensure one purchase per rarity per user per day
+// Compound index to ensure one purchase per rarity per user per half-day
 dailyShopPurchaseSchema.index({ 
   discordId: 1, 
   guildId: 1, 

@@ -1,8 +1,8 @@
 // Generation Configuration for Frontend
 // This matches the Discord bot's generationConfig.js
 
-const CURRENT_GENERATION = 2; // Currently Gen 2 (Johto)
-const PREVIOUS_GENERATION = 1; // Previously Gen 1 (Kanto)
+const CURRENT_GENERATION = 3; // Currently Gen 3 (Hoenn)
+const PREVIOUS_GENERATION = 2; // Previously Gen 2 (Johto)
 
 // Generation names for display
 const GENERATION_NAMES = {

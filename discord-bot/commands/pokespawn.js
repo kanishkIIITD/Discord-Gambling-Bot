@@ -4,7 +4,7 @@ const customSpawnRates = require('../data/customSpawnRates.json');
 const axios = require('axios');
 const { getEmojiString } = require('../utils/emojiConfig');
 const { clearAllDespawnTimers, setDespawnTimer } = require('../utils/despawnTimerManager');
-const { getCurrentGenInfo } = require('../config/generationConfig');
+const { getCurrentGenInfo, GENERATION_NAMES } = require('../config/generationConfig');
 
 // Helper function to get display name for Pokémon
 function getDisplayName(pokemonName) {
@@ -69,6 +69,11 @@ module.exports = {
         content: 'Current generation Pokémon data is still loading. Please try again in a few seconds!',
         ephemeral: true
       });
+    } else if (currentGen === 3 && !pokeCache.isGen3CacheReady()) {
+      return interaction.editReply({
+        content: 'Current generation Pokémon data is still loading. Please try again in a few seconds!',
+        ephemeral: true
+      });
     }
     if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
       return interaction.editReply({ content: 'Only admins can use this command.', ephemeral: true });
@@ -95,7 +100,7 @@ module.exports = {
       return interaction.editReply({ content: 'A wild Pokémon is already present in this channel! Use /pokecatch to try catching it.', ephemeral: true });
     }
     
-    // Spawn current generation Pokémon
+    // Spawn current generation Pokémon (manual command always uses current gen)
     const pokemonId = pokeCache.getRandomPokemonIdByGeneration(currentGen);
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
     const pokemonName = pokemonData.name;
@@ -126,7 +131,7 @@ module.exports = {
     }
     
     // Get region name based on current generation
-    const regionName = currentGen === 1 ? 'Kanto' : 'Johto';
+    const regionName = GENERATION_NAMES[currentGen] || `Gen ${currentGen}`;
     
     // Get evolution stage display text
     let evolutionStageText = '';
@@ -167,7 +172,7 @@ module.exports = {
     const sentMsg = await interaction.editReply({ embeds: [embed], fetchReply: true });
     activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: sentMsg.id, attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
     console.log(`[PokeSpawn][SPAWN] Created spawn in channel ${channelId}: messageId=${sentMsg.id}, pokemonId=${pokemonId}, spawnedAt=${Date.now()}`);
-    const DESPAWN_TIME = 60 * 1000; // 1 minute
+    const DESPAWN_TIME = 90 * 1000; // 1 minute 30 seconds
     const timeout = setTimeout(async () => {
       const spawn = activeSpawns.get(channelId);
       console.log(`[PokeSpawn][TIMER] Timer fired for channel ${channelId}. Timer messageId: ${sentMsg.id}, activeSpawns messageId: ${spawn ? spawn.messageId : 'none'}`);
@@ -177,7 +182,7 @@ module.exports = {
           const goneEmbed = new EmbedBuilder()
             .setColor(0x636e72)
             .setTitle(`${getEmojiString('pokeball')} The wild #${dexNum.toString().padStart(3, '0')} ${capitalizeFirst(getDisplayName(pokemonData.name))} ran away!`)
-            .setDescription(`The wild Pokémon ran away after 20 seconds.`)
+            .setDescription(`The wild Pokémon ran away after 1 minute 30 seconds.`)
             .setImage(artwork);
           // --- Update: fetch channel and message like auto-spawn ---
           const channel = await interaction.client.channels.fetch(channelId);

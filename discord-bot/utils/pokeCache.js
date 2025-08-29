@@ -3,15 +3,23 @@ const fetch = require('node-fetch');
 // In-memory caches
 let kantoSpecies = [];
 let gen2Species = [];
+let gen3Species = [];
 let encounterRates = {};
 let weightedSpawnPool = [];
 let gen2WeightedSpawnPool = [];
+let gen3WeightedSpawnPool = [];
+// Adjusted pools for previous-gen spawns (commons halved)
+let weightedSpawnPoolPrev = [];
+let gen2WeightedSpawnPoolPrev = [];
+let gen3WeightedSpawnPoolPrev = [];
 let pokemonDataCache = {};
 let kantoCacheReady = false;
 let gen2CacheReady = false;
+let gen3CacheReady = false;
 
 const KANTO_GENERATION_ID = 1; // /generation/1/
 const GEN2_GENERATION_ID = 2;  // /generation/2/
+const GEN3_GENERATION_ID = 3;  // /generation/3/
 const KANTO_POKEDEX_ID = 2;    // /pokedex/2/ (Kanto)
 
 const customSpawnRates = require('../data/customSpawnRates.json');
@@ -44,6 +52,7 @@ async function buildKantoCache() {
 
   // --- Use custom spawn rates for Gen 1 ---
   weightedSpawnPool = [];
+  weightedSpawnPoolPrev = [];
   for (const [name, { spawn, gen }] of Object.entries(customSpawnRates)) {
     if (gen === 1) {
       const species = kantoSpecies.find(s => s.name === name);
@@ -53,6 +62,12 @@ async function buildKantoCache() {
       }
       for (let i = 0; i < spawn; i++) {
         weightedSpawnPool.push(species.id);
+      }
+      // Build adjusted pool: halve commons
+      const rarity = customSpawnRates[name]?.rarity;
+      const adjustedSpawn = rarity === 'common' ? Math.max(1, Math.floor(spawn / 2)) : spawn;
+      for (let i = 0; i < adjustedSpawn; i++) {
+        weightedSpawnPoolPrev.push(species.id);
       }
     }
   }
@@ -71,6 +86,7 @@ async function buildGen2Cache() {
 
   // --- Use custom spawn rates for Gen 2 ---
   gen2WeightedSpawnPool = [];
+  gen2WeightedSpawnPoolPrev = [];
   for (const [name, { spawn, gen }] of Object.entries(customSpawnRates)) {
     if (gen === 2) {
       const species = gen2Species.find(s => s.name === name);
@@ -81,9 +97,48 @@ async function buildGen2Cache() {
       for (let i = 0; i < spawn; i++) {
         gen2WeightedSpawnPool.push(species.id);
       }
+      // Adjusted pool for previous-gen spawn bias
+      const rarity = customSpawnRates[name]?.rarity;
+      const adjustedSpawn = rarity === 'common' ? Math.max(1, Math.floor(spawn / 2)) : spawn;
+      for (let i = 0; i < adjustedSpawn; i++) {
+        gen2WeightedSpawnPoolPrev.push(species.id);
+      }
     }
   }
   gen2CacheReady = true;
+}
+
+async function buildGen3Cache() {
+  // Fetch all Gen 3 species
+  const genData = await fetchJson(`https://pokeapi.co/api/v2/generation/${GEN3_GENERATION_ID}/`);
+  gen3Species = genData.pokemon_species
+    .map(s => ({
+      id: +s.url.match(/\/(\d+)\/?$/)[1],
+      name: s.name
+    }))
+    .sort((a, b) => a.id - b.id);
+
+  // --- Use custom spawn rates for Gen 3 ---
+  gen3WeightedSpawnPool = [];
+  gen3WeightedSpawnPoolPrev = [];
+  for (const [name, { spawn, gen }] of Object.entries(customSpawnRates)) {
+    if (gen === 3) {
+      const species = gen3Species.find(s => s.name === name);
+      if (!species) {
+        console.warn(`[CustomSpawnRates] Pokémon name '${name}' not found in Gen 3 species, skipping.`);
+        continue;
+      }
+      for (let i = 0; i < spawn; i++) {
+        gen3WeightedSpawnPool.push(species.id);
+      }
+      const rarity = customSpawnRates[name]?.rarity;
+      const adjustedSpawn = rarity === 'common' ? Math.max(1, Math.floor(spawn / 2)) : spawn;
+      for (let i = 0; i < adjustedSpawn; i++) {
+        gen3WeightedSpawnPoolPrev.push(species.id);
+      }
+    }
+  }
+  gen3CacheReady = true;
 }
 
 function getRandomKantoPokemonId() {
@@ -98,12 +153,37 @@ function getRandomGen2PokemonId() {
   return gen2WeightedSpawnPool[idx];
 }
 
+function getRandomGen3PokemonId() {
+  if (gen3WeightedSpawnPool.length === 0) throw new Error('Gen 3 cache not built!');
+  const idx = Math.floor(Math.random() * gen3WeightedSpawnPool.length);
+  return gen3WeightedSpawnPool[idx];
+}
+
+function getRandomPokemonIdByGenerationPreviousBias(generation) {
+  if (generation === 1) {
+    if (weightedSpawnPoolPrev.length === 0) throw new Error('Kanto adjusted pool not built!');
+    const idx = Math.floor(Math.random() * weightedSpawnPoolPrev.length);
+    return weightedSpawnPoolPrev[idx];
+  } else if (generation === 2) {
+    if (gen2WeightedSpawnPoolPrev.length === 0) throw new Error('Gen 2 adjusted pool not built!');
+    const idx = Math.floor(Math.random() * gen2WeightedSpawnPoolPrev.length);
+    return gen2WeightedSpawnPoolPrev[idx];
+  } else if (generation === 3) {
+    if (gen3WeightedSpawnPoolPrev.length === 0) throw new Error('Gen 3 adjusted pool not built!');
+    const idx = Math.floor(Math.random() * gen3WeightedSpawnPoolPrev.length);
+    return gen3WeightedSpawnPoolPrev[idx];
+  }
+  throw new Error(`Unsupported generation: ${generation}`);
+}
+
 // Get random Pokémon ID based on generation
 function getRandomPokemonIdByGeneration(generation) {
   if (generation === 1) {
     return getRandomKantoPokemonId();
   } else if (generation === 2) {
     return getRandomGen2PokemonId();
+  } else if (generation === 3) {
+    return getRandomGen3PokemonId();
   } else {
     throw new Error(`Unsupported generation: ${generation}`);
   }
@@ -124,18 +204,31 @@ function isGen2CacheReady() {
   return gen2CacheReady;
 }
 
+function isGen3CacheReady() {
+  return gen3CacheReady;
+}
+
 module.exports = {
   buildKantoCache,
   buildGen2Cache,
+  buildGen3Cache,
   getRandomKantoPokemonId,
   getRandomGen2PokemonId,
+  getRandomGen3PokemonId,
   getRandomPokemonIdByGeneration,
   getPokemonDataById,
   kantoSpecies,
   gen2Species,
+  gen3Species,
   encounterRates,
   weightedSpawnPool,
   gen2WeightedSpawnPool,
+  gen3WeightedSpawnPool,
+  weightedSpawnPoolPrev,
+  gen2WeightedSpawnPoolPrev,
+  gen3WeightedSpawnPoolPrev,
   isKantoCacheReady,
   isGen2CacheReady,
+  isGen3CacheReady,
+  getRandomPokemonIdByGenerationPreviousBias,
 }; 

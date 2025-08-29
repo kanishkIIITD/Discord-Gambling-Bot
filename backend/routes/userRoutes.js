@@ -553,10 +553,12 @@ router.post('/:discordId/pokemon/purchase', requireGuildId, async (req, res) => 
       return res.status(403).json({ message: `Not enough Stardust. Requires ${price}.` });
     }
 
-    // Check daily limit for this rarity (1 per rarity per day)
+    // Check half-day limit for this rarity (1 per rarity per 12 hours)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayKey = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const baseDateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    const halfDaySlot = (new Date()).getHours() < 12 ? '0' : '1';
+    const todayKey = `${baseDateKey}-${halfDaySlot}`; // YYYY-MM-DD-0/1
     
     // Check if user has already purchased this rarity today
     const existingPurchase = await DailyShopPurchase.findOne({
@@ -723,9 +725,9 @@ router.get('/:discordId/pokemon/daily-purchases/:date', requireGuildId, async (r
     const { discordId, date } = req.params;
     const guildId = req.headers['x-guild-id'];
 
-    // Validate date format (YYYY-MM-DD)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD.' });
+    // Validate date format (YYYY-MM-DD or YYYY-MM-DD-0/1 for half-day)
+    if (!/^\d{4}-\d{2}-\d{2}(-[01])?$/.test(date)) {
+      return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD or YYYY-MM-DD-0/1.' });
     }
 
     // Find user

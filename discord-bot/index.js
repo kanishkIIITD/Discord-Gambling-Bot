@@ -100,6 +100,10 @@ global.activeGiveaways = new Map(); // key: messageId => giveaway data
     console.log('[PokéCache] Building Gen 2 Pokémon cache...');
     await pokeCache.buildGen2Cache();
     console.log('[PokéCache] Gen 2 Pokémon cache ready!');
+
+    console.log('[PokéCache] Building Gen 3 Pokémon cache...');
+    await pokeCache.buildGen3Cache();
+    console.log('[PokéCache] Gen 3 Pokémon cache ready!');
     
     // --- Startup cleanup for activeSpawns and despawnTimers ---
     if (activeSpawns && activeSpawns.size > 0) {

@@ -5,7 +5,7 @@ const { EmbedBuilder } = require('discord.js');
 const customSpawnRates = require('../data/customSpawnRates.json');
 const { getEmojiString } = require('./emojiConfig');
 const { clearAllDespawnTimers, setDespawnTimer } = require('./despawnTimerManager');
-const { getCurrentGenInfo, getPreviousGenInfo } = require('../config/generationConfig');
+const { getCurrentGenInfo, getPreviousGenInfo, GENERATION_NAMES } = require('../config/generationConfig');
 
 // Helper function to get display name for Pokémon
 function getDisplayName(pokemonName) {
@@ -36,7 +36,7 @@ function capitalizeFirst(str) {
 }
 
 // const SPAWN_INTERVAL = 10 * 60 * 1000; // 10 minutes
-const DESPAWN_TIME = 60 * 1000; // 1 minute
+const DESPAWN_TIME = 90 * 1000; // 1 minute 30 seconds
 
 async function fetchSpawnChannels(backendUrl) {
   try {
@@ -84,7 +84,11 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, gen
       targetGeneration = getCurrentGenInfo().number;
     }
     
-    const pokemonId = pokeCache.getRandomPokemonIdByGeneration(targetGeneration);
+    // Use adjusted pool if spawning previous generation relative to current
+    const isPreviousGen = targetGeneration === getPreviousGenInfo().number;
+    const pokemonId = isPreviousGen
+      ? pokeCache.getRandomPokemonIdByGenerationPreviousBias(targetGeneration)
+      : pokeCache.getRandomPokemonIdByGeneration(targetGeneration);
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
     const pokemonName = pokemonData.name;
     const fetch = require('node-fetch');
@@ -110,7 +114,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, gen
     }
     
     // Get region name based on generation
-    const regionName = targetGeneration === 1 ? 'Kanto' : 'Johto';
+    const regionName = GENERATION_NAMES[targetGeneration] || `Gen ${targetGeneration}`;
     
     // Get evolution stage display text
     let evolutionStageText = '';
@@ -188,7 +192,7 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, gen
           const goneEmbed = new EmbedBuilder()
             .setColor(0x636e72)
             .setTitle(`${getEmojiString('pokeball')} The wild #${dexNum.toString().padStart(3, '0')} ${name} ran away!`)
-            .setDescription(`The wild Pokémon ran away after 1 minute.`)
+            .setDescription(`The wild Pokémon ran away after 1 minute 30 seconds.`)
             .setImage(artwork);
           const msg = await channel.messages.fetch(message.id);
           await msg.edit({ embeds: [goneEmbed] });
