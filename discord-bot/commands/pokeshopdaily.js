@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const axios = require('axios');
 const customSpawnRates = require('../data/customSpawnRates.json');
 const pokeCache = require('../utils/pokeCache');
-const { getPreviousGenInfo } = require('../config/generationConfig');
+const { getPreviousGenInfo, getCurrentGenInfo, GENERATION_NAMES } = require('../config/generationConfig');
 
 // --- Seeded RNG utilities for fair, consistent half-day randomness per user ---
 function xfnv1a(str) {
@@ -46,7 +46,25 @@ const pokemonByRarity = {
   legendary: []
 };
 
-// Populate the rarity groups with only Previous Gen Pokémon
+// Function to populate rarity groups for a specific generation
+function populateGenerationPools(genNumber) {
+  const pools = {
+    common: [],
+    uncommon: [],
+    rare: [],
+    legendary: []
+  };
+  
+  Object.entries(customSpawnRates).forEach(([name, data]) => {
+    if (data.gen === genNumber && pools[data.rarity]) {
+      pools[data.rarity].push({ name, ...data });
+    }
+  });
+  
+  return pools;
+}
+
+// Populate the rarity groups with only Previous Gen Pokémon (default)
 (function populatePreviousGenPools() {
   const prevGen = getPreviousGenInfo().number;
   Object.entries(customSpawnRates).forEach(([name, data]) => {
@@ -56,7 +74,7 @@ const pokemonByRarity = {
   });
 })();
 
-function getDailyPokemon(userId, guildId, halfDayKey) {
+function getDailyPokemon(userId, guildId, halfDayKey, genNumber = null) {
   // Use a user-level RNG per half-day so each user sees their own rotation
   const rng = createUserPeriodRng(userId, halfDayKey);
 
@@ -87,14 +105,22 @@ function getDailyPokemon(userId, guildId, halfDayKey) {
     return null;
   };
   
+  // Get the appropriate rarity pools for the selected generation
+  let rarityPools;
+  if (genNumber) {
+    rarityPools = populateGenerationPools(genNumber);
+  } else {
+    rarityPools = pokemonByRarity; // Use default previous gen pools
+  }
+  
   // Select one Pokémon from each rarity using RNG (uniform within rarity)
-  const commonBase = pokemonByRarity.common[rngInt(rng, pokemonByRarity.common.length)];
-  const uncommonBase = pokemonByRarity.uncommon[rngInt(rng, pokemonByRarity.uncommon.length)];
+  const commonBase = rarityPools.common[rngInt(rng, rarityPools.common.length)];
+  const uncommonBase = rarityPools.uncommon[rngInt(rng, rarityPools.uncommon.length)];
   // 5% chance to upgrade rare slot to legendary
-  const pickLegendary = rng() < 0.05 && pokemonByRarity.legendary.length > 0;
+  const pickLegendary = rng() < 0.05 && rarityPools.legendary.length > 0;
   const rareBase = pickLegendary
-    ? pokemonByRarity.legendary[rngInt(rng, pokemonByRarity.legendary.length)]
-    : pokemonByRarity.rare[rngInt(rng, pokemonByRarity.rare.length)];
+    ? rarityPools.legendary[rngInt(rng, rarityPools.legendary.length)]
+    : rarityPools.rare[rngInt(rng, rarityPools.rare.length)];
 
   // Add form and shiny properties
   const commonFormData = isFormChance() ? getRandomForm(commonBase.name) : null;
@@ -151,13 +177,25 @@ function getRarityEmoji(rarity) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('pokeshopdaily')
-    .setDescription('View today\'s rotating Previous Generation Pokémon shop featuring Pokémon from different rarities!'),
+    .setDescription('View today\'s rotating Previous Generation Pokémon shop featuring Pokémon from different rarities!')
+    .addIntegerOption(option =>
+      option.setName('gen')
+        .setDescription('Select which previous generation to view (1-2)')
+        .setRequired(false)
+        .addChoices(
+          { name: 'Gen 1 - Kanto', value: 1 },
+          { name: 'Gen 2 - Johto', value: 2 }
+        )
+    ),
 
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
     const userId = interaction.user.id;
     const guildId = interaction.guildId;
     const backendUrl = process.env.BACKEND_API_URL;
+    
+    // Get the selected generation, default to previous generation if not specified
+    const selectedGen = interaction.options.getInteger('gen') || getPreviousGenInfo().number;
     
     let user;
     try {
@@ -180,10 +218,10 @@ module.exports = {
     const nowForKey = new Date();
     const halfDaySlot = nowForKey.getHours() < 12 ? '0' : '1';
     const todayKey = `${baseDateKey}-${halfDaySlot}`;
-    const purchaseDateKey = baseDateKey; // backend expects YYYY-MM-DD only
+    const purchaseDateKey = todayKey; // backend expects YYYY-MM-DD-0/1 format
     const halfDayKey = todayKey;
     // Seed with userId + guildId + half-day for per-user-per-guild variety
-    const dailyPokemon = getDailyPokemon(`${userId}-${guildId}`, guildId, halfDayKey);
+    const dailyPokemon = getDailyPokemon(`${userId}-${guildId}`, guildId, halfDayKey, selectedGen);
     
     // Check daily shop purchases
     
@@ -216,10 +254,13 @@ module.exports = {
     }
 
     // Build main shop embed
-    const prevGenInfo = getPreviousGenInfo();
+    const genInfo = {
+      number: selectedGen,
+      name: GENERATION_NAMES[selectedGen] || `Gen ${selectedGen}`
+    };
     const mainEmbed = new EmbedBuilder()
-      .setTitle(`🛒 Daily Gen ${prevGenInfo.number} (${prevGenInfo.name}) Pokémon Shop`)
-      .setDescription(`Today's rotating Gen ${prevGenInfo.number} (${prevGenInfo.name}) Pokémon selection!`)
+      .setTitle(`🛒 Daily Gen ${genInfo.number} (${genInfo.name}) Pokémon Shop`)
+      .setDescription(`Today's rotating Gen ${genInfo.number} (${genInfo.name}) Pokémon selection!`)
       .setColor(0x3498db)
       .addFields(
         { name: 'Your Stardust', value: String(user.poke_stardust || 0), inline: true },
@@ -237,7 +278,7 @@ module.exports = {
       let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 1500 : 500;
       if (pokemon.isShiny) price *= 2;
       if (pokemon.isForm) price *= 3;
-      const alreadyPurchased = todayPurchases[slot];
+      const alreadyPurchased = todayPurchases[rarity];
       
       // Get Pokémon ID - try pokeCache first, then fallback to direct mapping
       let pokemonId = 1; // Default to Bulbasaur
@@ -250,9 +291,15 @@ module.exports = {
         displayName = pokemon.formData.name;
         formName = pokemon.formData.name;
       } else {
-        // Use base Pokemon ID from the previous generation species cache
-        const prevGenNum = getPreviousGenInfo().number;
-        const speciesList = prevGenNum === 1 ? pokeCache.kantoSpecies : (prevGenNum === 2 ? pokeCache.gen2Species : []);
+        // Use base Pokemon ID from the selected generation species cache
+        let speciesList = [];
+        if (selectedGen === 1) {
+          speciesList = pokeCache.kantoSpecies || [];
+        } else if (selectedGen === 2) {
+          speciesList = pokeCache.gen2Species || [];
+        }
+        // For Gen 3, we'll need to handle differently since it's not in the cache yet
+        
         if (speciesList && speciesList.length > 0) {
           let species = speciesList.find(s => s.name === pokemon.name.toLowerCase());
           if (!species) {
@@ -262,7 +309,7 @@ module.exports = {
             pokemonId = species.id;
           }
         } else {
-          // Fallback: Direct mapping for common Kanto Pokémon (only applies if prevGen is 1)
+          // Fallback: Direct mapping for common Kanto Pokémon (only applies if selectedGen is 1)
           const pokemonIdMap = {
             'bulbasaur': 1, 'ivysaur': 2, 'venusaur': 3, 'charmander': 4, 'charmeleon': 5, 'charizard': 6,
             'squirtle': 7, 'wartortle': 8, 'blastoise': 9, 'caterpie': 10, 'metapod': 11, 'butterfree': 12,
@@ -291,7 +338,7 @@ module.exports = {
             'dragonair': 148, 'dragonite': 149, 'mewtwo': 150, 'mew': 151
           };
           
-          if (prevGenNum === 1) {
+          if (selectedGen === 1) {
             const mappedId = pokemonIdMap[pokemon.name.toLowerCase()];
             if (mappedId) {
               pokemonId = mappedId;
@@ -344,7 +391,7 @@ module.exports = {
       if (pokemon.isShiny) price *= 2;
       if (pokemon.isForm) price *= 3;
       const canAfford = user.poke_stardust >= price;
-      const alreadyPurchased = todayPurchases[slot];
+      const alreadyPurchased = todayPurchases[rarity];
       const canPurchase = canAfford && !alreadyPurchased;
       
       // Get display name for this Pokemon
@@ -387,9 +434,10 @@ module.exports = {
       if (pokemon.isShiny) price *= 2;
       if (pokemon.isForm) price *= 3;
       
-      await i.deferUpdate();
-      
       try {
+        // Defer the button update first
+        await i.deferUpdate();
+        
         // Call backend to purchase the Pokémon
         const res = await axios.post(`${backendUrl}/users/${userId}/pokemon/purchase`, {
           pokemonName: pokemon.name,
@@ -406,8 +454,8 @@ module.exports = {
           displayName = pokemon.formData.name;
         }
         
-        // Show success message
-        await interaction.followUp({ 
+        // Show success message using the button interaction
+        await i.followUp({ 
           content: `✅ Successfully purchased ${displayName.charAt(0).toUpperCase() + displayName.slice(1)}${pokemon.isShiny ? ' ✨' : ''}${pokemon.isForm ? ' 🔮' : ''} for ${price} Stardust!`, 
           ephemeral: true 
         });
@@ -417,53 +465,26 @@ module.exports = {
           const updatedUserRes = await axios.get(`${backendUrl}/users/${userId}`, { headers: { 'x-guild-id': guildId } });
           const updatedUser = updatedUserRes.data.user || updatedUserRes.data;
         
-        // Update main embed with new stardust amount
-        mainEmbed.spliceFields(0, 1, { name: 'Your Stardust', value: String(updatedUser.poke_stardust || 0), inline: true });
-        
-        // Update buttons based on new stardust and purchase status
-        let updatedTodayPurchases = {};
-        try {
-          const updatedPurchasesRes = await axios.get(`${backendUrl}/users/${userId}/pokemon/daily-purchases/${purchaseDateKey}`, { 
-            headers: { 'x-guild-id': guildId } 
-          });
-          const updatedPurchases = updatedPurchasesRes.data.purchases || [];
-          updatedPurchases.forEach(purchase => {
-            updatedTodayPurchases[purchase.rarity] = purchase;
-          });
-        } catch (error) {
-          console.error('[DailyShop] Error fetching updated purchases:', error);
-        }
-        
-        // Update Pokémon embeds with new availability status
-        pokemonEmbeds.forEach((pokemonEmbed, index) => {
-          const slot = Object.keys(dailyPokemon)[index];
-          const pokemon = dailyPokemon[slot];
-          const rarity = pokemon.rarity;
-          let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 1500 : 500;
-          if (pokemon.isShiny) price *= 2;
-          if (pokemon.isForm) price *= 3;
-          const canAfford = updatedUser.poke_stardust >= price;
-          const alreadyPurchased = updatedTodayPurchases[rarity];
+          // Update main embed with new stardust amount
+          mainEmbed.spliceFields(0, 1, { name: 'Your Stardust', value: String(updatedUser.poke_stardust || 0), inline: true });
           
-          let statusMessage;
-          if (alreadyPurchased) {
-            statusMessage = '🛒 **Already Purchased Today!**';
-          } else if (canAfford) {
-            statusMessage = '✅ **Available!**';
-          } else {
-            statusMessage = '❌ **Not enough Stardust**';
+          // Update buttons based on new stardust and purchase status
+          let updatedTodayPurchases = {};
+          try {
+            const updatedPurchasesRes = await axios.get(`${backendUrl}/users/${userId}/pokemon/daily-purchases/${purchaseDateKey}`, { 
+              headers: { 'x-guild-id': guildId } 
+            });
+            const updatedPurchases = updatedPurchasesRes.data.purchases || [];
+            updatedPurchases.forEach(purchase => {
+              updatedTodayPurchases[purchase.rarity] = purchase;
+            });
+          } catch (error) {
+            console.error('[DailyShop] Error fetching updated purchases:', error);
           }
           
-          pokemonEmbed.setDescription(
-            pokemonEmbed.data.description.replace(
-              /✅ \*\*Available!\*\*|❌ \*\*Not enough Stardust\*\*|🛒 \*\*Already Purchased Today!\*\*/,
-              statusMessage
-            )
-          );
-        });
-        rows.forEach(row => {
-          row.components.forEach((btn, btnIndex) => {
-            const slot = Object.keys(dailyPokemon)[btnIndex];
+          // Update Pokémon embeds with new availability status
+          pokemonEmbeds.forEach((pokemonEmbed, index) => {
+            const slot = Object.keys(dailyPokemon)[index];
             const pokemon = dailyPokemon[slot];
             const rarity = pokemon.rarity;
             let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 1500 : 500;
@@ -471,26 +492,78 @@ module.exports = {
             if (pokemon.isForm) price *= 3;
             const canAfford = updatedUser.poke_stardust >= price;
             const alreadyPurchased = updatedTodayPurchases[rarity];
-            const canPurchase = canAfford && !alreadyPurchased;
-            btn.setStyle(canPurchase ? ButtonStyle.Primary : ButtonStyle.Secondary);
-            btn.setDisabled(!canPurchase);
+            
+            let statusMessage;
+            if (alreadyPurchased) {
+              statusMessage = '🛒 **Already Purchased Today!**';
+            } else if (canAfford) {
+              statusMessage = '✅ **Available!**';
+            } else {
+              statusMessage = '❌ **Not enough Stardust**';
+            }
+            
+            pokemonEmbed.setDescription(
+              pokemonEmbed.data.description.replace(
+                /✅ \*\*Available!\*\*|❌ \*\*Not enough Stardust\*\*|🛒 \*\*Already Purchased Today!\*\*/,
+                statusMessage
+              )
+            );
           });
-        });
-        
-        // Combine all embeds and send updated response
-        const updatedAllEmbeds = [mainEmbed, ...pokemonEmbeds];
-        await interaction.editReply({ embeds: updatedAllEmbeds, components: rows });
-        
+          
+          // Update button states
+          let buttonIndex = 0;
+          rows.forEach(row => {
+            row.components.forEach((btn) => {
+              const slot = Object.keys(dailyPokemon)[buttonIndex];
+              const pokemon = dailyPokemon[slot];
+              const rarity = pokemon.rarity;
+              let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 1500 : 500;
+              if (pokemon.isShiny) price *= 2;
+              if (pokemon.isForm) price *= 3;
+              const canAfford = updatedUser.poke_stardust >= price;
+              const alreadyPurchased = updatedTodayPurchases[rarity];
+              const canPurchase = canAfford && !alreadyPurchased;
+              btn.setStyle(canPurchase ? ButtonStyle.Primary : ButtonStyle.Secondary);
+              btn.setDisabled(!canPurchase);
+              buttonIndex++;
+            });
+          });
+          
+          // Update the message through the button interaction
+          const updatedAllEmbeds = [mainEmbed, ...pokemonEmbeds];
+          await i.editReply({ embeds: updatedAllEmbeds, components: rows });
+          
         } catch (updateError) {
           console.error('[DailyShop] Error updating shop display:', updateError);
           // Don't show error to user since purchase was successful
         }
         
+        // Disable all buttons after successful purchase since collector ends
+        rows.forEach(row => {
+          row.components.forEach(btn => btn.setDisabled(true));
+        });
+        
+        // Update the message one final time with disabled buttons
+        try {
+          const finalAllEmbeds = [mainEmbed, ...pokemonEmbeds];
+          await i.editReply({ embeds: finalAllEmbeds, components: rows });
+        } catch (finalUpdateError) {
+          console.error('[DailyShop] Error in final button update:', finalUpdateError);
+        }
+        
       } catch (e) {
+        console.error('[DailyShop] Error processing purchase:', e);
         const msg = e.response?.data?.message || 'Failed to purchase Pokémon.';
-        await interaction.followUp({ content: `❌ ${msg}`, ephemeral: true });
+        
+        // Try to show error message, but don't fail if interaction is expired
+        try {
+          await i.followUp({ content: `❌ ${msg}`, ephemeral: true });
+        } catch (followUpError) {
+          console.error('[DailyShop] Error showing error message:', followUpError);
+        }
       }
       
+      // Stop the collector after processing
       collector.stop();
     });
 
@@ -499,7 +572,14 @@ module.exports = {
       rows.forEach(row => {
         row.components.forEach(btn => btn.setDisabled(true));
       });
-      interaction.editReply({ components: rows }).catch(() => {});
+      
+      // Try to update the message, but don't fail if interaction is expired
+      try {
+        // Since we can't guarantee which interaction is still valid, we'll just log this
+        console.log('[DailyShop] Collector ended, buttons disabled');
+      } catch (error) {
+        console.error('[DailyShop] Error in collector end handler:', error);
+      }
     });
   }
 }; 

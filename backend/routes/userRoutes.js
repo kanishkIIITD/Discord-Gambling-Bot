@@ -213,7 +213,20 @@ const spawnInfo = getCustomSpawnInfo(basePokemonName);
     let baseChance = (catchRate !== null ? catchRate : (captureRate !== null ? captureRate / 255 : 120 / 255));
     if (catchRate !== null && catchRate <= 1) baseChance = catchRate; // If customSpawnRates uses 0-1 scale
     else if (catchRate !== null) baseChance = catchRate / 255; // If customSpawnRates uses 0-255 scale
-    let finalChance = Math.min(baseChance * ballBonus, 0.99); // cap at 99%
+    
+    // --- 2x catch rate bonus for Pokémon from 2+ previous generations ---
+    let generationBonus = 1.0;
+    const customSpawnRates = require('../utils/customSpawnRates.json');
+    const pokemonGen = customSpawnRates[name]?.gen;
+    if (pokemonGen) {
+      const currentGen = 3; // This should match the current generation
+      const generationsAgo = currentGen - pokemonGen;
+      if (generationsAgo >= 2) {
+        generationBonus = 2.0; // 2x catch rate for 2+ previous generations
+      }
+    }
+    
+    let finalChance = Math.min(baseChance * ballBonus * generationBonus, 0.99); // cap at 99%
     const roll = Math.random();
     // --- XP Booster logic ---
     let xpBoosterUsed = false;
@@ -229,6 +242,7 @@ const spawnInfo = getCustomSpawnInfo(basePokemonName);
       formName: formName || null,
       flavorText,
       xpBoosterUsed,
+      generationBonus: generationBonus > 1.0 ? `${generationBonus}x` : null, // Show bonus if > 1x
     };
     // --- Atomicity: check for duplicate after asyncs ---
     let isDuplicate = false;

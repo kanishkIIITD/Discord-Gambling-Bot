@@ -1,6 +1,12 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const axios = require('axios');
 const pokeCache = require('../utils/pokeCache');
+const crypto = require('crypto');
+
+// Configuration for avoiding recent winners
+const AVOID_RECENT_WINNERS = false; // Set to false to disable this feature
+const RECENT_WINNER_COOLDOWN = 3; // Number of giveaways to avoid recent winners
+const MAX_EXCLUSIONS = 5; // Maximum number of users to exclude before allowing them again
 
 // Helper to paginate options
 function paginateOptions(options, page = 0, pageSize = 25) {
@@ -46,6 +52,43 @@ function buildSearchModal() {
   modal.addComponents(row);
   
   return modal;
+}
+
+// Helper to filter out recent winners
+function filterRecentWinners(participants, guildId) {
+  if (!global.recentGiveawayWinners) {
+    global.recentGiveawayWinners = new Map();
+  }
+  
+  const guildRecentWinners = global.recentGiveawayWinners.get(guildId) || [];
+  
+  // Filter out participants who are in the recent winners list
+  const eligibleParticipants = participants.filter(participantId => 
+    !guildRecentWinners.includes(participantId)
+  );
+  
+  return eligibleParticipants;
+}
+
+// Helper to track recent winners
+function trackRecentWinner(winnerId, guildId) {
+  if (!AVOID_RECENT_WINNERS) return;
+  
+  if (!global.recentGiveawayWinners) {
+    global.recentGiveawayWinners = new Map();
+  }
+  
+  let guildRecentWinners = global.recentGiveawayWinners.get(guildId) || [];
+  
+  // Add the new winner to the front of the list
+  guildRecentWinners.unshift(winnerId);
+  
+  // Keep only the most recent winners (based on cooldown)
+  guildRecentWinners = guildRecentWinners.slice(0, RECENT_WINNER_COOLDOWN);
+  
+  global.recentGiveawayWinners.set(guildId, guildRecentWinners);
+  
+  console.log(`[Pokemon Giveaway] Tracked recent winner ${winnerId} for guild ${guildId}. Recent winners: ${guildRecentWinners.join(', ')}`);
 }
 
 // Helper to update pagination with search support
@@ -511,14 +554,19 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
 
 async function endPokemonGiveaway(messageId, client) {
   try {
+    console.log(`[Pokemon Giveaway] endPokemonGiveaway called for messageId: ${messageId}`);
+    
     const giveaway = global.activePokemonGiveaways.get(messageId);
     if (!giveaway || !giveaway.active) {
+      console.log(`[Pokemon Giveaway] Giveaway ${messageId} not found or already inactive, skipping`);
       return;
     }
 
-    // Mark as inactive
+    // Mark as inactive immediately to prevent duplicate processing
     giveaway.active = false;
     global.activePokemonGiveaways.set(messageId, giveaway);
+    
+    console.log(`[Pokemon Giveaway] Processing giveaway ${messageId} for Pokemon: ${giveaway.pokemonName}${giveaway.isShiny ? ' ✨' : ''}`);
 
     // Get the channel and message
     const channel = await client.channels.fetch(giveaway.channelId);
@@ -539,15 +587,40 @@ async function endPokemonGiveaway(messageId, client) {
     if (reaction) {
       const users = await reaction.users.fetch();
       participants = users.filter(user => !user.bot && user.id !== giveaway.hostId).map(user => user.id);
+      
+      // Log reaction data for debugging
+      console.log(`[Pokemon Giveaway] Reaction count: ${reaction.count}, Users fetched: ${users.size}, Participants before dedupe: ${participants.length}`);
     }
 
-    if (participants.length === 0) {
+    // Ensure participants are unique
+    const uniqueParticipants = [...new Set(participants)];
+    
+    console.log(`[Pokemon Giveaway] Unique participants: ${uniqueParticipants.length}`);
+
+    if (uniqueParticipants.length === 0) {
       await announceNoPokemonParticipants(channel, giveaway, client);
       return;
     }
 
-    // Pick a random winner
-    const winnerId = participants[Math.floor(Math.random() * participants.length)];
+    // Filter out recent winners if enabled
+    let eligibleParticipants = uniqueParticipants;
+    if (AVOID_RECENT_WINNERS) {
+      eligibleParticipants = filterRecentWinners(uniqueParticipants, giveaway.guildId);
+      console.log(`[Pokemon Giveaway] Eligible participants after recent winner filter: ${eligibleParticipants.length}`);
+      
+      // If too many participants are excluded, allow recent winners
+      if (eligibleParticipants.length === 0) {
+        console.log(`[Pokemon Giveaway] All participants are recent winners, allowing all participants`);
+        eligibleParticipants = uniqueParticipants;
+      }
+    }
+
+    // Use crypto.randomInt for better RNG
+    const winnerIndex = crypto.randomInt(0, eligibleParticipants.length);
+    const winnerId = eligibleParticipants[winnerIndex];
+
+    console.log(`[Pokemon Giveaway] Choosing winner from ${uniqueParticipants.length} participants: index ${winnerIndex}, user ${winnerId}`);
+
     const winner = await client.users.fetch(winnerId);
 
     // Transfer Pokémon to winner
@@ -604,6 +677,9 @@ async function endPokemonGiveaway(messageId, client) {
         embeds: [winnerEmbed],
         allowedMentions: gamblersRole ? { roles: [gamblersRole.id] } : undefined
       });
+
+      // Track the recent winner
+      trackRecentWinner(winnerId, guildId);
 
     } catch (error) {
       console.error('[Pokemon Giveaway] Error transferring Pokémon:', error);

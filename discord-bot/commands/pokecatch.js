@@ -242,8 +242,25 @@ module.exports = {
         }
       }
       
-      // Build result embed
-      const region = 'Kanto';
+             // Build result embed
+       // Determine region based on Pokémon's generation
+       let region = 'Unknown';
+       const pokemonGen = customSpawnRates[pokemonData.name]?.gen;
+             if (pokemonGen) {
+         const { GENERATION_NAMES } = require('../config/generationConfig');
+         region = GENERATION_NAMES[pokemonGen] || `Gen ${pokemonGen}`;
+       } else {
+         // Fallback: determine generation based on Pokémon ID ranges
+         if (pokemonId >= 1 && pokemonId <= 151) {
+           region = 'Kanto';
+         } else if (pokemonId >= 152 && pokemonId <= 251) {
+           region = 'Johto';
+         } else if (pokemonId >= 252 && pokemonId <= 386) {
+           region = 'Hoenn';
+         } else {
+           region = 'Unknown';
+         }
+       }
       
       // Get correct artwork based on whether it's a form or not
       let resultArtwork = artwork;
@@ -290,10 +307,15 @@ module.exports = {
         )
         .setFooter({ text: 'Gotta catch \'em all!' });
       
-      // Add evolution stage field if available
-      if (evolutionStageText) {
-        embed.addFields({ name: 'Evolution', value: evolutionStageText, inline: true });
-      }
+             // Add evolution stage field if available
+       if (evolutionStageText) {
+         embed.addFields({ name: 'Evolution', value: evolutionStageText, inline: true });
+       }
+       
+       // Add generation bonus field if available
+       if (data.embedData?.generationBonus) {
+         embed.addFields({ name: '🎯 Generation Bonus', value: `${data.embedData.generationBonus} Catch Rate!`, inline: true });
+       }
       // Add extra fields if present
       if (data.xpAward) embed.addFields({ name: 'XP Gained', value: `${data.xpAward}`, inline: true });
       if (data.dustAward) embed.addFields({ name: 'Dust Gained', value: `${data.dustAward}`, inline: true });
@@ -345,10 +367,15 @@ module.exports = {
         )
         .setFooter({ text: 'Gotta catch \'em all!' });
       
-      // Add evolution stage field if available
-      if (evolutionStageText) {
-        finalPublicEmbed.addFields({ name: 'Evolution', value: evolutionStageText, inline: true });
-      }
+             // Add evolution stage field if available
+       if (evolutionStageText) {
+         finalPublicEmbed.addFields({ name: 'Evolution', value: evolutionStageText, inline: true });
+       }
+       
+       // Add generation bonus field if available
+       if (data.embedData?.generationBonus) {
+         finalPublicEmbed.addFields({ name: '🎯 Generation Bonus', value: `${data.embedData.generationBonus} Catch Rate!`, inline: true });
+       }
       // Add extra fields if present
       if (data.xpAward) finalPublicEmbed.addFields({ name: 'XP Gained', value: `${data.xpAward}`, inline: true });
       if (data.dustAward) finalPublicEmbed.addFields({ name: 'Dust Gained', value: `${data.dustAward}`, inline: true });

@@ -12,6 +12,8 @@ let gen3WeightedSpawnPool = [];
 let weightedSpawnPoolPrev = [];
 let gen2WeightedSpawnPoolPrev = [];
 let gen3WeightedSpawnPoolPrev = [];
+// Combined pool for all previous generations with new rules
+let combinedPreviousGenPool = [];
 let pokemonDataCache = {};
 let kantoCacheReady = false;
 let gen2CacheReady = false;
@@ -141,6 +143,61 @@ async function buildGen3Cache() {
   gen3CacheReady = true;
 }
 
+// Build combined pool for all previous generations with new rules
+async function buildCombinedPreviousGenPool() {
+  const { getCurrentGenInfo, getPreviousGenInfo } = require('../config/generationConfig');
+  const currentGen = getCurrentGenInfo().number;
+  const previousGen = getPreviousGenInfo().number;
+  
+  combinedPreviousGenPool = [];
+  
+  // Get all generations that are previous to current
+  const previousGenerations = [];
+  for (let gen = 1; gen < currentGen; gen++) {
+    previousGenerations.push(gen);
+  }
+  
+  // For each previous generation, add Pokémon based on rules
+  for (const gen of previousGenerations) {
+    const speciesList = gen === 1 ? kantoSpecies : (gen === 2 ? gen2Species : []);
+    
+    for (const [name, { spawn, gen: pokemonGen, rarity }] of Object.entries(customSpawnRates)) {
+      if (pokemonGen === gen) {
+        const species = speciesList.find(s => s.name === name);
+        if (!species) {
+          console.warn(`[CombinedPreviousGenPool] Pokémon name '${name}' not found in Gen ${gen} species, skipping.`);
+          continue;
+        }
+        
+        // Apply rules:
+        // 1. For 1 previous gen (Gen 2 for current Gen 3), commons have 1/2 spawn rate
+        // 2. For all previous gens, commons are excluded
+        let adjustedSpawn = 0;
+        
+        if (rarity === 'common') {
+          if (gen === previousGen) {
+            // 1 previous gen: halve commons
+            adjustedSpawn = Math.max(1, Math.floor(spawn / 2));
+          } else {
+            // 2+ previous gens: exclude commons
+            adjustedSpawn = 0;
+          }
+        } else {
+          // Non-commons: keep original spawn rate
+          adjustedSpawn = spawn;
+        }
+        
+        // Add to combined pool
+        for (let i = 0; i < adjustedSpawn; i++) {
+          combinedPreviousGenPool.push(species.id);
+        }
+      }
+    }
+  }
+  
+  console.log(`[CombinedPreviousGenPool] Built combined pool with ${combinedPreviousGenPool.length} Pokémon from generations ${previousGenerations.join(', ')}`);
+}
+
 function getRandomKantoPokemonId() {
   if (weightedSpawnPool.length === 0) throw new Error('Kanto cache not built!');
   const idx = Math.floor(Math.random() * weightedSpawnPool.length);
@@ -160,20 +217,12 @@ function getRandomGen3PokemonId() {
 }
 
 function getRandomPokemonIdByGenerationPreviousBias(generation) {
-  if (generation === 1) {
-    if (weightedSpawnPoolPrev.length === 0) throw new Error('Kanto adjusted pool not built!');
-    const idx = Math.floor(Math.random() * weightedSpawnPoolPrev.length);
-    return weightedSpawnPoolPrev[idx];
-  } else if (generation === 2) {
-    if (gen2WeightedSpawnPoolPrev.length === 0) throw new Error('Gen 2 adjusted pool not built!');
-    const idx = Math.floor(Math.random() * gen2WeightedSpawnPoolPrev.length);
-    return gen2WeightedSpawnPoolPrev[idx];
-  } else if (generation === 3) {
-    if (gen3WeightedSpawnPoolPrev.length === 0) throw new Error('Gen 3 adjusted pool not built!');
-    const idx = Math.floor(Math.random() * gen3WeightedSpawnPoolPrev.length);
-    return gen3WeightedSpawnPoolPrev[idx];
+  // Use combined pool for all previous generations
+  if (combinedPreviousGenPool.length === 0) {
+    throw new Error('Combined previous generation pool not built! Call buildCombinedPreviousGenPool() first.');
   }
-  throw new Error(`Unsupported generation: ${generation}`);
+  const idx = Math.floor(Math.random() * combinedPreviousGenPool.length);
+  return combinedPreviousGenPool[idx];
 }
 
 // Get random Pokémon ID based on generation
@@ -208,10 +257,15 @@ function isGen3CacheReady() {
   return gen3CacheReady;
 }
 
+function isCombinedPreviousGenPoolReady() {
+  return combinedPreviousGenPool.length > 0;
+}
+
 module.exports = {
   buildKantoCache,
   buildGen2Cache,
   buildGen3Cache,
+  buildCombinedPreviousGenPool,
   getRandomKantoPokemonId,
   getRandomGen2PokemonId,
   getRandomGen3PokemonId,
@@ -227,8 +281,10 @@ module.exports = {
   weightedSpawnPoolPrev,
   gen2WeightedSpawnPoolPrev,
   gen3WeightedSpawnPoolPrev,
+  combinedPreviousGenPool,
   isKantoCacheReady,
   isGen2CacheReady,
   isGen3CacheReady,
+  isCombinedPreviousGenPoolReady,
   getRandomPokemonIdByGenerationPreviousBias,
 }; 

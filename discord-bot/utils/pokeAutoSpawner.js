@@ -84,9 +84,9 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, gen
       targetGeneration = getCurrentGenInfo().number;
     }
     
-    // Use adjusted pool if spawning previous generation relative to current
-    const isPreviousGen = targetGeneration === getPreviousGenInfo().number;
-    const pokemonId = isPreviousGen
+    // Use combined pool for previous gens channel, regular pool for current gen channel
+    const isPreviousGenChannel = targetGeneration === getPreviousGenInfo().number;
+    const pokemonId = isPreviousGenChannel
       ? pokeCache.getRandomPokemonIdByGenerationPreviousBias(targetGeneration)
       : pokeCache.getRandomPokemonIdByGeneration(targetGeneration);
     const pokemonData = await pokeCache.getPokemonDataById(pokemonId);
@@ -113,8 +113,15 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, gen
       }
     }
     
-    // Get region name based on generation
-    const regionName = GENERATION_NAMES[targetGeneration] || `Gen ${targetGeneration}`;
+    // Get region name based on the actual Pokémon's generation
+    let regionName;
+    const pokemonGen = customSpawnRates[pokemonName]?.gen;
+    if (pokemonGen) {
+      regionName = GENERATION_NAMES[pokemonGen] || `Gen ${pokemonGen}`;
+    } else {
+      // Fallback to target generation if Pokémon not found in customSpawnRates
+      regionName = GENERATION_NAMES[targetGeneration] || `Gen ${targetGeneration}`;
+    }
     
     // Get evolution stage display text
     let evolutionStageText = '';

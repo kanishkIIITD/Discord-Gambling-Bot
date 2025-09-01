@@ -39,6 +39,7 @@ const questsCommand = require('./commands/quests');
 const pokesellduplicatesCommand = require('./commands/pokesellduplicates');
 const pokestatsCommand = require('./commands/pokestats');
 const pokecollectionCommand = require('./commands/pokecollection');
+const pokemonshowCommand = require('./commands/pokemonshow');
 const pokeopenCommand = require('./commands/pokeopen');
 const pokepacksCommand = require('./commands/pokepacks');
 const doubleweekendCommand = require('./commands/doubleweekend');
@@ -104,6 +105,10 @@ global.activeGiveaways = new Map(); // key: messageId => giveaway data
     console.log('[PokéCache] Building Gen 3 Pokémon cache...');
     await pokeCache.buildGen3Cache();
     console.log('[PokéCache] Gen 3 Pokémon cache ready!');
+    
+    console.log('[PokéCache] Building combined previous generation pool...');
+    await pokeCache.buildCombinedPreviousGenPool();
+    console.log('[PokéCache] Combined previous generation pool ready!');
     
     // --- Startup cleanup for activeSpawns and despawnTimers ---
     if (activeSpawns && activeSpawns.size > 0) {
@@ -5827,7 +5832,8 @@ client.on('interactionCreate', async interaction => {
 							'`/pokedex` - View your caught Pokémon, including shiny count and stats. Use gen option to filter by generation. Paginated for easy browsing.\n' +
 							'`/pokestats` - View detailed Pokémon statistics and collection information\n' +
 							'`/pokebattlestats` - View your Pokémon battle statistics and performance\n' +
-							'`/setpokedexpokemon` - Choose which Pokémon (including shiny/normal) is always displayed as the main artwork in your Pokédex.'
+							'`/setpokedexpokemon` - Choose which Pokémon (including shiny/normal) is always displayed as the main artwork in your Pokédex.\n' +
+							'`/pokemonshow` - Show off your Pokémon to the server!'
 						},
 						{ name: '👾 Battling', value:
 							'`/pokebattle` - Challenge another user to a Pokémon battle! (Pokémon per side: 1-5)'
@@ -6369,6 +6375,8 @@ client.on('interactionCreate', async interaction => {
 		await pokestatsCommand.execute(interaction);
 	} else if (commandName === 'pokecollection') {
 		await pokecollectionCommand.execute(interaction);
+	} else if (commandName === 'pokemonshow') {
+		await pokemonshowCommand.execute(interaction);
 	} else if (commandName === 'pokeopen') {
 		await pokeopenCommand.execute(interaction);
 	} else if (commandName === 'pokepacks') {
@@ -6573,12 +6581,33 @@ async function getShowdownGif(name, isShiny, isActive = true) {
 			? 'https://play.pokemonshowdown.com/sprites/ani/'
 			: 'https://play.pokemonshowdown.com/sprites/gen5ani/';
 	}
+	
   
 	// Convert form names to Pokemon Showdown naming convention
 	let showdownName = name;
 	
-	// Handle specific form naming conventions for Pokemon Showdown
-	if (name.includes('-')) {
+	// Handle special Pokemon names that should NOT be treated as forms
+	const specialPokemonNames = {
+		'ho-oh': 'hooh',
+		'porygon-z': 'porygonz',
+		'mr. mime': 'mrmime',
+		'mr mime': 'mrmime',
+		'mime jr.': 'mimejr',
+		'mime jr': 'mimejr',
+		'type: null': 'typenull',
+		'type null': 'typenull',
+		'tapu koko': 'tapukoko',
+		'tapu-lele': 'tapulele',
+		'tapu-bulu': 'tapubulu',
+		'tapu-fini': 'tapufini'
+	};
+	
+	// Check if this is a special Pokemon name first
+	const lowerName = name.toLowerCase();
+	if (specialPokemonNames[lowerName]) {
+		showdownName = specialPokemonNames[lowerName];
+		
+	} else if (name.includes('-')) {
 		const parts = name.split('-');
 		const basePokemon = parts[0];
 		const form = parts.slice(1).join('-'); // Join remaining parts
@@ -6612,12 +6641,17 @@ async function getShowdownGif(name, isShiny, isActive = true) {
 	}
   
 	// 3) fallback: use only the species name (before any hyphen)
-	const species = showdownName
+	let species = showdownName
 	  .split(/[-\s]/)[0]              // cut at first hyphen or space
-	  .replace(/[^A-Za-z0-9]+/g, '')  // strip again just in case
 	  .toLowerCase();
+	
+	
+	// For fallback, just strip non-alphanumeric characters since special cases are handled above
+	const originalSpecies = species;
+	species = species.replace(/[^A-Za-z0-9]+/g, '');
   
-	return `${baseUrl}${species}.gif`;
+	const fallbackUrl = `${baseUrl}${species}.gif`;
+	return fallbackUrl;
 }
   
 
