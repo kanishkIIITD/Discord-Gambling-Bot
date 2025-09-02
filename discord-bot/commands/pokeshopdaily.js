@@ -381,6 +381,7 @@ module.exports = {
     }
 
     // Create buttons for each Pokémon
+    const buttonToken = interaction.id; // unique per command invocation
     const rows = [];
     let currentRow = new ActionRowBuilder();
     let buttonCount = 0;
@@ -401,7 +402,7 @@ module.exports = {
       }
       
       const button = new ButtonBuilder()
-        .setCustomId(`daily_shop_buy_${slot}`)
+        .setCustomId(`daily_shop_buy_${buttonToken}_${slot}`)
         .setLabel(`Buy ${displayName.charAt(0).toUpperCase() + displayName.slice(1)}${pokemon.isShiny ? ' ✨' : ''}${pokemon.isForm ? ' 🔮' : ''} (${price})`)
         .setStyle(canPurchase ? ButtonStyle.Primary : ButtonStyle.Secondary)
         .setDisabled(!canPurchase);
@@ -418,16 +419,16 @@ module.exports = {
 
     // Combine all embeds
     const allEmbeds = [mainEmbed, ...pokemonEmbeds];
-    await interaction.editReply({ embeds: allEmbeds, components: rows });
+    const message = await interaction.editReply({ embeds: allEmbeds, components: rows });
 
     // Button collector for buy actions
-    const collector = interaction.channel.createMessageComponentCollector({
-      filter: i => i.user.id === interaction.user.id && i.customId.startsWith('daily_shop_buy_'),
+    const collector = message.createMessageComponentCollector({
+      filter: i => i.user.id === interaction.user.id && i.customId.startsWith(`daily_shop_buy_${buttonToken}_`),
       time: 60000
     });
 
     collector.on('collect', async i => {
-      const slot = i.customId.replace('daily_shop_buy_', '');
+      const slot = i.customId.replace(`daily_shop_buy_${buttonToken}_`, '');
       const pokemon = dailyPokemon[slot];
       const rarity = pokemon.rarity;
       let price = rarity === 'common' ? 100 : rarity === 'uncommon' ? 250 : rarity === 'legendary' ? 1500 : 500;

@@ -50,7 +50,7 @@ function buildSearchModal(type) {
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('poketrade')
-    .setDescription('Trade a Pokémon with another user (1-for-1)')
+    .setDescription('Trade Pokémon with another user (supports multi-item)')
     .addUserOption(option =>
       option.setName('user')
         .setDescription('User to trade with')
@@ -118,7 +118,7 @@ module.exports = {
           `Searching: "${searchTerm}" (${filteredOptions.length} results)` : 
           type === 'initiator' ? 'Select your Pokémon to offer' : `Select a Pokémon from ${recipient.username}`)
         .addOptions(paged)
-        .setMinValues(1).setMaxValues(1);
+        .setMinValues(1).setMaxValues(5);
       
       const row = new ActionRowBuilder().addComponents(select);
       
@@ -153,14 +153,14 @@ module.exports = {
     let [row1, btnRow1, initiatorFilteredCount, initiatorTotalPages] = buildSelectRow('initiator', initiatorOptions, initiatorPage, initiatorSearchTerm);
     let [row2, btnRow2, recipientFilteredCount, recipientTotalPages] = buildSelectRow('recipient', recipientOptions, recipientPage, recipientSearchTerm);
     await interaction.editReply({
-      content: `Select one of your Pokémon and one from ${recipient}. You will be able to choose the quantity for each after selection.`,
+      content: `Select up to 5 Pokémon from you and from ${recipient}. Then set quantities for each.`,
       components: [row1, btnRow1, row2, btnRow2],
       ephemeral: true
     });
 
-    // State for selections
-    let initiatorPokemonId = null;
-    let recipientPokemonId = null;
+    // State for selections (multi)
+    let initiatorSelectedIds = [];
+    let recipientSelectedIds = [];
     let selectionDone = false;
 
     // Collector for all component interactions
@@ -294,96 +294,146 @@ module.exports = {
         return;
       }
       
-      // Handle selection
+      // Handle selection (multi)
       if (i.customId.startsWith('poketrade_select_initiator')) {
-        initiatorPokemonId = i.values[0];
-        // Only defer if not showing modal next
-        if (!(initiatorPokemonId && recipientPokemonId && !selectionDone)) {
+        initiatorSelectedIds = i.values.slice(0, 5);
+        // If recipient already has selections, we'll show a modal on this interaction
+        if (!(recipientSelectedIds.length > 0 && !selectionDone)) {
           await i.deferUpdate();
         }
       }
       if (i.customId.startsWith('poketrade_select_recipient')) {
-        recipientPokemonId = i.values[0];
-        // Only defer if not showing modal next
-        if (!(initiatorPokemonId && recipientPokemonId && !selectionDone)) {
+        recipientSelectedIds = i.values.slice(0, 5);
+        // If initiator already has selections, we'll show a modal on this interaction
+        if (!(initiatorSelectedIds.length > 0 && !selectionDone)) {
           await i.deferUpdate();
         }
       }
-      // If both selected, stop collector and show modal for quantity
-      if (initiatorPokemonId && recipientPokemonId && !selectionDone) {
+      // If both have at least one selection, stop collector and show modal for quantities
+      if (initiatorSelectedIds.length > 0 && recipientSelectedIds.length > 0 && !selectionDone) {
         selectionDone = true;
         collector.stop();
-        // Find the selected Pokémon objects (null if 'none')
-        const initiatorMon = initiatorPokemonId === 'none' ? null : initiatorMons.find(p => p._id === initiatorPokemonId);
-        const recipientMon = recipientPokemonId === 'none' ? null : recipientMons.find(p => p._id === recipientPokemonId);
-        // Build modal for quantity input (only for non-nothing sides)
-        const modal = new ModalBuilder()
-          .setCustomId('poketrade_quantity_modal')
-          .setTitle('Pokémon Trade Quantities');
-        const modalRows = [];
-        if (initiatorMon) {
-          modalRows.push(new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('initiator_quantity')
-              .setLabel(`How many ${initiatorMon.name}${initiatorMon.isShiny ? ' ✨' : ''} to trade? (max ${initiatorMon.count})`)
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          ));
-        }
-        if (recipientMon) {
-          modalRows.push(new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('recipient_quantity')
-              .setLabel(`How many ${recipientMon.name}${recipientMon.isShiny ? ' ✨' : ''} to receive? (max ${recipientMon.count})`)
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          ));
-        }
-        modal.addComponents(...modalRows);
-        await i.showModal(modal);
-        // Modal handler using client.on('interactionCreate')
+        try {
+        // Resolve selected Pokémon objects (no combined 5-input cap; collect via two modals)
+        const initiatorSelectedMons = initiatorSelectedIds.filter(id => id !== 'none').map(id => initiatorMons.find(p => p._id === id)).filter(Boolean).slice(0, 5);
+        const recipientSelectedMons = recipientSelectedIds.filter(id => id !== 'none').map(id => recipientMons.find(p => p._id === id)).filter(Boolean).slice(0, 5);
+
         const { client } = i;
-        const modalFilter = modalInt =>
-          modalInt.user.id === initiatorId &&
-          modalInt.customId === 'poketrade_quantity_modal';
-        const modalPromise = new Promise((resolve, reject) => {
-          const handler = async modalInt => {
-            if (modalFilter(modalInt)) {
+        const awaitInteraction = (filter, timeoutMs = 60000) => new Promise((resolve, reject) => {
+          const handler = async (evt) => {
+            if (filter(evt)) {
               client.off('interactionCreate', handler);
-              resolve(modalInt);
+              resolve(evt);
             }
           };
           client.on('interactionCreate', handler);
           setTimeout(() => {
             client.off('interactionCreate', handler);
             reject(new Error('Modal submit timeout'));
-          }, 60000);
+          }, timeoutMs);
         });
-        try {
-          const modalInt = await modalPromise;
-          let initiatorQuantity = 0, recipientQuantity = 0;
-          if (initiatorMon) {
-            initiatorQuantity = parseInt(modalInt.fields.getTextInputValue('initiator_quantity'), 10);
-            if (isNaN(initiatorQuantity) || initiatorQuantity < 1 || initiatorQuantity > initiatorMon.count) {
-              await modalInt.reply({ content: 'Invalid quantity entered for your Pokémon. Please try again.', ephemeral: true });
+
+        // First modal: initiator quantities (up to 5 inputs)
+        const initRows = [];
+        for (let idx = 0; idx < initiatorSelectedMons.length && initRows.length < 5; idx++) {
+          const m = initiatorSelectedMons[idx];
+          initRows.push(new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId(`init_qty_${m._id}`)
+              .setLabel(`You give: ${m.name}${m.isShiny ? ' ✨' : ''} (max ${m.count})`)
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+          ));
+        }
+        if (initRows.length) {
+          const initModal = new ModalBuilder()
+            .setCustomId('poketrade_qty_modal_initiator')
+            .setTitle('Your Trade Quantities')
+            .addComponents(...initRows);
+          await i.showModal(initModal);
+        }
+
+        const initiatorItems = [];
+        if (initRows.length) {
+          const initModalInt = await awaitInteraction(modalInt => modalInt.user.id === initiatorId && modalInt.customId === 'poketrade_qty_modal_initiator');
+          for (const m of initiatorSelectedMons) {
+            const qty = parseInt(initModalInt.fields.getTextInputValue(`init_qty_${m._id}`), 10);
+            if (isNaN(qty) || qty < 1 || qty > m.count) {
+              await initModalInt.reply({ content: `Invalid quantity for ${m.name}.`, ephemeral: true });
               return;
             }
+            initiatorItems.push({ id: m._id, name: m.name, isShiny: m.isShiny, quantity: qty });
           }
-          if (recipientMon) {
-            recipientQuantity = parseInt(modalInt.fields.getTextInputValue('recipient_quantity'), 10);
-            if (isNaN(recipientQuantity) || recipientQuantity < 1 || recipientQuantity > recipientMon.count) {
-              await modalInt.reply({ content: 'Invalid quantity entered for recipient Pokémon. Please try again.', ephemeral: true });
-              return;
+          await initModalInt.reply({ content: 'Your quantities captured. Next, set recipient quantities.', ephemeral: true });
+        }
+
+        // Ephemeral button to open recipient quantities modal
+        const openRecipientBtn = new ButtonBuilder().setCustomId('poketrade_open_recipient_qty').setLabel('Set recipient quantities').setStyle(ButtonStyle.Primary);
+        const openRow = new ActionRowBuilder().addComponents(openRecipientBtn);
+        const promptMsg = await interaction.followUp({ content: 'Click to enter recipient quantities.', components: [openRow], ephemeral: true });
+
+        // Create a collector on the ephemeral prompt to capture the button click
+        const recipientItems = [];
+        const btnCollector = promptMsg.createMessageComponentCollector({
+          filter: btnInt => btnInt.user.id === initiatorId && btnInt.customId === 'poketrade_open_recipient_qty',
+          time: 60000,
+          max: 1
+        });
+        await new Promise((resolve, reject) => {
+          btnCollector.on('collect', async btnInt => {
+            try {
+              // Second modal: recipient quantities (up to 5 inputs)
+              const recRows = [];
+              for (let idx = 0; idx < recipientSelectedMons.length && recRows.length < 5; idx++) {
+                const m = recipientSelectedMons[idx];
+                recRows.push(new ActionRowBuilder().addComponents(
+                  new TextInputBuilder()
+                    .setCustomId(`rec_qty_${m._id}`)
+                    .setLabel(`${recipient.username} gives: ${m.name}${m.isShiny ? ' ✨' : ''} (max ${m.count})`)
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                ));
+              }
+              if (recRows.length) {
+                const recModal = new ModalBuilder()
+                  .setCustomId('poketrade_qty_modal_recipient')
+                  .setTitle(`${recipient.username}'s Quantities`)
+                  .addComponents(...recRows);
+                await btnInt.showModal(recModal);
+                const recModalInt = await awaitInteraction(modalInt => modalInt.user.id === initiatorId && modalInt.customId === 'poketrade_qty_modal_recipient');
+                for (const m of recipientSelectedMons) {
+                  const qty = parseInt(recModalInt.fields.getTextInputValue(`rec_qty_${m._id}`), 10);
+                  if (isNaN(qty) || qty < 1 || qty > m.count) {
+                    await recModalInt.reply({ content: `Invalid quantity for ${m.name}.`, ephemeral: true });
+                    reject(new Error('invalid_recipient_qty'));
+                    return;
+                  }
+                  recipientItems.push({ id: m._id, name: m.name, isShiny: m.isShiny, quantity: qty });
+                }
+                await recModalInt.reply({ content: 'Recipient quantities captured.', ephemeral: true });
+              }
+              resolve();
+            } catch (err) {
+              reject(err);
             }
-          }
-          // Show trade summary and ask for confirmation
+          });
+          btnCollector.on('end', (collected) => {
+            if (collected.size === 0) {
+              reject(new Error('recipient_button_timeout'));
+            }
+          });
+        });
+
+        try { await promptMsg.edit({ components: [] }); } catch {}
+
+        // Show trade summary and ask for confirmation
           const summaryEmbed = new EmbedBuilder()
             .setColor(0x3498db)
             .setTitle('Pokémon Trade Request')
             .setDescription(`${interaction.user} wants to trade with ${recipient}`)
             .addFields(
-              { name: `${interaction.user.username}'s Offer`, value: initiatorMon ? `${initiatorMon.name}${initiatorMon.isShiny ? ' ✨' : ''} x${initiatorQuantity}` : 'Nothing' },
-              { name: `${recipient.username}'s Offer`, value: recipientMon ? `${recipientMon.name}${recipientMon.isShiny ? ' ✨' : ''} x${recipientQuantity}` : 'Nothing' }
+              { name: `${interaction.user.username}'s Offer`, value: initiatorItems.length ? initiatorItems.map(it => `${it.name}${it.isShiny ? ' ✨' : ''} x${it.quantity}`).join('\n') : 'Nothing' },
+              { name: `${recipient.username}'s Offer`, value: recipientItems.length ? recipientItems.map(it => `${it.name}${it.isShiny ? ' ✨' : ''} x${it.quantity}`).join('\n') : 'Nothing' }
             );
           const acceptBtn = new ButtonBuilder().setCustomId('poketrade_accept').setLabel('Accept').setStyle(ButtonStyle.Success);
           const declineBtn = new ButtonBuilder().setCustomId('poketrade_decline').setLabel('Decline').setStyle(ButtonStyle.Danger);
@@ -396,20 +446,18 @@ module.exports = {
           });
           // Button collector for recipient
           const btnFilter = btnInt => btnInt.user.id === recipientId && (btnInt.customId === 'poketrade_accept' || btnInt.customId === 'poketrade_decline');
-          const btnCollector = recipientMsg.createMessageComponentCollector({ filter: btnFilter, time: 60000 });
-          btnCollector.on('collect', async btnInt => {
+          const responseCollector = recipientMsg.createMessageComponentCollector({ filter: btnFilter, time: 60000 });
+          responseCollector.on('collect', async btnInt => {
             if (btnInt.customId === 'poketrade_accept') {
               // Call backend to perform trade
               try {
                 const tradeRes = await axios.post(`${backendUrl}/trades`, {
                   initiatorId,
                   recipientId,
-                  initiatorPokemonId: initiatorMon ? initiatorMon._id : null,
-                  recipientPokemonId: recipientMon ? recipientMon._id : null,
                   guildId,
-                  initiatorQuantity,
-                  recipientQuantity
-                });
+                  initiatorItems: initiatorItems.map(it => ({ id: it.id, quantity: it.quantity })),
+                  recipientItems: recipientItems.map(it => ({ id: it.id, quantity: it.quantity }))
+                }, { headers: { 'x-guild-id': guildId } });
                 const trade = tradeRes.data.trade;
                 // Accept trade
                 await axios.post(`${backendUrl}/trades/${trade._id}/respond`, {
@@ -423,8 +471,8 @@ module.exports = {
                   .setTitle('Pokémon Trade Completed!')
                   .setDescription(`${interaction.user} and ${recipient} have completed a trade.`)
                   .addFields(
-                    { name: `${interaction.user.username} Traded`, value: initiatorMon ? `${initiatorQuantity} ${initiatorMon.name}${initiatorMon.isShiny ? ' ✨' : ''}` : 'Nothing', inline: true },
-                    { name: `${recipient.username} Traded`, value: recipientMon ? `${recipientQuantity} ${recipientMon.name}${recipientMon.isShiny ? ' ✨' : ''}` : 'Nothing', inline: true }
+                    { name: `${interaction.user.username} Traded`, value: initiatorItems.length ? initiatorItems.map(it => `${it.quantity} ${it.name}${it.isShiny ? ' ✨' : ''}`).join('\n') : 'Nothing', inline: true },
+                    { name: `${recipient.username} Traded`, value: recipientItems.length ? recipientItems.map(it => `${it.quantity} ${it.name}${it.isShiny ? ' ✨' : ''}`).join('\n') : 'Nothing', inline: true }
                   )
                   .setFooter({ text: 'Trade successful!' });
                 await btnInt.update({ content: '', embeds: [tradeEmbed], components: [] });
@@ -437,11 +485,10 @@ module.exports = {
                   request: {
                     initiatorId,
                     recipientId,
-                    initiatorPokemonId: initiatorMon?._id,
-                    recipientPokemonId: recipientMon?._id,
+                    initiatorItems,
+                    recipientItems,
                     guildId,
-                    initiatorQuantity,
-                    recipientQuantity
+                    reason: 'multi-trade'
                   }
                 });
                 await btnInt.update({ content: '❌ Trade failed. Pokémon may no longer be available.', embeds: [], components: [] });
@@ -451,14 +498,14 @@ module.exports = {
               await btnInt.update({ content: '❌ Trade declined.', embeds: [], components: [] });
               await interaction.followUp({ content: `${recipient} declined the trade.`, ephemeral: true });
             }
-            btnCollector.stop();
+            responseCollector.stop();
           });
-          btnCollector.on('end', async () => {
+          responseCollector.on('end', async () => {
             try { await recipientMsg.edit({ components: [] }); } catch {}
           });
-          await modalInt.reply({ content: 'Trade request sent to recipient!', ephemeral: true });
+          await interaction.followUp({ content: 'Trade request sent to recipient!', ephemeral: true });
         } catch (e) {
-          await i.followUp({ content: 'Trade timed out or not all quantities entered.', ephemeral: true });
+          await interaction.followUp({ content: 'Trade timed out or not all quantities entered.', ephemeral: true });
         }
       }
     });
@@ -466,7 +513,7 @@ module.exports = {
       // Clean up search modal handler
       client.off('interactionCreate', searchModalHandler);
       
-      if (!initiatorPokemonId || !recipientPokemonId) {
+      if (!(initiatorSelectedIds.length > 0 && recipientSelectedIds.length > 0)) {
         await interaction.followUp({ content: 'Trade timed out or not all selections made.', ephemeral: true });
       }
     });

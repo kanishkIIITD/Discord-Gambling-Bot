@@ -6581,7 +6581,6 @@ async function getShowdownGif(name, isShiny, isActive = true) {
 			? 'https://play.pokemonshowdown.com/sprites/ani/'
 			: 'https://play.pokemonshowdown.com/sprites/gen5ani/';
 	}
-	
   
 	// Convert form names to Pokemon Showdown naming convention
 	let showdownName = name;

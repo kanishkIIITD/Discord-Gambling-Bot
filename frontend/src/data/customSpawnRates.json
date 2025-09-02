@@ -3831,7 +3831,7 @@
   },
   "rayquaza": {
     "spawn": 1,
-    "catchRate": 0.17647058823529413,
+    "catchRate": 0.017647058823529413,
     "rarity": "legendary",
     "xpYield": 150,
     "dustYield": 150,
