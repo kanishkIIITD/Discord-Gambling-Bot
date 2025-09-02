@@ -110,14 +110,39 @@ module.exports = {
     // Helper to build select row with pagination and search
     function buildSelectRow(type, options, page, searchTerm = '') {
       const filteredOptions = filterPokemonOptions(options, searchTerm);
-      const { paged, totalPages } = paginateOptions(filteredOptions, page);
+      
+      // Handle cases where we have fewer than 5 options
+      let paged, totalPages;
+      if (filteredOptions.length < 5) {
+        // For small option sets, show all options without pagination
+        paged = filteredOptions;
+        totalPages = 1;
+      } else {
+        // Use normal pagination for larger option sets
+        const { paged: paginatedOptions, totalPages: pages } = paginateOptions(filteredOptions, page);
+        paged = paginatedOptions;
+        totalPages = pages;
+      }
+      
+      // Ensure we have at least 5 options for Discord's requirement
+      const selectOptions = [...paged];
+      while (selectOptions.length < 5) {
+        selectOptions.push({
+          label: `--- No more options ---`,
+          value: `placeholder_${selectOptions.length}`,
+          pokemonType: null,
+          isShiny: false,
+          isLegendary: false,
+          isMythical: false
+        });
+      }
       
       const select = new StringSelectMenuBuilder()
         .setCustomId(`poketrade_select_${type}_page_${page}_search_${encodeURIComponent(searchTerm)}`)
         .setPlaceholder(searchTerm ? 
           `Searching: "${searchTerm}" (${filteredOptions.length} results)` : 
           type === 'initiator' ? 'Select your Pokémon to offer' : `Select a Pokémon from ${recipient.username}`)
-        .addOptions(paged)
+        .addOptions(selectOptions)
         .setMinValues(1).setMaxValues(5);
       
       const row = new ActionRowBuilder().addComponents(select);
@@ -296,14 +321,16 @@ module.exports = {
       
       // Handle selection (multi)
       if (i.customId.startsWith('poketrade_select_initiator')) {
-        initiatorSelectedIds = i.values.slice(0, 5);
+        // Filter out placeholder options and 'none' option
+        initiatorSelectedIds = i.values.filter(id => id !== 'none' && !id.startsWith('placeholder_')).slice(0, 5);
         // If recipient already has selections, we'll show a modal on this interaction
         if (!(recipientSelectedIds.length > 0 && !selectionDone)) {
           await i.deferUpdate();
         }
       }
       if (i.customId.startsWith('poketrade_select_recipient')) {
-        recipientSelectedIds = i.values.slice(0, 5);
+        // Filter out placeholder options and 'none' option
+        recipientSelectedIds = i.values.filter(id => id !== 'none' && !id.startsWith('placeholder_')).slice(0, 5);
         // If initiator already has selections, we'll show a modal on this interaction
         if (!(initiatorSelectedIds.length > 0 && !selectionDone)) {
           await i.deferUpdate();
@@ -315,20 +342,27 @@ module.exports = {
         collector.stop();
         try {
         // Resolve selected Pokémon objects (no combined 5-input cap; collect via two modals)
-        const initiatorSelectedMons = initiatorSelectedIds.filter(id => id !== 'none').map(id => initiatorMons.find(p => p._id === id)).filter(Boolean).slice(0, 5);
-        const recipientSelectedMons = recipientSelectedIds.filter(id => id !== 'none').map(id => recipientMons.find(p => p._id === id)).filter(Boolean).slice(0, 5);
+        const initiatorSelectedMons = initiatorSelectedIds.filter(id => id !== 'none' && !id.startsWith('placeholder_')).map(id => initiatorMons.find(p => p._id === id)).filter(Boolean).slice(0, 5);
+        const recipientSelectedMons = recipientSelectedIds.filter(id => id !== 'none' && !id.startsWith('placeholder_')).map(id => recipientMons.find(p => p._id === id)).filter(Boolean).slice(0, 5);
 
-        const { client } = i;
+        // Check if we have at least one valid selection from each user
+        if (initiatorSelectedMons.length === 0 && recipientSelectedMons.length === 0) {
+          await interaction.followUp({ content: 'Please select at least one valid Pokémon from either user to trade.', ephemeral: true });
+          return;
+        }
+
+        // Helper function to await modal interactions
         const awaitInteraction = (filter, timeoutMs = 60000) => new Promise((resolve, reject) => {
           const handler = async (evt) => {
             if (filter(evt)) {
-              client.off('interactionCreate', handler);
+              interaction.client.off('interactionCreate', handler);
               resolve(evt);
             }
           };
-          client.on('interactionCreate', handler);
+          interaction.client.on('interactionCreate', handler);
           setTimeout(() => {
-            client.off('interactionCreate', handler);
+            interaction.client.off('interactionCreate', handler);
+            console.error('[poketrade] Modal interaction timeout - no modal submission received');
             reject(new Error('Modal submit timeout'));
           }, timeoutMs);
         });
@@ -379,7 +413,14 @@ module.exports = {
           time: 60000,
           max: 1
         });
-        await new Promise((resolve, reject) => {
+        
+        // Handle the case where there are no recipient Pokémon selected
+        if (recipientSelectedMons.length === 0) {
+          // No recipient Pokémon selected, skip the modal and proceed
+          await promptMsg.edit({ content: 'No recipient Pokémon selected. This will be a gift trade.', components: [] });
+        } else {
+          // Wait for button click to show recipient quantities modal
+          await new Promise((resolve, reject) => {
           btnCollector.on('collect', async btnInt => {
             try {
               // Second modal: recipient quantities (up to 5 inputs)
@@ -411,6 +452,9 @@ module.exports = {
                   recipientItems.push({ id: m._id, name: m.name, isShiny: m.isShiny, quantity: qty });
                 }
                 await recModalInt.reply({ content: 'Recipient quantities captured.', ephemeral: true });
+              } else {
+                // No recipient Pokémon selected, but that's okay for gift trades
+                await btnInt.reply({ content: 'No recipient Pokémon selected. This will be a gift trade.', ephemeral: true });
               }
               resolve();
             } catch (err) {
@@ -419,10 +463,12 @@ module.exports = {
           });
           btnCollector.on('end', (collected) => {
             if (collected.size === 0) {
+              console.error('[poketrade] Button collector timed out - no button interaction received');
               reject(new Error('recipient_button_timeout'));
             }
           });
         });
+        }
 
         try { await promptMsg.edit({ components: [] }); } catch {}
 
@@ -505,6 +551,7 @@ module.exports = {
           });
           await interaction.followUp({ content: 'Trade request sent to recipient!', ephemeral: true });
         } catch (e) {
+          console.error('[poketrade] Error during trade setup:', e);
           await interaction.followUp({ content: 'Trade timed out or not all quantities entered.', ephemeral: true });
         }
       }
