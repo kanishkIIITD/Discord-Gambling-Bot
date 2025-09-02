@@ -616,10 +616,10 @@ async function endPokemonGiveaway(messageId, client) {
     }
 
     // Use crypto.randomInt for better RNG
-    const winnerIndex = crypto.randomInt(0, eligibleParticipants.length);
-    const winnerId = eligibleParticipants[winnerIndex];
+    const winnerPickIndex = crypto.randomInt(0, eligibleParticipants.length);
+    const winnerId = eligibleParticipants[winnerPickIndex];
 
-    console.log(`[Pokemon Giveaway] Choosing winner from ${uniqueParticipants.length} participants: index ${winnerIndex}, user ${winnerId}`);
+    console.log(`[Pokemon Giveaway] Choosing winner from ${uniqueParticipants.length} participants: index ${winnerPickIndex}, user ${winnerId}`);
 
     const winner = await client.users.fetch(winnerId);
 
@@ -659,10 +659,64 @@ async function endPokemonGiveaway(messageId, client) {
         console.error('[Pokemon Giveaway] Error fetching Pokemon artwork for winner:', error);
       }
 
+      // Fetch usernames for all participants to create summary
+      const participantUsernames = [];
+      for (const participantId of uniqueParticipants) {
+        try {
+          const user = await client.users.fetch(participantId);
+          participantUsernames.push({
+            id: participantId,
+            username: user.username,
+            isWinner: participantId === winnerId
+          });
+        } catch (error) {
+          console.error(`[Pokemon Giveaway] Error fetching user ${participantId}:`, error);
+          participantUsernames.push({
+            id: participantId,
+            username: 'Unknown User',
+            isWinner: participantId === winnerId
+          });
+        }
+      }
+
+      // Create participant summary with character limit handling
+      const baseDescription = `**Winner:** <@${winnerId}>\n\n**Prize:** #${String(giveaway.pokemonId).padStart(3, '0')} ${giveaway.pokemonName}${giveaway.isShiny ? ' ✨' : ''}\n\n**Total participants:** ${uniqueParticipants.length}\n\n`;
+
+      let participantSummary = '**Participants:**\n';
+      let totalCharacters = baseDescription.length + participantSummary.length;
+
+      // Use a safe embed limit (Discord embed description limit is 4096):
+      const maxEmbedLength = 4050; // keep a small buffer under 4096
+
+      let displayedParticipants = 0;
+
+      // Iterate in original order and append lines, highlighting the winner inline
+      for (let i = 0; i < participantUsernames.length; i++) {
+        const p = participantUsernames[i];
+        const line = p.isWinner
+          ? `**${i + 1}. 🏆 ${p.username}** (Winner!)\n`
+          : `${i + 1}. ${p.username}\n`;
+
+        if (totalCharacters + line.length > maxEmbedLength) {
+          break; // stop when we'd exceed the safe limit
+        }
+
+        participantSummary += line;
+        totalCharacters += line.length;
+        displayedParticipants++;
+      }
+
+      // Add truncation notice if not all participants are shown
+      if (displayedParticipants < participantUsernames.length) {
+        const remainingCount = participantUsernames.length - displayedParticipants;
+        const truncationNotice = `\n... and ${remainingCount} more participant${remainingCount === 1 ? '' : 's'}`;
+        participantSummary += truncationNotice;
+      }
+
       // Announce winner in a new message
       const winnerEmbed = new EmbedBuilder()
         .setTitle('🎉 POKÉMON GIVEAWAY ENDED! 🎉')
-        .setDescription(`**Winner:** <@${winnerId}>\n\n**Prize:** #${String(giveaway.pokemonId).padStart(3, '0')} ${giveaway.pokemonName}${giveaway.isShiny ? ' ✨' : ''}\n\n**Total participants:** ${participants.length}`)
+        .setDescription(baseDescription + participantSummary)
         .setColor(0x00ff00)
         .setTimestamp()
         .setFooter({ text: `Hosted by ${(await client.users.fetch(giveaway.hostId)).username}` });
