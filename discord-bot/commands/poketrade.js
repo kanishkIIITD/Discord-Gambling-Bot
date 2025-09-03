@@ -208,6 +208,12 @@ module.exports = {
     const searchModalHandler = async modalInt => {
       try {        
         if (searchModalFilter(modalInt)) {
+          // Acknowledge modal submit immediately to prevent expiry
+          try {
+            if (!modalInt.deferred && !modalInt.replied) {
+              await modalInt.deferReply({ ephemeral: true });
+            }
+          } catch {}
           const searchTerm = modalInt.fields.getTextInputValue('search_term');
           const type = modalInt.customId.replace('poketrade_search_modal_', '');
           
@@ -222,11 +228,10 @@ module.exports = {
             [row2, btnRow2, recipientFilteredCount, recipientTotalPages] = buildSelectRow('recipient', recipientOptions, recipientPage, recipientSearchTerm);
           }
           
-          // Use reply instead of update to avoid message reference issues
-          await modalInt.reply({ 
-            content: `Search applied: "${searchTerm}"`, 
-            ephemeral: true 
-          });
+          // Confirm to user via deferred modal reply
+          try {
+            await modalInt.editReply({ content: `Search applied: "${searchTerm}"` });
+          } catch {}
           
           // Update the original message components
           try {
@@ -236,20 +241,18 @@ module.exports = {
           } catch (updateError) {
             console.error('[poketrade] Failed to update original message:', updateError);
             // If update fails, send a new message
-            await interaction.followUp({ 
-              content: 'Search applied but could not update the original message. Please try the search again.',
-              ephemeral: true 
-            });
+            try { await interaction.followUp({ content: 'Search applied but could not update the original message. Please try the search again.', ephemeral: true }); } catch {}
           }
         }
       } catch (error) {
         console.error('[poketrade] Search modal handler error:', error);
         // Send error message to user
         try {
-          await modalInt.reply({ 
-            content: 'An error occurred while processing your search. Please try again.',
-            ephemeral: true 
-          });
+          if (!modalInt.deferred && !modalInt.replied) {
+            await modalInt.reply({ content: 'An error occurred while processing your search. Please try again.', ephemeral: true });
+          } else {
+            await modalInt.followUp({ content: 'An error occurred while processing your search. Please try again.', ephemeral: true });
+          }
         } catch (replyError) {
           console.error('[poketrade] Failed to send error reply:', replyError);
         }
@@ -275,47 +278,53 @@ module.exports = {
       
       // Handle clear search for initiator
       if (i.customId === 'poketrade_clear_search_initiator') {
+        await i.deferUpdate();
         initiatorSearchTerm = '';
         initiatorPage = 0;
         [row1, btnRow1, initiatorFilteredCount, initiatorTotalPages] = buildSelectRow('initiator', initiatorOptions, initiatorPage, initiatorSearchTerm);
-        await i.update({ components: [row1, btnRow1, row2, btnRow2] });
+        await interaction.editReply({ components: [row1, btnRow1, row2, btnRow2] });
         return;
       }
       
       // Handle clear search for recipient
       if (i.customId === 'poketrade_clear_search_recipient') {
+        await i.deferUpdate();
         recipientSearchTerm = '';
         recipientPage = 0;
         [row2, btnRow2, recipientFilteredCount, recipientTotalPages] = buildSelectRow('recipient', recipientOptions, recipientPage, recipientSearchTerm);
-        await i.update({ components: [row1, btnRow1, row2, btnRow2] });
+        await interaction.editReply({ components: [row1, btnRow1, row2, btnRow2] });
         return;
       }
       
       // Handle pagination for initiator (with search)
       if (i.customId.startsWith('poketrade_next_initiator')) {
+        await i.deferUpdate();
         initiatorPage++;
         [row1, btnRow1, initiatorFilteredCount, initiatorTotalPages] = buildSelectRow('initiator', initiatorOptions, initiatorPage, initiatorSearchTerm);
-        await i.update({ components: [row1, btnRow1, row2, btnRow2] });
+        await interaction.editReply({ components: [row1, btnRow1, row2, btnRow2] });
         return;
       }
       if (i.customId.startsWith('poketrade_prev_initiator')) {
+        await i.deferUpdate();
         initiatorPage--;
         [row1, btnRow1, initiatorFilteredCount, initiatorTotalPages] = buildSelectRow('initiator', initiatorOptions, initiatorPage, initiatorSearchTerm);
-        await i.update({ components: [row1, btnRow1, row2, btnRow2] });
+        await interaction.editReply({ components: [row1, btnRow1, row2, btnRow2] });
         return;
       }
       
       // Handle pagination for recipient (with search)
       if (i.customId.startsWith('poketrade_next_recipient')) {
+        await i.deferUpdate();
         recipientPage++;
         [row2, btnRow2, recipientFilteredCount, recipientTotalPages] = buildSelectRow('recipient', recipientOptions, recipientPage, recipientSearchTerm);
-        await i.update({ components: [row1, btnRow1, row2, btnRow2] });
+        await interaction.editReply({ components: [row1, btnRow1, row2, btnRow2] });
         return;
       }
       if (i.customId.startsWith('poketrade_prev_recipient')) {
+        await i.deferUpdate();
         recipientPage--;
         [row2, btnRow2, recipientFilteredCount, recipientTotalPages] = buildSelectRow('recipient', recipientOptions, recipientPage, recipientSearchTerm);
-        await i.update({ components: [row1, btnRow1, row2, btnRow2] });
+        await interaction.editReply({ components: [row1, btnRow1, row2, btnRow2] });
         return;
       }
       
@@ -371,10 +380,12 @@ module.exports = {
         const initRows = [];
         for (let idx = 0; idx < initiatorSelectedMons.length && initRows.length < 5; idx++) {
           const m = initiatorSelectedMons[idx];
+          const baseLabel = `Qty: ${m.name}${m.isShiny ? ' ✨' : ''} (max ${m.count})`;
+          const clipped = baseLabel.length > 45 ? baseLabel.slice(0, 42) + '…' : baseLabel;
           initRows.push(new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId(`init_qty_${m._id}`)
-              .setLabel(`You give: ${m.name}${m.isShiny ? ' ✨' : ''} (max ${m.count})`)
+              .setLabel(clipped)
               .setStyle(TextInputStyle.Short)
               .setRequired(true)
           ));
@@ -390,15 +401,16 @@ module.exports = {
         const initiatorItems = [];
         if (initRows.length) {
           const initModalInt = await awaitInteraction(modalInt => modalInt.user.id === initiatorId && modalInt.customId === 'poketrade_qty_modal_initiator');
+          try { if (!initModalInt.deferred && !initModalInt.replied) await initModalInt.deferReply({ ephemeral: true }); } catch {}
           for (const m of initiatorSelectedMons) {
             const qty = parseInt(initModalInt.fields.getTextInputValue(`init_qty_${m._id}`), 10);
             if (isNaN(qty) || qty < 1 || qty > m.count) {
-              await initModalInt.reply({ content: `Invalid quantity for ${m.name}.`, ephemeral: true });
+              await initModalInt.editReply({ content: `Invalid quantity for ${m.name}.` });
               return;
             }
             initiatorItems.push({ id: m._id, name: m.name, isShiny: m.isShiny, quantity: qty });
           }
-          await initModalInt.reply({ content: 'Your quantities captured. Next, set recipient quantities.', ephemeral: true });
+          await initModalInt.editReply({ content: 'Your quantities captured. Next, set recipient quantities.' });
         }
 
         // Ephemeral button to open recipient quantities modal
@@ -427,10 +439,12 @@ module.exports = {
               const recRows = [];
               for (let idx = 0; idx < recipientSelectedMons.length && recRows.length < 5; idx++) {
                 const m = recipientSelectedMons[idx];
+                const baseLabel = `Qty: ${m.name}${m.isShiny ? ' ✨' : ''} (max ${m.count})`;
+                const clipped = baseLabel.length > 45 ? baseLabel.slice(0, 42) + '…' : baseLabel;
                 recRows.push(new ActionRowBuilder().addComponents(
                   new TextInputBuilder()
                     .setCustomId(`rec_qty_${m._id}`)
-                    .setLabel(`${recipient.username} gives: ${m.name}${m.isShiny ? ' ✨' : ''} (max ${m.count})`)
+                    .setLabel(clipped)
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true)
                 ));
@@ -442,19 +456,23 @@ module.exports = {
                   .addComponents(...recRows);
                 await btnInt.showModal(recModal);
                 const recModalInt = await awaitInteraction(modalInt => modalInt.user.id === initiatorId && modalInt.customId === 'poketrade_qty_modal_recipient');
+                try { if (!recModalInt.deferred && !recModalInt.replied) await recModalInt.deferReply({ ephemeral: true }); } catch {}
                 for (const m of recipientSelectedMons) {
                   const qty = parseInt(recModalInt.fields.getTextInputValue(`rec_qty_${m._id}`), 10);
                   if (isNaN(qty) || qty < 1 || qty > m.count) {
-                    await recModalInt.reply({ content: `Invalid quantity for ${m.name}.`, ephemeral: true });
+                    await recModalInt.editReply({ content: `Invalid quantity for ${m.name}.` });
                     reject(new Error('invalid_recipient_qty'));
                     return;
                   }
                   recipientItems.push({ id: m._id, name: m.name, isShiny: m.isShiny, quantity: qty });
                 }
-                await recModalInt.reply({ content: 'Recipient quantities captured.', ephemeral: true });
+                await recModalInt.editReply({ content: 'Recipient quantities captured.' });
               } else {
                 // No recipient Pokémon selected, but that's okay for gift trades
-                await btnInt.reply({ content: 'No recipient Pokémon selected. This will be a gift trade.', ephemeral: true });
+                try {
+                  await btnInt.deferUpdate();
+                } catch {}
+                await interaction.followUp({ content: 'No recipient Pokémon selected. This will be a gift trade.', ephemeral: true });
               }
               resolve();
             } catch (err) {
