@@ -517,6 +517,8 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
       isShiny: selectedPokemon.isShiny,
       description: description,
       participants: new Set(),
+      // Track the order in which users react so we can display participants chronologically
+      participantOrder: [],
       endTime: Date.now() + (5 * 60 * 1000), // 5 minutes
       active: true
     };
@@ -526,6 +528,23 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
       global.activePokemonGiveaways = new Map();
     }
     global.activePokemonGiveaways.set(giveawayMessage.id, giveawayData);
+
+    // Collector to record the order users react to the giveaway (chronological order)
+    try {
+      const reactionFilter = (reaction, user) => reaction.emoji?.name === '🎉' && !user.bot && user.id !== userId;
+      const reactionCollector = giveawayMessage.createReactionCollector({ filter: reactionFilter, time: 5 * 60 * 1000 });
+      reactionCollector.on('collect', (reaction, user) => {
+        const current = global.activePokemonGiveaways.get(giveawayMessage.id);
+        if (!current || !current.active) return;
+        if (!Array.isArray(current.participantOrder)) current.participantOrder = [];
+        if (!current.participantOrder.includes(user.id)) {
+          current.participantOrder.push(user.id);
+          global.activePokemonGiveaways.set(giveawayMessage.id, current);
+        }
+      });
+    } catch (collectorErr) {
+      console.error('[Pokemon Giveaway] Failed to start reaction order collector:', collectorErr);
+    }
 
     // Set timeout to end the giveaway
     setTimeout(async () => {
@@ -594,6 +613,18 @@ async function endPokemonGiveaway(messageId, client) {
 
     // Ensure participants are unique
     const uniqueParticipants = [...new Set(participants)];
+
+    // Determine display order: prefer the live recorded order, otherwise fall back to reaction cache order
+    let orderedParticipants = uniqueParticipants;
+    if (Array.isArray(giveaway.participantOrder) && giveaway.participantOrder.length > 0) {
+      const recordedSet = new Set(giveaway.participantOrder);
+      // Keep only those who actually reacted and maintain their recorded order
+      orderedParticipants = giveaway.participantOrder.filter(id => recordedSet.has(id) && uniqueParticipants.includes(id));
+      // Append any remaining participants that were not captured by the collector (backup path)
+      for (const pid of uniqueParticipants) {
+        if (!orderedParticipants.includes(pid)) orderedParticipants.push(pid);
+      }
+    }
     
     console.log(`[Pokemon Giveaway] Unique participants: ${uniqueParticipants.length}`);
 
@@ -661,7 +692,7 @@ async function endPokemonGiveaway(messageId, client) {
 
       // Fetch usernames for all participants to create summary
       const participantUsernames = [];
-      for (const participantId of uniqueParticipants) {
+      for (const participantId of orderedParticipants) {
         try {
           const user = await client.users.fetch(participantId);
           participantUsernames.push({
@@ -694,7 +725,7 @@ async function endPokemonGiveaway(messageId, client) {
       for (let i = 0; i < participantUsernames.length; i++) {
         const p = participantUsernames[i];
         const line = p.isWinner
-          ? `**${i + 1}. 🏆 ${p.username}** (Winner!)\n`
+          ? `**${i + 1}. 🏆 ${p.username}**\n`
           : `${i + 1}. ${p.username}\n`;
 
         if (totalCharacters + line.length > maxEmbedLength) {
