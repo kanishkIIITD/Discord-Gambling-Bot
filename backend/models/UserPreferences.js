@@ -50,6 +50,12 @@ const userPreferencesSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  // Battledex presets keyed by team count (1-5): each value is array of Pokemon ObjectIds
+  battledexPresets: {
+    type: Map,
+    of: [String],
+    default: undefined
+  },
   // Add other preferences here as we define them
 });
 

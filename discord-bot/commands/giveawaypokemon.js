@@ -1,5 +1,19 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const axios = require('axios');
+const backendStats = {
+  async incrementHosted(guildId, userId, amount = 1) {
+    const backendUrl = process.env.BACKEND_API_URL;
+    await axios.post(`${backendUrl}/users/${userId}/giveaway/increment`, { hosted: amount }, { headers: { 'x-guild-id': guildId } });
+  },
+  async incrementWon(guildId, userId, amount = 1) {
+    const backendUrl = process.env.BACKEND_API_URL;
+    await axios.post(`${backendUrl}/users/${userId}/giveaway/increment`, { wins: amount }, { headers: { 'x-guild-id': guildId } });
+  },
+  async incrementEntries(guildId, userId, amount = 1) {
+    const backendUrl = process.env.BACKEND_API_URL;
+    await axios.post(`${backendUrl}/users/${userId}/giveaway/increment`, { entries: amount }, { headers: { 'x-guild-id': guildId } });
+  }
+};
 const pokeCache = require('../utils/pokeCache');
 const crypto = require('crypto');
 
@@ -484,14 +498,14 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
       embed.setImage(artwork);
     }
 
-    // Get gamblers role for ping
+    // Get Pokemon role for ping
     const guild = interaction.guild;
-    let gamblersRole;
+    let pokemonRole;
     let content = '';
     if (guild?.roles?.cache) {
-      gamblersRole = guild.roles.cache.find(role => role.name === 'Gamblers');
-      if (gamblersRole) {
-        content = `<@&${gamblersRole.id}> A new Pokémon giveaway has started!`;
+      pokemonRole = guild.roles.cache.find(role => role.name === 'Pokemon');
+      if (pokemonRole) {
+        content = `<@&${pokemonRole.id}> A new Pokémon giveaway has started!`;
       }
     }
 
@@ -499,7 +513,7 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
     const giveawayMessage = await interaction.channel.send({
       content: content || 'A new Pokémon giveaway has started!',
       embeds: [embed],
-      allowedMentions: gamblersRole ? { roles: [gamblersRole.id] } : undefined
+      allowedMentions: pokemonRole ? { roles: [pokemonRole.id] } : undefined
     });
 
     // Add reaction to the message
@@ -529,22 +543,10 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
     }
     global.activePokemonGiveaways.set(giveawayMessage.id, giveawayData);
 
-    // Collector to record the order users react to the giveaway (chronological order)
-    try {
-      const reactionFilter = (reaction, user) => reaction.emoji?.name === '🎉' && !user.bot && user.id !== userId;
-      const reactionCollector = giveawayMessage.createReactionCollector({ filter: reactionFilter, time: 5 * 60 * 1000 });
-      reactionCollector.on('collect', (reaction, user) => {
-        const current = global.activePokemonGiveaways.get(giveawayMessage.id);
-        if (!current || !current.active) return;
-        if (!Array.isArray(current.participantOrder)) current.participantOrder = [];
-        if (!current.participantOrder.includes(user.id)) {
-          current.participantOrder.push(user.id);
-          global.activePokemonGiveaways.set(giveawayMessage.id, current);
-        }
-      });
-    } catch (collectorErr) {
-      console.error('[Pokemon Giveaway] Failed to start reaction order collector:', collectorErr);
-    }
+    // Track hosted stat
+    try { await backendStats.incrementHosted(guildId, userId, 1); } catch (e) { console.error('[Pokemon Giveaway] Failed to increment hosted stat', e); }
+
+    // Reaction order is tracked globally via messageReactionAdd; no per-message collector needed
 
     // Set timeout to end the giveaway
     setTimeout(async () => {
@@ -553,7 +555,7 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
       } catch (error) {
         console.error('[Pokemon Giveaway] Error ending giveaway:', error);
       }
-    }, 5 * 60 * 1000);
+    }, 20 * 1000);
 
     // Don't try to edit the original interaction as it might have timed out
     // The immediate feedback above should be sufficient
@@ -650,6 +652,14 @@ async function endPokemonGiveaway(messageId, client) {
     const winnerPickIndex = crypto.randomInt(0, eligibleParticipants.length);
     const winnerId = eligibleParticipants[winnerPickIndex];
 
+    // Track winner stat and increment entries for all eligible participants
+    try { await backendStats.incrementWon(giveaway.guildId, winnerId, 1); } catch (e) { console.error('[Pokemon Giveaway] Failed to increment won stat', e); }
+    try {
+      for (const pid of eligibleParticipants) {
+        await backendStats.incrementEntries(giveaway.guildId, pid, 1);
+      }
+    } catch (e) { console.error('[Pokemon Giveaway] Failed to increment entries stat', e); }
+
     console.log(`[Pokemon Giveaway] Choosing winner from ${uniqueParticipants.length} participants: index ${winnerPickIndex}, user ${winnerId}`);
 
     const winner = await client.users.fetch(winnerId);
@@ -668,10 +678,10 @@ async function endPokemonGiveaway(messageId, client) {
         headers: { 'x-guild-id': guildId }
       });
 
-      // Get gamblers role for announcement
+      // Get Pokemon role for announcement
       const guild = await client.guilds.fetch(giveaway.guildId);
-      const gamblersRole = guild.roles.cache.find(role => role.name === 'Gamblers');
-      const announcementContent = gamblersRole ? `<@&${gamblersRole.id}>` : '';
+      const pokemonRole = guild.roles.cache.find(role => role.name === 'Pokemon');
+      const announcementContent = pokemonRole ? `<@&${pokemonRole.id}>` : '';
 
       // Fetch Pokemon artwork for winner announcement
       let winnerArtwork = null;
@@ -725,7 +735,7 @@ async function endPokemonGiveaway(messageId, client) {
       for (let i = 0; i < participantUsernames.length; i++) {
         const p = participantUsernames[i];
         const line = p.isWinner
-          ? `**${i + 1}. 🏆 ${p.username}**\n`
+          ? `${i + 1}. 🏆 ${p.username}\n`
           : `${i + 1}. ${p.username}\n`;
 
         if (totalCharacters + line.length > maxEmbedLength) {
@@ -760,11 +770,14 @@ async function endPokemonGiveaway(messageId, client) {
       await channel.send({
         content: `${announcementContent} 🎉 Congratulations <@${winnerId}>! You won ${giveaway.pokemonName}${giveaway.isShiny ? ' ✨' : ''}!`,
         embeds: [winnerEmbed],
-        allowedMentions: gamblersRole ? { roles: [gamblersRole.id] } : undefined
+        allowedMentions: pokemonRole ? { roles: [pokemonRole.id] } : undefined
       });
 
       // Track the recent winner
       trackRecentWinner(winnerId, guildId);
+
+      // Increment aura for winner (+1)
+      try { await axios.post(`${backendUrl}/users/${winnerId}/aura/increment`, { amount: 1 }, { headers: { 'x-guild-id': guildId } }); } catch (e) { console.error('[Pokemon Giveaway] Failed to increment aura for winner', e.message || e); }
 
     } catch (error) {
       console.error('[Pokemon Giveaway] Error transferring Pokémon:', error);
@@ -789,10 +802,10 @@ async function endPokemonGiveaway(messageId, client) {
 }
 
 async function announceNoPokemonParticipants(channel, giveaway, client) {
-  // Get gamblers role for announcement
+  // Get Pokemon role for announcement
   const guild = await client.guilds.fetch(giveaway.guildId);
-  const gamblersRole = guild.roles.cache.find(role => role.name === 'Gamblers');
-  const announcementContent = gamblersRole ? `<@&${gamblersRole.id}>` : '';
+  const pokemonRole = guild.roles.cache.find(role => role.name === 'Pokemon');
+  const announcementContent = pokemonRole ? `<@&${pokemonRole.id}>` : '';
 
   const noParticipantsEmbed = new EmbedBuilder()
     .setTitle('🎉 POKÉMON GIVEAWAY ENDED! 🎉')
@@ -804,6 +817,6 @@ async function announceNoPokemonParticipants(channel, giveaway, client) {
   await channel.send({
     content: `${announcementContent} No participants joined the Pokémon giveaway.`,
     embeds: [noParticipantsEmbed],
-    allowedMentions: gamblersRole ? { roles: [gamblersRole.id] } : undefined
+    allowedMentions: pokemonRole ? { roles: [pokemonRole.id] } : undefined
   });
 } 

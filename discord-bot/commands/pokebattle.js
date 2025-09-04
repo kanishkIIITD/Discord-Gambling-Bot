@@ -18,6 +18,10 @@ module.exports = {
         .setMaxValue(5)
         .setRequired(false))
     .addBooleanOption(option =>
+      option.setName('battledex')
+        .setDescription('Use your preset BattleDex team if available (default: false)')
+        .setRequired(false))
+    .addBooleanOption(option =>
       option.setName('friendly')
         .setDescription('If false, winner gets 2x rewards and loser loses all Pokémon to winner (default: true)')
         .setRequired(false)),
@@ -28,6 +32,7 @@ module.exports = {
     const guildId = interaction.guildId;
     const count = interaction.options.getInteger('count') || 1;
     const friendly = interaction.options.getBoolean('friendly');
+    const battleDex = interaction.options.getBoolean('battledex') || false;
     // Default to true if not specified
     const isFriendly = friendly !== false;
 
@@ -57,6 +62,7 @@ module.exports = {
       guildId,
       count,
       friendly: isFriendly,
+      battleDex,
     }, {
       headers: { 'x-guild-id': guildId }
     });

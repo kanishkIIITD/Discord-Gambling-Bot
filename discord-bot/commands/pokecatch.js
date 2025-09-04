@@ -345,6 +345,17 @@ module.exports = {
         activeSpawns.set(channelId, spawn);
       }
       
+      // Adjust aura by rarity and success
+      try {
+        const rarity = customSpawnRates[pokemonData.name]?.rarity || 'common';
+        const rarityWeights = { og: 10, transcendent: 8, mythical: 6, legendary: 5, epic: 4, rare: 3, uncommon: 2, common: 1 };
+        const deltaBase = rarityWeights[rarity] || 1;
+        const delta = data.success ? deltaBase : -Math.max(1, Math.floor(deltaBase / 2));
+        await axios.post(`${backendUrl}/users/${interaction.user.id}/aura/increment`, { amount: delta }, { headers: { 'x-guild-id': interaction.guildId } });
+      } catch (e) {
+        console.error('[Pokecatch] Failed to adjust aura:', e?.message || e);
+      }
+
       // Update the public message with the final result
       const finalPublicEmbed = new EmbedBuilder()
         .setColor(data.success ? 0x2ecc71 : 0xe74c3c)

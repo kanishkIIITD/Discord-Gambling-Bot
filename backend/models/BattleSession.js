@@ -92,6 +92,8 @@ const battleSessionSchema = new mongoose.Schema({
   fieldEffects: [{ type: String, default: [] }], // e.g. 'reflect', 'light-screen', etc.
   fieldEffectDurations: { type: Object, default: {} }, // { effectName: turnsLeft }
   friendly: { type: Boolean, default: true }, // true = normal, false = winner gets 2x rewards and loser loses all Pokémon
+  // If true, both sides' teams are auto-filled from their battledex presets
+  battleDex: { type: Boolean, default: false },
   challengerSideEffects: { type: [String], default: [] },
   opponentSideEffects: { type: [String], default: [] },
   challengerSideEffectDurations: { type: Object, default: {} },

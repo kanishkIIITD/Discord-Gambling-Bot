@@ -154,6 +154,12 @@ const userSchema = new mongoose.Schema({
   poke_reset_bag_uses: { type: Number, default: 0 },
   // Pokémon steal cooldown
   pokestealCooldown: { type: Date, default: null },
+  // --- Giveaway stats ---
+  pokeGiveawayWins: { type: Number, default: 0 },
+  pokeGiveawayHosted: { type: Number, default: 0 },
+  pokeGiveawayEntries: { type: Number, default: 0 },
+  // --- Aura system ---
+  aura: { type: Number, default: 0 },
 });
 
 userSchema.index({ discordId: 1, guildId: 1 }, { unique: true });

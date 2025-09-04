@@ -33,6 +33,10 @@ const cs2openCommand = require('./commands/cs2open');
 const cs2statsCommand = require('./commands/cs2stats');
 const cs2sellCommand = require('./commands/cs2sell');
 const cs2tradeCommand = require('./commands/cs2trade');
+const giveawayPokemonLeaderboardCommand = require('./commands/giveawaypokemonleaderboard');
+const battledexpresetCommand = require('./commands/battledexpreset');
+const auraCheckCommand = require('./commands/auracheck');
+const auraLeaderboardCommand = require('./commands/auraleaderboard');
 
 const commands = [
 	{
@@ -1078,15 +1082,18 @@ commands.push(weekendCommand.data.toJSON());
 commands.push(pokebattlestatsCommand.data.toJSON());
 commands.push(cancelbattleCommand.data.toJSON());
 commands.push(pokestealCommand.data.toJSON());
-	commands.push(cs2casesCommand.data.toJSON());
-	commands.push(cs2inventoryCommand.data.toJSON());
+commands.push(cs2casesCommand.data.toJSON());
+commands.push(cs2inventoryCommand.data.toJSON());
 commands.push(cs2viewCommand.data.toJSON());
-	commands.push(cs2leaderboardCommand.data.toJSON());
-	commands.push(cs2openCommand.data.toJSON());
-	commands.push(cs2statsCommand.data.toJSON());
-	commands.push(cs2sellCommand.data.toJSON());
-	commands.push(cs2tradeCommand.data.toJSON());
-
+commands.push(cs2leaderboardCommand.data.toJSON());
+commands.push(cs2openCommand.data.toJSON());
+commands.push(cs2statsCommand.data.toJSON());
+commands.push(cs2sellCommand.data.toJSON());
+commands.push(cs2tradeCommand.data.toJSON());
+commands.push(giveawayPokemonLeaderboardCommand.data.toJSON());
+commands.push(battledexpresetCommand.data.toJSON());
+commands.push(auraCheckCommand.data.toJSON());
+commands.push(auraLeaderboardCommand.data.toJSON());
 const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {

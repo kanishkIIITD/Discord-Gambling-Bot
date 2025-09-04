@@ -202,6 +202,18 @@ async function processBattleRewards(session) {
       }
       
       await winnerUser.save();
+
+      // --- Adjust Aura: winner +1 (or +2 if non-friendly), loser -1 (or -2) ---
+      const isFriendly = winnerUser && (session.friendly !== false);
+      const winnerDelta = isFriendly ? 1 : 2;
+      const loserDelta = isFriendly ? -1 : -2;
+      const loserId = session.winnerId === session.challengerId ? session.opponentId : session.challengerId;
+      try {
+        await User.updateOne({ discordId: session.winnerId, guildId: session.guildId }, { $inc: { aura: winnerDelta } });
+        await User.updateOne({ discordId: loserId, guildId: session.guildId }, { $inc: { aura: loserDelta } });
+      } catch (e) {
+        console.error('[BattleRewards] Failed to update aura:', e?.message || e);
+      }
       
       // If not friendly, transfer only the Pokémon used in battle from loser to winner
       if (session.friendly === false) {
@@ -544,7 +556,7 @@ function applyOnDeductPP(target, move) {
 
 // POST /battles - Create a new battle session
 router.post('/', async (req, res) => {
-  const { challengerId, opponentId, guildId, count, friendly } = req.body;
+  const { challengerId, opponentId, guildId, count, friendly, battleDex } = req.body;
   if (!count || count < 1 || count > 5) {
     return res.status(400).json({ error: 'Number of Pokémon must be between 1 and 5.' });
   }
@@ -589,6 +601,7 @@ router.post('/', async (req, res) => {
       log: [],
       count,
       friendly: friendly !== false, // default to true if not provided
+      battleDex: !!battleDex,
     });
     return res.json({ battleId: session._id, session });
   } catch (err) {
@@ -795,9 +808,10 @@ router.post('/:battleId/select', async (req, res) => {
       const types = pokeData.types.map(t => t.type.name);
       // --- Pass battleSize to getLegalMoveset ---
       let moves = [];
+      let basePokemonName = p.name.toLowerCase();
       try {
         // For moves fetching, always use the base Pokemon name, not the form name
-        let basePokemonName = p.name.toLowerCase();
+        basePokemonName = p.name.toLowerCase();
         
         // If this is a form Pokemon, use the base Pokemon name for move fetching
         if (p.formId) {

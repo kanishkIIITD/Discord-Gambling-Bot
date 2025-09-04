@@ -151,8 +151,40 @@ async function getLegalMoveset(
 ) {
   console.log(`[getLegalMoveset] Starting move selection for ${pokemonName} (level ${level})`);
   
-  const res = await axios.get(`https://pokeapi.co/api/v2/pokemon/${pokemonName.toLowerCase()}`);
-  const data = res.data;
+  // Robustly resolve the correct PokeAPI pokemon resource for base/species names
+  let data;
+  {
+    const identifier = String(pokemonName).toLowerCase();
+    let lastError = null;
+    // 1) Try as-is (works for numeric IDs and exact slugs like "deoxys-speed")
+    try {
+      const res = await axios.get(`https://pokeapi.co/api/v2/pokemon/${identifier}`);
+      data = res.data;
+    } catch (err1) {
+      lastError = err1;
+      // 2) If a plain species name like "deoxys" fails, try appending "-normal"
+      try {
+        const resNorm = await axios.get(`https://pokeapi.co/api/v2/pokemon/${identifier}-normal`);
+        data = resNorm.data;
+      } catch (err2) {
+        lastError = err2;
+        // 3) As a final fallback, query species and resolve its default variety
+        try {
+          const speciesRes = await axios.get(`https://pokeapi.co/api/v2/pokemon-species/${identifier}`);
+          const speciesData = speciesRes.data;
+          const defaultVariety = speciesData.varieties?.find(v => v.is_default) || speciesData.varieties?.[0];
+          if (!defaultVariety?.pokemon?.name) throw err2;
+          const resDefault = await axios.get(`https://pokeapi.co/api/v2/pokemon/${defaultVariety.pokemon.name}`);
+          data = resDefault.data;
+          console.log(`[getLegalMoveset] Resolved ${identifier} to default variety ${defaultVariety.pokemon.name}`);
+        } catch (err3) {
+          lastError = err3;
+          console.warn(`[getLegalMoveset] Failed to resolve PokeAPI resource for ${identifier}:`, lastError?.message || lastError);
+          throw lastError;
+        }
+      }
+    }
+  }
   const allowedMethods = ['level-up', 'machine', 'tutor', 'egg'];
   let allMoves = [];
   let usedVersionGroups = [];

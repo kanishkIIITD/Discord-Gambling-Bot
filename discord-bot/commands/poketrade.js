@@ -345,8 +345,8 @@ module.exports = {
           await i.deferUpdate();
         }
       }
-      // If both have at least one selection, stop collector and show modal for quantities
-      if (initiatorSelectedIds.length > 0 && recipientSelectedIds.length > 0 && !selectionDone) {
+      // If either side has at least one selection, stop collector and show modal for quantities (gift-only allowed)
+      if ((initiatorSelectedIds.length > 0 || recipientSelectedIds.length > 0) && !selectionDone) {
         selectionDone = true;
         collector.stop();
         try {
@@ -354,7 +354,7 @@ module.exports = {
         const initiatorSelectedMons = initiatorSelectedIds.filter(id => id !== 'none' && !id.startsWith('placeholder_')).map(id => initiatorMons.find(p => p._id === id)).filter(Boolean).slice(0, 5);
         const recipientSelectedMons = recipientSelectedIds.filter(id => id !== 'none' && !id.startsWith('placeholder_')).map(id => recipientMons.find(p => p._id === id)).filter(Boolean).slice(0, 5);
 
-        // Check if we have at least one valid selection from each user
+        // Check if we have at least one valid selection from either user
         if (initiatorSelectedMons.length === 0 && recipientSelectedMons.length === 0) {
           await interaction.followUp({ content: 'Please select at least one valid Pokémon from either user to trade.', ephemeral: true });
           return;
@@ -578,8 +578,8 @@ module.exports = {
       // Clean up search modal handler
       client.off('interactionCreate', searchModalHandler);
       
-      if (!(initiatorSelectedIds.length > 0 && recipientSelectedIds.length > 0)) {
-        await interaction.followUp({ content: 'Trade timed out or not all selections made.', ephemeral: true });
+      if (!(initiatorSelectedIds.length > 0 || recipientSelectedIds.length > 0)) {
+        await interaction.followUp({ content: 'Trade timed out or no selections made.', ephemeral: true });
       }
     });
   }

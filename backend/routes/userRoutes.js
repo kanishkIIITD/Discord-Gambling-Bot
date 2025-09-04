@@ -3196,13 +3196,17 @@ router.get('/:userId/daily-status', async (req, res) => {
 });
 
 // Get user's preferences
-router.get('/:discordId/preferences', async (req, res) => {
+router.get('/:discordId/preferences', requireGuildId, async (req, res) => {
   try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
     // Find user preferences or create default if none exist
-    let preferences = await UserPreferences.findOne({ user: req.user._id, guildId: req.guildId });
+    let preferences = await UserPreferences.findOne({ user: user._id, guildId });
     
     if (!preferences) {
-      preferences = new UserPreferences({ user: req.user._id, guildId: req.guildId });
+      preferences = new UserPreferences({ user: user._id, guildId });
       await preferences.save();
     }
     
@@ -3214,12 +3218,16 @@ router.get('/:discordId/preferences', async (req, res) => {
 });
 
 // Update user's preferences
-router.put('/:discordId/preferences', async (req, res) => {
+router.put('/:discordId/preferences', requireGuildId, async (req, res) => {
   try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
     const updates = req.body;
     // Find preferences and update
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
     const preferences = await UserPreferences.findOneAndUpdate(
-      { user: req.user._id, guildId: req.guildId },
+      { user: user._id, guildId },
       { $set: updates },
       { new: true, upsert: true } // Create if not exists, return updated document
     );
@@ -3228,6 +3236,123 @@ router.put('/:discordId/preferences', async (req, res) => {
   } catch (error) {
     console.error('Error updating user preferences:', error);
     res.status(500).json({ message: 'Server error updating preferences.' });
+  }
+});
+
+// --- Giveaway stats: increment endpoints ---
+router.post('/:discordId/giveaway/increment', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const { wins = 0, hosted = 0, entries = 0 } = req.body || {};
+    const user = await User.findOneAndUpdate(
+      { discordId, guildId },
+      {
+        $inc: {
+          pokeGiveawayWins: wins,
+          pokeGiveawayHosted: hosted,
+          pokeGiveawayEntries: entries,
+        }
+      },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    res.json({
+      wins: user.pokeGiveawayWins || 0,
+      hosted: user.pokeGiveawayHosted || 0,
+      entries: user.pokeGiveawayEntries || 0,
+    });
+  } catch (error) {
+    console.error('Error incrementing giveaway stats:', error);
+    res.status(500).json({ message: 'Server error incrementing giveaway stats.' });
+  }
+});
+
+// Fetch giveaway stats for a user
+router.get('/:discordId/giveaway/stats', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    res.json({
+      wins: user.pokeGiveawayWins || 0,
+      hosted: user.pokeGiveawayHosted || 0,
+      entries: user.pokeGiveawayEntries || 0,
+    });
+  } catch (error) {
+    console.error('Error fetching giveaway stats:', error);
+    res.status(500).json({ message: 'Server error fetching giveaway stats.' });
+  }
+});
+
+// Leaderboard for giveaway wins/hosted/entries (sortable)
+router.get('/leaderboard/giveaway', requireGuildId, async (req, res) => {
+  try {
+    const guildId = req.headers['x-guild-id'];
+    const metric = ['wins','hosted','entries'].includes(req.query.metric) ? req.query.metric : 'wins';
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const sortField = metric === 'wins' ? 'pokeGiveawayWins' : metric === 'hosted' ? 'pokeGiveawayHosted' : 'pokeGiveawayEntries';
+    const users = await User.find({ guildId })
+      .sort({ [sortField]: -1 })
+      .limit(limit)
+      .select('username discordId pokeGiveawayWins pokeGiveawayHosted pokeGiveawayEntries');
+    res.json({ data: users });
+  } catch (error) {
+    console.error('Error fetching giveaway leaderboard:', error);
+    res.status(500).json({ message: 'Server error fetching giveaway leaderboard.' });
+  }
+});
+
+// --- Aura routes ---
+// Increment aura: { amount }
+router.post('/:discordId/aura/increment', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const amount = parseInt(req.body?.amount || 0);
+    if (!Number.isFinite(amount) || amount === 0) return res.json({ updated: false });
+    const user = await User.findOneAndUpdate(
+      { discordId, guildId },
+      { $inc: { aura: amount } },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    res.json({ aura: user.aura || 0 });
+  } catch (error) {
+    console.error('Error incrementing aura:', error);
+    res.status(500).json({ message: 'Server error incrementing aura.' });
+  }
+});
+
+// Aura leaderboard (placed before param route to avoid route-capture)
+router.get('/leaderboard/aura', requireGuildId, async (req, res) => {
+  try {
+    const guildId = req.headers['x-guild-id'];
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const order = (req.query.order === 'asc') ? 1 : -1; // default desc for positive aura first
+    const users = await User.find({ guildId, aura: { $ne: 0 } })
+      .sort({ aura: order })
+      .limit(limit)
+      .select('username discordId aura');
+    res.json({ data: users });
+  } catch (error) {
+    console.error('Error fetching aura leaderboard:', error);
+    res.status(500).json({ message: 'Server error fetching aura leaderboard.' });
+  }
+});
+
+// Get aura for user
+router.get('/:discordId/aura', requireGuildId, async (req, res) => {
+  try {
+    const { discordId } = req.params;
+    const guildId = req.headers['x-guild-id'];
+    const user = await User.findOne({ discordId, guildId });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    res.json({ aura: user.aura || 0 });
+  } catch (error) {
+    console.error('Error fetching aura:', error);
+    res.status(500).json({ message: 'Server error fetching aura.' });
   }
 });
 

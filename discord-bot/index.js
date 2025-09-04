@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Partials } = require('discord.js');
 const axios = require('axios');
 const crimeCommand = require('./commands/crime');
 const workCommand = require('./commands/work');
@@ -56,6 +56,10 @@ const cs2openCommand = require('./commands/cs2open');
 const cs2statsCommand = require('./commands/cs2stats');
 const cs2sellCommand = require('./commands/cs2sell');
 const cs2tradeCommand = require('./commands/cs2trade');
+const giveawayPokemonLeaderboardCommand = require('./commands/giveawaypokemonleaderboard');
+	const auraCheckCommand = require('./commands/auracheck');
+const auraLeaderboardCommand = require('./commands/auraleaderboard');
+const battledexpresetCommand = require('./commands/battledexpreset');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 const pokeCache = require('./utils/pokeCache');
@@ -75,7 +79,14 @@ const client = new Client({ intents: [
 	GatewayIntentBits.Guilds,
 	GatewayIntentBits.GuildMessages,
 	GatewayIntentBits.MessageContent,
-	GatewayIntentBits.GuildMembers
+	GatewayIntentBits.GuildMembers,
+	GatewayIntentBits.GuildMessageReactions
+], partials: [
+	Partials.Message,
+	Partials.Channel,
+	Partials.Reaction,
+	Partials.User,
+	Partials.GuildMember
 ] });
 
 // --- Pokebattle: Track selections per battle ---
@@ -91,6 +102,9 @@ const activeBlackjackMessages = new Map(); // key: `${guildId}_${userId}` => { c
 
 // --- Giveaway: Track active giveaways ---
 global.activeGiveaways = new Map(); // key: messageId => giveaway data
+
+// --- Pokémon Giveaway: Track active Pokémon giveaways ---
+global.activePokemonGiveaways = global.activePokemonGiveaways || new Map();
 
 (async () => {
   try {
@@ -210,6 +224,25 @@ client.once('ready', () => {
 			console.error('Error in closed-unnotified bets poller:', err);
 		}
 	}, 20000);
+});
+
+// --- Global handler for Pokémon giveaway reaction additions (🎉) ---
+client.on('messageReactionAdd', async (reaction, user) => {
+	try {
+		if (user.bot) return;
+		if (reaction.partial) await reaction.fetch();
+		const messageId = reaction.message.id;
+		if (reaction.emoji?.name !== '🎉') return;
+		const giveaway = global.activePokemonGiveaways?.get(messageId);
+		if (!giveaway) return;
+		if (!Array.isArray(giveaway.participantOrder)) giveaway.participantOrder = [];
+		if (!giveaway.participantOrder.includes(user.id)) {
+			giveaway.participantOrder.push(user.id);
+			global.activePokemonGiveaways.set(messageId, giveaway);
+		}
+	} catch (err) {
+		console.error('[Giveaway] messageReactionAdd handler error', err);
+	}
 });
 
 // Send a welcome embed when the bot is added to a new server
@@ -1993,6 +2026,81 @@ client.on('interactionCreate', async interaction => {
 				});
 				const { status, session } = response.data;
 				if (accept && status === 'active') {
+					// If battleDex flag is set, try to auto-fill both sides from presets
+					let usedPresets = false;
+					const teamCount = session.count || 1;
+					if (session.battleDex) {
+						try {
+							const [challPrefsRes, oppPrefsRes] = await Promise.all([
+								axios.get(`${backendApiUrl}/users/${session.challengerId}/preferences`, { headers: { 'x-guild-id': interaction.guildId } }),
+								axios.get(`${backendApiUrl}/users/${session.opponentId}/preferences`, { headers: { 'x-guild-id': interaction.guildId } })
+							]);
+							const challMap = challPrefsRes.data?.battledexPresets || {};
+							const oppMap = oppPrefsRes.data?.battledexPresets || {};
+							const challPreset = challMap?.[String(teamCount)] || challMap?.[teamCount];
+							const oppPreset = oppMap?.[String(teamCount)] || oppMap?.[teamCount];
+							if (Array.isArray(challPreset) && challPreset.length === teamCount && Array.isArray(oppPreset) && oppPreset.length === teamCount) {
+								await axios.post(`${backendApiUrl}/battles/${battleId}/select`, {
+									userId: session.challengerId,
+									selectedPokemonIds: challPreset,
+								}, { headers: { 'x-guild-id': interaction.guildId } });
+								await axios.post(`${backendApiUrl}/battles/${battleId}/select`, {
+									userId: session.opponentId,
+									selectedPokemonIds: oppPreset,
+								}, { headers: { 'x-guild-id': interaction.guildId } });
+								usedPresets = true;
+							}
+						} catch (_) {
+							usedPresets = false;
+						}
+					}
+					if (usedPresets) {
+						// Jump directly to battle UI
+						const sessionRes2 = await axios.get(`${backendApiUrl}/battles/${battleId}`);
+						const session2 = sessionRes2.data.session;
+						const challengerPoke = session2.challengerPokemons[0];
+						const opponentPoke = session2.opponentPokemons[0];
+						const turnUserId = session2.turn === 'challenger' ? session2.challengerId : session2.opponentId;
+						const turnPoke = session2.turn === 'challenger' ? challengerPoke : opponentPoke;
+						const otherPoke = session2.turn === 'challenger' ? opponentPoke : challengerPoke;
+						const turnTeam = session2.turn === 'challenger' ? session2.challengerPokemons : session2.opponentPokemons;
+						let turnImg = await getShowdownGif(getPokemonSpriteName(turnPoke), turnPoke.isShiny, true);
+						let otherImg = await getShowdownGif(getPokemonSpriteName(otherPoke), otherPoke.isShiny, false);
+						const turnDisplayName = getPokemonDisplayName(turnPoke);
+						const otherDisplayName = getPokemonDisplayName(otherPoke);
+						const battleEmbed = new EmbedBuilder()
+							.setTitle(`${session2.turn === 'challenger' ? 'Challenger' : 'Opponent'}: ${turnDisplayName} (${getAliveCount(turnTeam)}/${turnTeam.length})${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)`)
+							.setDescription(`${session2.challengerId === turnUserId ? 'Challenger' : 'Opponent'} is up!`)
+							.setImage(turnImg)
+							.setThumbnail(otherImg)
+							.addFields(
+								{ name: 'Active Pokémon', value: `${turnDisplayName}${turnPoke.status ? ' ('+turnPoke.status+')' : ''} (${turnPoke.currentHp}/${turnPoke.maxHp} HP)\nAbility: ${turnPoke.ability || '—'}\nNature: ${turnPoke.nature || '—'}\nBoosts: ${formatBoosts(turnPoke.boosts)}`, inline: true },
+								{ name: 'Opponent', value: `${otherDisplayName}${otherPoke.status ? ' ('+otherPoke.status+')' : ''} (${otherPoke.currentHp}/${otherPoke.maxHp} HP)\nAbility: ${otherPoke.ability || '—'}\nNature: ${otherPoke.nature || '—'}\nBoosts: ${formatBoosts(otherPoke.boosts)}`, inline: true },
+								{ name: ' ', value: ' ', inline: true },
+								{ name: 'Weather', value: session2.weather || 'None', inline: true },
+								{ name: 'Terrain', value: session2.terrain || 'None', inline: true }
+							);
+						const moves = (turnPoke.moves || []).slice(0, 6);
+						const moveButtons = moves.map(m => new ButtonBuilder()
+							.setCustomId(`pokebattle_move_${battleId}_${turnUserId}_${m.name}`)
+							.setLabel(`${m.name.replace(/-/g, ' ')} ${getTypeEmoji(m.moveType)} (${m.power}/${m.accuracy}) [PP: ${m.currentPP}/${m.effectivePP}]`)
+							.setStyle(m.power > 0 ? ButtonStyle.Secondary : ButtonStyle.Success)
+							.setDisabled(m.currentPP === 0)
+						);
+						const moveRows = [];
+						if (moveButtons.length > 0) moveRows.push(new ActionRowBuilder().addComponents(moveButtons.slice(0, 5)));
+						if (moveButtons.length > 5) moveRows.push(new ActionRowBuilder().addComponents(moveButtons.slice(5, 10)));
+						const { getBattleActionRow } = require('./utils/discordUtils');
+						const actionRow = getBattleActionRow(battleId, turnUserId);
+						const logText = (session2.log && session2.log.length) ? session2.log.slice(-5).map(l => formatBattleLogLine(l, turnUserId)).join('\n') + '\n' : '';
+						await interaction.followUp({
+							content: `${logText}<@${turnUserId}>, it is your turn! Choose a move for **${turnDisplayName}**:`,
+							embeds: [battleEmbed],
+							components: [...moveRows, actionRow],
+							allowedMentions: { users: [turnUserId] },
+						});
+						return;
+					}
 					// --- Pokémon selection step ---
 					// Fetch available Pokémon for both users
 					const [challengerRes, opponentRes] = await Promise.all([
@@ -6263,6 +6371,8 @@ client.on('interactionCreate', async interaction => {
 	} else if (commandName === 'giveawaypokemon') {
 		const giveawaypokemonCommand = require('./commands/giveawaypokemon');
 		await giveawaypokemonCommand.execute(interaction);
+	} else if (commandName === 'giveawaypokemonleaderboard') {
+		await giveawayPokemonLeaderboardCommand.execute(interaction);
 	} else if (commandName === 'collection-list') {
 		await collectionListCommand.execute(interaction);
 	} else if (commandName === 'timeout') {
@@ -6419,6 +6529,15 @@ client.on('interactionCreate', async interaction => {
 	}
 	else if (commandName === 'cs2trade') {
 		await cs2tradeCommand.execute(interaction);
+	}
+	else if (commandName === 'battledexpreset') {
+		await battledexpresetCommand.execute(interaction);
+	}
+	else if (commandName === 'auracheck') {
+		await auraCheckCommand.execute(interaction);
+	}
+	else if (commandName === 'auraleaderboard') {
+		await auraLeaderboardCommand.execute(interaction);
 	}
 	
 	// Return after handling all slash commands to prevent fall-through to button/select menu handlers
