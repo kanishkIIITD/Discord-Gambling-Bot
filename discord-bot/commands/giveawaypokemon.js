@@ -555,7 +555,7 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
       } catch (error) {
         console.error('[Pokemon Giveaway] Error ending giveaway:', error);
       }
-    }, 20 * 1000);
+    }, 5 * 60 * 1000);
 
     // Don't try to edit the original interaction as it might have timed out
     // The immediate feedback above should be sufficient

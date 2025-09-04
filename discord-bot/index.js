@@ -57,7 +57,7 @@ const cs2statsCommand = require('./commands/cs2stats');
 const cs2sellCommand = require('./commands/cs2sell');
 const cs2tradeCommand = require('./commands/cs2trade');
 const giveawayPokemonLeaderboardCommand = require('./commands/giveawaypokemonleaderboard');
-	const auraCheckCommand = require('./commands/auracheck');
+const auraCheckCommand = require('./commands/auracheck');
 const auraLeaderboardCommand = require('./commands/auraleaderboard');
 const battledexpresetCommand = require('./commands/battledexpreset');
 const fs = require('fs/promises');
@@ -5725,12 +5725,15 @@ client.on('interactionCreate', async interaction => {
 					fields: [
 						{ name: '🏆 Leaderboards', value:
 							'`/leaderboard` - View top users by balance\n' +
-							'`/collection-leaderboard` - View top collectors by value'
+							'`/collection-leaderboard` - View top collectors by value\n' +
+							'`/auraleaderboard` - View users by aura (sort: positive/negative)\n' +
+							'`/giveawaypokemonleaderboard` - View users by Pokémon giveaways won'
 						},
 						{ name: '📈 Statistics', value:
 							'`/stats` - View your full betting and gambling statistics\n' +
 							'`/cooldowns` - View all your current cooldowns\n' +
-							'`/resetcooldowns` - Reset all cooldowns (requires Cooldown Reset buff)'
+							'`/resetcooldowns` - Reset all cooldowns (requires Cooldown Reset buff)\n' +
+							'`/auracheck [user]` - Check a user\'s aura publicly'
 						},
 						{ name: '⚙️ Settings', value:
 							'`/help` - View this help menu'
@@ -5944,7 +5947,9 @@ client.on('interactionCreate', async interaction => {
 							'`/pokemonshow` - Show off your Pokémon to the server!'
 						},
 						{ name: '👾 Battling', value:
-							'`/pokebattle` - Challenge another user to a Pokémon battle! (Pokémon per side: 1-5)'
+							'`/pokebattle` - Challenge another user to a Pokémon battle! (Pokémon per side: 1-5)\n' +
+							'Use `battledex:true` to auto-use your preset team\n' +
+							'`/battledexpreset count` - Set your BattleDex team preset'
 						},
 						{ name: '🔄 Trading & Management', value:
 							'`/poketrade` - Trade Pokémon with another user!\n' +
