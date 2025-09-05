@@ -79,6 +79,9 @@ module.exports = {
     let recipientPage = 0;
     let initiatorSearchTerm = '';
     let recipientSearchTerm = '';
+    // Track if users explicitly chose 'Nothing (gift only)'
+    let initiatorChoseNone = false;
+    let recipientChoseNone = false;
     // Add 'Nothing' option to both with enhanced metadata for search
     const initiatorOptions = [
       { label: 'Nothing (gift only)', value: 'none', pokemonType: null, isShiny: false, isLegendary: false, isMythical: false },
@@ -331,22 +334,29 @@ module.exports = {
       // Handle selection (multi)
       if (i.customId.startsWith('poketrade_select_initiator')) {
         // Filter out placeholder options and 'none' option
+        initiatorChoseNone = i.values.includes('none');
         initiatorSelectedIds = i.values.filter(id => id !== 'none' && !id.startsWith('placeholder_')).slice(0, 5);
-        // If recipient already has selections, we'll show a modal on this interaction
-        if (!(recipientSelectedIds.length > 0 && !selectionDone)) {
+        // Only avoid deferring if we plan to show the initiator quantities modal immediately on this interaction
+        const willShowInitiatorModalNow = recipientSelectedIds.length > 0 && initiatorSelectedIds.length > 0 && !selectionDone;
+        if (!willShowInitiatorModalNow) {
           await i.deferUpdate();
         }
       }
       if (i.customId.startsWith('poketrade_select_recipient')) {
         // Filter out placeholder options and 'none' option
+        recipientChoseNone = i.values.includes('none');
         recipientSelectedIds = i.values.filter(id => id !== 'none' && !id.startsWith('placeholder_')).slice(0, 5);
-        // If initiator already has selections, we'll show a modal on this interaction
-        if (!(initiatorSelectedIds.length > 0 && !selectionDone)) {
+        // Only avoid deferring if we plan to show the recipient quantities modal immediately on this interaction
+        const willShowRecipientModalNow = initiatorSelectedIds.length > 0 && recipientSelectedIds.length > 0 && !selectionDone;
+        if (!willShowRecipientModalNow) {
           await i.deferUpdate();
         }
       }
-      // If either side has at least one selection, stop collector and show modal for quantities (gift-only allowed)
-      if ((initiatorSelectedIds.length > 0 || recipientSelectedIds.length > 0) && !selectionDone) {
+      // Proceed when both sides have made a choice (either items or 'none'),
+      // and at least one side has items (true gift trades are allowed; both 'none' is not).
+      const bothSidesChose = (initiatorSelectedIds.length > 0 || initiatorChoseNone) && (recipientSelectedIds.length > 0 || recipientChoseNone);
+      const atLeastOneHasItems = (initiatorSelectedIds.length + recipientSelectedIds.length) > 0;
+      if (bothSidesChose && atLeastOneHasItems && !selectionDone) {
         selectionDone = true;
         collector.stop();
         try {
@@ -376,7 +386,7 @@ module.exports = {
           }, timeoutMs);
         });
 
-        // First modal: initiator quantities (up to 5 inputs)
+        // First modal: initiator quantities (up to 5 inputs) — only if initiator selected items
         const initRows = [];
         for (let idx = 0; idx < initiatorSelectedMons.length && initRows.length < 5; idx++) {
           const m = initiatorSelectedMons[idx];
@@ -395,7 +405,41 @@ module.exports = {
             .setCustomId('poketrade_qty_modal_initiator')
             .setTitle('Your Trade Quantities')
             .addComponents(...initRows);
-          await i.showModal(initModal);
+          // If this interaction was already deferred/replied earlier, we cannot show a modal on it.
+          // Fallback: send a button to open the modal and show it from that button interaction instead.
+          if (i.deferred || i.replied) {
+            const openInitBtn = new ButtonBuilder()
+              .setCustomId('poketrade_open_initiator_qty')
+              .setLabel('Set your quantities')
+              .setStyle(ButtonStyle.Primary);
+            const openInitRow = new ActionRowBuilder().addComponents(openInitBtn);
+            const initPromptMsg = await interaction.followUp({ content: 'Click to enter your quantities.', components: [openInitRow], ephemeral: true });
+
+            await new Promise((resolve, reject) => {
+              const initBtnCollector = initPromptMsg.createMessageComponentCollector({
+                filter: btnInt => btnInt.user.id === initiatorId && btnInt.customId === 'poketrade_open_initiator_qty',
+                time: 60000,
+                max: 1
+              });
+              initBtnCollector.on('collect', async btnInt => {
+                try {
+                  await btnInt.showModal(initModal);
+                  resolve();
+                } catch (err) {
+                  reject(err);
+                }
+              });
+              initBtnCollector.on('end', (collected) => {
+                if (collected.size === 0) {
+                  reject(new Error('initiator_button_timeout'));
+                }
+              });
+            });
+
+            try { await initPromptMsg.edit({ components: [] }); } catch {}
+          } else {
+            await i.showModal(initModal);
+          }
         }
 
         const initiatorItems = [];
@@ -413,26 +457,33 @@ module.exports = {
           await initModalInt.editReply({ content: 'Your quantities captured. Next, set recipient quantities.' });
         }
 
-        // Ephemeral button to open recipient quantities modal
+        // Ephemeral button to open recipient quantities modal (or skip straight to summary if recipient chose none)
         const openRecipientBtn = new ButtonBuilder().setCustomId('poketrade_open_recipient_qty').setLabel('Set recipient quantities').setStyle(ButtonStyle.Primary);
         const openRow = new ActionRowBuilder().addComponents(openRecipientBtn);
-        const promptMsg = await interaction.followUp({ content: 'Click to enter recipient quantities.', components: [openRow], ephemeral: true });
+        const promptMsg = recipientSelectedMons.length > 0
+          ? await interaction.followUp({ content: 'Click to enter recipient quantities.', components: [openRow], ephemeral: true })
+          : null;
 
         // Create a collector on the ephemeral prompt to capture the button click
         const recipientItems = [];
-        const btnCollector = promptMsg.createMessageComponentCollector({
-          filter: btnInt => btnInt.user.id === initiatorId && btnInt.customId === 'poketrade_open_recipient_qty',
-          time: 60000,
-          max: 1
-        });
+        const btnCollector = promptMsg
+          ? promptMsg.createMessageComponentCollector({
+              filter: btnInt => btnInt.user.id === initiatorId && btnInt.customId === 'poketrade_open_recipient_qty',
+              time: 60000,
+              max: 1
+            })
+          : null;
         
         // Handle the case where there are no recipient Pokémon selected
         if (recipientSelectedMons.length === 0) {
-          // No recipient Pokémon selected, skip the modal and proceed
-          await promptMsg.edit({ content: 'No recipient Pokémon selected. This will be a gift trade.', components: [] });
+          // No recipient Pokémon selected (recipient chose 'Nothing') — skip modal, proceed directly
         } else {
           // Wait for button click to show recipient quantities modal
           await new Promise((resolve, reject) => {
+          if (!btnCollector) {
+            reject(new Error('recipient_button_setup_failed'));
+            return;
+          }
           btnCollector.on('collect', async btnInt => {
             try {
               // Second modal: recipient quantities (up to 5 inputs)
@@ -488,7 +539,7 @@ module.exports = {
         });
         }
 
-        try { await promptMsg.edit({ components: [] }); } catch {}
+        try { if (promptMsg) await promptMsg.edit({ components: [] }); } catch {}
 
         // Show trade summary and ask for confirmation
           const summaryEmbed = new EmbedBuilder()

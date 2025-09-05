@@ -70,6 +70,11 @@ module.exports = {
         .setRequired(false)
     )
     .addBooleanOption(option =>
+      option.setName('shiny')
+        .setDescription('Show only shiny Pokémon')
+        .setRequired(false)
+    )
+    .addBooleanOption(option =>
       option.setName('forms')
         .setDescription('Show only form variants (ID ≥ 10001)')
         .setRequired(false)
@@ -100,6 +105,7 @@ module.exports = {
       
       // --- Forms or Generation filter ---
       const showFormsOnly = interaction.options.getBoolean('forms') || false;
+      const showShinyOnly = interaction.options.getBoolean('shiny') || false;
       const selectedGen = interaction.options.getInteger('gen') || 0; // Default to 0 (all generations)
       if (showFormsOnly) {
         pokedex = pokedex.filter(mon => mon.pokemonId >= 10001);
@@ -124,6 +130,14 @@ module.exports = {
               return await interaction.editReply(`You have not caught any Gen ${selectedGen} (${genName}) Pokémon yet!`);
             }
           }
+        }
+      }
+
+      // --- Shiny-only filter ---
+      if (showShinyOnly) {
+        pokedex = pokedex.filter(mon => !!mon.isShiny);
+        if (pokedex.length === 0) {
+          return await interaction.editReply('You have not caught any shiny Pokémon yet!');
         }
       }
       
@@ -217,22 +231,28 @@ module.exports = {
       if (totalPages === 1) {
         return await interaction.editReply({ embeds: [embed] });
       }
-      // Add navigation buttons
+      // Add navigation buttons (First, Prev, Next, Last)
       const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('prev').setLabel('Previous').setStyle(ButtonStyle.Primary).setDisabled(page === 0),
-        new ButtonBuilder().setCustomId('next').setLabel('Next').setStyle(ButtonStyle.Primary).setDisabled(page === totalPages - 1)
+        new ButtonBuilder().setCustomId('first').setLabel('⏮ First').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
+        new ButtonBuilder().setCustomId('prev').setLabel('◀ Prev').setStyle(ButtonStyle.Primary).setDisabled(page === 0),
+        new ButtonBuilder().setCustomId('next').setLabel('Next ▶').setStyle(ButtonStyle.Primary).setDisabled(page === totalPages - 1),
+        new ButtonBuilder().setCustomId('last').setLabel('Last ⏭').setStyle(ButtonStyle.Secondary).setDisabled(page === totalPages - 1)
       );
       const msg = await interaction.editReply({ embeds: [embed], components: [row] });
-      const collector = msg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
+      const collector = msg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 120000 });
       collector.on('collect', async i => {
         if (i.user.id !== interaction.user.id) {
           return i.reply({ content: 'These buttons are not for you!', ephemeral: true });
         }
+        if (i.customId === 'first') page = 0;
         if (i.customId === 'prev' && page > 0) page--;
         if (i.customId === 'next' && page < totalPages - 1) page++;
+        if (i.customId === 'last') page = Math.max(0, totalPages - 1);
         embed = await getPageEmbed(page);
         row.components[0].setDisabled(page === 0);
-        row.components[1].setDisabled(page === totalPages - 1);
+        row.components[1].setDisabled(page === 0);
+        row.components[2].setDisabled(page === totalPages - 1);
+        row.components[3].setDisabled(page === totalPages - 1);
         await i.update({ embeds: [embed], components: [row] });
       });
       collector.on('end', async () => {
