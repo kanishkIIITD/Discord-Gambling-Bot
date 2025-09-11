@@ -498,14 +498,21 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
       embed.setImage(artwork);
     }
 
-    // Get Pokemon role for ping
+    // Get Pokemon and Gamblers roles for ping
     const guild = interaction.guild;
-    let pokemonRole;
     let content = '';
+    let allowedMentions;
     if (guild?.roles?.cache) {
-      pokemonRole = guild.roles.cache.find(role => role.name === 'Pokemon');
-      if (pokemonRole) {
-        content = `<@&${pokemonRole.id}> A new Pokémon giveaway has started!`;
+      const pokemonRole = guild.roles.cache.find(role => role.name === 'Pokemon');
+      const gamblersRole = guild.roles.cache.find(role => role.name === 'Gamblers');
+
+      const rolesToMention = [];
+      if (pokemonRole) rolesToMention.push(pokemonRole.id);
+      if (gamblersRole) rolesToMention.push(gamblersRole.id);
+
+      if (rolesToMention.length > 0) {
+        content = `${rolesToMention.map(id => `<@&${id}>`).join(' ')} A new Pokémon giveaway has started!`;
+        allowedMentions = { roles: rolesToMention };
       }
     }
 
@@ -513,7 +520,7 @@ async function startPokemonGiveaway(interaction, selectedPokemon, description) {
     const giveawayMessage = await interaction.channel.send({
       content: content || 'A new Pokémon giveaway has started!',
       embeds: [embed],
-      allowedMentions: pokemonRole ? { roles: [pokemonRole.id] } : undefined
+      allowedMentions: allowedMentions
     });
 
     // Add reaction to the message
@@ -678,10 +685,17 @@ async function endPokemonGiveaway(messageId, client) {
         headers: { 'x-guild-id': guildId }
       });
 
-      // Get Pokemon role for announcement
+      // Get Pokemon and Gamblers role for announcement
       const guild = await client.guilds.fetch(giveaway.guildId);
       const pokemonRole = guild.roles.cache.find(role => role.name === 'Pokemon');
-      const announcementContent = pokemonRole ? `<@&${pokemonRole.id}>` : '';
+      const gamblersRole = guild.roles.cache.find(role => role.name === 'Gamblers');
+
+      const rolesToMention = [];
+      if (pokemonRole) rolesToMention.push(pokemonRole.id);
+      if (gamblersRole) rolesToMention.push(gamblersRole.id);
+
+      const announcementContent = rolesToMention.length ? rolesToMention.map(id => `<@&${id}>`).join(' ') : '';
+      const allowedMentions = rolesToMention.length ? { roles: rolesToMention } : undefined;
 
       // Fetch Pokemon artwork for winner announcement
       let winnerArtwork = null;
@@ -770,7 +784,7 @@ async function endPokemonGiveaway(messageId, client) {
       await channel.send({
         content: `${announcementContent} 🎉 Congratulations <@${winnerId}>! You won ${giveaway.pokemonName}${giveaway.isShiny ? ' ✨' : ''}!`,
         embeds: [winnerEmbed],
-        allowedMentions: pokemonRole ? { roles: [pokemonRole.id] } : undefined
+        allowedMentions: allowedMentions
       });
 
       // Track the recent winner
@@ -802,10 +816,17 @@ async function endPokemonGiveaway(messageId, client) {
 }
 
 async function announceNoPokemonParticipants(channel, giveaway, client) {
-  // Get Pokemon role for announcement
+  // Get Pokemon and Gamblers role for announcement
   const guild = await client.guilds.fetch(giveaway.guildId);
   const pokemonRole = guild.roles.cache.find(role => role.name === 'Pokemon');
-  const announcementContent = pokemonRole ? `<@&${pokemonRole.id}>` : '';
+  const gamblersRole = guild.roles.cache.find(role => role.name === 'Gamblers');
+
+  const rolesToMention = [];
+  if (pokemonRole) rolesToMention.push(pokemonRole.id);
+  if (gamblersRole) rolesToMention.push(gamblersRole.id);
+
+  const announcementContent = rolesToMention.length ? rolesToMention.map(id => `<@&${id}>`).join(' ') : '';
+  const allowedMentions = rolesToMention.length ? { roles: rolesToMention } : undefined;
 
   const noParticipantsEmbed = new EmbedBuilder()
     .setTitle('🎉 POKÉMON GIVEAWAY ENDED! 🎉')
@@ -817,6 +838,6 @@ async function announceNoPokemonParticipants(channel, giveaway, client) {
   await channel.send({
     content: `${announcementContent} No participants joined the Pokémon giveaway.`,
     embeds: [noParticipantsEmbed],
-    allowedMentions: pokemonRole ? { roles: [pokemonRole.id] } : undefined
+    allowedMentions: allowedMentions
   });
 } 

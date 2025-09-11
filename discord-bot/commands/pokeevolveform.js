@@ -72,20 +72,41 @@ module.exports = {
     const totalPages = Math.ceil(evolvablePokemon.length / ITEMS_PER_PAGE);
     let currentPage = 0;
 
+    // Show only "non-formed" pokémon (pokeapi formed pokedex IDs start at 10000)
+    const FORMED_POKEDEX_THRESHOLD = 10000;
+
     function buildSelectMenu(page = 0) {
+      // Filter out formed pokemons by pokedex number (fallback to pokemonId if no pokedexNumber)
+      const available = evolvablePokemon.filter(entry => {
+        const dex = (entry.pokemon.pokedexNumber ?? entry.pokemon.pokemonId ?? 0);
+        return dex < FORMED_POKEDEX_THRESHOLD;
+      });
+    
+      const totalPagesLocal = Math.max(1, Math.ceil(available.length / ITEMS_PER_PAGE));
       const startIndex = page * ITEMS_PER_PAGE;
-      const endIndex = startIndex + ITEMS_PER_PAGE;
-      const pageOptions = evolvablePokemon.slice(startIndex, endIndex);
-
-      const options = pageOptions.map(({ pokemon, form, itemKey, itemUses }, index) => ({
-        label: `#${pokemon.pokemonId.toString().padStart(3, '0')} ${pokemon.name} → ${form.name} (Form Stone x${itemUses})`,
-        value: `${pokemon.pokemonId}:${pokemon.isShiny ? 'shiny' : 'normal'}:${form.id}:${itemKey}:${startIndex + index}`
-      }));
-
+      const pageOptions = available.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    
+      const options = pageOptions.map(({ pokemon, form, itemKey, itemUses }, index) => {
+        const baseShiny = !!pokemon.isShiny;
+        const baseMark = baseShiny ? '✨ ' : '';
+        const resultMark = baseShiny ? ' ✨' : ''; // shows that formed pokemon will be shiny
+    
+        let label = `#${(pokemon.pokedexNumber ?? pokemon.pokemonId).toString().padStart(3, '0')} ${baseMark}${pokemon.name} →${resultMark} ${form.name}`;
+        let description = `Form Stone x${itemUses}${baseShiny ? ' • Shiny → Shiny' : ''}`;
+    
+        // enforce discord limits
+        if (label.length > 100) label = label.slice(0, 97) + '...';
+        if (description.length > 100) description = description.slice(0, 97) + '...';
+    
+        const value = `${pokemon.pokemonId}:${baseShiny ? 'shiny' : 'normal'}:${form.id}:${itemKey}:${startIndex + index}`;
+    
+        return { label, description, value };
+      });
+    
       return new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId('pokeevolveform_select')
-          .setPlaceholder(`Select a Pokémon to evolve to form (Page ${page + 1}/${totalPages})`)
+          .setPlaceholder(`Select a Pokémon to evolve to form (Page ${page + 1}/${totalPagesLocal})`)
           .addOptions(options)
       );
     }
