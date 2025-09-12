@@ -141,42 +141,59 @@ const PokedexTracker = () => {
            isForm: false
          });
 
-          // Derive form entries from user's collection names (different from base species name)
+          // Forms: count caught using the specific form pokemonId (from canonical forms)
           const baseNameLower = (species.name || '').toLowerCase();
-          const formEntriesMap = new Map();
-          for (const p of matchingPokemon) {
-            const nameLower = (p.name || '').toLowerCase();
-            if (!nameLower || nameLower === baseNameLower) continue;
-            const key = `${p.isShiny ? 'shiny' : 'normal'}::${nameLower}`;
-            const existing = formEntriesMap.get(key) || { count: 0, displayName: p.name, shiny: !!p.isShiny };
-            formEntriesMap.set(key, { count: existing.count + 1, displayName: p.name, shiny: !!p.isShiny });
-          }
-          // Merge canonical forms (so they appear even if not owned)
           const canonicalForms = (pokemonForms[baseNameLower] && pokemonForms[baseNameLower].forms) ? pokemonForms[baseNameLower].forms : [];
-          for (const form of canonicalForms) {
-            const displayName = form.name;
-            const normalKey = `normal::${displayName.toLowerCase()}`;
-            const shinyKey = `shiny::${displayName.toLowerCase()}`;
-            if (!formEntriesMap.has(normalKey)) {
-              formEntriesMap.set(normalKey, { count: 0, displayName, shiny: false, imageId: form.pokemonId });
-            } else {
-              const v = formEntriesMap.get(normalKey);
-              if (v && !v.imageId) v.imageId = form.pokemonId;
+          if (canonicalForms.length > 0) {
+            for (const form of canonicalForms) {
+              const formIdNum = Number(form.pokemonId);
+              const owned = pokemonCollection.filter(p => Number(p.pokemonId) === formIdNum);
+              const normalOwned = owned.filter(p => !p.isShiny);
+              const shinyOwned = owned.filter(p => p.isShiny);
+
+              // Normal form entry
+              pokemon.push({
+                id: formIdNum,
+                name: form.name,
+                caught: normalOwned.length > 0,
+                shiny: false,
+                count: normalOwned.length,
+                species: species,
+                isForm: true
+              });
+
+              // Shiny form entry
+              pokemon.push({
+                id: formIdNum,
+                name: form.name,
+                caught: shinyOwned.length > 0,
+                shiny: true,
+                count: shinyOwned.length,
+                species: species,
+                isForm: true
+              });
             }
-            if (!formEntriesMap.has(shinyKey)) {
-              formEntriesMap.set(shinyKey, { count: 0, displayName, shiny: true, imageId: form.pokemonId });
+          } else {
+            // Fallback: derive form entries from user's collection names (different from base species name)
+            const formEntriesMap = new Map();
+            for (const p of matchingPokemon) {
+              const nameLower = (p.name || '').toLowerCase();
+              if (!nameLower || nameLower === baseNameLower) continue;
+              const key = `${p.isShiny ? 'shiny' : 'normal'}::${nameLower}`;
+              const existing = formEntriesMap.get(key) || { count: 0, displayName: p.name, shiny: !!p.isShiny };
+              formEntriesMap.set(key, { count: existing.count + 1, displayName: p.name, shiny: !!p.isShiny });
             }
-          }
-          for (const [, info] of formEntriesMap.entries()) {
-            pokemon.push({
-              id: info.imageId || id,
-              name: info.displayName,
-              caught: info.count > 0,
-              shiny: info.shiny,
-              count: info.count,
-              species: species,
-              isForm: true
-            });
+            for (const [, info] of formEntriesMap.entries()) {
+              pokemon.push({
+                id,
+                name: info.displayName,
+                caught: info.count > 0,
+                shiny: info.shiny,
+                count: info.count,
+                species: species,
+                isForm: true
+              });
+            }
           }
        }
      }

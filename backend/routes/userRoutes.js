@@ -7034,7 +7034,9 @@ router.get('/:userId/pokemon', auth, async (req, res) => {
       level: pokemon.level,
       nickname: pokemon.nickname,
       caughtAt: pokemon.createdAt,
-      _id: pokemon._id
+      _id: pokemon._id,
+      formId: pokemon.formId || null,
+      formName: pokemon.formName || null
     }));
 
     res.json({
