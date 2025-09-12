@@ -47,13 +47,28 @@ module.exports = {
 
     // Find Pokemon that can evolve to forms
     const evolvablePokemon = [];
-    
+
+    // Build a lookup of already-owned forms by formId and shiny state
+    const ownedFormKeySet = new Set(
+      pokedex
+        .filter(p => p.formId)
+        .map(p => `${p.formId}:${p.isShiny ? 'shiny' : 'normal'}`)
+    );
+
     for (const pokemon of pokedex) {
-      const forms = pokemonForms[pokemon.name]?.forms || [];
+      // Normalize name keys to match pokemonForms.json
+      const rawName = pokemon.name || '';
+      const normalized = rawName.toLowerCase().replace(/\s+/g, '-');
+      // Fix for Deoxys base entry sometimes being stored as deoxys-normal
+      const nameKey = normalized.startsWith('deoxys-') ? 'deoxys' : normalized;
+      const forms = pokemonForms[nameKey]?.forms || [];
       // Allow all forms to be evolved to with Form Stone
       const evolvableForms = forms; // Include all forms, not just those with evolution items
       
       for (const form of evolvableForms) {
+        const shinyKey = pokemon.isShiny ? 'shiny' : 'normal';
+        const alreadyOwned = ownedFormKeySet.has(`${form.id}:${shinyKey}`);
+        if (alreadyOwned) continue; // Skip forms user already owns for this shiny state
         evolvablePokemon.push({
           pokemon,
           form,
@@ -76,10 +91,11 @@ module.exports = {
     const FORMED_POKEDEX_THRESHOLD = 10000;
 
     function buildSelectMenu(page = 0) {
-      // Filter out formed pokemons by pokedex number (fallback to pokemonId if no pokedexNumber)
+      // Filter out formed base Pokémon and entries that are already formed variants
       const available = evolvablePokemon.filter(entry => {
         const dex = (entry.pokemon.pokedexNumber ?? entry.pokemon.pokemonId ?? 0);
-        return dex < FORMED_POKEDEX_THRESHOLD;
+        const isAlreadyFormBase = !!(entry.pokemon.formId || entry.pokemon.formName);
+        return !isAlreadyFormBase && dex < FORMED_POKEDEX_THRESHOLD;
       });
     
       const totalPagesLocal = Math.max(1, Math.ceil(available.length / ITEMS_PER_PAGE));

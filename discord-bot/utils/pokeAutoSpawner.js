@@ -176,7 +176,17 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, gen
     } catch (e) {
       console.error(`[AutoSpawner] Error fetching message after sending in channel ${channelId}, messageId: ${message.id}:`, e);
     }
-    activeSpawns.set(channelId, { pokemonId, spawnedAt: Date.now(), messageId: message.id, attempts: 0, attemptedBy: [], caughtBy: [], ...(catchRateOverride !== undefined && { catchRateOverride }) });
+    activeSpawns.set(channelId, { 
+      pokemonId, 
+      spawnedAt: Date.now(), 
+      messageId: message.id, 
+      attempts: 0, 
+      attemptedBy: [], 
+      caughtBy: [], 
+      isPreviousGen: isPreviousGenChannel,
+      shinyBonusMultiplier: isPreviousGenChannel ? 10 : 1,
+      ...(catchRateOverride !== undefined && { catchRateOverride }) 
+    });
     console.log(`[AutoSpawner][SPAWN] Created spawn in channel ${channelId} (guild ${guildId}): messageId=${message.id}, pokemonId=${pokemonId}, spawnedAt=${Date.now()}`);
     console.log(`[AutoSpawner] activeSpawns after spawn:`, Array.from(activeSpawns.entries()));
     

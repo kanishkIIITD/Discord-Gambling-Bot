@@ -164,8 +164,9 @@ module.exports = {
       if (buttonInt.customId === 'pokecatch_rare') ballType = 'rare';
       if (buttonInt.customId === 'pokecatch_ultra') ballType = 'ultra';
       if (buttonInt.customId === 'pokecatch_masterball') ballType = 'masterball';
-      // Random shiny roll (keep in bot for now)
-      const isShiny = Math.random() < SHINY_ODDS;
+      // Random shiny roll; previous-gen spawns get 2x shiny odds
+      const shinyMultiplier = spawn.shinyBonusMultiplier || (spawn.isPreviousGen ? 10 : 1);
+      const isShiny = Math.random() < (SHINY_ODDS * shinyMultiplier);
       
       // Random form roll (much rarer than shinies)
       const isForm = Math.random() < FORM_ODDS;

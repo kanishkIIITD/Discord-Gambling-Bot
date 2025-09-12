@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useUserStore } from '../store/useUserStore';
 import { useGuildStore } from '../store/useGuildStore';
-import { useUIStore } from '../store/useUIStore';
-import { getCurrentGenInfo, getPreviousGenInfo, GENERATION_NAMES, getGenerationRange } from '../utils/generationConfig';
+// removed unused useUIStore import
+import { getCurrentGenInfo, getGenerationRange } from '../utils/generationConfig';
 import pokemonService from '../services/pokemonService';
+import pokemonForms from '../data/pokemonForms.json';
 
 const PokedexTracker = () => {
   const user = useUserStore(state => state.user);
-  const theme = useUIStore(state => state.theme);
-  const isDark = theme === 'dark';
+  // removed unused theme from UI store
   const currentGuild = useGuildStore(state => state.getSelectedGuild());
   const [pokemonCollection, setPokemonCollection] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -126,7 +126,8 @@ const PokedexTracker = () => {
            caught: normalPokemon.length > 0,
            shiny: false,
            count: normalPokemon.length,
-           species: species
+           species: species,
+           isForm: false
          });
          
          // Add shiny Pokémon entry (always add, even if not caught)
@@ -136,8 +137,47 @@ const PokedexTracker = () => {
            caught: shinyPokemon.length > 0,
            shiny: true,
            count: shinyPokemon.length,
-           species: species
+           species: species,
+           isForm: false
          });
+
+          // Derive form entries from user's collection names (different from base species name)
+          const baseNameLower = (species.name || '').toLowerCase();
+          const formEntriesMap = new Map();
+          for (const p of matchingPokemon) {
+            const nameLower = (p.name || '').toLowerCase();
+            if (!nameLower || nameLower === baseNameLower) continue;
+            const key = `${p.isShiny ? 'shiny' : 'normal'}::${nameLower}`;
+            const existing = formEntriesMap.get(key) || { count: 0, displayName: p.name, shiny: !!p.isShiny };
+            formEntriesMap.set(key, { count: existing.count + 1, displayName: p.name, shiny: !!p.isShiny });
+          }
+          // Merge canonical forms (so they appear even if not owned)
+          const canonicalForms = (pokemonForms[baseNameLower] && pokemonForms[baseNameLower].forms) ? pokemonForms[baseNameLower].forms : [];
+          for (const form of canonicalForms) {
+            const displayName = form.name;
+            const normalKey = `normal::${displayName.toLowerCase()}`;
+            const shinyKey = `shiny::${displayName.toLowerCase()}`;
+            if (!formEntriesMap.has(normalKey)) {
+              formEntriesMap.set(normalKey, { count: 0, displayName, shiny: false, imageId: form.pokemonId });
+            } else {
+              const v = formEntriesMap.get(normalKey);
+              if (v && !v.imageId) v.imageId = form.pokemonId;
+            }
+            if (!formEntriesMap.has(shinyKey)) {
+              formEntriesMap.set(shinyKey, { count: 0, displayName, shiny: true, imageId: form.pokemonId });
+            }
+          }
+          for (const [, info] of formEntriesMap.entries()) {
+            pokemon.push({
+              id: info.imageId || id,
+              name: info.displayName,
+              caught: info.count > 0,
+              shiny: info.shiny,
+              count: info.count,
+              species: species,
+              isForm: true
+            });
+          }
        }
      }
      
@@ -158,21 +198,25 @@ const PokedexTracker = () => {
     // Apply type filter
     switch (filterType) {
       case 'caught':
-        pokemon = pokemon.filter(p => p.caught);
+        pokemon = pokemon.filter(p => !p.isForm && p.caught);
         break;
       case 'missing':
-        pokemon = pokemon.filter(p => !p.caught);
+        pokemon = pokemon.filter(p => !p.isForm && !p.caught);
         break;
       case 'shiny':
-        pokemon = pokemon.filter(p => p.shiny);
+        pokemon = pokemon.filter(p => !p.isForm && p.shiny);
         break;
       case 'non-shiny':
-        pokemon = pokemon.filter(p => !p.shiny);
+        pokemon = pokemon.filter(p => !p.isForm && !p.shiny);
         break;
       case 'non-shiny-missing':
-        pokemon = pokemon.filter(p => !p.shiny && !p.caught);
+        pokemon = pokemon.filter(p => !p.isForm && !p.shiny && !p.caught);
+        break;
+      case 'forms':
+        pokemon = pokemon.filter(p => p.isForm);
         break;
       default:
+        // 'all' shows both base and forms
         break;
     }
     
@@ -260,6 +304,7 @@ const PokedexTracker = () => {
                  <option value="caught">Caught Only</option>
                  <option value="missing">Missing Only</option>
                  <option value="non-shiny-missing">Non-Shiny Missing Only</option>
+                 <option value="forms">Forms Only</option>
                </select>
             </div>
 
@@ -278,11 +323,11 @@ const PokedexTracker = () => {
         </div>
 
              {/* Pokémon Grid */}
-       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
-         {filteredPokemon.map((pokemon) => (
-           <PokemonCard key={`${pokemon.id}-${pokemon.shiny ? 'shiny' : 'normal'}`} pokemon={pokemon} />
-         ))}
-       </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+        {filteredPokemon.map((pokemon) => (
+          <PokemonCard key={`${pokemon.id}-${pokemon.shiny ? 'shiny' : 'normal'}-${pokemon.isForm ? (pokemon.name || 'form') : 'base'}`} pokemon={pokemon} />
+        ))}
+      </div>
 
         {filteredPokemon.length === 0 && (
           <div className="text-center py-12">
@@ -317,7 +362,8 @@ const PokemonCard = ({ pokemon }) => {
               ${!caught ? 'grayscale' : ''}
             `}
             onError={(e) => {
-              e.target.src = '/pokemon-card-backside.png'; // Fallback image
+              e.target.onerror = null;
+              e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><rect width="256" height="256" fill="%23e5e7eb"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" fill="%239ca3af">No image</text></svg>';
             }}
           />
           

@@ -1,0 +1,1682 @@
+{
+  "rattata": {
+    "basePokemon": "rattata",
+    "forms": [
+      {
+        "id": "rattata-alola",
+        "name": "Rattata Alola",
+        "pokemonId": 10091,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "rattata"
+      }
+    ]
+  },
+  "geodude": {
+    "basePokemon": "geodude",
+    "forms": [
+      {
+        "id": "geodude-alola",
+        "name": "Geodude Alola",
+        "pokemonId": 10109,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "geodude"
+      }
+    ]
+  },
+  "pikachu": {
+    "basePokemon": "pikachu",
+    "forms": [
+      {
+        "id": "pikachu-rock-star",
+        "name": "Pikachu Rock Star",
+        "pokemonId": 10080,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-belle",
+        "name": "Pikachu Belle",
+        "pokemonId": 10081,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-pop-star",
+        "name": "Pikachu Pop Star",
+        "pokemonId": 10082,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-phd",
+        "name": "Pikachu Phd",
+        "pokemonId": 10083,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-libre",
+        "name": "Pikachu Libre",
+        "pokemonId": 10084,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-cosplay",
+        "name": "Pikachu Cosplay",
+        "pokemonId": 10085,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-original-cap",
+        "name": "Pikachu Original Cap",
+        "pokemonId": 10094,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-hoenn-cap",
+        "name": "Pikachu Hoenn Cap",
+        "pokemonId": 10095,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-sinnoh-cap",
+        "name": "Pikachu Sinnoh Cap",
+        "pokemonId": 10096,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-unova-cap",
+        "name": "Pikachu Unova Cap",
+        "pokemonId": 10097,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-kalos-cap",
+        "name": "Pikachu Kalos Cap",
+        "pokemonId": 10098,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-alola-cap",
+        "name": "Pikachu Alola Cap",
+        "pokemonId": 10099,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-partner-cap",
+        "name": "Pikachu Partner Cap",
+        "pokemonId": 10148,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-starter",
+        "name": "Pikachu Starter",
+        "pokemonId": 10158,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-world-cap",
+        "name": "Pikachu World Cap",
+        "pokemonId": 10160,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      },
+      {
+        "id": "pikachu-gmax",
+        "name": "Pikachu Gigantamax",
+        "pokemonId": 10199,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "pikachu"
+      }
+    ]
+  },
+  "vulpix": {
+    "basePokemon": "vulpix",
+    "forms": [
+      {
+        "id": "vulpix-alola",
+        "name": "Vulpix Alola",
+        "pokemonId": 10103,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "vulpix"
+      }
+    ]
+  },
+  "meowth": {
+    "basePokemon": "meowth",
+    "forms": [
+      {
+        "id": "meowth-alola",
+        "name": "Meowth Alola",
+        "pokemonId": 10107,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "meowth"
+      },
+      {
+        "id": "meowth-galar",
+        "name": "Meowth Galar",
+        "pokemonId": 10161,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "meowth"
+      },
+      {
+        "id": "meowth-gmax",
+        "name": "Meowth Gigantamax",
+        "pokemonId": 10200,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "meowth"
+      }
+    ]
+  },
+  "growlithe": {
+    "basePokemon": "growlithe",
+    "forms": [
+      {
+        "id": "growlithe-hisui",
+        "name": "Growlithe Hisui",
+        "pokemonId": 10229,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "growlithe"
+      }
+    ]
+  },
+  "sandshrew": {
+    "basePokemon": "sandshrew",
+    "forms": [
+      {
+        "id": "sandshrew-alola",
+        "name": "Sandshrew Alola",
+        "pokemonId": 10101,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "sandshrew"
+      }
+    ]
+  },
+  "slowpoke": {
+    "basePokemon": "slowpoke",
+    "forms": [
+      {
+        "id": "slowpoke-galar",
+        "name": "Slowpoke Galar",
+        "pokemonId": 10164,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "slowpoke"
+      }
+    ]
+  },
+  "pidgeot": {
+    "basePokemon": "pidgeot",
+    "forms": [
+      {
+        "id": "pidgeot-mega",
+        "name": "Pidgeot Mega",
+        "pokemonId": 10073,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "pidgeotite",
+        "levelRequirement": 35,
+        "basePokemon": "pidgeot"
+      }
+    ]
+  },
+  "butterfree": {
+    "basePokemon": "butterfree",
+    "forms": [
+      {
+        "id": "butterfree-gmax",
+        "name": "Butterfree Gigantamax",
+        "pokemonId": 10198,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "butterfree"
+      }
+    ]
+  },
+  "beedrill": {
+    "basePokemon": "beedrill",
+    "forms": [
+      {
+        "id": "beedrill-mega",
+        "name": "Beedrill Mega",
+        "pokemonId": 10090,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": "beedrillite",
+        "levelRequirement": 35,
+        "basePokemon": "beedrill"
+      }
+    ]
+  },
+  "eevee": {
+    "basePokemon": "eevee",
+    "forms": [
+      {
+        "id": "eevee-starter",
+        "name": "Eevee Starter",
+        "pokemonId": 10159,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "eevee"
+      },
+      {
+        "id": "eevee-gmax",
+        "name": "Eevee Gigantamax",
+        "pokemonId": 10205,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "eevee"
+      }
+    ]
+  },
+  "mewtwo": {
+    "basePokemon": "mewtwo",
+    "forms": [
+      {
+        "id": "mewtwo-mega-x",
+        "name": "Mewtwo Mega X",
+        "pokemonId": 10043,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": "mewtwonite-x",
+        "levelRequirement": 35,
+        "basePokemon": "mewtwo"
+      },
+      {
+        "id": "mewtwo-mega-y",
+        "name": "Mewtwo Mega Y",
+        "pokemonId": 10044,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": "mewtwonite-y",
+        "levelRequirement": 35,
+        "basePokemon": "mewtwo"
+      }
+    ]
+  },
+  "articuno": {
+    "basePokemon": "articuno",
+    "forms": [
+      {
+        "id": "articuno-galar",
+        "name": "Articuno Galar",
+        "pokemonId": 10169,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "articuno"
+      }
+    ]
+  },
+  "zapdos": {
+    "basePokemon": "zapdos",
+    "forms": [
+      {
+        "id": "zapdos-galar",
+        "name": "Zapdos Galar",
+        "pokemonId": 10170,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "zapdos"
+      }
+    ]
+  },
+  "moltres": {
+    "basePokemon": "moltres",
+    "forms": [
+      {
+        "id": "moltres-galar",
+        "name": "Moltres Galar",
+        "pokemonId": 10171,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "moltres"
+      }
+    ]
+  },
+  "aerodactyl": {
+    "basePokemon": "aerodactyl",
+    "forms": [
+      {
+        "id": "aerodactyl-mega",
+        "name": "Aerodactyl Mega",
+        "pokemonId": 10042,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "aerodactylite",
+        "levelRequirement": 35,
+        "basePokemon": "aerodactyl"
+      }
+    ]
+  },
+  "venusaur": {
+    "basePokemon": "venusaur",
+    "forms": [
+      {
+        "id": "venusaur-mega",
+        "name": "Venusaur Mega",
+        "pokemonId": 10033,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "venusaurite",
+        "levelRequirement": 35,
+        "basePokemon": "venusaur"
+      },
+      {
+        "id": "venusaur-gmax",
+        "name": "Venusaur Gigantamax",
+        "pokemonId": 10195,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "venusaur"
+      }
+    ]
+  },
+  "charizard": {
+    "basePokemon": "charizard",
+    "forms": [
+      {
+        "id": "charizard-mega-x",
+        "name": "Charizard Mega X",
+        "pokemonId": 10034,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "charizardite-x",
+        "levelRequirement": 35,
+        "basePokemon": "charizard"
+      },
+      {
+        "id": "charizard-mega-y",
+        "name": "Charizard Mega Y",
+        "pokemonId": 10035,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "charizardite-y",
+        "levelRequirement": 35,
+        "basePokemon": "charizard"
+      },
+      {
+        "id": "charizard-gmax",
+        "name": "Charizard Gigantamax",
+        "pokemonId": 10196,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "charizard"
+      }
+    ]
+  },
+  "blastoise": {
+    "basePokemon": "blastoise",
+    "forms": [
+      {
+        "id": "blastoise-mega",
+        "name": "Blastoise Mega",
+        "pokemonId": 10036,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "blastoiseite",
+        "levelRequirement": 35,
+        "basePokemon": "blastoise"
+      },
+      {
+        "id": "blastoise-gmax",
+        "name": "Blastoise Gigantamax",
+        "pokemonId": 10197,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "blastoise"
+      }
+    ]
+  },
+  "raticate": {
+    "basePokemon": "raticate",
+    "forms": [
+      {
+        "id": "raticate-alola",
+        "name": "Raticate Alola",
+        "pokemonId": 10092,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "raticate"
+      },
+      {
+        "id": "raticate-totem-alola",
+        "name": "Raticate Totem Alola",
+        "pokemonId": 10093,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "raticate"
+      }
+    ]
+  },
+  "raichu": {
+    "basePokemon": "raichu",
+    "forms": [
+      {
+        "id": "raichu-alola",
+        "name": "Raichu Alola",
+        "pokemonId": 10100,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "raichu"
+      }
+    ]
+  },
+  "sandslash": {
+    "basePokemon": "sandslash",
+    "forms": [
+      {
+        "id": "sandslash-alola",
+        "name": "Sandslash Alola",
+        "pokemonId": 10102,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "sandslash"
+      }
+    ]
+  },
+  "ninetales": {
+    "basePokemon": "ninetales",
+    "forms": [
+      {
+        "id": "ninetales-alola",
+        "name": "Ninetales Alola",
+        "pokemonId": 10104,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "ninetales"
+      }
+    ]
+  },
+  "diglett": {
+    "basePokemon": "diglett",
+    "forms": [
+      {
+        "id": "diglett-alola",
+        "name": "Diglett Alola",
+        "pokemonId": 10105,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "diglett"
+      }
+    ]
+  },
+  "dugtrio": {
+    "basePokemon": "dugtrio",
+    "forms": [
+      {
+        "id": "dugtrio-alola",
+        "name": "Dugtrio Alola",
+        "pokemonId": 10106,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "dugtrio"
+      }
+    ]
+  },
+  "persian": {
+    "basePokemon": "persian",
+    "forms": [
+      {
+        "id": "persian-alola",
+        "name": "Persian Alola",
+        "pokemonId": 10108,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "persian"
+      }
+    ]
+  },
+  "arcanine": {
+    "basePokemon": "arcanine",
+    "forms": [
+      {
+        "id": "arcanine-hisui",
+        "name": "Arcanine Hisui",
+        "pokemonId": 10230,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "arcanine"
+      }
+    ]
+  },
+  "alakazam": {
+    "basePokemon": "alakazam",
+    "forms": [
+      {
+        "id": "alakazam-mega",
+        "name": "Alakazam Mega",
+        "pokemonId": 10037,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "alakazite",
+        "levelRequirement": 35,
+        "basePokemon": "alakazam"
+      }
+    ]
+  },
+  "machamp": {
+    "basePokemon": "machamp",
+    "forms": [
+      {
+        "id": "machamp-gmax",
+        "name": "Machamp Gigantamax",
+        "pokemonId": 10201,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "machamp"
+      }
+    ]
+  },
+  "graveler": {
+    "basePokemon": "graveler",
+    "forms": [
+      {
+        "id": "graveler-alola",
+        "name": "Graveler Alola",
+        "pokemonId": 10110,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "graveler"
+      }
+    ]
+  },
+  "golem": {
+    "basePokemon": "golem",
+    "forms": [
+      {
+        "id": "golem-alola",
+        "name": "Golem Alola",
+        "pokemonId": 10111,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "golem"
+      }
+    ]
+  },
+  "ponyta": {
+    "basePokemon": "ponyta",
+    "forms": [
+      {
+        "id": "ponyta-galar",
+        "name": "Ponyta Galar",
+        "pokemonId": 10162,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "ponyta"
+      }
+    ]
+  },
+  "rapidash": {
+    "basePokemon": "rapidash",
+    "forms": [
+      {
+        "id": "rapidash-galar",
+        "name": "Rapidash Galar",
+        "pokemonId": 10163,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "rapidash"
+      }
+    ]
+  },
+  "slowbro": {
+    "basePokemon": "slowbro",
+    "forms": [
+      {
+        "id": "slowbro-mega",
+        "name": "Slowbro Mega",
+        "pokemonId": 10071,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "slowbronite",
+        "levelRequirement": 35,
+        "basePokemon": "slowbro"
+      },
+      {
+        "id": "slowbro-galar",
+        "name": "Slowbro Galar",
+        "pokemonId": 10165,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "slowbro"
+      }
+    ]
+  },
+  "farfetchd": {
+    "basePokemon": "farfetchd",
+    "forms": [
+      {
+        "id": "farfetchd-galar",
+        "name": "Farfetchd Galar",
+        "pokemonId": 10166,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "farfetchd"
+      }
+    ]
+  },
+  "grimer": {
+    "basePokemon": "grimer",
+    "forms": [
+      {
+        "id": "grimer-alola",
+        "name": "Grimer Alola",
+        "pokemonId": 10112,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "grimer"
+      }
+    ]
+  },
+  "muk": {
+    "basePokemon": "muk",
+    "forms": [
+      {
+        "id": "muk-alola",
+        "name": "Muk Alola",
+        "pokemonId": 10113,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "muk"
+      }
+    ]
+  },
+  "gengar": {
+    "basePokemon": "gengar",
+    "forms": [
+      {
+        "id": "gengar-mega",
+        "name": "Gengar Mega",
+        "pokemonId": 10038,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "gengarite",
+        "levelRequirement": 35,
+        "basePokemon": "gengar"
+      },
+      {
+        "id": "gengar-gmax",
+        "name": "Gengar Gigantamax",
+        "pokemonId": 10202,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "gengar"
+      }
+    ]
+  },
+  "kingler": {
+    "basePokemon": "kingler",
+    "forms": [
+      {
+        "id": "kingler-gmax",
+        "name": "Kingler Gigantamax",
+        "pokemonId": 10203,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "kingler"
+      }
+    ]
+  },
+  "voltorb": {
+    "basePokemon": "voltorb",
+    "forms": [
+      {
+        "id": "voltorb-hisui",
+        "name": "Voltorb Hisui",
+        "pokemonId": 10231,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "voltorb"
+      }
+    ]
+  },
+  "electrode": {
+    "basePokemon": "electrode",
+    "forms": [
+      {
+        "id": "electrode-hisui",
+        "name": "Electrode Hisui",
+        "pokemonId": 10232,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "electrode"
+      }
+    ]
+  },
+  "exeggutor": {
+    "basePokemon": "exeggutor",
+    "forms": [
+      {
+        "id": "exeggutor-alola",
+        "name": "Exeggutor Alola",
+        "pokemonId": 10114,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "exeggutor"
+      }
+    ]
+  },
+  "marowak": {
+    "basePokemon": "marowak",
+    "forms": [
+      {
+        "id": "marowak-alola",
+        "name": "Marowak Alola",
+        "pokemonId": 10115,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "marowak"
+      },
+      {
+        "id": "marowak-totem",
+        "name": "Marowak Totem",
+        "pokemonId": 10149,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "marowak"
+      }
+    ]
+  },
+  "weezing": {
+    "basePokemon": "weezing",
+    "forms": [
+      {
+        "id": "weezing-galar",
+        "name": "Weezing Galar",
+        "pokemonId": 10167,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "weezing"
+      }
+    ]
+  },
+  "kangaskhan": {
+    "basePokemon": "kangaskhan",
+    "forms": [
+      {
+        "id": "kangaskhan-mega",
+        "name": "Kangaskhan Mega",
+        "pokemonId": 10039,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "kangaskhanite",
+        "levelRequirement": 35,
+        "basePokemon": "kangaskhan"
+      }
+    ]
+  },
+  "mr-mime": {
+    "basePokemon": "mr-mime",
+    "forms": [
+      {
+        "id": "mr-mime-galar",
+        "name": "Mr Mime Galar",
+        "pokemonId": 10168,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "mr-mime"
+      }
+    ]
+  },
+  "pinsir": {
+    "basePokemon": "pinsir",
+    "forms": [
+      {
+        "id": "pinsir-mega",
+        "name": "Pinsir Mega",
+        "pokemonId": 10040,
+        "rarity": "uncommon",
+        "spawnRate": 0.0005,
+        "evolutionItem": "pinsirite",
+        "levelRequirement": 35,
+        "basePokemon": "pinsir"
+      }
+    ]
+  },
+  "tauros": {
+    "basePokemon": "tauros",
+    "forms": [
+      {
+        "id": "tauros-paldea-combat-breed",
+        "name": "Tauros Paldea Combat Breed",
+        "pokemonId": 10250,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "tauros"
+      },
+      {
+        "id": "tauros-paldea-blaze-breed",
+        "name": "Tauros Paldea Blaze Breed",
+        "pokemonId": 10251,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "tauros"
+      },
+      {
+        "id": "tauros-paldea-aqua-breed",
+        "name": "Tauros Paldea Aqua Breed",
+        "pokemonId": 10252,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "tauros"
+      }
+    ]
+  },
+  "gyarados": {
+    "basePokemon": "gyarados",
+    "forms": [
+      {
+        "id": "gyarados-mega",
+        "name": "Gyarados Mega",
+        "pokemonId": 10041,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "gyaradosite",
+        "levelRequirement": 35,
+        "basePokemon": "gyarados"
+      }
+    ]
+  },
+  "lapras": {
+    "basePokemon": "lapras",
+    "forms": [
+      {
+        "id": "lapras-gmax",
+        "name": "Lapras Gigantamax",
+        "pokemonId": 10204,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "lapras"
+      }
+    ]
+  },
+  "snorlax": {
+    "basePokemon": "snorlax",
+    "forms": [
+      {
+        "id": "snorlax-gmax",
+        "name": "Snorlax Gigantamax",
+        "pokemonId": 10206,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "snorlax"
+      }
+    ]
+  },
+  "typhlosion": {
+    "basePokemon": "typhlosion",
+    "forms": [
+      {
+        "id": "typhlosion-hisui",
+        "name": "Typhlosion Hisui",
+        "pokemonId": 10233,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "typhlosion"
+      }
+    ]
+  },
+  "ampharos": {
+    "basePokemon": "ampharos",
+    "forms": [
+      {
+        "id": "ampharos-mega",
+        "name": "Ampharos Mega",
+        "pokemonId": 10045,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "ampharosite",
+        "levelRequirement": 35,
+        "basePokemon": "ampharos"
+      }
+    ]
+  },
+  "wooper": {
+    "basePokemon": "wooper",
+    "forms": [
+      {
+        "id": "wooper-paldea",
+        "name": "Wooper Paldea",
+        "pokemonId": 10253,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "wooper"
+      }
+    ]
+  },
+  "slowking": {
+    "basePokemon": "slowking",
+    "forms": [
+      {
+        "id": "slowking-galar",
+        "name": "Slowking Galar",
+        "pokemonId": 10172,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "slowking"
+      }
+    ]
+  },
+  "steelix": {
+    "basePokemon": "steelix",
+    "forms": [
+      {
+        "id": "steelix-mega",
+        "name": "Steelix Mega",
+        "pokemonId": 10072,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "steelixite",
+        "levelRequirement": 35,
+        "basePokemon": "steelix"
+      }
+    ]
+  },
+  "qwilfish": {
+    "basePokemon": "qwilfish",
+    "forms": [
+      {
+        "id": "qwilfish-hisui",
+        "name": "Qwilfish Hisui",
+        "pokemonId": 10234,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "qwilfish"
+      }
+    ]
+  },
+  "scizor": {
+    "basePokemon": "scizor",
+    "forms": [
+      {
+        "id": "scizor-mega",
+        "name": "Scizor Mega",
+        "pokemonId": 10046,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "scizorite",
+        "levelRequirement": 35,
+        "basePokemon": "scizor"
+      }
+    ]
+  },
+  "heracross": {
+    "basePokemon": "heracross",
+    "forms": [
+      {
+        "id": "heracross-mega",
+        "name": "Heracross Mega",
+        "pokemonId": 10047,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "heracronite",
+        "levelRequirement": 35,
+        "basePokemon": "heracross"
+      }
+    ]
+  },
+  "sneasel": {
+    "basePokemon": "sneasel",
+    "forms": [
+      {
+        "id": "sneasel-hisui",
+        "name": "Sneasel Hisui",
+        "pokemonId": 10235,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "sneasel"
+      }
+    ]
+  },
+  "corsola": {
+    "basePokemon": "corsola",
+    "forms": [
+      {
+        "id": "corsola-galar",
+        "name": "Corsola Galar",
+        "pokemonId": 10173,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "corsola"
+      }
+    ]
+  },
+  "houndoom": {
+    "basePokemon": "houndoom",
+    "forms": [
+      {
+        "id": "houndoom-mega",
+        "name": "Houndoom Mega",
+        "pokemonId": 10048,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": "houndoominite",
+        "levelRequirement": 35,
+        "basePokemon": "houndoom"
+      }
+    ]
+  },
+  "tyranitar": {
+    "basePokemon": "tyranitar",
+    "forms": [
+      {
+        "id": "tyranitar-mega",
+        "name": "Tyranitar Mega",
+        "pokemonId": 10049,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": "tyranitarite",
+        "levelRequirement": 35,
+        "basePokemon": "tyranitar"
+      }
+    ]
+  },
+  "castform": {
+    "basePokemon": "castform",
+    "forms": [
+      {
+        "id": "castform-sunny",
+        "name": "Castform Sunny",
+        "pokemonId": 10013,
+        "rarity": "uncommon",
+        "spawnRate": 0.0003,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "castform"
+      },
+      {
+        "id": "castform-rainy",
+        "name": "Castform Rainy",
+        "pokemonId": 10014,
+        "rarity": "uncommon",
+        "spawnRate": 0.0003,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "castform"
+      },
+      {
+        "id": "castform-snowy",
+        "name": "Castform Snowy",
+        "pokemonId": 10015,
+        "rarity": "uncommon",
+        "spawnRate": 0.0003,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "castform"
+      }
+    ]
+  },
+  "deoxys": {
+    "basePokemon": "deoxys",
+    "forms": [
+      {
+        "id": "deoxys-attack",
+        "name": "Deoxys Attack",
+        "pokemonId": 10001,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "deoxys"
+      },
+      {
+        "id": "deoxys-defense",
+        "name": "Deoxys Defense",
+        "pokemonId": 10002,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "deoxys"
+      },
+      {
+        "id": "deoxys-speed",
+        "name": "Deoxys Speed",
+        "pokemonId": 10003,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "deoxys"
+      }
+    ]
+  },
+  "rayquaza": {
+    "basePokemon": "rayquaza",
+    "forms": [
+      {
+        "id": "rayquaza-mega",
+        "name": "Rayquaza Mega",
+        "pokemonId": 10079,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "rayquaza"
+      }
+    ]
+  },
+  "kyogre": {
+    "basePokemon": "kyogre",
+    "forms": [
+      {
+        "id": "kyogre-primal",
+        "name": "Kyogre Primal",
+        "pokemonId": 10077,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "kyogre"
+      }
+    ]
+  },
+  "groudon": {
+    "basePokemon": "groudon",
+    "forms": [
+      {
+        "id": "groudon-primal",
+        "name": "Groudon Primal",
+        "pokemonId": 10078,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "groudon"
+      }
+    ]
+  },
+  "sceptile": {
+    "basePokemon": "sceptile",
+    "forms": [
+      {
+        "id": "sceptile-mega",
+        "name": "Sceptile Mega",
+        "pokemonId": 10065,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "sceptile"
+      }
+    ]
+  },
+  "blaziken": {
+    "basePokemon": "blaziken",
+    "forms": [
+      {
+        "id": "blaziken-mega",
+        "name": "Blaziken Mega",
+        "pokemonId": 10050,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "blaziken"
+      }
+    ]
+  },
+  "swampert": {
+    "basePokemon": "swampert",
+    "forms": [
+      {
+        "id": "swampert-mega",
+        "name": "Swampert Mega",
+        "pokemonId": 10064,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "swampert"
+      }
+    ]
+  },
+  "zigzagoon": {
+    "basePokemon": "zigzagoon",
+    "forms": [
+      {
+        "id": "zigzagoon-galar",
+        "name": "Zigzagoon Galar",
+        "pokemonId": 10174,
+        "rarity": "common",
+        "spawnRate": 0.0005,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "zigzagoon"
+      }
+    ]
+  },
+  "linoone": {
+    "basePokemon": "linoone",
+    "forms": [
+      {
+        "id": "linoone-galar",
+        "name": "Linoone Galar",
+        "pokemonId": 10175,
+        "rarity": "uncommon",
+        "spawnRate": 0.0003,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "linoone"
+      }
+    ]
+  },
+  "gardevoir": {
+    "basePokemon": "gardevoir",
+    "forms": [
+      {
+        "id": "gardevoir-mega",
+        "name": "Gardevoir Mega",
+        "pokemonId": 10051,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "gardevoir"
+      }
+    ]
+  },
+  "sableye": {
+    "basePokemon": "sableye",
+    "forms": [
+      {
+        "id": "sableye-mega",
+        "name": "Sableye Mega",
+        "pokemonId": 10066,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "sableye"
+      }
+    ]
+  },
+  "mawile": {
+    "basePokemon": "mawile",
+    "forms": [
+      {
+        "id": "mawile-mega",
+        "name": "Mawile Mega",
+        "pokemonId": 10052,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "mawile"
+      }
+    ]
+  },
+  "aggron": {
+    "basePokemon": "aggron",
+    "forms": [
+      {
+        "id": "aggron-mega",
+        "name": "Aggron Mega",
+        "pokemonId": 10053,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "aggron"
+      }
+    ]
+  },
+  "medicham": {
+    "basePokemon": "medicham",
+    "forms": [
+      {
+        "id": "medicham-mega",
+        "name": "Medicham Mega",
+        "pokemonId": 10054,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "medicham"
+      }
+    ]
+  },
+  "manectric": {
+    "basePokemon": "manectric",
+    "forms": [
+      {
+        "id": "manectric-mega",
+        "name": "Manectric Mega",
+        "pokemonId": 10055,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "manectric"
+      }
+    ]
+  },
+  "sharpedo": {
+    "basePokemon": "sharpedo",
+    "forms": [
+      {
+        "id": "sharpedo-mega",
+        "name": "Sharpedo Mega",
+        "pokemonId": 10070,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "sharpedo"
+      }
+    ]
+  },
+  "camerupt": {
+    "basePokemon": "camerupt",
+    "forms": [
+      {
+        "id": "camerupt-mega",
+        "name": "Camerupt Mega",
+        "pokemonId": 10087,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "camerupt"
+      }
+    ]
+  },
+  "altaria": {
+    "basePokemon": "altaria",
+    "forms": [
+      {
+        "id": "altaria-mega",
+        "name": "Altaria Mega",
+        "pokemonId": 10067,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "altaria"
+      }
+    ]
+  },
+  "banette": {
+    "basePokemon": "banette",
+    "forms": [
+      {
+        "id": "banette-mega",
+        "name": "Banette Mega",
+        "pokemonId": 10056,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "banette"
+      }
+    ]
+  },
+  "absol": {
+    "basePokemon": "absol",
+    "forms": [
+      {
+        "id": "absol-mega",
+        "name": "Absol Mega",
+        "pokemonId": 10057,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "absol"
+      }
+    ]
+  },
+  "glalie": {
+    "basePokemon": "glalie",
+    "forms": [
+      {
+        "id": "glalie-mega",
+        "name": "Glalie Mega",
+        "pokemonId": 10074,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "glalie"
+      }
+    ]
+  },
+  "salamence": {
+    "basePokemon": "salamence",
+    "forms": [
+      {
+        "id": "salamence-mega",
+        "name": "Salamence Mega",
+        "pokemonId": 10089,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "salamence"
+      }
+    ]
+  },
+  "metagross": {
+    "basePokemon": "metagross",
+    "forms": [
+      {
+        "id": "metagross-mega",
+        "name": "Metagross Mega",
+        "pokemonId": 10076,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "metagross"
+      }
+    ]
+  },
+  "latias": {
+    "basePokemon": "latias",
+    "forms": [
+      {
+        "id": "latias-mega",
+        "name": "Latias Mega",
+        "pokemonId": 10062,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "latias"
+      }
+    ]
+  },
+  "latios": {
+    "basePokemon": "latios",
+    "forms": [
+      {
+        "id": "latios-mega",
+        "name": "Latios Mega",
+        "pokemonId": 10063,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "latios"
+      }
+    ]
+  }
+}

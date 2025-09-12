@@ -7093,7 +7093,11 @@ router.post('/:discordId/pokemon/:pokemonId/evolve-form', requireGuildId, async 
     }
 
     // Verify the form exists and can be evolved to
-    const forms = pokemonForms[pokemon.name]?.forms || [];
+    // Normalize name to match keys in pokemonForms.json
+    const rawName = pokemon.name || '';
+    const normalized = rawName.toLowerCase().replace(/\s+/g, '-');
+    const nameKey = normalized.startsWith('deoxys-') ? 'deoxys' : normalized;
+    const forms = pokemonForms[nameKey]?.forms || [];
     const targetForm = forms.find(form => form.id === formId); // Any form, not just those with evolution items
     
     if (!targetForm) {
