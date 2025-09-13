@@ -795,7 +795,7 @@ const commands = [
 	},
 	{
 		name: 'timeout',
-		description: 'Timeout a user for a specified duration (costs 100k * duration + 2% of balance, 5 min cooldown)',
+		description: 'Timeout a user for a specified duration (costs 500k * duration + 10% of balance, 5 min cooldown)',
 		options: [
 			{
 				name: 'user',

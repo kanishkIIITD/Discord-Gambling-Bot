@@ -30,6 +30,7 @@ const userSchema = new mongoose.Schema({
   stealItemCooldown: { type: Date, default: null },
   currentTimeoutDuration: { type: Number, default: 0 },
   timeoutEndsAt: { type: Date, default: null },
+  timeoutCooldownUntil: { type: Date, default: null }, // Cooldown protection after timeout expires
   crimeStats: {
     success: { type: Number, default: 0 },
     fail: { type: Number, default: 0 },

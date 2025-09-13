@@ -153,7 +153,31 @@ module.exports = {
                         `Imagine being so broke, you can’t even afford 5 minutes of peace 😬.`,
                         `Timeout failed. Poverty won 🏚️.`,
                         `You're all bark and no balance. Timeout rejected 🐶.`,
-                        `You wanted silence... but your wallet said 'speak freely.' 🎤`
+                        `You wanted silence... but your wallet said 'speak freely.' 🎤`,
+                        `Nice try, but your wallet filed for bankruptcy before the mute could go through 🏦💤.`,
+                        `<@${targetUser.id}> couldn't be muted because your bank account gave a standing ovation 👏… for poverty.`,
+                        `Your mute attempt ran into insufficient funds and a packet of instant noodles 🍜.`,
+                        `You tried to pay for silence but only offered Monopoly money 🎲.`,
+                        `Mute failed. Your balance said "not today, Satan" 😈.`,
+                        `You reached for the timeout button and found tumbleweed in your pockets 🌵.`,
+                        `Your flex bounced so hard it left a dent in your credit score 🪙.`,
+                        `You tried to check out silence at the register and they said "we don't accept IOUs" ✋.`,
+                        `That timeout attempt was put on hold — along with your life goals 🛑.`,
+                        `You tried to buy quiet but only unlocked a 'good vibes' coupon 🤝.`,
+                        `<@${targetUser.id}> lives to spam another day — thanks to your fiscal irresponsibility 💥.`,
+                        `Your wallet whispered “not today” and the timeout quietly ghosted you 👻.`,
+                        `You had the intent but not the interest — in funding that mute 🔕.`,
+                        `Timeout declined: your bank sent a sympathy card instead 💌.`,
+                        `Your pockets are so empty they echo. Timeout bounced back 🔁.`,
+                        `You tried to purchase silence, but the cashier only accepted dignity and you were out of both 🧾.`,
+                        `Your mute attempt was rejected for failing the "have money" check ✅✖️.`,
+                        `You threw in the suggestion box and it returned your change — which was zero 🪙➡️0.`,
+                        `Your timeout order arrived late — because it was shipped from Brokeville 📦.`,
+                        `Mute attempt failed: your coin collection consisted of lint and regrets 🧦.`,
+                        `<@${targetUser.id}> dodged the timeout like it was a student avoiding tuition fees 🎓.`,
+                        `You tried to bribe silence; silence asked for rent instead 🏠📉.`,
+                        `Your wallet went on strike and formed a union with your common sense 🪧.`,
+                        `Timeout couldn't be processed — please insert coins and try again (coins not included) 🎰.`
                     ];
                 
                     const funMessage = brokeMessages[Math.floor(Math.random() * brokeMessages.length)];
@@ -162,7 +186,7 @@ module.exports = {
                         .addFields(
                             { name: 'Target User', value: `<@${targetUser.id}>`, inline: true },
                             { name: 'Duration Attempted', value: `${duration} minute(s)`, inline: true },
-                            { name: 'Required Cost', value: `${(100000 * duration).toLocaleString('en-US')} + 2% of balance`, inline: true },
+                            { name: 'Required Cost', value: `${(500000 * duration).toLocaleString('en-US')} + 10% of balance`, inline: true },
                             { name: 'Reason', value: reason || 'No reason provided', inline: false }
                         )
                         .setFooter({ text: 'Earn more points to timeout users like a boss 💼' });
@@ -178,14 +202,18 @@ module.exports = {
                             { name: 'User', value: `<@${interaction.user.id}>`, inline: true },
                             { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
                             { name: 'Attempted Duration', value: `${duration} minute(s)`, inline: true },
-                            { name: 'Required Cost', value: `${(100000 * duration).toLocaleString('en-US')} + 2% of balance`, inline: true },
+                            { name: 'Required Cost', value: `${(500000 * duration).toLocaleString('en-US')} + 10% of balance`, inline: true },
                             { name: 'Reason', value: reason || 'No reason provided', inline: false }
                         ],
                     });
                 
                     return; // Exit here so no other error handling runs
                 }
-                 else if (message.includes('not found') || message.includes('does not exist')) {
+                 else if (message.includes('protected from timeouts')) {
+                    errorEmbed.setDescription(`🛡️ ${error.response.data.message}`);
+                } else if (message.includes('cannot timeout') && message.includes('maximum total timeout')) {
+                    errorEmbed.setDescription(`📊 ${error.response.data.message}`);
+                } else if (message.includes('not found') || message.includes('does not exist')) {
                     errorEmbed.setDescription(`❌ ${error.response.data.message}`);
                 } else if (message.includes('admin') || message.includes('superadmin')) {
                     errorEmbed.setDescription(`👑 ${error.response.data.message}`);

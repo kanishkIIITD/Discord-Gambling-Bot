@@ -5,9 +5,11 @@
 // Constants
 const MIN_DURATION = 1; // minutes
 const MAX_DURATION = 5; // minutes
-const BASE_COST_PER_MINUTE = 100000; // points (100k per minute)
-const BALANCE_PERCENTAGE = 0.02; // 2% of balance
+const BASE_COST_PER_MINUTE = 500000; // points (500k per minute - increased from 100k)
+const BALANCE_PERCENTAGE = 0.10; // 10% of balance - increased from 2%
 const COOLDOWN_MINUTES = 5; // 5 minutes cooldown
+const MAX_TIMEOUT_STACK = 15; // Maximum total timeout duration in minutes
+const TIMEOUT_COOLDOWN_PROTECTION = 10; // 10 minutes protection after timeout expires
 
 /**
  * Calculate the cost of a timeout based on duration and user's balance
@@ -56,11 +58,52 @@ const getRemainingCooldown = (lastTimeoutAt) => {
   return { minutes, seconds };
 };
 
+/**
+ * Check if a user is protected from being timed out (cooldown protection)
+ * @param {Date} timeoutCooldownUntil - When the user's timeout cooldown protection ends
+ * @returns {boolean} Whether the user is protected from timeouts
+ */
+const isOnTimeoutCooldownProtection = (timeoutCooldownUntil) => {
+  if (!timeoutCooldownUntil) return false;
+  return new Date() < timeoutCooldownUntil;
+};
+
+/**
+ * Get remaining timeout cooldown protection time
+ * @param {Date} timeoutCooldownUntil - When the user's timeout cooldown protection ends
+ * @returns {Object} Object with minutes and seconds remaining
+ */
+const getRemainingTimeoutCooldownProtection = (timeoutCooldownUntil) => {
+  if (!timeoutCooldownUntil) return { minutes: 0, seconds: 0 };
+  
+  const now = new Date();
+  const timeRemaining = Math.max(0, timeoutCooldownUntil - now);
+  const minutes = Math.floor(timeRemaining / 60000);
+  const seconds = Math.floor((timeRemaining % 60000) / 1000);
+
+  return { minutes, seconds };
+};
+
+/**
+ * Check if adding a timeout duration would exceed the maximum stack limit
+ * @param {number} currentDuration - Current timeout duration in minutes
+ * @param {number} additionalDuration - Additional timeout duration to add
+ * @returns {boolean} Whether adding the duration would exceed the limit
+ */
+const wouldExceedStackLimit = (currentDuration, additionalDuration) => {
+  return (currentDuration + additionalDuration) > MAX_TIMEOUT_STACK;
+};
+
 module.exports = {
   calculateTimeoutCost,
   isValidTimeoutDuration,
   isOnTimeoutCooldown,
   getRemainingCooldown,
+  isOnTimeoutCooldownProtection,
+  getRemainingTimeoutCooldownProtection,
+  wouldExceedStackLimit,
   BASE_COST_PER_MINUTE,
-  BALANCE_PERCENTAGE
+  BALANCE_PERCENTAGE,
+  MAX_TIMEOUT_STACK,
+  TIMEOUT_COOLDOWN_PROTECTION
 }; 

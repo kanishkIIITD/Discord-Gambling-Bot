@@ -7,7 +7,19 @@ const Transaction = require('../models/Transaction');
 const UserPreferences = require('../models/UserPreferences');
 const Duel = require('../models/Duel');
 const { requireGuildId } = require('../middleware/auth');
-const { calculateTimeoutCost, isValidTimeoutDuration, isOnTimeoutCooldown, getRemainingCooldown, BASE_COST_PER_MINUTE, BALANCE_PERCENTAGE } = require('../utils/timeoutUtils');
+const { 
+  calculateTimeoutCost, 
+  isValidTimeoutDuration, 
+  isOnTimeoutCooldown, 
+  getRemainingCooldown,
+  isOnTimeoutCooldownProtection,
+  getRemainingTimeoutCooldownProtection,
+  wouldExceedStackLimit,
+  BASE_COST_PER_MINUTE,
+  BALANCE_PERCENTAGE,
+  MAX_TIMEOUT_STACK,
+  TIMEOUT_COOLDOWN_PROTECTION
+} = require('../utils/timeoutUtils');
 const { auth } = require('../middleware/auth');
 const { getUserGuilds } = require('../utils/discordClient');
 const { 
@@ -1482,6 +1494,16 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
       return res.status(400).json({ message: 'You cannot timeout yourself.' });
     }
 
+    // Check if target user is protected by timeout cooldown protection
+    // Only check if they have a cooldown protection set (which only happens at max limit)
+    if (target.timeoutCooldownUntil && isOnTimeoutCooldownProtection(target.timeoutCooldownUntil)) {
+      const { minutes, seconds } = getRemainingTimeoutCooldownProtection(target.timeoutCooldownUntil);
+      return res.status(429).json({ 
+        message: `This user is protected from timeouts for ${minutes}m ${seconds}s.`,
+        cooldownProtection: target.timeoutCooldownUntil
+      });
+    }
+
     // Calculate total timeout duration (stack with existing timeout)
     const now = new Date();
     const timeoutEndsAt = new Date(target.timeoutEndsAt || 0);
@@ -1492,6 +1514,8 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
       // Timeout expired — reset
       totalDuration = duration;
       additionalDuration = duration;
+      // Clear any existing cooldown protection since timeout expired
+      target.timeoutCooldownUntil = null;
     } else {
       // Timeout active — add to existing remaining
       const remaining = Math.ceil((timeoutEndsAt - now) / (60 * 1000)); // in minutes
@@ -1499,9 +1523,28 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
       additionalDuration = duration; // Only add the new duration to Discord
     }
 
+    // Check if adding this timeout would exceed the maximum stack limit
+    if (wouldExceedStackLimit(target.currentTimeoutDuration || 0, duration)) {
+      const currentDuration = target.currentTimeoutDuration || 0;
+      const maxAdditional = MAX_TIMEOUT_STACK - currentDuration;
+      return res.status(400).json({ 
+        message: `Cannot timeout for ${duration} minutes. Current timeout: ${currentDuration} minutes. Maximum total timeout is ${MAX_TIMEOUT_STACK} minutes. You can add up to ${maxAdditional} more minutes.`,
+        currentDuration,
+        maxTotal: MAX_TIMEOUT_STACK,
+        maxAdditional
+      });
+    }
+
     // Update the new timeout end timestamp and duration
     target.currentTimeoutDuration = totalDuration;
     target.timeoutEndsAt = new Date(now.getTime() + totalDuration * 60 * 1000);
+    
+    // Only set timeout cooldown protection if user reaches maximum stack limit
+    if (totalDuration >= MAX_TIMEOUT_STACK) {
+      const timeoutCooldownStart = new Date(now.getTime() + totalDuration * 60 * 1000);
+      target.timeoutCooldownUntil = new Date(timeoutCooldownStart.getTime() + (TIMEOUT_COOLDOWN_PROTECTION * 60 * 1000));
+    }
+    
     await target.save();
 
     // Update attacker's wallet and stats

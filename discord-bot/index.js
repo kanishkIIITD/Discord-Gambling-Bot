@@ -5914,9 +5914,11 @@ client.on('interactionCreate', async interaction => {
 					fields: [
 						{ name: 'Moderation', value:
 							'`/timeout @user duration [reason]` - Timeout a user for a specified duration\n' +
-							'Cost: 100,000 points per minute + 2% of your balance\n' +
+							'Cost: 500,000 points per minute + 10% of your balance\n' +
 							'Duration: 1-5 minutes\n' +
 							'Cooldown: 5 minutes between uses\n' +
+							'Max Stack: 15 minutes\n' +
+							'Max Protection: 10 minutes after timeout expires\n' +
 							'Requires Permission: Timeout Members\n\n' +
 							'`/setlogchannel #channel` - Set the channel where moderation logs will be sent\n' +
 							'Required Permission: Administrator\n\n' +
