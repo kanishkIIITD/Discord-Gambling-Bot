@@ -36,22 +36,32 @@ function getCustomSpawnInfo(name) {
 }
 
 function getNextLevelXp(level) {
+  // Cumulative XP to reach a given level (level 1 => 0)
+  // sum_{i=2..level} (100 * i) = 100 * (level(level+1)/2 - 1)
   if (level <= 1) return 0;
-  // XP required to reach this level (cumulative): sum of 100 * i for i = 2 to level
-  let xp = 0;
-  for (let i = 2; i <= level; i++) {
-    xp += 100 * i;
-  }
-  return xp;
+  return Math.floor(100 * ((level * (level + 1)) / 2 - 1));
 }
 
 function getLevelForXp(xp) {
-  let level = 1;
-  while (xp >= getNextLevelXp(level + 1)) {
-    level++;
-    if (level > 100) break; // safety cap
+  // Find the maximum level such that getNextLevelXp(level) <= xp
+  if (!Number.isFinite(xp) || xp <= 0) return 1;
+  // Exponential search to find an upper bound
+  let low = 1;
+  let high = 2;
+  while (getNextLevelXp(high) <= xp) {
+    low = high;
+    high *= 2;
   }
-  return level;
+  // Binary search between low..high
+  while (low < high) {
+    const mid = Math.floor((low + high + 1) / 2);
+    if (getNextLevelXp(mid) <= xp) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return low;
 }
 
 // Shop unlock levels

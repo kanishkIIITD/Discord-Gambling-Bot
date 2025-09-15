@@ -1524,8 +1524,13 @@ router.post('/:userId/timeout', requireGuildId, async (req, res) => {
     }
 
     // Check if adding this timeout would exceed the maximum stack limit
-    if (wouldExceedStackLimit(target.currentTimeoutDuration || 0, duration)) {
-      const currentDuration = target.currentTimeoutDuration || 0;
+    // Use the actual remaining active timeout (based on timeoutEndsAt) rather than the stored value,
+    // so expired timeouts do not count toward the stack limit.
+    const remainingMinutesForCheck = timeoutEndsAt > now
+      ? Math.ceil((timeoutEndsAt - now) / (60 * 1000))
+      : 0;
+    if (wouldExceedStackLimit(remainingMinutesForCheck, duration)) {
+      const currentDuration = remainingMinutesForCheck;
       const maxAdditional = MAX_TIMEOUT_STACK - currentDuration;
       return res.status(400).json({ 
         message: `Cannot timeout for ${duration} minutes. Current timeout: ${currentDuration} minutes. Maximum total timeout is ${MAX_TIMEOUT_STACK} minutes. You can add up to ${maxAdditional} more minutes.`,
@@ -2981,18 +2986,17 @@ router.get('/:userId/profile', async (req, res) => {
     const isJailed = user.jailedUntil && user.jailedUntil > now;
 
     // --- Pokémon Progression Fields ---
-    const poke_level = user.poke_level || 1;
     const poke_xp = user.poke_xp || 0;
-    const poke_stardust = user.poke_stardust || 0;
-    // XP to next level calculation (match pokeshop command)
-    function getNextLevelXp(level) {
-      if (level <= 1) return 0;
-      let xp = 0;
-      for (let i = 2; i <= level; i++) {
-        xp += 100 * i;
-      }
-      return xp;
+    // Recalculate effective level from XP to avoid stale caps
+    const { getLevelForXp, getNextLevelXp } = require('../utils/pokeApi');
+    const effectiveLevel = getLevelForXp(poke_xp);
+    // Persist corrected level if it differs
+    if ((user.poke_level || 1) !== effectiveLevel) {
+      user.poke_level = effectiveLevel;
+      await user.save();
     }
+    const poke_level = effectiveLevel;
+    const poke_stardust = user.poke_stardust || 0;
     const xpForCurrentLevel = getNextLevelXp(poke_level);
     const xpForNextLevel = getNextLevelXp(poke_level + 1);
     const poke_xp_this_level = poke_xp - xpForCurrentLevel;
@@ -3095,7 +3099,7 @@ router.post('/:userId/daily', async (req, res) => {
 });
 
 // Gift points to another user
-router.post('/:userId/gift', async (req, res) => {
+router.post('/:userId/gift', requireGuildId, async (req, res) => {
   try {
     const { recipientDiscordId, amount } = req.body;
     const senderDiscordId = req.params.userId;
@@ -3119,12 +3123,16 @@ router.post('/:userId/gift', async (req, res) => {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    // Get wallets
-    const senderWallet = await Wallet.findOne({ user: sender._id, guildId: req.guildId });
-    const recipientWallet = await Wallet.findOne({ user: recipient._id, guildId: req.guildId });
-
-    if (!senderWallet || !recipientWallet) {
-      return res.status(404).json({ message: 'Wallet not found.' });
+    // Get or create wallets to avoid 404s during automated transfers
+    let senderWallet = await Wallet.findOne({ user: sender._id, guildId: req.guildId });
+    if (!senderWallet) {
+      senderWallet = new Wallet({ user: sender._id, guildId: req.guildId, balance: 0, discordId: senderDiscordId });
+      await senderWallet.save();
+    }
+    let recipientWallet = await Wallet.findOne({ user: recipient._id, guildId: req.guildId });
+    if (!recipientWallet) {
+      recipientWallet = new Wallet({ user: recipient._id, guildId: req.guildId, balance: 0, discordId: recipientDiscordId });
+      await recipientWallet.save();
     }
 
     // Check if sender has enough balance

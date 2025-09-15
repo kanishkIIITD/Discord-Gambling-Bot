@@ -67,7 +67,7 @@ module.exports = {
         }
       }
 
-      // Send the giveaway message (reactions only)
+      // Send the giveaway message (reactions preferred)
       const giveawayMessage = await interaction.reply({
         content: content || 'A new giveaway has started!',
         embeds: [embed],
@@ -75,8 +75,30 @@ module.exports = {
         fetchReply: true
       });
 
-      // Add reaction to the message
-      await giveawayMessage.react('🎉');
+      // Check permissions to add reactions; fall back gracefully if missing
+      try {
+        const me = interaction.guild.members.me;
+        const perms = me?.permissionsIn(giveawayMessage.channel);
+        const canReact = perms?.has(['AddReactions', 'ReadMessageHistory']);
+        if (!canReact) {
+          // Inform about missing permissions instead of throwing
+          await interaction.followUp({
+            content: '⚠️ I lack Add Reactions and/or Read Message History in this channel.',
+            ephemeral: false
+          });
+        } else {
+          await giveawayMessage.react('🎉');
+        }
+      } catch (permErr) {
+        console.error('Error adding reaction for giveaway:', permErr);
+        // Best-effort notice to host; do not fail the command
+        try {
+          await interaction.followUp({
+            content: '⚠️ Could not add the 🎉 reaction due to missing permissions. Please grant Add Reactions and Read Message History to the bot for this channel.',
+            ephemeral: false
+          });
+        } catch {}
+      }
 
       // Store giveaway data
       const giveawayData = {

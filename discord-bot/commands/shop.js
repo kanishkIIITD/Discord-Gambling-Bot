@@ -41,20 +41,14 @@ module.exports = {
       return interaction.editReply('Failed to fetch your user data. Please try again later.');
     }
     const now = Date.now();
-    // --- XP to next level calculation ---
+    // --- XP to next level calculation (match backend helpers) ---
     const currentXp = user.poke_xp || 0;
     const currentLevel = user.poke_level || 1;
-    // Replicate backend getNextLevelXp logic
-    function getNextLevelXp(level) {
+    const getNextLevelXp = (level) => {
       if (level <= 1) return 0;
-      // XP required to reach this level (cumulative): sum of 100 * i for i = 2 to level
-      let xp = 0;
-      for (let i = 2; i <= level; i++) {
-        xp += 100 * i;
-      }
-      return xp;
-    }
-    // Fix: For level 1, xpForCurrentLevel should be 0
+      // sum_{i=2..level} 100*i = 100 * (level(level+1)/2 - 1)
+      return Math.floor(100 * ((level * (level + 1)) / 2 - 1));
+    };
     const xpForCurrentLevel = getNextLevelXp(currentLevel);
     const xpForNextLevel = getNextLevelXp(currentLevel + 1);
     const xpThisLevel = currentXp - xpForCurrentLevel;
