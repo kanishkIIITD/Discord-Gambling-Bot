@@ -27,6 +27,7 @@ const transactionSchema = new mongoose.Schema({
       'initial_balance',
       'giveaway',
       'timeout',
+      'untimeout',
       'mystery_box',
       'question',
       'steal',

@@ -60,6 +60,7 @@ const giveawayPokemonLeaderboardCommand = require('./commands/giveawaypokemonlea
 const auraCheckCommand = require('./commands/auracheck');
 const auraLeaderboardCommand = require('./commands/auraleaderboard');
 const battledexpresetCommand = require('./commands/battledexpreset');
+const untimeoutCommand = require('./commands/untimeout');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 const pokeCache = require('./utils/pokeCache');
@@ -5771,6 +5772,7 @@ client.on('interactionCreate', async interaction => {
 							'`/bail all:true` - Bail all jailed users in the server\n' +
 							'`/jailed` - View all currently jailed users in this server\n' +
 							'`/timeout` - Timeout a user\n\n' +
+							'`/untimeout` - Untimeout a user\n\n' +
 							'**Steal Punishments:**\n' +
 							'• **Jail:** Time-based imprisonment with bail option\n' +
 							'• **Fine:** Percentage of your balance\n' +
@@ -5923,7 +5925,9 @@ client.on('interactionCreate', async interaction => {
 							'`/setlogchannel #channel` - Set the channel where moderation logs will be sent\n' +
 							'Required Permission: Administrator\n\n' +
 							'`/changerole @user role` - Change a user\'s role (user/admin/superadmin)\n' +
-							'Required Permission: Superadmin'
+							'Required Permission: Superadmin\n\n' +
+							'`/untimeout @user duration [reason]` - Untimeout a user\n' +
+							'Requires Permission: Timeout Members\n\n'
 						}
 					],
 					timestamp: new Date()
@@ -6545,6 +6549,9 @@ client.on('interactionCreate', async interaction => {
 	}
 	else if (commandName === 'auraleaderboard') {
 		await auraLeaderboardCommand.execute(interaction);
+	}
+	else if (commandName === 'untimeout') {
+		await untimeoutCommand.execute(interaction);
 	}
 	
 	// Return after handling all slash commands to prevent fall-through to button/select menu handlers

@@ -31,6 +31,7 @@ const userSchema = new mongoose.Schema({
   currentTimeoutDuration: { type: Number, default: 0 },
   timeoutEndsAt: { type: Date, default: null },
   timeoutCooldownUntil: { type: Date, default: null }, // Cooldown protection after timeout expires
+  lastUntimeoutAt: { type: Date, default: null },
   crimeStats: {
     success: { type: Number, default: 0 },
     fail: { type: Number, default: 0 },

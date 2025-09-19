@@ -820,6 +820,32 @@ const commands = [
 		]
 	},
 	{
+		name: 'untimeout',
+		description: 'Reduce a bot-applied timeout for a user (VERY EXPENSIVE: 10x timeout cost, 5 min cooldown)',
+		options: [
+			{
+				name: 'user',
+				description: 'The user to untimeout',
+				type: 6,
+				required: true
+			},
+			{
+				name: 'duration',
+				description: 'Minutes to reduce (1-5)',
+				type: 4,
+				required: true,
+				min_value: 1,
+				max_value: 5
+			},
+			{
+				name: 'reason',
+				description: 'Reason for the untimeout (optional)',
+				type: 3,
+				required: false
+			}
+		]
+	},
+	{
 		name: 'steal',
 		description: 'Enhanced steal system with multiple steal types and separate cooldowns',
 		options: [

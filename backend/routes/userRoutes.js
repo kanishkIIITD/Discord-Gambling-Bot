@@ -18,7 +18,9 @@ const {
   BASE_COST_PER_MINUTE,
   BALANCE_PERCENTAGE,
   MAX_TIMEOUT_STACK,
-  TIMEOUT_COOLDOWN_PROTECTION
+  TIMEOUT_COOLDOWN_PROTECTION,
+  UNTIMEOUT_COOLDOWN_MINUTES,
+  UNTIMEOUT_COST_MULTIPLIER
 } = require('../utils/timeoutUtils');
 const { auth } = require('../middleware/auth');
 const { getUserGuilds } = require('../utils/discordClient');
@@ -6638,6 +6640,117 @@ router.post('/:userId/reset-timeout', requireGuildId, async (req, res) => {
         console.error('Error resetting timeout:', error);
         res.status(500).json({ message: 'Error resetting timeout duration' });
     }
+});
+
+// --- UNTIMEOUT ENDPOINT ---
+router.post('/:userId/untimeout', requireGuildId, async (req, res) => {
+  try {
+    const { userId } = req.params; // actor discord id
+    const { targetDiscordId, duration, reason } = req.body;
+    const guildId = req.headers['x-guild-id'] || req.guildId;
+
+    // Validate duration
+    if (!isValidTimeoutDuration(duration)) {
+      return res.status(400).json({ message: 'Invalid duration. Must be between 1 and 5 minutes.' });
+    }
+
+    // Resolve actor user + wallet
+    let actor = await User.findOne({ discordId: userId, guildId });
+    if (!actor) {
+      actor = new User({ discordId: userId, guildId, username: userId, role: 'user' });
+      await actor.save();
+    }
+
+    let actorWallet = await Wallet.findOne({ user: actor._id, guildId });
+    if (!actorWallet) {
+      actorWallet = new Wallet({ user: actor._id, guildId, balance: 100000 });
+      await actorWallet.save();
+    }
+
+    // Untimeout cooldown enforcement
+    if (actor.lastUntimeoutAt) {
+      const cooldownMs = UNTIMEOUT_COOLDOWN_MINUTES * 60 * 1000;
+      const elapsed = Date.now() - new Date(actor.lastUntimeoutAt).getTime();
+      if (elapsed < cooldownMs) {
+        const remaining = cooldownMs - elapsed;
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        return res.status(429).json({ message: `You must wait ${minutes}m ${seconds}s before using untimeout again.` });
+      }
+    }
+
+    // Load target
+    const target = await User.findOne({ discordId: targetDiscordId, guildId });
+    if (!target) {
+      return res.status(404).json({ message: 'Target user not found.' });
+    }
+
+    const now = new Date();
+    if (!target.timeoutEndsAt || target.timeoutEndsAt <= now || target.currentTimeoutDuration <= 0) {
+      return res.status(400).json({ message: 'Target is not currently timed out by the bot.' });
+    }
+
+    // Calculate untimeout cost (10x timeout cost)
+    const cost = calculateTimeoutCost(duration, actorWallet.balance) * UNTIMEOUT_COST_MULTIPLIER;
+    if (actorWallet.balance < cost) {
+      return res.status(400).json({ message: `Insufficient balance. You need ${cost.toLocaleString('en-US')} points.` });
+    }
+
+    // Reduce timeout
+    const previousEndsAt = new Date(target.timeoutEndsAt);
+    const previousDuration = target.currentTimeoutDuration;
+    const reducedEndsAt = new Date(previousEndsAt.getTime() - duration * 60 * 1000);
+
+    let deltaAppliedMinutes;
+    if (reducedEndsAt <= now) {
+      // Clear timeout entirely
+      deltaAppliedMinutes = Math.ceil((previousEndsAt.getTime() - now.getTime()) / (60 * 1000));
+      target.currentTimeoutDuration = 0;
+      target.timeoutEndsAt = null;
+    } else {
+      deltaAppliedMinutes = duration;
+      target.currentTimeoutDuration = Math.max(0, previousDuration - duration);
+      target.timeoutEndsAt = reducedEndsAt;
+    }
+
+    await target.save();
+
+    // Debit actor and record transaction
+    actorWallet.balance -= cost;
+    await actorWallet.save();
+
+    actor.lastUntimeoutAt = new Date();
+    await actor.save();
+
+    await Transaction.create({
+      user: actor._id,
+      guildId,
+      type: 'untimeout',
+      amount: -cost,
+      description: `Untimeout user ${targetDiscordId} by ${duration} minutes${reason ? `: ${reason}` : ''}`,
+      metadata: {
+        targetDiscordId,
+        durationRequested: duration,
+        deltaAppliedMinutes,
+        previousEndsAt,
+        newEndsAt: target.timeoutEndsAt,
+        previousDuration,
+        newDuration: target.currentTimeoutDuration,
+        reason
+      }
+    });
+
+    return res.json({
+      message: `Untimeout applied for ${deltaAppliedMinutes} minutes.`,
+      cost,
+      remainingBalance: actorWallet.balance,
+      deltaAppliedMinutes,
+      newTimeoutEndsAt: target.timeoutEndsAt
+    });
+  } catch (error) {
+    console.error('Error in untimeout endpoint:', error);
+    return res.status(500).json({ message: 'Internal server error.' });
+  }
 });
 
 // --- List all currently jailed users in a guild ---

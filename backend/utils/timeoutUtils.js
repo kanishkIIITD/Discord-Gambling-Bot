@@ -8,6 +8,8 @@ const MAX_DURATION = 5; // minutes
 const BASE_COST_PER_MINUTE = 500000; // points (500k per minute - increased from 100k)
 const BALANCE_PERCENTAGE = 0.10; // 10% of balance - increased from 2%
 const COOLDOWN_MINUTES = 5; // 5 minutes cooldown
+const UNTIMEOUT_COOLDOWN_MINUTES = 5; // Separate untimeout cooldown
+const UNTIMEOUT_COST_MULTIPLIER = 10; // Untimeout is 10x more expensive than timeout
 const MAX_TIMEOUT_STACK = 15; // Maximum total timeout duration in minutes
 const TIMEOUT_COOLDOWN_PROTECTION = 10; // 10 minutes protection after timeout expires
 
@@ -105,5 +107,7 @@ module.exports = {
   BASE_COST_PER_MINUTE,
   BALANCE_PERCENTAGE,
   MAX_TIMEOUT_STACK,
-  TIMEOUT_COOLDOWN_PROTECTION
+  TIMEOUT_COOLDOWN_PROTECTION,
+  UNTIMEOUT_COOLDOWN_MINUTES,
+  UNTIMEOUT_COST_MULTIPLIER
 }; 
