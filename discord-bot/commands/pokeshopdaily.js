@@ -78,11 +78,11 @@ function getDailyPokemon(userId, guildId, halfDayKey, genNumber = null) {
   // Use a user-level RNG per half-day so each user sees their own rotation
   const rng = createUserPeriodRng(userId, halfDayKey);
 
-  // Helper function to check if a Pokémon should be shiny (1% chance)
-  const isShiny = () => rng() < 0.01;
+  // Helper function to check if a Pokémon should be shiny (5% chance - buffed from 1%)
+  const isShiny = () => rng() < 0.05;
 
-  // Helper function to check if a Pokémon should be a form (5% chance)
-  const isFormChance = () => rng() < 0.05;
+  // Helper function to check if a Pokémon should be a form (30% chance - buffed from 5%)
+  const isFormChance = () => rng() < 0.3;
 
   // Helper function to get a random form for a Pokémon
   const getRandomForm = (pokemonName, baseSeed) => {
@@ -116,8 +116,8 @@ function getDailyPokemon(userId, guildId, halfDayKey, genNumber = null) {
   // Select one Pokémon from each rarity using RNG (uniform within rarity)
   const commonBase = rarityPools.common[rngInt(rng, rarityPools.common.length)];
   const uncommonBase = rarityPools.uncommon[rngInt(rng, rarityPools.uncommon.length)];
-  // 5% chance to upgrade rare slot to legendary
-  const pickLegendary = rng() < 0.05 && rarityPools.legendary.length > 0;
+  // 30% chance to upgrade rare slot to legendary (buffed from 5%)
+  const pickLegendary = rng() < 0.3 && rarityPools.legendary.length > 0;
   const rareBase = pickLegendary
     ? rarityPools.legendary[rngInt(rng, rarityPools.legendary.length)]
     : rarityPools.rare[rngInt(rng, rarityPools.rare.length)];

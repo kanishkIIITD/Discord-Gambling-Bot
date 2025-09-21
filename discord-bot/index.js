@@ -61,6 +61,7 @@ const auraCheckCommand = require('./commands/auracheck');
 const auraLeaderboardCommand = require('./commands/auraleaderboard');
 const battledexpresetCommand = require('./commands/battledexpreset');
 const untimeoutCommand = require('./commands/untimeout');
+const timeoutlistCommand = require('./commands/timeoutlist');
 const fs = require('fs/promises');
 const BET_MESSAGE_MAP_FILE = './betMessageMap.json';
 const pokeCache = require('./utils/pokeCache');
@@ -1438,7 +1439,7 @@ client.on('interactionCreate', async interaction => {
 					.setTitle('💰 Sale Completed!')
 					.setDescription(message || `<@${interaction.user.id}> successfully sold **${soldItems.length}** items${totalValue ? ` for **${totalValue.toLocaleString()}** points` : ''}!`)
 					.addFields(
-						{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+						{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US')} points`, inline: true },
 						{ name: 'Items Sold', value: soldItems.slice(0, 10).map(item => `${item.count}x ${item.name}`).join('\n'), inline: false }
 					)
 					.setTimestamp();
@@ -1802,7 +1803,7 @@ client.on('interactionCreate', async interaction => {
 					.setColor(data.gameOver ? (data.results.some(r => r.result === 'win' || r.result === 'blackjack') ? 0x00ff00 : 0xff0000) : 0x0099ff)
 					.setTitle(data.gameOver ? '🃏 Blackjack Game Over' : '🃏 Blackjack')
 					.setDescription(data.gameOver ? 
-						data.results.map((r, i) => `Hand ${i + 1}: ${r.result.toUpperCase()} (${r.winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points)`).join('\n') :
+						data.results.map((r, i) => `Hand ${i + 1}: ${r.result.toUpperCase()} (${r.winnings.toLocaleString('en-US')} points)`).join('\n') :
 						'Your turn! Choose an action below.');
 
 				// Add player hands
@@ -1824,7 +1825,7 @@ client.on('interactionCreate', async interaction => {
 				// Add balance
 				embed.addFields({
 					name: 'Your Balance',
-					value: `${data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`
+					value: `${data.newBalance.toLocaleString('en-US')} points`
 				});
 				
 				embed.setTimestamp();
@@ -2712,7 +2713,7 @@ client.on('interactionCreate', async interaction => {
 
 				if (balance < selectedCase.price) {
 					return interaction.reply({ 
-						content: `❌ **Insufficient funds!** You need **${selectedCase.price}** points to open this case.\nYour balance: **${balance}** points`, 
+						content: `❌ **Insufficient funds!** You need **${selectedCase.price.toLocaleString('en-US')}** points to open this case.\nYour balance: **${balance.toLocaleString('en-US')}** points`, 
 						ephemeral: true 
 					});
 				}
@@ -3682,7 +3683,7 @@ client.on('interactionCreate', async interaction => {
 			const embed = new EmbedBuilder()
 				.setColor(0x0099ff)
 				.setTitle('💰 Your Balance')
-				.setDescription(`Your current balance is: **${balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points**.`)
+				.setDescription(`Your current balance is: **${balance.toLocaleString('en-US')} points**.`)
 				.setTimestamp();
 			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
@@ -3717,7 +3718,7 @@ client.on('interactionCreate', async interaction => {
 						.setTitle(`🎲 Bet: ${bet.description}`)
 						.addFields(
 							{ name: 'ID', value: bet._id, inline: true },
-							{ name: 'Total Pot', value: `${(bet.totalPot || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+							{ name: 'Total Pot', value: `${(bet.totalPot || 0).toLocaleString('en-US')} points`, inline: true },
 							{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
 						)
 						.setTimestamp(new Date(bet.createdAt));
@@ -3757,7 +3758,7 @@ client.on('interactionCreate', async interaction => {
 				.addFields(
 					{ name: 'ID', value: bet._id, inline: true },
 					{ name: 'Status', value: bet.status, inline: true },
-					{ name: 'Total Pot', value: `${(totalPot || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'Total Pot', value: `${(totalPot || 0).toLocaleString('en-US')} points`, inline: true },
 					{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
 				)
 				.setTimestamp(new Date(bet.createdAt));
@@ -3771,7 +3772,7 @@ client.on('interactionCreate', async interaction => {
 				let placedBetsSummary = '';
 				for (const [option, totalAmount] of Object.entries(optionTotals)) {
 					const percent = totalPot > 0 ? ((totalAmount / totalPot) * 100) : 0;
-					placedBetsSummary += `**${option}:** ${totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points (${percent.toFixed(1)}%)\n`;
+					placedBetsSummary += `**${option}:** ${totalAmount.toLocaleString('en-US')} points (${percent.toFixed(1)}%)\n`;
 				}
 				embed.addFields({ name: 'Total Placed Per Option', value: placedBetsSummary, inline: false });
 			} else {
@@ -4022,13 +4023,13 @@ client.on('interactionCreate', async interaction => {
 			const embed = new EmbedBuilder()
 				.setColor(0x00b894)
 				.setTitle('✅ Bet Placed!')
-				.setDescription(`You placed a bet on **${option}** for **${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points**.`)
+				.setDescription(`You placed a bet on **${option}** for **${amount.toLocaleString('en-US')} points**.`)
 				.addFields(
 					{ name: 'Bet ID', value: betId, inline: true },
 					{ name: 'Option', value: option, inline: true },
-					{ name: 'Amount', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'Amount', value: `${amount.toLocaleString('en-US')} points`, inline: true },
 				)
-				.setFooter({ text: updatedBalance !== null ? `Your new balance: ${updatedBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points` : 'Bet placed successfully!' })
+				.setFooter({ text: updatedBalance !== null ? `Your new balance: ${updatedBalance.toLocaleString('en-US')} points` : 'Bet placed successfully!' })
 				.setTimestamp();
 
 			await interaction.editReply({ embeds: [embed] });
@@ -4202,7 +4203,7 @@ client.on('interactionCreate', async interaction => {
 			const trophyEmojis = ['🥇', '🥈', '🥉'];
 			const fields = leaderboard.map((user, index) => ({
 				name: `${trophyEmojis[index] || `#${index + 1}`} ${user.username}`,
-				value: `**Balance:** ${user.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points` + (user.discordId ? `\n<@${user.discordId}>` : ''),
+				value: `**Balance:** ${user.balance.toLocaleString('en-US')} points` + (user.discordId ? `\n<@${user.discordId}>` : ''),
 				inline: false
 			}));
 
@@ -4256,20 +4257,20 @@ client.on('interactionCreate', async interaction => {
 				title: '📊 Your Full Statistics',
 				description: '**__Betting Stats__**\n' +
 				  `Total Bets: **${betting.totalBets.toLocaleString('en-US')}**\n` +
-				  `Total Wagered: **${betting.totalWagered.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
-				  `Total Won: **${betting.totalWon.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
-				  `Total Lost: **${Number(betting.totalLost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
+				  `Total Wagered: **${betting.totalWagered.toLocaleString('en-US')}** points\n` +
+				  `Total Won: **${betting.totalWon.toLocaleString('en-US')}** points\n` +
+				  `Total Lost: **${Number(betting.totalLost).toLocaleString('en-US')}** points\n` +
 				  `Win Rate: **${betting.winRate}%**\n` +
-				  `Biggest Win: **${betting.biggestWin.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
-				  `Biggest Loss: **${betting.biggestLoss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n\n` +
+				  `Biggest Win: **${betting.biggestWin.toLocaleString('en-US')}** points\n` +
+				  `Biggest Loss: **${betting.biggestLoss.toLocaleString('en-US')}** points\n\n` +
 				  '**__Gambling Stats__**\n' +
 				  `Total Games Played: **${gambling.totalGamesPlayed.toLocaleString('en-US')}**\n` +
-				  `Total Gambled: **${gambling.totalGambled.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
-				  `Total Won: **${gambling.totalWon.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
-				  `Total Lost: **${Number(gambling.totalLost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
+				  `Total Gambled: **${gambling.totalGambled.toLocaleString('en-US')}** points\n` +
+				  `Total Won: **${gambling.totalWon.toLocaleString('en-US')}** points\n` +
+				  `Total Lost: **${Number(gambling.totalLost).toLocaleString('en-US')}** points\n` +
 				  `Win Rate: **${gambling.winRate}%**\n` +
-				  `Biggest Win: **${gambling.biggestWin.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
-				  `Biggest Loss: **${gambling.biggestLoss.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}** points\n` +
+				  `Biggest Win: **${gambling.biggestWin.toLocaleString('en-US')}** points\n` +
+				  `Biggest Loss: **${gambling.biggestLoss.toLocaleString('en-US')}** points\n` +
 				  `Favorite Game: **${gambling.favoriteGame}**\n\n` +
 				  '**__Other Stats__**\n' +
 				  `Current Win Streak: **${currentWinStreak.toLocaleString('en-US')}**\n` +
@@ -4306,9 +4307,9 @@ client.on('interactionCreate', async interaction => {
 				color: 0x0099ff,
 				title: `👤 ${targetUser.username}'s Profile`,
 				fields: [
-					{ name: 'Balance', value: `${wallet.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'Balance', value: `${wallet.balance.toLocaleString('en-US')} points`, inline: true },
 					{ name: 'Role', value: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User', inline: true },
-					{ name: '📦 Collection Value', value: `${collection.totalValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: '📦 Collection Value', value: `${collection.totalValue.toLocaleString('en-US')} points`, inline: true },
 					// --- Pokémon Progression ---
 					{ name: '🐾 Pokémon Progression', value:
 						`Level: **${user.poke_level || 1}**\n` +
@@ -4316,11 +4317,11 @@ client.on('interactionCreate', async interaction => {
 						`XP to Level Up: **${user.poke_xp_this_level || 0} / ${user.poke_xp_to_level || 0}**`, inline: true },
 					{ name: '🎲 Betting', value:
 						`Total Bets: ${betting.totalBets.toLocaleString('en-US')}\n` +
-						`Total Wagered: ${betting.totalWagered.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\n` +
-						`Total Won: ${betting.totalWon.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: false },
+						`Total Wagered: ${betting.totalWagered.toLocaleString('en-US')} points\n` +
+						`Total Won: ${betting.totalWon.toLocaleString('en-US')} points`, inline: false },
 					{ name: '🎰 Gambling', value:
-						`Total Gambled: ${gambling.totalGambled.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\n` +
-						`Total Won: ${gambling.totalWon.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: false },
+						`Total Gambled: ${gambling.totalGambled.toLocaleString('en-US')} points\n` +
+						`Total Won: ${gambling.totalWon.toLocaleString('en-US')} points`, inline: false },
 					{ name: '📦 Collection Stats', value:
 						`Total Items: ${collection.itemCount.toLocaleString('en-US')}\n` +
 						`Unique Items: ${collection.uniqueItems.toLocaleString('en-US')}`, inline: false }
@@ -4334,7 +4335,7 @@ client.on('interactionCreate', async interaction => {
 				betting.recentBets.forEach(bet => {
 					const statusEmoji = bet.status === 'resolved' ? 
 						(bet.result === 'Won' ? '✅' : '❌') : '⏳';
-					recentBetsText += `${statusEmoji} ${bet.description} (${bet.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points)\n`;
+					recentBetsText += `${statusEmoji} ${bet.description} (${bet.amount.toLocaleString('en-US')} points)\n`;
 				});
 				embed.fields.push({ name: 'Recent Bets', value: recentBetsText, inline: false });
 			}
@@ -4489,9 +4490,9 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Your Choice', value: choice, inline: true },
 					{ name: 'Result', value: result, inline: true },
 					{ name: 'Outcome', value: won ? '🎉 You won!' : '😢 You lost!', inline: true },
-					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-                    { name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US')} points`, inline: true },
+					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US')} points`, inline: true },
+                    { name: 'Amount Bet', value: `${amount.toLocaleString('en-US')} points`, inline: true }
 				)
 				.setTimestamp();
 			await interaction.editReply({ embeds: [embed] });
@@ -4629,9 +4630,9 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Bet Type', value: betType, inline: true },
 					{ name: 'Your Bet', value: betType === 'specific' ? number?.toString() : '—', inline: true },
 					{ name: 'Outcome', value: won ? '🎉 You won!' : '😢 You lost!', inline: true },
-					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-                    { name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US')} points`, inline: true },
+					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US')} points`, inline: true },
+                    { name: 'Amount Bet', value: `${amount.toLocaleString('en-US')} points`, inline: true }
 				)
 				.setTimestamp();
 			await interaction.editReply({ embeds: [embed] });
@@ -4758,7 +4759,7 @@ client.on('interactionCreate', async interaction => {
 			});
 			const { reels, won, winnings, newBalance, isJackpot, jackpotPool, freeSpins, usedFreeSpin, winType } = response.data;
 			let description = isJackpot ?
-				`**JACKPOT!** You won the entire jackpot of ${winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points!` :
+				`**JACKPOT!** You won the entire jackpot of ${winnings.toLocaleString('en-US')} points!` :
 				`[ ${reels.join(' | ')} ]`;
 			let outcome = isJackpot ? '🎉 JACKPOT!' : (won ? '🎉 You won!' : '😢 You lost!');
 			if (winType === 'two-sevens') outcome = '✨ Two 7️⃣! 5x win!';
@@ -4771,11 +4772,11 @@ client.on('interactionCreate', async interaction => {
 				.setDescription(description)
 				.addFields(
 					{ name: 'Outcome', value: outcome, inline: true },
-					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-					{ name: 'Jackpot Pool', value: `${(jackpotPool || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'Winnings', value: `${winnings.toLocaleString('en-US')} points`, inline: true },
+					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US')} points`, inline: true },
+					{ name: 'Jackpot Pool', value: `${(jackpotPool || 0).toLocaleString('en-US')} points`, inline: true },
 					{ name: 'Free Spins', value: `${freeSpins || 0}`, inline: true },
-                    { name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+                    { name: 'Amount Bet', value: `${amount.toLocaleString('en-US')} points`, inline: true }
 				)
 			if (usedFreeSpin && !won && !isJackpot) {
 				embed.addFields({ name: 'Note', value: 'You used a free spin!', inline: false });
@@ -4946,7 +4947,7 @@ client.on('interactionCreate', async interaction => {
 				});
 				resumeEmbed.addFields({
 					name: 'Your Balance',
-					value: `${data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`
+					value: `${data.newBalance.toLocaleString('en-US')} points`
 				});
 				resumeEmbed.setTimestamp();
 				// Create action buttons if game is not over
@@ -5038,7 +5039,7 @@ client.on('interactionCreate', async interaction => {
 				.setColor(data.gameOver ? (data.results.some(r => r.result === 'win' || r.result === 'blackjack') ? 0x00ff00 : 0xff0000) : 0x0099ff)
 				.setTitle(data.gameOver ? '🃏 Blackjack Game Over' : '🃏 Blackjack')
 				.setDescription(data.gameOver ? 
-					data.results.map((r, i) => `Hand ${i + 1}: ${r.result.toUpperCase()} (${r.winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points)`).join('\n') :
+					data.results.map((r, i) => `Hand ${i + 1}: ${r.result.toUpperCase()} (${r.winnings.toLocaleString('en-US')} points)`).join('\n') :
 					'Your turn! Choose an action below.');
 
 			// Add player hands
@@ -5060,11 +5061,11 @@ client.on('interactionCreate', async interaction => {
 			// Add balance and bet amount
 			embed.addFields({
 				name: 'Your Balance',
-				value: `${data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`
+				value: `${data.newBalance.toLocaleString('en-US')} points`
 			});
 			embed.addFields({ 
 				name: 'Amount Bet', 
-				value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points` 
+				value: `${amount.toLocaleString('en-US')} points` 
 			});
 			
 			embed.setTimestamp();
@@ -5290,12 +5291,12 @@ client.on('interactionCreate', async interaction => {
 				.setDescription(`The ball landed on **${result}** (${color})!\n\n__Your Bets:__`)
 				.addFields(
 					...bets.map(bet => ({
-						name: `${bet.type}${bet.number !== undefined ? ` (${bet.number})` : ''} Bet: ${bet.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
-						value: bet.won ? `🎉 Won ${bet.winnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points!` : '😢 Lost',
+						name: `${bet.type}${bet.number !== undefined ? ` (${bet.number})` : ''} Bet: ${bet.amount.toLocaleString('en-US')}`,
+						value: bet.won ? `🎉 Won ${bet.winnings.toLocaleString('en-US')} points!` : '😢 Lost',
 						inline: true
 					})),
-					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-					{ name: 'Amount Bet', value: `${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+					{ name: 'New Balance', value: `${newBalance.toLocaleString('en-US')} points`, inline: true },
+					{ name: 'Amount Bet', value: `${amount.toLocaleString('en-US')} points`, inline: true }
 				)
 				.setTimestamp();
 			await interaction.editReply({ embeds: [embed] });
@@ -5324,13 +5325,13 @@ client.on('interactionCreate', async interaction => {
 					.setColor(0xffd700)
 					.setTitle('💰 Progressive Jackpot')
 					.addFields(
-						{ name: 'Current Amount', value: `${currentAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+						{ name: 'Current Amount', value: `${currentAmount.toLocaleString('en-US')} points`, inline: true }
 					)
 					.setTimestamp();
 				if (lastWinner) {
 					embed.addFields(
 						{ name: 'Last Winner', value: `<@${lastWinner.discordId}>`, inline: true },
-						{ name: 'Last Win Amount', value: `${lastWinAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+						{ name: 'Last Win Amount', value: `${lastWinAmount.toLocaleString('en-US')} points`, inline: true },
 						{ name: 'Last Win Time', value: new Date(lastWinTime).toLocaleString(), inline: true }
 					);
 				}
@@ -5345,10 +5346,10 @@ client.on('interactionCreate', async interaction => {
 				const embed = new EmbedBuilder()
 					.setColor(0x00ff00)
 					.setTitle('💰 Jackpot Contribution')
-					.setDescription(`You contributed ${contribution.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points to the jackpot!`)
+					.setDescription(`You contributed ${contribution.toLocaleString('en-US')} points to the jackpot!`)
 					.addFields(
-						{ name: 'New Jackpot Amount', value: `${newJackpotAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
-						{ name: 'Your New Balance', value: `${newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+						{ name: 'New Jackpot Amount', value: `${newJackpotAmount.toLocaleString('en-US')} points`, inline: true },
+						{ name: 'Your New Balance', value: `${newBalance.toLocaleString('en-US')} points`, inline: true }
 					)
 					.setTimestamp();
 				await interaction.editReply({ embeds: [embed] });
@@ -5394,7 +5395,7 @@ client.on('interactionCreate', async interaction => {
 				.addFields(
 					...transactions.map(tx => ({
 						name: `${tx.type.toUpperCase()} - ${new Date(tx.timestamp).toLocaleString()}`,
-						value: `Amount: ${tx.amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points\nDescription: ${tx.description || 'No description'}`,
+						value: `Amount: ${tx.amount.toLocaleString('en-US')} points\nDescription: ${tx.description || 'No description'}`,
 						inline: false
 					}))
 				)
@@ -5433,7 +5434,7 @@ client.on('interactionCreate', async interaction => {
 						.addFields(
 							{ name: 'ID', value: bet._id, inline: true },
 							{ name: 'Status', value: bet.status, inline: true },
-							{ name: 'Total Pot', value: `${(bet.totalPot || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+							{ name: 'Total Pot', value: `${(bet.totalPot || 0).toLocaleString('en-US')} points`, inline: true },
 							{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false },
 						)
 						.setTimestamp(new Date(bet.createdAt));
@@ -5773,6 +5774,7 @@ client.on('interactionCreate', async interaction => {
 							'`/jailed` - View all currently jailed users in this server\n' +
 							'`/timeout` - Timeout a user\n\n' +
 							'`/untimeout` - Untimeout a user\n\n' +
+							'`/timeoutlist` - View all currently timed out users in this server\n\n' +
 							'**Steal Punishments:**\n' +
 							'• **Jail:** Time-based imprisonment with bail option\n' +
 							'• **Fine:** Percentage of your balance\n' +
@@ -6176,7 +6178,7 @@ client.on('interactionCreate', async interaction => {
 					{ name: 'Created By', value: `<@${bet.creator.discordId}>`, inline: true },
 					{ name: 'Created At', value: new Date(bet.createdAt).toLocaleString(), inline: true },
 					{ name: 'Closing Time', value: bet.closingTime ? new Date(bet.closingTime).toLocaleString() : 'Not set', inline: true },
-					{ name: 'Total Pot', value: `${(totalPot || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true },
+					{ name: 'Total Pot', value: `${(totalPot || 0).toLocaleString('en-US')} points`, inline: true },
 					{ name: 'Options', value: bet.options.map(opt => `• ${opt}`).join('\n'), inline: false }
 				)
 				.setTimestamp();
@@ -6184,7 +6186,7 @@ client.on('interactionCreate', async interaction => {
 			if (optionTotals) {
 				for (const [option, amount] of Object.entries(optionTotals)) {
 					const percentage = totalPot > 0 ? ((amount / totalPot) * 100).toFixed(1) : 0;
-					betsPerOptionText += `**${option}:** ${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points (${percentage}%)\n`;
+					betsPerOptionText += `**${option}:** ${amount.toLocaleString('en-US')} points (${percentage}%)\n`;
 				}
 			}
 			embed.addFields({ name: 'Bets Per Option', value: betsPerOptionText || 'No bets placed yet', inline: false });
@@ -6209,7 +6211,7 @@ client.on('interactionCreate', async interaction => {
 			const embed = new EmbedBuilder()
 				.setColor(0x00ff00)
 				.setTitle('🎁 Daily Bonus Claimed!')
-				.setDescription(`You received **${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points**!`)
+				.setDescription(`You received **${amount.toLocaleString('en-US')} points**!`)
 				.addFields(
 					{ name: 'Current Streak', value: `${streak} days`, inline: true },
 					{ name: 'Next Claim', value: `<t:${Math.floor(nextClaimTime / 1000)}:R>`, inline: true }
@@ -6362,9 +6364,9 @@ client.on('interactionCreate', async interaction => {
 			const embed = new EmbedBuilder()
 				.setColor(0x00ff00)
 				.setTitle('🎁 Gift Sent!')
-				.setDescription(`You gifted **${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points** to ${recipient}!`)
+				.setDescription(`You gifted **${amount.toLocaleString('en-US')} points** to ${recipient}!`)
 				.addFields(
-					{ name: 'Your New Balance', value: `${response.data.newBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} points`, inline: true }
+					{ name: 'Your New Balance', value: `${response.data.newBalance.toLocaleString('en-US')} points`, inline: true }
 				)
 				.setTimestamp();
 			await interaction.editReply({ embeds: [embed] });
@@ -6552,6 +6554,8 @@ client.on('interactionCreate', async interaction => {
 	}
 	else if (commandName === 'untimeout') {
 		await untimeoutCommand.execute(interaction);
+	} else if (commandName === 'timeoutlist') {
+		await timeoutlistCommand.execute(interaction);
 	}
 	
 	// Return after handling all slash commands to prevent fall-through to button/select menu handlers

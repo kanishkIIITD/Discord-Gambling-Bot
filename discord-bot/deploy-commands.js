@@ -846,6 +846,10 @@ const commands = [
 		]
 	},
 	{
+		name: 'timeoutlist',
+		description: 'List all currently timed out users in the server'
+	},
+	{
 		name: 'steal',
 		description: 'Enhanced steal system with multiple steal types and separate cooldowns',
 		options: [

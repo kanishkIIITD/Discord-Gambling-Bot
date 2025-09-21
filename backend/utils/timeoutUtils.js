@@ -26,6 +26,18 @@ const calculateTimeoutCost = (duration, balance) => {
 };
 
 /**
+ * Calculate the cost of an untimeout: 10x the base per-minute cost + standard balance percentage
+ * @param {number} duration
+ * @param {number} balance
+ * @returns {number}
+ */
+const calculateUntimeoutCost = (duration, balance) => {
+  const baseCost = BASE_COST_PER_MINUTE * duration * UNTIMEOUT_COST_MULTIPLIER;
+  const balanceCost = Math.floor(balance * BALANCE_PERCENTAGE);
+  return baseCost + balanceCost;
+};
+
+/**
  * Check if a timeout duration is valid
  * @param {number} duration - Timeout duration in minutes
  * @returns {boolean} Whether the duration is valid
@@ -98,6 +110,7 @@ const wouldExceedStackLimit = (currentDuration, additionalDuration) => {
 
 module.exports = {
   calculateTimeoutCost,
+  calculateUntimeoutCost,
   isValidTimeoutDuration,
   isOnTimeoutCooldown,
   getRemainingCooldown,

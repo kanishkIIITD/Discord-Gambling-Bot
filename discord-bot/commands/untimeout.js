@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const axios = require('axios');
 const { createErrorEmbed, createSuccessEmbed, sendLogToChannel } = require('../utils/discordUtils');
 
@@ -73,7 +73,11 @@ module.exports = {
                 }
             }
 
-            const embed = createSuccessEmbed('Untimeout Executed')
+            const embed = new EmbedBuilder()
+                .setColor(0x0099ff) // Blue color instead of green
+                .setTitle('Untimeout Executed')
+                .setDescription('Successfully reduced user timeout')
+                .setTimestamp()
                 .addFields(
                     { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
                     { name: 'Reduced By', value: `${deltaAppliedMinutes} minute(s)`, inline: true },

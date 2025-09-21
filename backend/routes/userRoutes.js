@@ -20,7 +20,8 @@ const {
   MAX_TIMEOUT_STACK,
   TIMEOUT_COOLDOWN_PROTECTION,
   UNTIMEOUT_COOLDOWN_MINUTES,
-  UNTIMEOUT_COST_MULTIPLIER
+  UNTIMEOUT_COST_MULTIPLIER,
+  calculateUntimeoutCost
 } = require('../utils/timeoutUtils');
 const { auth } = require('../middleware/auth');
 const { getUserGuilds } = require('../utils/discordClient');
@@ -6690,10 +6691,10 @@ router.post('/:userId/untimeout', requireGuildId, async (req, res) => {
       return res.status(400).json({ message: 'Target is not currently timed out by the bot.' });
     }
 
-    // Calculate untimeout cost (10x timeout cost)
-    const cost = calculateTimeoutCost(duration, actorWallet.balance) * UNTIMEOUT_COST_MULTIPLIER;
+    // Calculate untimeout cost: 10x base per-minute + balance percentage
+    const cost = calculateUntimeoutCost(duration, actorWallet.balance);
     if (actorWallet.balance < cost) {
-      return res.status(400).json({ message: `Insufficient balance. You need ${cost.toLocaleString('en-US')} points.` });
+      return res.status(400).json({ message: `Insufficient balance. You need ${cost.toLocaleString('en-US')} points (${BASE_COST_PER_MINUTE} * ${duration} * ${UNTIMEOUT_COST_MULTIPLIER} + ${BALANCE_PERCENTAGE * 100}% of balance).` });
     }
 
     // Reduce timeout
@@ -6771,6 +6772,35 @@ router.get('/jailed-users', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching jailed users:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+});
+
+// --- List all currently timed out users in a guild ---
+router.get('/timeout-users', async (req, res) => {
+  try {
+    const guildId = req.headers['x-guild-id'] || req.query.guildId;
+    if (!guildId) {
+      return res.status(400).json({ message: 'Missing guildId.' });
+    }
+    const now = new Date();
+    const users = await User.find({ 
+      guildId, 
+      timeoutEndsAt: { $gt: now },
+      currentTimeoutDuration: { $gt: 0 }
+    }).select('discordId username timeoutEndsAt currentTimeoutDuration');
+    
+    res.json({
+      timeoutUsers: users.map(u => ({
+        discordId: u.discordId,
+        username: u.username,
+        timeoutEndsAt: u.timeoutEndsAt,
+        currentTimeoutDuration: u.currentTimeoutDuration,
+        remainingMinutes: Math.ceil((u.timeoutEndsAt.getTime() - now.getTime()) / (60 * 1000))
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching timeout users:', error);
     res.status(500).json({ message: 'Server error.' });
   }
 });
