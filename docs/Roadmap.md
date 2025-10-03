@@ -61,6 +61,16 @@ This roadmap is designed for a real-world, production-grade platform. It emphasi
 - Admin dashboard (event management, user moderation, analytics)
 - Multi-language support (i18n framework)
 
+### Aura System Extensions
+
+- Gambling aura adjustments (implemented):
+  - Win small: +1, Win big (≥10x payout): +2, Jackpot: +3, Loss: -1
+  - Games covered: coinflip, dice, slots (jackpot-aware), blackjack, roulette
+- Betting aura adjustments (implemented):
+  - Winners: +2, Losers: -1 on resolve
+- Centralized rules in `backend/utils/auraRules.js` with `AURA_RULES` and helpers
+- Can be tuned by editing constants in `auraRules.js`
+
 ---
 
 ## Phase 6: UX, Security & Compliance (Weeks 17–19)

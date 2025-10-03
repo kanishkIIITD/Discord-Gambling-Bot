@@ -121,6 +121,10 @@ global.activePokemonGiveaways = global.activePokemonGiveaways || new Map();
     console.log('[PokéCache] Building Gen 3 Pokémon cache...');
     await pokeCache.buildGen3Cache();
     console.log('[PokéCache] Gen 3 Pokémon cache ready!');
+
+	console.log('[PokéCache] Building Gen 4 Pokémon cache...');
+    await pokeCache.buildGen4Cache();
+    console.log('[PokéCache] Gen 4 Pokémon cache ready!');
     
     console.log('[PokéCache] Building combined previous generation pool...');
     await pokeCache.buildCombinedPreviousGenPool();

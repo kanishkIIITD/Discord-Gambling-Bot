@@ -6,6 +6,7 @@ const Jackpot = require('../models/Jackpot');
 const BlackjackGame = require('../models/BlackjackGame');
 const { validateBetAmount, handleGamblingError } = require('../middleware/gamblingMiddleware');
 const { updateWalletBalance, createGamblingResponse, calculateMultiplier, getNumbersCoveredByBet, updateUserWinStreak } = require('../utils/gamblingUtils');
+const { getAuraDeltaForGambling, incrementUserAura } = require('../utils/auraRules');
 const Transaction = require('../models/Transaction');
 const { requireGuildId } = require('../middleware/auth');
 
@@ -59,6 +60,12 @@ router.post('/:discordId/coinflip', validateBetAmount, async (req, res, next) =>
 
     // Update win streak
     await updateUserWinStreak(user.discordId, won, req.guildId);
+
+    // Apply aura change
+    try {
+      const delta = getAuraDeltaForGambling({ game: 'coinflip', won, multiplier: won ? calculateMultiplier('coinflip') : 0 });
+      await incrementUserAura(user.discordId, req.guildId, delta);
+    } catch (_) {}
 
     res.json(createGamblingResponse({ result }, won, winnings, newBalance));
   } catch (error) {
@@ -126,6 +133,12 @@ router.post('/:discordId/dice', validateBetAmount, async (req, res, next) => {
 
     // Update win streak
     await updateUserWinStreak(user.discordId, won, req.guildId);
+
+    // Apply aura change (use computed multiplier)
+    try {
+      const delta = getAuraDeltaForGambling({ game: 'dice', won, multiplier });
+      await incrementUserAura(user.discordId, req.guildId, delta);
+    } catch (_) {}
 
     res.json(createGamblingResponse({ roll }, won, winnings, newBalance));
   } catch (error) {
@@ -286,6 +299,12 @@ router.post('/:discordId/slots', validateBetAmount, async (req, res, next) => {
 
     // Update balance in response
     await updateUserWinStreak(user.discordId, winnings > 0, req.guildId);
+
+    // Apply aura change (slots; jackpot-aware)
+    try {
+      const delta = getAuraDeltaForGambling({ game: 'slots', won, multiplier, isJackpot });
+      await incrementUserAura(user.discordId, req.guildId, delta);
+    } catch (_) {}
 
     res.json(createGamblingResponse({ reels, isJackpot, jackpotAmount, jackpotPool: jackpot.currentAmount, usedFreeSpin, freeSpins: wallet.freeSpins }, won, winnings, newBalance));
   } catch (error) {
@@ -680,6 +699,16 @@ router.post('/:discordId/blackjack', async (req, res, next) => {
 
     // Get latest transaction for response
     const latestTransaction = await Transaction.findOne({ user: user._id, guildId: req.guildId }).sort({ timestamp: -1 });
+
+    // Apply aura change for blackjack after game over if applicable
+    try {
+      if (gameState.gameOver) {
+        const anyWin = results.some(r => r.result === 'win' || r.result === 'blackjack');
+        const bigWin = results.some(r => r.result === 'blackjack');
+        const delta = getAuraDeltaForGambling({ game: 'blackjack', won: anyWin, multiplier: bigWin ? 10 : (anyWin ? 2 : 0) });
+        await incrementUserAura(user.discordId, req.guildId, delta);
+      }
+    } catch (_) {}
   } catch (error) {
     console.error('Error in blackjack:', error);
     res.status(500).json({ message: 'Server error.' });
@@ -831,6 +860,14 @@ router.post('/:discordId/roulette', validateBetAmount, async (req, res, next) =>
 
     // Update win streak: win if totalWinnings > 0
     await updateUserWinStreak(user.discordId, totalWinnings > 0, req.guildId);
+
+    // Apply aura change (roulette; use presence of winnings as win)
+    try {
+      const wonAny = totalWinnings > 0;
+      const effectiveMultiplier = wonAny ? Math.max(...betResults.filter(b => b.won).map(b => b.payout || 0), 0) : 0;
+      const delta = getAuraDeltaForGambling({ game: 'roulette', won: wonAny, multiplier: effectiveMultiplier });
+      await incrementUserAura(user.discordId, req.guildId, delta);
+    } catch (_) {}
 
     res.json({
       result,

@@ -35,6 +35,7 @@ const {
   getPunishmentDescription,
   calculateBailAmount
 } = require('../utils/gamblingUtils');
+const { AURA_RULES, incrementUserAura } = require('../utils/auraRules');
 const Pokemon = require('../models/Pokemon');
 const DailyShopPurchase = require('../models/DailyShopPurchase');
 const GlobalEvent = require('../models/GlobalEvent');
@@ -2139,6 +2140,14 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
         message += ` 🍀 Lucky Streak buff used! (${luckyStreakBuff.usesLeft + 1} uses remaining)`;
       }
       
+      // Apply aura for steal success (extra if entire balance caught)
+      try {
+        const delta = caughtEntireBalance ? AURA_RULES.steal.jackpotLike : AURA_RULES.steal.success;
+        const victimDelta = caughtEntireBalance ? AURA_RULES.steal.victimOnJackpot : AURA_RULES.steal.victimOnSuccess;
+        await incrementUserAura(userId, guildId, delta);
+        await incrementUserAura(targetDiscordId, guildId, victimDelta);
+      } catch (_) {}
+
       res.json({
         message: message,
         success: true,
@@ -2292,6 +2301,11 @@ router.post('/:userId/steal', requireGuildId, async (req, res) => {
 
       // Get punishment description
       const punishmentDescription = getPunishmentDescription(punishment, stealType);
+
+      // Apply aura for steal failure (attacker loses aura)
+      try {
+        await incrementUserAura(userId, guildId, AURA_RULES.steal.fail);
+      } catch (_) {}
 
       res.json({
         message: `Steal attempt failed! You got caught and are punished.`,

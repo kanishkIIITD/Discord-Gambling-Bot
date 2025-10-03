@@ -74,6 +74,11 @@ module.exports = {
         content: 'Current generation Pokémon data is still loading. Please try again in a few seconds!',
         ephemeral: true
       });
+    } else if (currentGen === 4 && !pokeCache.isGen4CacheReady()) {
+      return interaction.editReply({
+        content: 'Current generation Pokémon data is still loading. Please try again in a few seconds!',
+        ephemeral: true
+      });
     }
     if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
       return interaction.editReply({ content: 'Only admins can use this command.', ephemeral: true });

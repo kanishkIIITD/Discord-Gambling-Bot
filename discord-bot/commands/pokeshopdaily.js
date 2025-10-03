@@ -180,11 +180,12 @@ module.exports = {
     .setDescription('View today\'s rotating Previous Generation Pokémon shop featuring Pokémon from different rarities!')
     .addIntegerOption(option =>
       option.setName('gen')
-        .setDescription('Select which previous generation to view (1-2)')
+        .setDescription('Select which previous generation to view (1-3)')
         .setRequired(false)
         .addChoices(
           { name: 'Gen 1 - Kanto', value: 1 },
-          { name: 'Gen 2 - Johto', value: 2 }
+          { name: 'Gen 2 - Johto', value: 2 },
+          { name: 'Gen 3 - Hoenn', value: 3 }
         )
     ),
 
@@ -206,10 +207,10 @@ module.exports = {
       return interaction.editReply('Failed to fetch your user data. Please try again later.');
     }
 
-    // Ensure pokeCache is ready
-    if (!pokeCache.isKantoCacheReady()) {
-      await pokeCache.buildKantoCache();
-    }
+    // Ensure pokeCache is ready for required generations
+    if (!pokeCache.isKantoCacheReady()) await pokeCache.buildKantoCache();
+    if (!pokeCache.isGen2CacheReady()) await pokeCache.buildGen2Cache();
+    if (!pokeCache.isGen3CacheReady()) await pokeCache.buildGen3Cache();
     // Build half-day key consistent with purchases to sync rotation windows
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -297,9 +298,9 @@ module.exports = {
           speciesList = pokeCache.kantoSpecies || [];
         } else if (selectedGen === 2) {
           speciesList = pokeCache.gen2Species || [];
+        } else if (selectedGen === 3) {
+          speciesList = pokeCache.gen3Species || [];
         }
-        // For Gen 3, we'll need to handle differently since it's not in the cache yet
-        
         if (speciesList && speciesList.length > 0) {
           let species = speciesList.find(s => s.name === pokemon.name.toLowerCase());
           if (!species) {

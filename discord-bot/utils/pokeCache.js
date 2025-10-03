@@ -4,24 +4,29 @@ const fetch = require('node-fetch');
 let kantoSpecies = [];
 let gen2Species = [];
 let gen3Species = [];
+let gen4Species = [];
 let encounterRates = {};
 let weightedSpawnPool = [];
 let gen2WeightedSpawnPool = [];
 let gen3WeightedSpawnPool = [];
+let gen4WeightedSpawnPool = [];
 // Adjusted pools for previous-gen spawns (commons halved)
 let weightedSpawnPoolPrev = [];
 let gen2WeightedSpawnPoolPrev = [];
 let gen3WeightedSpawnPoolPrev = [];
+let gen4WeightedSpawnPoolPrev = [];
 // Combined pool for all previous generations with new rules
 let combinedPreviousGenPool = [];
 let pokemonDataCache = {};
 let kantoCacheReady = false;
 let gen2CacheReady = false;
 let gen3CacheReady = false;
+let gen4CacheReady = false;
 
 const KANTO_GENERATION_ID = 1; // /generation/1/
 const GEN2_GENERATION_ID = 2;  // /generation/2/
 const GEN3_GENERATION_ID = 3;  // /generation/3/
+const GEN4_GENERATION_ID = 4;  // /generation/4/
 const KANTO_POKEDEX_ID = 2;    // /pokedex/2/ (Kanto)
 
 const customSpawnRates = require('../data/customSpawnRates.json');
@@ -143,6 +148,39 @@ async function buildGen3Cache() {
   gen3CacheReady = true;
 }
 
+async function buildGen4Cache() {
+  // Fetch all Gen 4 species
+  const genData = await fetchJson(`https://pokeapi.co/api/v2/generation/${GEN4_GENERATION_ID}/`);
+  gen4Species = genData.pokemon_species
+    .map(s => ({
+      id: +s.url.match(/\/(\d+)\/?$/)[1],
+      name: s.name
+    }))
+    .sort((a, b) => a.id - b.id);
+
+  // --- Use custom spawn rates for Gen 4 ---
+  gen4WeightedSpawnPool = [];
+  gen4WeightedSpawnPoolPrev = [];
+  for (const [name, { spawn, gen }] of Object.entries(customSpawnRates)) {
+    if (gen === 4) {
+      const species = gen4Species.find(s => s.name === name);
+      if (!species) {
+        console.warn(`[CustomSpawnRates] Pokémon name '${name}' not found in Gen 4 species, skipping.`);
+        continue;
+      }
+      for (let i = 0; i < spawn; i++) {
+        gen4WeightedSpawnPool.push(species.id);
+      }
+      const rarity = customSpawnRates[name]?.rarity;
+      const adjustedSpawn = rarity === 'common' ? Math.max(1, Math.floor(spawn / 2)) : spawn;
+      for (let i = 0; i < adjustedSpawn; i++) {
+        gen4WeightedSpawnPoolPrev.push(species.id);
+      }
+    }
+  }
+  gen4CacheReady = true;
+}
+
 // Build combined pool for all previous generations with new rules
 async function buildCombinedPreviousGenPool() {
   const { getCurrentGenInfo, getPreviousGenInfo } = require('../config/generationConfig');
@@ -159,7 +197,13 @@ async function buildCombinedPreviousGenPool() {
   
   // For each previous generation, add Pokémon based on rules
   for (const gen of previousGenerations) {
-    const speciesList = gen === 1 ? kantoSpecies : (gen === 2 ? gen2Species : []);
+    const speciesList = (
+      gen === 1 ? kantoSpecies :
+      gen === 2 ? gen2Species :
+      gen === 3 ? gen3Species :
+      gen === 4 ? gen4Species :
+      []
+    );
     
     for (const [name, { spawn, gen: pokemonGen, rarity }] of Object.entries(customSpawnRates)) {
       if (pokemonGen === gen) {
@@ -216,6 +260,12 @@ function getRandomGen3PokemonId() {
   return gen3WeightedSpawnPool[idx];
 }
 
+function getRandomGen4PokemonId() {
+  if (gen4WeightedSpawnPool.length === 0) throw new Error('Gen 4 cache not built!');
+  const idx = Math.floor(Math.random() * gen4WeightedSpawnPool.length);
+  return gen4WeightedSpawnPool[idx];
+}
+
 function getRandomPokemonIdByGenerationPreviousBias(generation) {
   // Use combined pool for all previous generations
   if (combinedPreviousGenPool.length === 0) {
@@ -233,6 +283,8 @@ function getRandomPokemonIdByGeneration(generation) {
     return getRandomGen2PokemonId();
   } else if (generation === 3) {
     return getRandomGen3PokemonId();
+  } else if (generation === 4) {
+    return getRandomGen4PokemonId();
   } else {
     throw new Error(`Unsupported generation: ${generation}`);
   }
@@ -257,6 +309,10 @@ function isGen3CacheReady() {
   return gen3CacheReady;
 }
 
+function isGen4CacheReady() {
+  return gen4CacheReady;
+}
+
 function isCombinedPreviousGenPoolReady() {
   return combinedPreviousGenPool.length > 0;
 }
@@ -265,26 +321,32 @@ module.exports = {
   buildKantoCache,
   buildGen2Cache,
   buildGen3Cache,
+  buildGen4Cache,
   buildCombinedPreviousGenPool,
   getRandomKantoPokemonId,
   getRandomGen2PokemonId,
   getRandomGen3PokemonId,
+  getRandomGen4PokemonId,
   getRandomPokemonIdByGeneration,
   getPokemonDataById,
   kantoSpecies,
   gen2Species,
   gen3Species,
+  gen4Species,
   encounterRates,
   weightedSpawnPool,
   gen2WeightedSpawnPool,
   gen3WeightedSpawnPool,
+  gen4WeightedSpawnPool,
   weightedSpawnPoolPrev,
   gen2WeightedSpawnPoolPrev,
   gen3WeightedSpawnPoolPrev,
+  gen4WeightedSpawnPoolPrev,
   combinedPreviousGenPool,
   isKantoCacheReady,
   isGen2CacheReady,
   isGen3CacheReady,
+  isGen4CacheReady,
   isCombinedPreviousGenPoolReady,
   getRandomPokemonIdByGenerationPreviousBias,
 }; 

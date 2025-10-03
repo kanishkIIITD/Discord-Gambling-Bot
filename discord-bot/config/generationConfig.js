@@ -2,8 +2,8 @@
 // This file makes it easy to update which generation is current and previous
 // When you add a new generation, just update these values!
 
-const CURRENT_GENERATION = 3; // Currently Gen 3 (Hoenn)
-const PREVIOUS_GENERATION = 2; // Previously Gen 2 (Johto)
+const CURRENT_GENERATION = 4; // Currently Gen 4 (Sinnoh)
+const PREVIOUS_GENERATION = 3; // Previously Gen 3 (Hoenn)
 
 // Generation names for display
 const GENERATION_NAMES = {

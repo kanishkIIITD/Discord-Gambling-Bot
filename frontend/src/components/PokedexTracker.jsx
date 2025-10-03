@@ -288,6 +288,7 @@ const PokedexTracker = () => {
                 <option value={1}>Gen 1 - Kanto (1-151)</option>
                 <option value={2}>Gen 2 - Johto (152-251)</option>
                 <option value={3}>Gen 3 - Hoenn (252-386)</option>
+                <option value={4}>Gen 4 - Sinnoh (387-493)</option>
               </select>
             </div>
 

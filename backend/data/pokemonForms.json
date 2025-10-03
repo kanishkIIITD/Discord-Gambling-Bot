@@ -1678,5 +1678,220 @@
         "basePokemon": "latios"
       }
     ]
+  },
+  "wormadam": {
+    "basePokemon": "wormadam",
+    "forms": [
+      {
+        "id": "wormadam-sandy",
+        "name": "Wormadam Sandy",
+        "pokemonId": 10004,
+        "rarity": "uncommon",
+        "spawnRate": 0.0003,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "wormadam"
+      },
+      {
+        "id": "wormadam-trash",
+        "name": "Wormadam Trash",
+        "pokemonId": 10005,
+        "rarity": "uncommon",
+        "spawnRate": 0.0003,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "wormadam"
+      }
+    ]
+  },
+  "lopunny": {
+    "basePokemon": "lopunny",
+    "forms": [
+      {
+        "id": "lopunny-mega",
+        "name": "Lopunny Mega",
+        "pokemonId": 10088,
+        "rarity": "uncommon",
+        "spawnRate": 0.0003,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "lopunny"
+      }
+    ]
+  },
+  "garchomp": {
+    "basePokemon": "garchomp",
+    "forms": [
+      {
+        "id": "garchomp-mega",
+        "name": "Garchomp Mega",
+        "pokemonId": 10058,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "garchomp"
+      }
+    ]
+  },
+  "lucario": {
+    "basePokemon": "lucario",
+    "forms": [
+      {
+        "id": "lucario-mega",
+        "name": "Lucario Mega",
+        "pokemonId": 10059,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "lucario"
+      }
+    ]
+  },
+  "abomasnow": {
+    "basePokemon": "abomasnow",
+    "forms": [
+      {
+        "id": "abomasnow-mega",
+        "name": "Abomasnow Mega",
+        "pokemonId": 10060,
+        "rarity": "uncommon",
+        "spawnRate": 0.0003,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "abomasnow"
+      }
+    ]
+  },
+  "gallade": {
+    "basePokemon": "gallade",
+    "forms": [
+      {
+        "id": "gallade-mega",
+        "name": "Gallade Mega",
+        "pokemonId": 10068,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "gallade"
+      }
+    ]
+  },
+  "rotom": {
+    "basePokemon": "rotom",
+    "forms": [
+      {
+        "id": "rotom-heat",
+        "name": "Rotom Heat",
+        "pokemonId": 10008,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "rotom"
+      },
+      {
+        "id": "rotom-wash",
+        "name": "Rotom Wash",
+        "pokemonId": 10009,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "rotom"
+      },
+      {
+        "id": "rotom-frost",
+        "name": "Rotom Frost",
+        "pokemonId": 10010,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "rotom"
+      },
+      {
+        "id": "rotom-fan",
+        "name": "Rotom Fan",
+        "pokemonId": 10011,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "rotom"
+      },
+      {
+        "id": "rotom-mow",
+        "name": "Rotom Mow",
+        "pokemonId": 10012,
+        "rarity": "rare",
+        "spawnRate": 0.0002,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "rotom"
+      }
+    ]
+  },
+  "dialga": {
+    "basePokemon": "dialga",
+    "forms": [
+      {
+        "id": "dialga-origin",
+        "name": "Dialga Origin",
+        "pokemonId": 10245,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "dialga"
+      }
+    ]
+  },
+  "palkia": {
+    "basePokemon": "palkia",
+    "forms": [
+      {
+        "id": "palkia-origin",
+        "name": "Palkia Origin",
+        "pokemonId": 10246,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "palkia"
+      }
+    ]
+  },
+  "giratina": {
+    "basePokemon": "giratina",
+    "forms": [
+      {
+        "id": "giratina-origin",
+        "name": "Giratina Origin",
+        "pokemonId": 10007,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "giratina"
+      }
+    ]
+  },
+  "shaymin": {
+    "basePokemon": "shaymin",
+    "forms": [
+      {
+        "id": "shaymin-sky",
+        "name": "Shaymin Sky",
+        "pokemonId": 10006,
+        "rarity": "legendary",
+        "spawnRate": 0.0001,
+        "evolutionItem": null,
+        "levelRequirement": 35,
+        "basePokemon": "shaymin"
+      }
+    ]
   }
 }

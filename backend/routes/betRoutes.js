@@ -8,6 +8,7 @@ const Wallet = require('../models/Wallet');
 const Transaction = require('../models/Transaction');
 const { updateUserWinStreak } = require('../utils/gamblingUtils');
 const { requireAdmin, auth, requireGuildId, requireBetCreatorOrAdmin, requireBetCreatorOrAnyAdmin } = require('../middleware/auth');
+const { AURA_RULES, incrementUserAura } = require('../utils/auraRules');
 
 // Middleware to find user (needed for bet creation, placing, etc.)
 router.use(async (req, res, next) => {
@@ -579,10 +580,14 @@ router.put('/:betId/resolve', requireBetCreatorOrAnyAdmin, async (req, res) => {
 
             // Update win streak for winner
             await updateUserWinStreak(placedBet.bettor.discordId, true);
+            // Apply aura for winner
+            try { await incrementUserAura(placedBet.bettor.discordId, req.guildId, AURA_RULES.betting.winner); } catch (_) {}
           }
         } else {
           // Update win streak for losers
           await updateUserWinStreak(placedBet.bettor.discordId, false);
+          // Apply aura for loser
+          try { await incrementUserAura(placedBet.bettor.discordId, req.guildId, AURA_RULES.betting.loser); } catch (_) {}
         }
       }
 
