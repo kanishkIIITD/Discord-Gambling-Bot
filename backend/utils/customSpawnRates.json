@@ -4909,7 +4909,7 @@
     "canEvolve": false,
     "gen": 4
   },
-  "shaymin": {
+  "shaymin-land": {
     "spawn": 1,
     "catchRate": 0.017647058823529413,
     "rarity": "legendary",
