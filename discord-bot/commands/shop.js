@@ -208,9 +208,9 @@ module.exports = {
                   cooldownHours = 12; // 12 hours
                 }
                 
-                // Special cooldown for Master Poké Ball (7 days)
+                // Special cooldown for Master Poké Ball (3 days)
                 if (item.key === 'masterball') {
-                  cooldownHours = 24 * 7; // 7 days
+                  cooldownHours = 24 * 3; // 3 days
                 }
                 
                 if (lastTs && now - new Date(lastTs).getTime() < cooldownHours * 60 * 60 * 1000) {

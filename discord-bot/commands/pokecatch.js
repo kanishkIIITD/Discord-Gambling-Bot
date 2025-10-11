@@ -169,7 +169,8 @@ module.exports = {
       const isShiny = Math.random() < (SHINY_ODDS * shinyMultiplier);
       
       // Random form roll (much rarer than shinies)
-      const isForm = Math.random() < FORM_ODDS;
+      const formMultiplier = spawn.formBonusMultiplier || 1;
+      const isForm = Math.random() < (FORM_ODDS * formMultiplier);
       let formData = null;
       
       // If form should spawn, get a random form for this Pokemon

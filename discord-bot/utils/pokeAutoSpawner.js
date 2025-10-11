@@ -176,6 +176,36 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, gen
     } catch (e) {
       console.error(`[AutoSpawner] Error fetching message after sending in channel ${channelId}, messageId: ${message.id}:`, e);
     }
+    // Calculate generation-based bonuses
+    let shinyBonusMultiplier = 1;
+    let formBonusMultiplier = 1;
+    
+    if (isPreviousGenChannel) {
+      // Get the actual generation of the spawned Pokémon
+      const pokemonGen = customSpawnRates[pokemonName]?.gen;
+      if (pokemonGen) {
+        // Apply generation-based shiny and form rate bonuses
+        if (pokemonGen === 1) {
+          shinyBonusMultiplier = 15; // Gen 1: 15x shiny rate
+          formBonusMultiplier = 3;   // Gen 1: 3x form rate
+        } else if (pokemonGen === 2) {
+          shinyBonusMultiplier = 12; // Gen 2: 12x shiny rate
+          formBonusMultiplier = 2.5; // Gen 2: 2.5x form rate
+        } else if (pokemonGen === 3) {
+          shinyBonusMultiplier = 8;  // Gen 3: 8x shiny rate
+          formBonusMultiplier = 2;   // Gen 3: 2x form rate
+        } else {
+          // Fallback for other previous generations
+          shinyBonusMultiplier = 10;
+          formBonusMultiplier = 1.5;
+        }
+      } else {
+        // Fallback if generation not found
+        shinyBonusMultiplier = 10;
+        formBonusMultiplier = 1.5;
+      }
+    }
+
     activeSpawns.set(channelId, { 
       pokemonId, 
       spawnedAt: Date.now(), 
@@ -184,7 +214,8 @@ async function spawnPokemonInChannel(client, guildId, channelId, backendUrl, gen
       attemptedBy: [], 
       caughtBy: [], 
       isPreviousGen: isPreviousGenChannel,
-      shinyBonusMultiplier: isPreviousGenChannel ? 10 : 1,
+      shinyBonusMultiplier,
+      formBonusMultiplier,
       ...(catchRateOverride !== undefined && { catchRateOverride }) 
     });
     console.log(`[AutoSpawner][SPAWN] Created spawn in channel ${channelId} (guild ${guildId}): messageId=${message.id}, pokemonId=${pokemonId}, spawnedAt=${Date.now()}`);

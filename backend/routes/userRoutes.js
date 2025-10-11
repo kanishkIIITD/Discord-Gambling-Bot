@@ -230,15 +230,22 @@ const spawnInfo = getCustomSpawnInfo(basePokemonName);
     if (catchRate !== null && catchRate <= 1) baseChance = catchRate; // If customSpawnRates uses 0-1 scale
     else if (catchRate !== null) baseChance = catchRate / 255; // If customSpawnRates uses 0-255 scale
     
-    // --- 2x catch rate bonus for Pokémon from 2+ previous generations ---
+    // --- Generation-based catch rate bonus ---
     let generationBonus = 1.0;
     const customSpawnRates = require('../utils/customSpawnRates.json');
     const pokemonGen = customSpawnRates[name]?.gen;
     if (pokemonGen) {
       const currentGen = 3; // This should match the current generation
       const generationsAgo = currentGen - pokemonGen;
-      if (generationsAgo >= 2) {
-        generationBonus = 2.0; // 2x catch rate for 2+ previous generations
+      if (generationsAgo >= 1) {
+        // Apply generation-based multipliers for past generations
+        if (pokemonGen === 1) {
+          generationBonus = 2.5; // Gen 1: 2.5x catch rate
+        } else if (pokemonGen === 2) {
+          generationBonus = 2.0; // Gen 2: 2x catch rate
+        } else if (pokemonGen === 3) {
+          generationBonus = 1.5; // Gen 3: 1.5x catch rate
+        }
       }
     }
     
@@ -473,7 +480,7 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
       // Form evolution item
       form_stone: { name: 'Form Stone', level: 35, price: 3000, cooldownField: 'poke_form_stone_ts' },
       reset_bag: { name: '1 Reset Bag', level: 20, price: 300, cooldownField: 'poke_reset_bag_ts' },
-      masterball: { name: '1 Master Poké Ball', level: 35, price: 5000, cooldownField: 'poke_masterball_ts', cooldownDays: 7 }
+      masterball: { name: '1 Master Poké Ball', level: 35, price: 5000, cooldownField: 'poke_masterball_ts', cooldownDays: 3 }
     };
     if (!SHOP_ITEMS[item]) {
       return res.status(400).json({ message: 'Invalid shop item.' });
@@ -502,9 +509,9 @@ router.post('/:discordId/shop/buy', requireGuildId, async (req, res) => {
       cooldownHours = 12; // 12 hours
     }
     
-    // Special cooldown for Master Poké Ball (7 days)
+    // Special cooldown for Master Poké Ball (3 days)
     if (item === 'masterball') {
-      cooldownHours = 24 * 7; // 7 days
+      cooldownHours = 24 * 3; // 3 days
     }
     
     if (lastTs && now - lastTs < cooldownHours * 60 * 60 * 1000) {

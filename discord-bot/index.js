@@ -4207,7 +4207,7 @@ client.on('interactionCreate', async interaction => {
 			const trophyEmojis = ['🥇', '🥈', '🥉'];
 			const fields = leaderboard.map((user, index) => ({
 				name: `${trophyEmojis[index] || `#${index + 1}`} ${user.username}`,
-				value: `**Balance:** ${user.balance.toLocaleString('en-US')} points` + (user.discordId ? `\n<@${user.discordId}>` : ''),
+				value: `**Balance:** ${Math.floor(user.balance).toLocaleString('en-US')} points` + (user.discordId ? `\n<@${user.discordId}>` : ''),
 				inline: false
 			}));
 
