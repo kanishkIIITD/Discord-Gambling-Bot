@@ -45,7 +45,8 @@ const pokespawnCooldowns = new Map();
 const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 
 // Custom spawn command for a specific user
-const ALLOWED_DISCORD_ID = '294497956348821505'; // <-- Replace with the allowed Discord ID
+const ALLOWED_DISCORD_ID = '294497956348821505';
+const ALLOWED_DISCORD_ID_2 = '796178790815367178';
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -230,7 +231,7 @@ module.exports.spawnCustomPokemonCommand = {
       option.setName('count').setDescription('How many to give').setRequired(false)
     ),
   async execute(interaction) {
-    if (interaction.user.id !== ALLOWED_DISCORD_ID) {
+    if (interaction.user.id !== ALLOWED_DISCORD_ID || interaction.user.id !== ALLOWED_DISCORD_ID_2) {
       return interaction.reply({ content: 'You are not authorized to use this command.', ephemeral: true });
     }
     const userObj = interaction.options.getUser('user');

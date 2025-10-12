@@ -1625,7 +1625,8 @@ function isPokemonFormById(pokemonId) {
 }
 
 // --- ADMIN GIVE POKEMON ENDPOINT ---
-const ALLOWED_DISCORD_ID = '294497956348821505'; // <-- Replace with the allowed Discord ID
+const ALLOWED_DISCORD_ID = '294497956348821505';
+const ALLOWED_DISCORD_ID_2 = '796178790815367178';
 router.post('/admin/give-pokemon', async (req, res) => {
   // Custom admin secret check
   const adminSecret = req.header('x-admin-secret');
@@ -1634,7 +1635,7 @@ router.post('/admin/give-pokemon', async (req, res) => {
   }
   try {
     const { userId, targetDiscordId, guildId, pokemonId, isShiny, count } = req.body;
-    if (userId !== ALLOWED_DISCORD_ID) {
+    if (userId !== ALLOWED_DISCORD_ID || userId !== ALLOWED_DISCORD_ID_2) {
       return res.status(403).json({ message: 'You are not authorized to use this command.' });
     }
     if (!targetDiscordId || !guildId || !pokemonId) {
