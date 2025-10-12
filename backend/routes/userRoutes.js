@@ -1635,7 +1635,7 @@ router.post('/admin/give-pokemon', async (req, res) => {
   }
   try {
     const { userId, targetDiscordId, guildId, pokemonId, isShiny, count } = req.body;
-    if (userId !== ALLOWED_DISCORD_ID || userId !== ALLOWED_DISCORD_ID_2) {
+    if (userId !== ALLOWED_DISCORD_ID && userId !== ALLOWED_DISCORD_ID_2) {
       return res.status(403).json({ message: 'You are not authorized to use this command.' });
     }
     if (!targetDiscordId || !guildId || !pokemonId) {

@@ -231,7 +231,7 @@ module.exports.spawnCustomPokemonCommand = {
       option.setName('count').setDescription('How many to give').setRequired(false)
     ),
   async execute(interaction) {
-    if (interaction.user.id !== ALLOWED_DISCORD_ID || interaction.user.id !== ALLOWED_DISCORD_ID_2) {
+    if (interaction.user.id !== ALLOWED_DISCORD_ID && interaction.user.id !== ALLOWED_DISCORD_ID_2) {
       return interaction.reply({ content: 'You are not authorized to use this command.', ephemeral: true });
     }
     const userObj = interaction.options.getUser('user');
