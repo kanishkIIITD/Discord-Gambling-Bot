@@ -1,5 +1,5 @@
 ## Backend Architecture
-![System Architecture](./docs/playdex_request_flow.svg)
+![System Architecture](../docs/playdex_request_flow.svg)
 
 ```mermaid
 sequenceDiagram
