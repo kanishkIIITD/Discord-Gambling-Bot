@@ -633,30 +633,52 @@ npm test
 5. Open a Pull Request
 
 ```mermaid
-sequenceDiagram
-    participant User as User (Browser)
-    participant Front as Frontend (React)
-    participant Back as Backend (Express)
-    participant DAPI as Discord API
-    participant DB as MongoDB
+graph TD
+    subgraph Clients
+        UserBrowser[User Web Browser]
+        DiscordClient[Discord Client / App]
+    end
 
-    User->>Front: Click "Login with Discord"
-    Front->>DAPI: OAuth2 Redirect (identify + guilds scopes)
-    DAPI->>User: Request Permission
-    User->>DAPI: Authorize
-    DAPI->>Back: Exchange Code for Access Token
-    Back->>DAPI: Get @me & @me/guilds
-    DAPI-->>Back: User Profile & List of Guilds
-    Back->>Back: Filter Guilds where Bot is Present
-    Back->>DB: Find/Create User Docs per Guild
-    DB-->>Back: User Data Objects
-    Back-->>Front: JWT + List of Joined Guilds
-    Front->>User: Show Guild Selector UI
-    User->>Front: Select Specific Guild
-    Front->>Back: API Request with 'x-guild-id' Header
-    Back->>DB: Query Data Scoped to Guild ID
-    DB-->>Back: Scoped Data
-    Back-->>Front: Scoped Response
+    subgraph "Frontend (React)"
+        Dashboard[Web Dashboard / UI]
+        AuthService[Discord OAuth2 & JWT]
+        StateMgmt[Zustand & React Query]
+    end
+
+    subgraph "Discord Service (Node.js)"
+        BotInstance[Discord.js Bot Instance]
+        CmdHandler[Slash Command Handlers]
+        InteractionListener[Interaction Listeners]
+    end
+
+    subgraph "Backend API (Express / Node.js)"
+        APIRouter[Express API Routes]
+        Middleware[Auth & Validation Middleware]
+        GameLogic[Game Engines: Slots, Blackjack, Poker]
+        WS[WebSocket Server]
+    end
+
+    subgraph "Data & Infrastructure"
+        MongoDB[(MongoDB: Users, Wallets, Bets)]
+        Redis[(Redis: Caching & Rate Limiting)]
+        BullQueue[BullMQ: Asynchronous Jobs]
+        AWSLambda[AWS Lambda: Request Processing]
+    end
+
+    %% Interactions
+    UserBrowser --> Dashboard
+    DiscordClient --> BotInstance
+    Dashboard --> AuthService
+    AuthService --> APIRouter
+    BotInstance --> CmdHandler
+    CmdHandler -- "REST API (Axios)" --> APIRouter
+    APIRouter --> GameLogic
+    APIRouter --> Middleware
+    Middleware --> MongoDB
+    GameLogic --> BullQueue
+    BullQueue --> Redis
+    WS -- "Real-time State Sync" --> Dashboard
+    APIRouter -- "Scaling" --> AWSLambda
 ```
 
 ## License
