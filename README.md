@@ -2,6 +2,8 @@
 
 A comprehensive gambling and economy platform with Discord integration, featuring various games, collection systems, and economy features. The platform consists of three main components: a backend API server, a Discord bot, and a frontend web application.
 
+![System Architecture](./docs/playdex_system_architecture.svg)
+
 ## Project Structure
 
 ```
@@ -61,6 +63,9 @@ A comprehensive gambling and economy platform with Discord integration, featurin
 ```
 
 ## Features
+
+### Database Design
+![System Architecture](./docs/playdex_db_schema.svg)
 
 ### Backend
 
@@ -336,6 +341,28 @@ The frontend is a modern React application built with a focus on user experience
 - Sound effects are managed through Howler.js
 - The application is fully responsive and works on all devices
 
+## Performance and Scaling
+```mermaid
+flowchart LR
+    A[User Trigger] --> B{Interaction Type}
+    B -- Slash Command --> C[Discord Bot]
+    B -- Dashboard UI --> D[Web Frontend]
+    
+    C --> E[Backend API]
+    D --> E
+    
+    subgraph "Asynchronous Pipeline"
+        E --> F[Bull Queue]
+        F --> G[(Redis Job Store)]
+        G --> H[Worker / AWS Lambda]
+        H --> I[Update MongoDB State]
+    end
+    
+    I --> J[WebSocket Server]
+    J -- "Live Payout Notification" --> D
+    J -- "Command Follow-up" --> C
+```
+
 ## Prerequisites
 
 - Node.js (v14 or higher)
@@ -604,6 +631,33 @@ npm test
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+```mermaid
+sequenceDiagram
+    participant User as User (Browser)
+    participant Front as Frontend (React)
+    participant Back as Backend (Express)
+    participant DAPI as Discord API
+    participant DB as MongoDB
+
+    User->>Front: Click "Login with Discord"
+    Front->>DAPI: OAuth2 Redirect (identify + guilds scopes)
+    DAPI->>User: Request Permission
+    User->>DAPI: Authorize
+    DAPI->>Back: Exchange Code for Access Token
+    Back->>DAPI: Get @me & @me/guilds
+    DAPI-->>Back: User Profile & List of Guilds
+    Back->>Back: Filter Guilds where Bot is Present
+    Back->>DB: Find/Create User Docs per Guild
+    DB-->>Back: User Data Objects
+    Back-->>Front: JWT + List of Joined Guilds
+    Front->>User: Show Guild Selector UI
+    User->>Front: Select Specific Guild
+    Front->>Back: API Request with 'x-guild-id' Header
+    Back->>DB: Query Data Scoped to Guild ID
+    DB-->>Back: Scoped Data
+    Back-->>Front: Scoped Response
+```
 
 ## License
 
